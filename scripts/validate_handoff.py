@@ -97,18 +97,60 @@ def inspect_docs() -> None:
     if checklist.is_file():
         text = checklist.read_text(encoding="utf-8")
         ids = re.findall(r"^\| ([A-Z]\d{2}) \|", text, flags=re.MULTILINE)
-        require(len(ids) >= 201, f"full feature scope shrank to {len(ids)} rows")
+        require(len(ids) == 201, f"expected 201 tracked checks, got {len(ids)}")
         require(len(ids) == len(set(ids)), "duplicate feature checklist IDs")
-        print(f"SCOPE: {len(ids)} numbered requirements")
+        expected_per_section = {"A":14,"B":14,"C":17,"D":14,"E":11,"F":12,"G":12,"H":11,"I":10,"J":15,"K":10,"L":18,"M":25,"N":18}
+        section = None
+        seen_counts = {letter: 0 for letter in expected_per_section}
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            heading = re.match(r"^## ([A-N])\\. ", line)
+            if heading:
+                section = heading.group(1)
+            row = re.match(r"^\\| ([A-Z]\\d{2}) \\|", line)
+            if row:
+                ident = row.group(1)
+                require(section == ident[0], f"checklist row {lineno} ID {ident} is outside section {section}")
+                if ident[0] in seen_counts:
+                    seen_counts[ident[0]] += 1
+        require(seen_counts == expected_per_section, f"checklist section counts differ: {seen_counts}")
+        print(f"SCOPE: {len(ids)} numbered checks, A-N ID sections verified")
     guide = (ROOT / "PROJECT_BRIEF.md").read_text(encoding="utf-8")
     require("12 основных" in guide and "Крылья" in guide, "owner's 12+1 equipment decision missing")
     require("100%" in guide, "owner's visual rule missing")
     print(f"DOCS: {len(docs)} Markdown files, {links} internal links resolve")
 
 
+def inspect_test_values() -> None:
+    path = ROOT / "config/test-balance.v1.json"
+    require(path.is_file(), "missing editable test-balance configuration")
+    if not path.is_file():
+        return
+    cfg = json.loads(path.read_text(encoding="utf-8"))
+    meta = cfg["meta"]
+    require(meta.get("mode") == "TEST_ONLY" and meta.get("is_official_lootborn_data") is False, "unverified values must remain clearly TEST_ONLY")
+    rules = cfg["locked_owner_rules"]
+    require(rules.get("reference_image") == "assets/references/main-screen-100-percent.png", "test config must use owner's actual screenshot")
+    require(rules.get("primary_equipment_slots") == 12 and rules.get("wing_is_separate_slot") == 13 and rules.get("wing_render_behind_hero") is True, "12+1 wings rule drifted")
+    shop = cfg["test_store"]
+    require(shop.get("method") == "TEST_TOKENS_ONLY", "test store must use fake test tokens")
+    require(shop.get("telegram_stars_enabled") is False and shop.get("requires_real_payment") is False, "real payments must remain disabled")
+    packs = shop.get("test_packs", [])
+    require(len(packs) == 10, "expected ten test-only example packs")
+    for pack in packs:
+        require(pack.get("real_price") is None and pack.get("real_sku") is None, "test packs must not contain real price or real SKU")
+        require(pack.get("test_token_price", 0) > 0, "test pack has non-positive test price")
+    rarities = cfg["loot_test_settings"]["rarities"]
+    total = sum(item["weight_percent"] for item in rarities)
+    require(abs(total - 100) < 0.0001, f"test loot rarity weights must sum to 100%, got {total}")
+    require(len({item["id"] for item in rarities}) == len(rarities), "duplicate test rarity ID")
+    require(all(item["weight_percent"] > 0 for item in rarities), "non-positive test rarity weight")
+    print(f"TEST CONFIG: {len(rarities)} rarity weights sum to {total}%, {len(packs)} fake-token packs, no real payments")
+
+
 inspect_image()
 inspect_characters()
 inspect_docs()
+inspect_test_values()
 if ERRORS:
     print("\nPRE-FLIGHT FAILED:")
     for err in ERRORS:
