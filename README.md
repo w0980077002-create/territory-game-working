@@ -1,52 +1,27 @@
 # VIKING VS ROME: LOOTBORN SAGA
 
-**Новая отдельная Telegram Mini App — полноценный по игровому содержанию аналог Lootborn Warriors, с нашими утверждёнными персонажами и выбранным оформлением TERRITORY.** Разработку Claude владелец пока не запускал. **Сейчас в репозитории материалы, дизайн, требования и исходники арта — игрового приложения ещё нет.**
+Новая отдельная Telegram Mini App. Цель — полный игровой функционал Lootborn Warriors с нашими персонажами и утверждённым экраном. **Игрового кода ещё нет.** Готовое ТЗ — не готовая игра.
 
-## Начинать здесь
+## Claude Code: читать в этом порядке
 
-1. **[PROJECT_BRIEF.md](PROJECT_BRIEF.md)** — единая точка входа: цель владельца, **правило №1 «100% по картинке»**, приоритеты и фактический статус.
-2. **[assets/references/main-screen-100-percent.png](assets/references/main-screen-100-percent.png)** — **НАСТОЯЩИЙ утверждённый экран 864×1536**, а не его описание.
-3. **[docs/DECISIONS_AND_GAPS.md](docs/DECISIONS_AND_GAPS.md)** — зафиксированные решения и конкретные противоречия.
-4. **[docs/GDD_OWNER_CONSOLIDATED_RU.md](docs/GDD_OWNER_CONSOLIDATED_RU.md)** + [расширение полного объёма](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md) — всё, что должно быть в итоговой игре.
-5. **[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md)** — этапы поставки **без отказа** от утверждённых механик; [201 пункт проверки](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md).
-6. **[CLAUDE.md](CLAUDE.md)** + [первое задание Claude](docs/WORK_ORDER_FOR_CLAUDE.md) — инструкции будущему исполнителю.
+1. [CLAUDE.md](CLAUDE.md) — краткая инструкция.
+2. [PROJECT_BRIEF.md](PROJECT_BRIEF.md) — решения владельца.
+3. [Экран «100%» — реальный PNG 864×1536](assets/references/main-screen-100-percent.png).
+4. [Полное ТЗ](docs/GDD_OWNER_CONSOLIDATED_RU.md) и [дополнение](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md).
+5. [План](docs/IMPLEMENTATION_PLAN.md), [первое поручение](docs/WORK_ORDER_FOR_CLAUDE.md), [201 контрольная проверка](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md).
 
-## Ассеты и оригиналы
+**21 персонаж уже распакован:** 21 PNG-мастер, 21 одиночный WebP и 10 оригиналов. [Манифест](docs/CHARACTER_MANIFEST.md) · [отчёт](assets/characters/v2-source/EXTRACTION_REPORT.json). Стоп-кадры — не анимации. Не распаковывать повторно.
 
-- **21 персонаж уже восстановлен**: 3 героя, 2 спутника, 8 врагов, 3 мини-босса, 4 босса, 1 особый. Есть [поимённый манифест](docs/CHARACTER_MANIFEST.md) и [отчёт сверки SHA](assets/characters/v2-source/EXTRACTION_REPORT.json).
-- В `assets/characters/v2-source/` — **21 PNG-мастер, 21 одиночный WebP, 10 исходных изображений и служебные файлы**. Это не готовые боевые анимации.
-- В корне сохранены **3 транспортных ZIP** для проверяемого происхождения; их содержимое уже распаковано. Они не должны попадать в сборку игры. Одноразовая инструкция восстановления — только в отдельном ручном workflow.
-- `lootborn-screen-approved-100-percent.png` в корне — прежняя копия того же файла. **Канонический путь для любых проверок:** `assets/references/main-screen-100-percent.png`.
+**Тестовые числа уже заданы:** [config/test-balance.v1.json](config/test-balance.v1.json). Это редактируемые тестовые значения, не цены оригинала и не реальные платежи.
 
-## Исследовательская база — не путать с прямыми решениями владельца
+## Исполнение
 
-- [Глубокий аудит Lootborn](docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md).
-- [Предметные каталоги и экономика](docs/LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md).
-- [Магазин, цены и наполнения наборов по регионам](docs/LOOTBORN_SHOP_PACKS_PRICES_20261112_RU.md).
-- [Официальные патчи 2026, боссы, реликвии](docs/LOOTBORN_2026_OFFICIAL_PATCH_MECHANICS_RU.md).
-- [Сезонные камни и синтез снаряжения ездовых животных](docs/LOOTBORN_2026_SEASON_GEMS_MOUNT_FORGE_CN_RU.md).
-- [Описание экрана](docs/SCREEN_100_PERCENT.md) и [карта координат](docs/SCREEN_PIXEL_MAP_100_PERCENT_864x1536_RU.md).
-- [Реконструкция первоначального GDD](docs/OWNER_ORIGINAL_GDD_20261112_RU.md): **историческая, не подтверждённая побуквенно**; устаревшие «10 слотов» не применять.
+Быстро создать внутренний **ARCHITECTURE.md**, сразу приступать к работающей игре без утверждения документа, показать игровой результат на телефоне. Утверждённые решения не менять. Рабочую TERRITORY и данные игроков не затрагивать.
 
-**Важно:** материалы международного Lootborn и китайской 英雄没有闪 содержат разные сроки, режимы, наборы, вероятности и цены. Все исследованные системы сохраняются в полном охвате проекта, а **неподтверждённые числа не подставляются как официальные**.
+[Задача #1](https://github.com/w0980077002-create/territory-game-working/issues/1) · [#2 — живая игра](https://github.com/w0980077002-create/territory-game-working/issues/2) · [#3 — полный функционал](https://github.com/w0980077002-create/territory-game-working/issues/3)
 
-## Защита действующей TERRITORY
+## Исследовательский архив (справочник, не отдельные команды)
 
-**Никаких изменений** в `w0980077002-create/territory-game-builde`, её продакшен Supabase, Telegram-боте, действующих данных игроков, VIP, кошельках, прогрессе и сайтe. Новая игра — независимый репозиторий, отдельная сборка и отдельный тестовый URL.
+[Решения и расхождения](docs/DECISIONS_AND_GAPS.md) · [Описание экрана](docs/SCREEN_100_PERCENT.md) · [Аудит](docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md) · [Каталоги и экономика](docs/LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md) · [Магазин](docs/LOOTBORN_SHOP_PACKS_PRICES_20261112_RU.md) · [Патчи 2026](docs/LOOTBORN_2026_OFFICIAL_PATCH_MECHANICS_RU.md) · [Сезонные системы](docs/LOOTBORN_2026_SEASON_GEMS_MOUNT_FORGE_CN_RU.md) · [Архив раннего ТЗ](docs/OWNER_ORIGINAL_GDD_20261112_RU.md)
 
-## Следующее разрешённое действие Claude после команды владельца
-
-Создать **`ARCHITECTURE.md` как внутренний технический план**, быстро и конкретно. **Сразу после сохранения, без ожидания утверждения**, разработать настоящий играемый главный экран по PNG, с боем, добычей, 12 основными предметами + крыльями, анимациями, сохранением и Android/Telegram проверкой. Остальные системы не исключаются: [полный план](docs/IMPLEMENTATION_PLAN.md).
-
-## Проверяемые GitHub-задачи для Claude
-
-- **[#1 — архитектура без остановки](https://github.com/w0980077002-create/territory-game-working/issues/1)**: Claude сохраняет технический план и сразу продолжает разработку.
-- **[#2 — живой главный экран и боевой цикл](https://github.com/w0980077002-create/territory-game-working/issues/2)**: начинается сразу после ARCHITECTURE.md, без отдельной команды или утверждения документа.
-- **[#3 — полный объём Lootborn, все 201 пункта](https://github.com/w0980077002-create/territory-game-working/issues/3)**: ни одна исследованная и утверждённая система не вычеркнута.
-
-**[Pre-Claude handoff integrity](https://github.com/w0980077002-create/territory-game-working/actions/workflows/preflight.yml)** — автоматическая проверка PNG, всех 21 персонажей, SHA, документов и полноты списка. Это **не** сборка игры и **не** проверка её геймплея.
-
-## Тестовые цены, шансы и баланс — уже есть
-
-- [Временная конфигурация с числами](config/test-balance.v1.json) — начальные параметры игрока, вероятность добычи, цены улучшений, награды, крылья и 10 тестовых наборов.
-- [Правило временных значений](docs/TEST_VALUES_POLICY.md) — Claude сам подбирает цифры, не перекладывая технические решения на владельца. Реальные платежи отключены, старые данные TERRITORY не используются.
+Международные и китайские данные различаются по версиям и датам: неподтверждённые цифры не выдавать за точные. Транспортные ZIP и корневая копия экрана сохранены как архивы; канонический экран — в assets/references.
