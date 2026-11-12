@@ -11,9 +11,11 @@
 3. [docs/SCREEN_100_PERCENT.md](docs/SCREEN_100_PERCENT.md) — обязательный экран и критерии сравнения.
 4. [docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md) — **утверждённое дополнение: 12 предметов + отдельные крылья, системный каталог и магазин**.
 5. [docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md](docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md) — глубокий аудит, источники, категории экранов, состояния, противоречия, цены и сезонный контент.
-6. [docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md) — **140 проверяемых требований**: статус каждого только после реальной работы/демонстрации. Отделять международную игру от китайской версии!
-7. [docs/ASSETS_AND_21_CHARACTERS.md](docs/ASSETS_AND_21_CHARACTERS.md) — загрузка владельцем трёх папок с 21 новым персонажем, источники отобранных ассетов TERRITORY.
-8. [docs/WORK_ORDER_FOR_CLAUDE.md](docs/WORK_ORDER_FOR_CLAUDE.md) — порядок работы и приёмки.
+6. [docs/LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md](docs/LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md) — детальные проверяемые CN правила расхода Chaosite, спутников, шахт, ранних событий, позднего патча и каталоги.
+7. [docs/LOOTBORN_SHOP_PACKS_PRICES_20261112_RU.md](docs/LOOTBORN_SHOP_PACKS_PRICES_20261112_RU.md) — конкретные SKU, региональные наборы, первое пополнение, лимиты, условия покупки и источники.
+8. [docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md) — **158 проверяемых требований**: статус каждого только после реальной работы/демонстрации. Отделять международную игру от китайской версии!
+9. [docs/ASSETS_AND_21_CHARACTERS.md](docs/ASSETS_AND_21_CHARACTERS.md) — загрузка владельцем трёх папок с 21 новым персонажем, источники отобранных ассетов TERRITORY.
+10. [docs/WORK_ORDER_FOR_CLAUDE.md](docs/WORK_ORDER_FOR_CLAUDE.md) — порядок работы и приёмки.
 
 ## Нельзя путать проект
 - Текущий рабочий проект TERRITORY — **другой репозиторий** `territory-game-builde`. Его база игроков, кошельки, VIP, инвентари, Supabase, Telegram-бот, сайт и деплой не должны изменяться. Без автоматических миграций, очисток, переносов секретов или вызовов в продакшен.
