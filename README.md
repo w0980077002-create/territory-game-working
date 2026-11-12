@@ -12,6 +12,7 @@
 - [Точные игровые каталоги и экономические механики (с разбивкой по версиям)](docs/LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md).
 - [Цены, комплектация наборов и условия покупки — международная и китайская версии](docs/LOOTBORN_SHOP_PACKS_PRICES_20261112_RU.md).
 - [Обязательный главный экран — 100%](docs/SCREEN_100_PERCENT.md).
+- [Карта реального скриншота 864×1536: HUD, бой, экипировка, крылья и навигация](docs/SCREEN_PIXEL_MAP_100_PERCENT_864x1536_RU.md).
 - [Приёмка 3 папок / 21 персонажа](docs/ASSETS_AND_21_CHARACTERS.md).
 - [Порядок работ для Claude](docs/WORK_ORDER_FOR_CLAUDE.md).
 
