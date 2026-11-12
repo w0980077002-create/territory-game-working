@@ -1,9 +1,6 @@
-name: Extract verified 21-character art archive
+name: Recovery only - restore verified 21-character art archive
 
 on:
-  push:
-    paths:
-      - '.github/workflows/import-character-art.yml'
   workflow_dispatch:
 
 permissions:
@@ -11,6 +8,8 @@ permissions:
 
 jobs:
   extract:
+    # Manual disaster recovery only. Original art is already extracted and verified.
+    # The extraction script refuses to overwrite any existing source files.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
