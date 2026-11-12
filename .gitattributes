@@ -1,0 +1,18 @@
+# Git should not waste time doing text diffs on image and transport binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.zip binary
+*.mp4 binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+
+# Keep Markdown sources and gameplay scripts reviewable
+*.md text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
