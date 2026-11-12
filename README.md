@@ -9,7 +9,7 @@
 3. [PROJECT_BRIEF.md](PROJECT_BRIEF.md) — решения владельца.
 4. [Экран «100%» — реальный PNG 864×1536](assets/references/main-screen-100-percent.png).
 5. [Полное ТЗ](docs/GDD_OWNER_CONSOLIDATED_RU.md) и [дополнение](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md).
-6. [План](docs/IMPLEMENTATION_PLAN.md), [первое поручение](docs/WORK_ORDER_FOR_CLAUDE.md), [201 контрольная проверка](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md).
+6. [План](docs/IMPLEMENTATION_PLAN.md), [архив первого поручения](docs/WORK_ORDER_FOR_CLAUDE.md), [201 контрольная проверка](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md).
 
 **21 персонаж уже распакован:** 21 PNG-мастер, 21 одиночный WebP и 10 оригиналов. [Манифест](docs/CHARACTER_MANIFEST.md) · [отчёт](assets/characters/v2-source/EXTRACTION_REPORT.json). Стоп-кадры — не анимации. Не распаковывать повторно.
 
@@ -19,9 +19,9 @@
 
 ## Исполнение
 
-Быстро создать внутренний **ARCHITECTURE.md**, сразу приступать к работающей игре без утверждения документа, показать игровой результат на телефоне. Утверждённые решения не менять. Рабочую TERRITORY и данные игроков не затрагивать.
+**ARCHITECTURE.md уже создан, игра работает.** Продолжать актуальную задачу владельца — [Issue #7](https://github.com/w0980077002-create/territory-game-working/issues/7), пока не назначена следующая, развивая общую `codex-build`. Не повторять стартовые этапы. Утверждённые решения сохранять; рабочую TERRITORY и её данные не затрагивать.
 
-[Задача #1](https://github.com/w0980077002-create/territory-game-working/issues/1) · [#2 — живая игра](https://github.com/w0980077002-create/territory-game-working/issues/2) · [#3 — полный функционал](https://github.com/w0980077002-create/territory-game-working/issues/3)
+**История первых этапов:** [#1](https://github.com/w0980077002-create/territory-game-working/issues/1) · [#2](https://github.com/w0980077002-create/territory-game-working/issues/2) · [#3](https://github.com/w0980077002-create/territory-game-working/issues/3). Они не являются новым обязательным поручением.
 
 ## Исследовательский архив (справочник, не отдельные команды)
 
