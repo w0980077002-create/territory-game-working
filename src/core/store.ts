@@ -5,7 +5,9 @@ import {slots,slotNames,rarityNames} from '../data/catalog';
 import {itemPower,stats,xpNeeded} from './formulas';
 import {cloudSave,haptic} from './telegram';
 import {validEncounter} from '../game/snapshot';
-export const SAVE_KEY='lootborn-codex-v1';
+const requestedProfile=typeof window!=='undefined'?new URLSearchParams(window.location?.search??'').get('testProfile'):null;
+export const isolatedProfile=!!requestedProfile&&/^[a-z0-9_-]{1,32}$/.test(requestedProfile);
+export const SAVE_KEY='lootborn-codex-v1'+(isolatedProfile?':test:'+requestedProfile:'');
 let sequence=0;
 let encounterProvider:(()=>EncounterSnapshot)|undefined;
 export function registerEncounterProvider(provider:()=>EncounterSnapshot){encounterProvider=provider;return()=>{if(encounterProvider===provider)encounterProvider=undefined}}
@@ -41,5 +43,5 @@ export const useGame=create<Store>((set,get)=>({p:read(),panel:null,selected:nul
  setClass:heroClass=>{get().mutate(p=>{p.heroClass=heroClass});get().notice('Класс изменён · боевые бонусы применены')}
 }));
 export function exportSave(){return JSON.stringify({...useGame.getState().p,...(encounterProvider?{encounter:encounterProvider()}:{})})}
-export function backupCloud(){cloudSave(exportSave())}
+export function backupCloud(){if(!isolatedProfile)cloudSave(exportSave())}
 export function compareItem(item:Item,p:Player){const copy=structuredClone(p);copy.equipment[item.slot]=item;return stats(copy).cp-stats(p).cp}
