@@ -4,7 +4,8 @@
 
 ## Документы Claude
 - [CLAUDE.md](CLAUDE.md) — правила исполнения, особенно Правило №1.
-- [Полное сводное ТЗ владельца](docs/GDD_OWNER_CONSOLIDATED_RU.md).
+- [Исходное ТЗ владельца — исторический текст без поздних исправлений](docs/OWNER_ORIGINAL_GDD_20261112_RU.md).
+- [Полное сводное ТЗ с учётом последующих решений владельца](docs/GDD_OWNER_CONSOLIDATED_RU.md).
 - [Утверждённое дополнение: Lootborn-системы, 12 основных предметов + отдельные крылья, магазин и цены](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md).
 - [Глубокий аудит Lootborn Warriors (17 разделов, источники, дополнительные системы и статусы проверенности)](docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md).
 - [Матрица из 140 требований и проверок готовности](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md).
