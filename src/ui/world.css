@@ -1,0 +1,29 @@
+/* Living World UI. Sits in the encounter-ribbon slot above the actors; never covers the hero, bars or the axes. */
+.world-card{position:absolute;z-index:5;top:266px;left:128px;right:124px;border:2px solid #bfddeb99;border-radius:16px;background:linear-gradient(115deg,#123149f2,#21495aee);box-shadow:0 5px 18px #07172877;padding:6px 12px 8px;text-align:center;animation:world-in .18s ease-out}
+.world-card header small{display:inline-block;font-size:17px;letter-spacing:2px;color:#b3d9e7;margin-right:10px;vertical-align:middle}
+.world-card header strong{font-size:28px;color:#fff0c3;line-height:1.05;vertical-align:middle}
+.world-card header span{display:block;font-size:20px;line-height:1.12;color:#d4e8ef;margin:3px 0 6px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.world-card.kind-ambush{border-color:#ffb38a;background:linear-gradient(115deg,#40232cf2,#1c3a52ee)}
+.world-card.kind-omen{border-color:#c9a2ff;background:linear-gradient(115deg,#2f2148f2,#183552ee);pointer-events:none}
+.world-card.kind-altar{border-color:#8eeaff}
+.world-options{display:flex;gap:10px;align-items:stretch}
+.world-options button{flex:1 1 0;min-width:0;min-height:76px;border:4px solid #1c292e;border-radius:13px;background:linear-gradient(#f1d587,#bb853d);box-shadow:inset 0 2px #fff1be,0 3px #091724,0 0 0 2px var(--tone,transparent);color:#352a27;padding:6px 8px;line-height:1.05;text-shadow:0 1px #fff6}
+.world-options button b{display:block;font-size:25px}
+.world-options button i{display:block;font-style:normal;font-size:18px;font-weight:700;opacity:.85;margin-top:3px}
+.world-options .world-pass{flex:0 0 150px;background:linear-gradient(#54798f,#2b4d65);color:#eefaff;text-shadow:2px 2px #233341;box-shadow:inset 0 2px #83a0b1,0 3px #091724;font-size:21px}
+.world-timer{height:6px;margin-top:6px;border-radius:3px;background:#0c1f2e;overflow:hidden}
+.world-timer i{display:block;height:100%;background:linear-gradient(90deg,#ffd36b,#fff2b8);transition:width .5s linear}
+.sound-chip{position:absolute;z-index:3;left:318px;top:62px;width:62px;height:56px;border:3px solid #1a2733;border-radius:14px;background:linear-gradient(#35556b,#1b3345);box-shadow:inset 0 0 0 2px #7f9bab;color:#9fb6c2;display:grid;place-items:center;padding:0}
+.sound-chip svg{width:38px;height:38px}
+.sound-chip.on{color:#ffe08a;box-shadow:inset 0 0 0 2px #ffe08a}
+.chronicle h3{margin:22px 0 8px!important;font-size:27px!important}
+.chronicle .lead{margin:0 0 6px!important;font-size:24px}
+.chronicle ul,.chronicle ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.chronicle ul li{display:grid;grid-template-columns:1fr auto;column-gap:10px;padding:8px 12px;border:2px solid #b8c8c829;border-radius:10px;background:#0e253680;font-size:21px;line-height:1.15}
+.chronicle ul li b{color:#ffecbc;font-size:23px}
+.chronicle ul li span{grid-column:1;color:#c3d8e5;font-weight:600}
+.chronicle ul li i{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;color:#b5c7cf;font-size:19px;text-align:right}
+.chronicle ul li.done{border-color:#83f5a566}
+.chronicle ul li.done b{color:#83f5a5}
+.chronicle ol li{font-size:21px;color:#c3d8e5;font-weight:600;padding:2px 0}
+@keyframes world-in{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}

@@ -1,3 +1,4 @@
-let context:AudioContext|undefined;
-export function unlockAudio(){try{context??=new AudioContext();void context.resume()}catch{ /* audio remains optional */ }}
-export function sound(kind:'hit'|'skill'|'win'|'death'|'block'|'critical',enabled:boolean){if(!enabled||!context||context.state!=='running')return;const c=context,now=c.currentTime;if(kind==='critical'){const o=c.createOscillator(),g=c.createGain();o.type='triangle';o.frequency.setValueAtTime(245,now);o.frequency.exponentialRampToValueAtTime(65,now+.1);g.gain.setValueAtTime(.045,now);g.gain.exponentialRampToValueAtTime(.001,now+.12);o.connect(g);g.connect(c.destination);o.start(now);o.stop(now+.14);return}const oscillator=c.createOscillator(),gain=c.createGain();oscillator.type=kind==='skill'?'sine':kind==='win'?'triangle':'sawtooth';const hz=kind==='hit'?130:kind==='block'?550:kind==='skill'?370:kind==='death'?85:620;oscillator.frequency.setValueAtTime(hz,now);oscillator.frequency.exponentialRampToValueAtTime(kind==='win'?930:Math.max(35,hz*.35),now+.16);gain.gain.setValueAtTime(.055,now);gain.gain.exponentialRampToValueAtTime(.001,now+.2);oscillator.connect(gain);gain.connect(c.destination);oscillator.start(now);oscillator.stop(now+.22)}
+/** Compatibility facade: Codex's `sound(kind, enabled)` calls now go through the single AudioDirector. */
+import {audio,type Sfx} from './AudioDirector';
+export function unlockAudio(enabled=true){audio.unlock(enabled)}
+export function sound(kind:Sfx,enabled:boolean){if(enabled)audio.play(kind)}
