@@ -103,10 +103,10 @@ def inspect_docs() -> None:
         section = None
         seen_counts = {letter: 0 for letter in expected_per_section}
         for lineno, line in enumerate(text.splitlines(), start=1):
-            heading = re.match(r"^## ([A-N])\\. ", line)
+            heading = re.match(r"^## ([A-N])\. ", line)
             if heading:
                 section = heading.group(1)
-            row = re.match(r"^\\| ([A-Z]\\d{2}) \\|", line)
+            row = re.match(r"^\| ([A-Z]\d{2}) \|", line)
             if row:
                 ident = row.group(1)
                 require(section == ident[0], f"checklist row {lineno} ID {ident} is outside section {section}")
