@@ -5,6 +5,7 @@
 ## Документы Claude
 - [CLAUDE.md](CLAUDE.md) — правила исполнения, особенно Правило №1.
 - [Полное сводное ТЗ владельца](docs/GDD_OWNER_CONSOLIDATED_RU.md).
+- [Утверждённое дополнение: Lootborn-системы, 12 основных предметов + отдельные крылья, магазин и цены](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md).
 - [Обязательный главный экран — 100%](docs/SCREEN_100_PERCENT.md).
 - [Приёмка 3 папок / 21 персонажа](docs/ASSETS_AND_21_CHARACTERS.md).
 - [Порядок работ для Claude](docs/WORK_ORDER_FOR_CLAUDE.md).
