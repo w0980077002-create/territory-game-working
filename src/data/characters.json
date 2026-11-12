@@ -1,0 +1,128 @@
+[
+  {
+    "id": "strongman_boulder",
+    "name": "Богатырь с камнем",
+    "category": "heroes",
+    "facing": "right"
+  },
+  {
+    "id": "whitebeard_mage",
+    "name": "Седой маг",
+    "category": "heroes",
+    "facing": "right"
+  },
+  {
+    "id": "winged_helmet_warrior",
+    "name": "Воин с крылатым шлемом",
+    "category": "heroes",
+    "facing": "right"
+  },
+  {
+    "id": "goose_aviator",
+    "name": "Гусь-Обнимусь (легендарный)",
+    "category": "companions",
+    "facing": "right"
+  },
+  {
+    "id": "brown_white_dog",
+    "name": "Бело-рыжая собака",
+    "category": "companions",
+    "facing": "right"
+  },
+  {
+    "id": "01_sword_shield_veteran",
+    "name": "Усатый мечник со щитом",
+    "category": "enemies",
+    "facing": "left"
+  },
+  {
+    "id": "02_roman_spearman",
+    "name": "Римский копейщик с красным гребнем",
+    "category": "enemies",
+    "facing": "left"
+  },
+  {
+    "id": "03_pirate_bandit",
+    "name": "Пират-разбойник в красной бандане",
+    "category": "enemies",
+    "facing": "left"
+  },
+  {
+    "id": "04_club_raider",
+    "name": "Светлобородый дубинщик",
+    "category": "enemies",
+    "facing": "left"
+  },
+  {
+    "id": "05_shield_spearman",
+    "name": "Копейщик в синем с круглым щитом",
+    "category": "enemies",
+    "facing": "left"
+  },
+  {
+    "id": "06_red_crest_legionary",
+    "name": "Римский командир с прямоугольным щитом",
+    "category": "enemies",
+    "facing": "left"
+  },
+  {
+    "id": "07_purple_mage",
+    "name": "Маг в фиолетовом капюшоне",
+    "category": "enemies",
+    "facing": "left"
+  },
+  {
+    "id": "08_armored_boar",
+    "name": "Бронированный кабан",
+    "category": "enemies",
+    "facing": "left"
+  },
+  {
+    "id": "capybara_bruiser",
+    "name": "Капибара-Громила",
+    "category": "minibosses",
+    "facing": "left"
+  },
+  {
+    "id": "senior_driller",
+    "name": "Старший бурильщик",
+    "category": "minibosses",
+    "facing": "left"
+  },
+  {
+    "id": "moss_eater",
+    "name": "Пожиратель мха",
+    "category": "minibosses",
+    "facing": "left"
+  },
+  {
+    "id": "spider_queen",
+    "name": "Королева паутины",
+    "category": "bosses",
+    "facing": "left"
+  },
+  {
+    "id": "fungal_king",
+    "name": "Грибной король Морока",
+    "category": "bosses",
+    "facing": "left"
+  },
+  {
+    "id": "minotaur_echo",
+    "name": "Минотавр Эха",
+    "category": "bosses",
+    "facing": "left"
+  },
+  {
+    "id": "fire_abyss_lord",
+    "name": "Владыка Огненной Бездны",
+    "category": "bosses",
+    "facing": "left"
+  },
+  {
+    "id": "cappuccina_approved",
+    "name": "Балерина Капучина, только утверждённый коричневый вариант",
+    "category": "special",
+    "facing": "left"
+  }
+]

@@ -1,0 +1,6 @@
+export type Slot='weapon'|'armor'|'helmet'|'shield'|'boots'|'belt'|'ring1'|'ring2'|'amulet'|'cloak'|'extra1'|'extra2'|'wings';
+export type HeroClass='berserker'|'ranger'|'runologist';
+export interface Item {id:string;slot:Slot;name:string;level:number;rarity:number;attack:number;hp:number;defense:number;upgrade:number;percent?:{hp:number;attack:number;defense:number}}
+export interface Stats {hp:number;attack:number;defense:number;aspd:number;crit:number;critDamage:number;lifesteal:number;dodge:number;skillDamage:number;reduction:number;cp:number}
+export interface Player {version:1;level:number;xp:number;gold:number;gems:number;chaosite:number;tokens:number;horn:number;hornAt:number;stage:number;wave:number;kills:number;bosses:number;heroClass:HeroClass;inventory:Item[];equipment:Partial<Record<Slot,Item>>;skills:number[];runes:number[];companions:number[];talents:number[];forge:number;blessing:number;daily:string;mission:number;claimed:string[];bought:string[];savedAt:number;wingVisible:boolean;sound:boolean;arenaWins:number;darkFloor:number;mineAt:number;relic:number;seasonClaims:number[]}
+export interface BattleView {hp:number;maxHp:number;enemyHp:number;enemyMax:number;phase:'walk'|'fight'|'victory'|'defeat'|'waiting';boss:boolean;timer:number;cooldowns:number[];enemyName:string;mode:string}
