@@ -4,11 +4,12 @@
 
 ## Claude Code: читать в этом порядке
 
-1. [CLAUDE.md](CLAUDE.md) — краткая инструкция.
-2. [PROJECT_BRIEF.md](PROJECT_BRIEF.md) — решения владельца.
-3. [Экран «100%» — реальный PNG 864×1536](assets/references/main-screen-100-percent.png).
-4. [Полное ТЗ](docs/GDD_OWNER_CONSOLIDATED_RU.md) и [дополнение](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md).
-5. [План](docs/IMPLEMENTATION_PLAN.md), [первое поручение](docs/WORK_ORDER_FOR_CLAUDE.md), [201 контрольная проверка](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md).
+1. **[COMPETITION_RULES.md](COMPETITION_RULES.md)** — Claude Code и Codex работают из одинакового исходного кода в отдельных ветках с отдельными тестовыми ссылками.
+2. [CLAUDE.md](CLAUDE.md) — единая инструкция для обоих.
+3. [PROJECT_BRIEF.md](PROJECT_BRIEF.md) — решения владельца.
+4. [Экран «100%» — реальный PNG 864×1536](assets/references/main-screen-100-percent.png).
+5. [Полное ТЗ](docs/GDD_OWNER_CONSOLIDATED_RU.md) и [дополнение](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md).
+6. [План](docs/IMPLEMENTATION_PLAN.md), [первое поручение](docs/WORK_ORDER_FOR_CLAUDE.md), [201 контрольная проверка](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md).
 
 **21 персонаж уже распакован:** 21 PNG-мастер, 21 одиночный WebP и 10 оригиналов. [Манифест](docs/CHARACTER_MANIFEST.md) · [отчёт](assets/characters/v2-source/EXTRACTION_REPORT.json). Стоп-кадры — не анимации. Не распаковывать повторно.
 
