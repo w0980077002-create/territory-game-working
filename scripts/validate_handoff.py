@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the pre-Claude handoff without importing any dependency or touching production."""
+"""Verify shared-game handoff without importing dependencies or touching production."""
 from __future__ import annotations
 
 import hashlib
