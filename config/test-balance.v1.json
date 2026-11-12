@@ -1,0 +1,274 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "profile": "temporary_gameplay_balancing",
+    "mode": "TEST_ONLY",
+    "is_official_lootborn_data": false,
+    "authorized_by_owner": "Временные примерные значения допустимы для живого игрового теста; после проверки владелец меняет цифры",
+    "source": "OWNER_ALLOWS_ESTIMATES; ASSISTANT_SUGGESTED_VALUES",
+    "created_on": "2026-11-12",
+    "editable_without_code_changes": true,
+    "not_for_real_money": true,
+    "note": "Все числа в этом файле — ПРОБНЫЕ, а не подтверждённые настройки Lootborn Warriors. Прямые решения владельца и эталонный PNG имеют приоритет."
+  },
+  "locked_owner_rules": {
+    "reference_image": "assets/references/main-screen-100-percent.png",
+    "central_button": "Шестиугольник с перекрещёнными топорами остаётся визуально как на PNG; не заменять Рогом",
+    "primary_equipment_slots": 12,
+    "wing_is_separate_slot": 13,
+    "wing_render_behind_hero": true,
+    "normal_waves_before_boss": 4,
+    "boss_wave": 5,
+    "boss_timer_seconds": 30,
+    "combat_speeds": [
+      1,
+      2
+    ],
+    "terr_live_game_must_be_untouched": true
+  },
+  "new_player_test_start": {
+    "hero_level": 1,
+    "hp": 150,
+    "attack": 25,
+    "defense": 12,
+    "attacks_per_second": 1,
+    "gold": 600,
+    "gems": 100,
+    "chaosite": 100,
+    "horn_charges": 15,
+    "test_shop_tokens": 3000,
+    "first_wings_equipped": false
+  },
+  "horn_test_settings": {
+    "maximum_charges": 50,
+    "recharge_one_charge_every_seconds": 120,
+    "chest_charge_cost": 1,
+    "autoplay_interval_seconds": 2
+  },
+  "loot_test_settings": {
+    "rarities": [
+      {
+        "id": "crude",
+        "weight_percent": 20
+      },
+      {
+        "id": "common",
+        "weight_percent": 30
+      },
+      {
+        "id": "fine",
+        "weight_percent": 23
+      },
+      {
+        "id": "rare",
+        "weight_percent": 15
+      },
+      {
+        "id": "epic",
+        "weight_percent": 7
+      },
+      {
+        "id": "fabled",
+        "weight_percent": 3
+      },
+      {
+        "id": "mythic",
+        "weight_percent": 1.2
+      },
+      {
+        "id": "flawless",
+        "weight_percent": 0.6
+      },
+      {
+        "id": "gloam",
+        "weight_percent": 0.2
+      }
+    ],
+    "auto_salvage_min_rarity": "rare",
+    "starter_inventory_capacity": 80
+  },
+  "forge_test_settings": {
+    "upgrade_gold_cost_base": 100,
+    "cost_multiplier_per_level": 1.3
+  },
+  "progression_test_settings": {
+    "level_exp_base": 100,
+    "level_exp_multiplier": 1.25,
+    "enemy_hp_multiplier_per_stage": 1.18,
+    "enemy_attack_multiplier_per_stage": 1.15
+  },
+  "wings_test_settings": {
+    "rank_1_example": {
+      "id": "test_wings_rank_1",
+      "bonuses_percent": {
+        "hp": 5,
+        "attack": 3,
+        "defense": 2
+      }
+    },
+    "rank_upgrade_base_gold_cost": 250,
+    "rank_upgrade_multiplier": 1.6
+  },
+  "resource_test_settings": {
+    "chaosite_daily_free": 30,
+    "free_arena_entries_per_day": 5,
+    "free_dark_dungeon_entries_per_day": 3,
+    "mine_collect_cooldown_seconds": 600,
+    "offline_accrual_limit_hours": 12
+  },
+  "test_rewards": {
+    "regular_win_gold_base": 25,
+    "boss_win_gold_base": 150,
+    "boss_win_gems": 3,
+    "daily_login_gold": 200,
+    "daily_login_gems": 10,
+    "arena_win_test_tokens": 10
+  },
+  "test_store": {
+    "enabled": true,
+    "method": "TEST_TOKENS_ONLY",
+    "requires_real_payment": false,
+    "telegram_stars_enabled": false,
+    "region": "INTERNAL_TEST",
+    "test_packs": [
+      {
+        "id": "test_special_pack_1",
+        "display_name": "Тестовый набор 1",
+        "test_token_price": 10,
+        "grant": {
+          "gold": 200,
+          "gems": 20,
+          "horn_charges": 5
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      },
+      {
+        "id": "test_special_pack_2",
+        "display_name": "Тестовый набор 2",
+        "test_token_price": 20,
+        "grant": {
+          "gold": 800,
+          "gems": 40,
+          "horn_charges": 7
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      },
+      {
+        "id": "test_special_pack_3",
+        "display_name": "Тестовый набор 3",
+        "test_token_price": 40,
+        "grant": {
+          "gold": 1800,
+          "gems": 60,
+          "horn_charges": 9
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      },
+      {
+        "id": "test_special_pack_4",
+        "display_name": "Тестовый набор 4",
+        "test_token_price": 60,
+        "grant": {
+          "gold": 3200,
+          "gems": 80,
+          "horn_charges": 11
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      },
+      {
+        "id": "test_special_pack_5",
+        "display_name": "Тестовый набор 5",
+        "test_token_price": 120,
+        "grant": {
+          "gold": 5000,
+          "gems": 100,
+          "horn_charges": 13
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      },
+      {
+        "id": "test_special_pack_6",
+        "display_name": "Тестовый набор 6",
+        "test_token_price": 180,
+        "grant": {
+          "gold": 7200,
+          "gems": 120,
+          "horn_charges": 15
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      },
+      {
+        "id": "test_special_pack_7",
+        "display_name": "Тестовый набор 7",
+        "test_token_price": 230,
+        "grant": {
+          "gold": 9800,
+          "gems": 140,
+          "horn_charges": 17
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      },
+      {
+        "id": "test_special_pack_8",
+        "display_name": "Тестовый набор 8",
+        "test_token_price": 350,
+        "grant": {
+          "gold": 12800,
+          "gems": 160,
+          "horn_charges": 19
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      },
+      {
+        "id": "test_special_pack_9",
+        "display_name": "Тестовый набор 9",
+        "test_token_price": 600,
+        "grant": {
+          "gold": 16200,
+          "gems": 180,
+          "horn_charges": 21
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      },
+      {
+        "id": "test_special_pack_10",
+        "display_name": "Тестовый набор 10",
+        "test_token_price": 1200,
+        "grant": {
+          "gold": 20000,
+          "gems": 200,
+          "horn_charges": 23
+        },
+        "purchase_limit_per_account": 1,
+        "real_sku": null,
+        "real_price": null
+      }
+    ]
+  },
+  "developer_instructions": {
+    "treat_all_values_as_editable_test_config": true,
+    "preserve_owner_approved_rules": true,
+    "never_describe_test_prices_as_original_lootborn": true,
+    "no_real_money_transactions": true,
+    "do_not_touch_production_territory": true,
+    "do_not_block_gameplay_on_unknown_original_numeric_values": true
+  }
+}
