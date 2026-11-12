@@ -1,0 +1,80 @@
+name: Extract verified 21-character art archive
+on:
+  push:
+    paths:
+      - '.github/workflows/import-character-art.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Validate 3 parts and extract original archive
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, io, json, os, pathlib, shutil, stat, zipfile
+          parts = [pathlib.Path(f"TERRITORY_art_v2_Codex_{i}_of_3.zip") for i in (1, 2, 3)]
+          expected = "d8bd7c242accd3396232a53cae7fe47478c4b6aae558b95dbad0c68edf5c1fa1"
+          for p in parts:
+              if not p.is_file():
+                  raise SystemExit(f"Missing archive part: {p}")
+          archive = b"".join(p.read_bytes() for p in parts)
+          actual = hashlib.sha256(archive).hexdigest()
+          print(f"assembled zip SHA256: {actual}")
+          if actual != expected:
+              raise SystemExit("Archive SHA256 mismatch: nothing was extracted")
+          target = pathlib.Path("assets/characters/v2-source")
+          if target.exists() and any(target.iterdir()):
+              raise SystemExit("Target not empty; refusing to overwrite art")
+          prepared = []
+          with zipfile.ZipFile(io.BytesIO(archive)) as z:
+              if z.testzip():
+                  raise SystemExit("Corrupted ZIP member")
+              total = 0
+              for info in z.infolist():
+                  name = pathlib.PurePosixPath(info.filename)
+                  if name.is_absolute() or any(p in ("", "..") for p in name.parts) or "\\" in info.filename:
+                      raise SystemExit(f"Unsafe ZIP path: {info.filename}")
+                  if stat.S_ISLNK(info.external_attr >> 16):
+                      raise SystemExit(f"Unsafe ZIP symlink: {info.filename}")
+                  total += info.file_size
+                  if total > 300 * 1024 * 1024:
+                      raise SystemExit("Archive expands beyond configured limit")
+                  if info.is_dir():
+                      continue
+                  prepared.append((info, name))
+              names = [str(n) for _, n in prepared]
+              png_masters = [n for n in names if n.lower().endswith(".png") and any("/"+role+"/" in "/"+n for role in ("heroes","companions","enemies","minibosses","bosses","special")) and "/originals/" not in "/"+n]
+              if len(png_masters) != 21:
+                  raise SystemExit(f"Expected 21 PNG masters, found {len(png_masters)}; refusing import")
+              target.mkdir(parents=True, exist_ok=True)
+              report = []
+              for info, name in prepared:
+                  output = target.joinpath(*name.parts)
+                  output.parent.mkdir(parents=True, exist_ok=True)
+                  with z.open(info) as src, output.open("wb") as dst:
+                      shutil.copyfileobj(src, dst)
+                  report.append({"path":str(output.relative_to(target)), "size":info.file_size, "sha256":hashlib.sha256(output.read_bytes()).hexdigest()})
+          summary = {"source_parts":[p.name for p in parts],"assembled_sha256":actual,"file_count":len(report),"png_master_count":len(png_masters),"files":report}
+          (target/"EXTRACTION_REPORT.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False)+"\n", encoding="utf8")
+          print("Extracted",len(report),"files including",len(png_masters),"PNG masters")
+          PY
+      - name: Commit extracted original files to this repository
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/characters/v2-source
+          if git diff --cached --quiet; then
+            echo 'No new changes'
+          else
+            git commit -m "assets: extract verified 21-character original archive"
+            git push origin HEAD:main
+          fi
