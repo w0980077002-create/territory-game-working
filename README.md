@@ -8,10 +8,11 @@
 - [Полное сводное ТЗ с учётом последующих решений владельца](docs/GDD_OWNER_CONSOLIDATED_RU.md).
 - [Утверждённое дополнение: Lootborn-системы, 12 основных предметов + отдельные крылья, магазин и цены](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md).
 - [Глубокий аудит Lootborn Warriors (17 разделов, источники, дополнительные системы и статусы проверенности)](docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md).
-- [Матрица из 183 требований и проверок готовности](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md).
+- [Матрица из 201 требование и проверок готовности](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md).
 - [Точные игровые каталоги и экономические механики (с разбивкой по версиям)](docs/LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md).
 - [Цены, комплектация наборов и условия покупки — международная и китайская версии](docs/LOOTBORN_SHOP_PACKS_PRICES_20261112_RU.md).
 - [Официальные подробности 2026: прокачка реликвий, автовызовы, магазин, боссы и события](docs/LOOTBORN_2026_OFFICIAL_PATCH_MECHANICS_RU.md).
+- [Сезонные камни 2+1 и кузница снаряжения ездовых животных](docs/LOOTBORN_2026_SEASON_GEMS_MOUNT_FORGE_CN_RU.md).
 - [Обязательный главный экран — 100%](docs/SCREEN_100_PERCENT.md).
 - [Карта реального скриншота 864×1536: HUD, бой, экипировка, крылья и навигация](docs/SCREEN_PIXEL_MAP_100_PERCENT_864x1536_RU.md).
 - [Приёмка распакованного пакета из 3 транспортных ZIP](docs/ASSETS_AND_21_CHARACTERS.md).
