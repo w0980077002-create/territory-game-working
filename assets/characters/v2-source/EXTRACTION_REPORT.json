@@ -1,0 +1,319 @@
+{
+  "source_parts": [
+    "TERRITORY_art_v2_Codex_1_of_3.zip",
+    "TERRITORY_art_v2_Codex_2_of_3.zip",
+    "TERRITORY_art_v2_Codex_3_of_3.zip"
+  ],
+  "source_zip_sha256": "d8bd7c242accd3396232a53cae7fe47478c4b6aae558b95dbad0c68edf5c1fa1",
+  "files_extracted": 61,
+  "characters": 21,
+  "owner_originals": 10,
+  "note": "WebP are single still frames, not character animations",
+  "files": [
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/V2_CHANGELOG_RU.md",
+      "bytes": 2037,
+      "sha256": "020083fa72a56834ebdef75793ba35471943c99e479b827898d409316653a5d6"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/BEFORE_AFTER_4.jpg",
+      "bytes": 491973,
+      "sha256": "7cad4db247fd953d1f773b78ca112086103a668893802f1ca7da86b6a05855f5"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/README_RU.md",
+      "bytes": 3949,
+      "sha256": "328031f7f3800d26dacdfc991dbedf5b5e32de5feea96b61e9b70769cfa5da7d"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/qa.csv",
+      "bytes": 3904,
+      "sha256": "3f6693cf6074dcf2ec988a97f0c220f7ac1b960f400cc97ad6bf7d5d999b9f5d"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/FACING_BATTLE_QA_NOT_LIVE.jpg",
+      "bytes": 400934,
+      "sha256": "931c17a25dc4eff99a81b2affc0501cce806bd45a258fe1bda923700be85ae48"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/HANDOFF_CODEX_CLAUDE_RU.md",
+      "bytes": 4075,
+      "sha256": "7374237b825500588e957184b44965ef6c0ec067bda3f2b277d65874af11dd9f"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/CONTACT_SHEET.jpg",
+      "bytes": 797939,
+      "sha256": "bdca7dc05644f1200bf63ff371e19c8772a68dfde1ad6ce02bd6764f58b23461"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/validate_art_pack.py",
+      "bytes": 1535,
+      "sha256": "6e279c1f11e9032b71e0f342c660b2ed76d7e48034aa42b540442f9dca64199a"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/manifest.json",
+      "bytes": 21646,
+      "sha256": "733a142cf5f9407a10bf3a6771875ff709d0997f6f689d8dafc48f28ec130f43"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088545.png",
+      "bytes": 564668,
+      "sha256": "8357319521cf32fb76d549ff7481d375fc0bae1bda7bfd59cc59ad490ef6b5ac"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088544.png",
+      "bytes": 573954,
+      "sha256": "f982e44cc464a45a698155e7395eedd76bb082bdad36f9ccfd80ca1426e93717"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088543.jpg",
+      "bytes": 371407,
+      "sha256": "2e14c901be6a4de35ed4e3a2a002a8aa0f66cbf95c8b9e44d29709251b436373"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088546.png",
+      "bytes": 535035,
+      "sha256": "28a175dcd4099553aabdff10a6a3f4e8d312c2bae5d556e7ba48200a2b20db89"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088589.jpg",
+      "bytes": 310701,
+      "sha256": "dd4ea0b5f73ee1aebe94fca2bba47de1095c844ea3767963c6ca0288f28606da"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088541.jpg",
+      "bytes": 352102,
+      "sha256": "3d591fd02cb1036c3eecf625540e1ca9e6d5fefdcbb28c6c00bc6271fa2b5206"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088539.png",
+      "bytes": 800363,
+      "sha256": "c5da61aaba407469a45367739f71ce0c3c83ac4a23d05c69795af8489e37e0aa"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088538.png",
+      "bytes": 555244,
+      "sha256": "72f17adaca5edc8f28e5ecc55984ecaef17c279a743c84791a789b673ed4ccb3"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088591.jpg",
+      "bytes": 211531,
+      "sha256": "d9aa5c8505e9eeadd378f576cc827477a061fb49080663c48d4bb8db9ba0967e"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/03_original_owner_references/1000088593.jpg",
+      "bytes": 241904,
+      "sha256": "a4bacefb7899d611c96b94aaf43294636fe53a04933bc45945c263961fd44ad0"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/heroes/whitebeard_mage_still.webp",
+      "bytes": 107580,
+      "sha256": "ebfacc4b83d7aee234384378c02d209c926380aace0041e27776a524afc86c28"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/heroes/strongman_boulder_still.webp",
+      "bytes": 73812,
+      "sha256": "5b8a31717e6e78be37ac7015c6534f7eae8d36cf6e6076d5b7eae42049015c37"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/heroes/winged_helmet_warrior_still.webp",
+      "bytes": 90254,
+      "sha256": "aa3e5cf361f0508d19f1587563deab254e8b4e893122b94a8911dfbc22ef4185"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/companions/goose_aviator_still.webp",
+      "bytes": 98036,
+      "sha256": "989f17adc8accb9b9312ea2da30e11b01ace6287296882c8f8ade5c3e5728ea8"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/companions/brown_white_dog_still.webp",
+      "bytes": 69618,
+      "sha256": "8a542c1ddd6ae59f49ad5f3d16cc26609efdbc9addcda639011f9ffb33bf1d21"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/special/cappuccina_approved_still.webp",
+      "bytes": 144154,
+      "sha256": "c9cf32fe54cca6ef6dbe2ba0ffb8a1c4d025f5134a710026bc7b4d7b8ec74fe5"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/enemies/06_red_crest_legionary_still.webp",
+      "bytes": 90598,
+      "sha256": "c5dc99774bc7587e1ac841365afa68f80b40b31defac32aa47cfa20b234cae42"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/enemies/01_sword_shield_veteran_still.webp",
+      "bytes": 92036,
+      "sha256": "06a92bef7337cff8a91c182a4671ec7f45f6f36c4006da82398ee476f8879796"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/enemies/08_armored_boar_still.webp",
+      "bytes": 94460,
+      "sha256": "0501c1326f392462ee5ff73a75b1c36192bcc599164923ecf830651e61c077f4"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/enemies/05_shield_spearman_still.webp",
+      "bytes": 72070,
+      "sha256": "951e05c6969f3ddf242c4727f5b243b8e57a58a09a274925ce2d045e78d4ac53"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/enemies/04_club_raider_still.webp",
+      "bytes": 66880,
+      "sha256": "97c919d8f1c4cad5e794853b206824bfa6b7be573181a5f789626597c5fb75ab"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/enemies/07_purple_mage_still.webp",
+      "bytes": 74998,
+      "sha256": "dfe2e1c1de5155edd31c65a92e18d1258fd3b7dbf56549d5a7e9376fc450727e"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/enemies/03_pirate_bandit_still.webp",
+      "bytes": 91568,
+      "sha256": "61dc994c1dca6d230911ef1cfccaf047ae3dbc71e38cd64ff9938379e9d12d24"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/enemies/02_roman_spearman_still.webp",
+      "bytes": 75878,
+      "sha256": "3ab35924b00f2af4608c4bb5670c3c2853b47b738f1f11e2edede3fcde6249a1"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/bosses/fungal_king_still.webp",
+      "bytes": 148376,
+      "sha256": "c1f3836d4d156d48ae3abac42757cbdcea36053f31dc632b162e2a7a631a4b3b"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/bosses/fire_abyss_lord_still.webp",
+      "bytes": 188828,
+      "sha256": "8ec7ffe7ec688d2d7a5f14363b2e82e32a82ffb4670bfb4809b343d7de250ea8"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/bosses/spider_queen_still.webp",
+      "bytes": 129712,
+      "sha256": "1f96b63842f603edd6cb2d42a099632cbc00d775743358dfa5d47e4529d25bfd"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/bosses/minotaur_echo_still.webp",
+      "bytes": 133414,
+      "sha256": "2d3458ffb4a421797ab0e90612d2748f90a8150eac765e330521224b9153d95c"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/minibosses/capybara_bruiser_still.webp",
+      "bytes": 107758,
+      "sha256": "93dfa752c96b0be1d7d5e07a0014e1807454b968f6befbfaa22196730d833959"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/minibosses/senior_driller_still.webp",
+      "bytes": 118740,
+      "sha256": "c00cc51fefd62362162f6f54945b03dbe3ea4af90398d053f17a70c4ec34d5a3"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/02_webp_preview_idle_ONLY/minibosses/moss_eater_still.webp",
+      "bytes": 150698,
+      "sha256": "f1e646fad396dfc957ceb2d26de6b13ca5272895d48d0a251e92ba9ed91145ff"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/heroes/strongman_boulder.png",
+      "bytes": 1744661,
+      "sha256": "fae028eefc3b50e58ba726525132b0193bfd0cc77df14e8932f44c2a27450dc6"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/heroes/whitebeard_mage.png",
+      "bytes": 1287929,
+      "sha256": "25c927ac91318e7adddd2446482d972942aaad2d6973630c9b2cafad425086e7"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/heroes/winged_helmet_warrior.png",
+      "bytes": 1292363,
+      "sha256": "ca5c666084c4e0e07772b4daf46f836c1c6cc73f584d7d0e2541759ce93037e4"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/companions/goose_aviator.png",
+      "bytes": 1584445,
+      "sha256": "01eecbcf099aa5838849a1c7431b4711b3bab061144518ace91d075e2c3eb203"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/companions/brown_white_dog.png",
+      "bytes": 814187,
+      "sha256": "b0dec55a71cdae6e6bab259aed316045704331cee45da77d49558ad1520beff9"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/special/cappuccina_approved.png",
+      "bytes": 1774944,
+      "sha256": "1cf6fba1d71e1bdb280249ba9a4f6e47de9ddbf4e1e5c73f84e6c9dc7b90f34e"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/enemies/01_sword_shield_veteran.png",
+      "bytes": 1400557,
+      "sha256": "12c256ffe8fd272ddbc7e85de741ccf3c8b5c4b29dfd563eb61e1e19849e2fec"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/enemies/08_armored_boar.png",
+      "bytes": 1199092,
+      "sha256": "0cbea888f89a437498e5a96b719a5ba326a98dc97ef976cc245fff6de5ed89ef"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/enemies/02_roman_spearman.png",
+      "bytes": 1395649,
+      "sha256": "52b4fb41996e41e5ffd763c6193fde69df908a4a985a42e71931ec753538380b"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/enemies/05_shield_spearman.png",
+      "bytes": 1334949,
+      "sha256": "02a4bf81ccc6bc7967695ddff7b891b461fcc4709f807b99eb9d49fb5c729b97"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/enemies/07_purple_mage.png",
+      "bytes": 1153485,
+      "sha256": "104f07f586b71708b5258a7bb3b002b3c6283c6db66aef29855e31c1ff35a713"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/enemies/03_pirate_bandit.png",
+      "bytes": 1139099,
+      "sha256": "53de914606efba0e511946ac3927457f6570183de6b192d96d79490ebad7f8a0"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/enemies/04_club_raider.png",
+      "bytes": 1364836,
+      "sha256": "0974691bfd528ac19056c4914df0322ebdd4c1bc8598b55d3c73583b55e3f504"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/enemies/06_red_crest_legionary.png",
+      "bytes": 1278793,
+      "sha256": "694b802c7d342edc7baf5d276c6559691dfac282660c671b3f925d32551c954b"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/bosses/fire_abyss_lord.png",
+      "bytes": 1997857,
+      "sha256": "155c85101ab6200753cf156a47a8a2163a6558f476b8733c9d62c328034f7982"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/bosses/fungal_king.png",
+      "bytes": 2412837,
+      "sha256": "a45a8b81300c9a33519691a274bc8b560d99d651d7c02b91e5958da63736e6ea"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/bosses/spider_queen.png",
+      "bytes": 1849034,
+      "sha256": "4cfbda77f5dcd7d399b1626a461442e8feaf0389782551d54dc216b10b52e262"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/bosses/minotaur_echo.png",
+      "bytes": 2062523,
+      "sha256": "7a69614c59a5a92c6e75ef2331bb0d84f3058d4e6c73b05388e007980d386d57"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/minibosses/capybara_bruiser.png",
+      "bytes": 2235086,
+      "sha256": "bede1bfd4b7077d4ada0e524a739718191d7b8919d4f8ee04b659c5cfea8a0f6"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/minibosses/moss_eater.png",
+      "bytes": 2229401,
+      "sha256": "cc7f6747614ac03c4e2d67077e0ee00527565361bda32059c6f305e8990a7d69"
+    },
+    {
+      "path": "TERRITORY_ART_PACK_2026-11-11_v2/01_png_masters/minibosses/senior_driller.png",
+      "bytes": 1626947,
+      "sha256": "c1a7d5cc36a96c31d8a946155826ad74d53f4882cab5fee2bd9b84ba8dfd908f"
+    }
+  ]
+}
