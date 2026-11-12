@@ -1,4 +1,5 @@
 name: Extract verified 21-character art archive
+
 on:
   push:
     paths:
@@ -13,78 +14,111 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-      - name: Validate 3 parts and extract original archive
+      - name: Restore nested ZIP parts, validate and extract
         shell: bash
         run: |
           python3 - <<'PY'
-          import hashlib, io, json, os, pathlib, shutil, stat, zipfile
-          parts = [pathlib.Path(f"TERRITORY_art_v2_Codex_{i}_of_3.zip") for i in (1, 2, 3)]
-          expected = "d8bd7c242accd3396232a53cae7fe47478c4b6aae558b95dbad0c68edf5c1fa1"
-          for p in parts:
-              if not p.is_file():
-                  raise SystemExit(f"Missing archive part: {p}")
-          archive = b"".join(p.read_bytes() for p in parts)
-          actual = hashlib.sha256(archive).hexdigest()
-          print(f"assembled zip SHA256: {actual}")
+          import hashlib
+          import io
+          import json
+          import pathlib
+          import shutil
+          import stat
+          import zipfile
+
+          expected = 'd8bd7c242accd3396232a53cae7fe47478c4b6aae558b95dbad0c68edf5c1fa1'
+          part_name = 'TERRITORY_21_CHARACTERS_QA_PACK_2026-11-11_v2.zip.part'
+          chunks = []
+          for i in (1, 2, 3):
+              outer = pathlib.Path(f'TERRITORY_art_v2_Codex_{i}_of_3.zip')
+              if not outer.is_file():
+                  raise SystemExit(f'Missing {outer}')
+              with zipfile.ZipFile(outer) as outer_zip:
+                  if outer_zip.testzip():
+                      raise SystemExit(f'Corrupt transport zip {outer}')
+                  name = f'{part_name}{i:02d}'
+                  if name not in outer_zip.namelist():
+                      raise SystemExit(f'Missing internal part {name}')
+                  chunks.append(outer_zip.read(name))
+          inner = b''.join(chunks)
+          actual = hashlib.sha256(inner).hexdigest()
+          print('Restored full original ZIP SHA256 =', actual)
           if actual != expected:
-              print("The three files are not raw slices of the expected ZIP. Inspecting parts:")
-              for p in parts:
-                  raw = p.read_bytes()
-                  print(p.name, "size=", len(raw), "sha256=",hashlib.sha256(raw).hexdigest(), "header=",raw[:16].hex())
-                  try:
-                      with zipfile.ZipFile(io.BytesIO(raw)) as zz:
-                          print(" ZIP members=",len(zz.infolist()),"first=",zz.namelist()[:15])
-                          print(" ZIP error=",zz.testzip())
-                  except Exception as exc:
-                      print(" ZIP parse error=",repr(exc))
-              raise SystemExit("Archive layout must be verified before import")
-          target = pathlib.Path("assets/characters/v2-source")
+              raise SystemExit('Original source checksum mismatch; no files extracted')
+
+          target = pathlib.Path('assets/characters/v2-source')
           if target.exists() and any(target.iterdir()):
-              raise SystemExit("Target not empty; refusing to overwrite art")
-          prepared = []
-          with zipfile.ZipFile(io.BytesIO(archive)) as z:
-              if z.testzip():
-                  raise SystemExit("Corrupted ZIP member")
-              total = 0
-              for info in z.infolist():
-                  name = pathlib.PurePosixPath(info.filename)
-                  if name.is_absolute() or any(p in ("", "..") for p in name.parts) or "\\" in info.filename:
-                      raise SystemExit(f"Unsafe ZIP path: {info.filename}")
+              raise SystemExit('Refusing to overwrite existing extracted art')
+          with zipfile.ZipFile(io.BytesIO(inner)) as source:
+              if source.testzip():
+                  raise SystemExit('Corrupt source ZIP member')
+              items, total = [], 0
+              for info in source.infolist():
+                  p = pathlib.PurePosixPath(info.filename)
+                  if p.is_absolute() or '..' in p.parts or '\\' in info.filename:
+                      raise SystemExit(f'Unsafe archive pathname: {info.filename}')
                   if stat.S_ISLNK(info.external_attr >> 16):
-                      raise SystemExit(f"Unsafe ZIP symlink: {info.filename}")
+                      raise SystemExit(f'Symlink forbidden in ZIP: {info.filename}')
                   total += info.file_size
                   if total > 300 * 1024 * 1024:
-                      raise SystemExit("Archive expands beyond configured limit")
-                  if info.is_dir():
-                      continue
-                  prepared.append((info, name))
-              names = [str(n) for _, n in prepared]
-              png_masters = [n for n in names if n.lower().endswith(".png") and any("/"+role+"/" in "/"+n for role in ("heroes","companions","enemies","minibosses","bosses","special")) and "/originals/" not in "/"+n]
-              if len(png_masters) != 21:
-                  raise SystemExit(f"Expected 21 PNG masters, found {len(png_masters)}; refusing import")
+                      raise SystemExit('Zip bomb protection triggered')
+                  if not info.is_dir():
+                      items.append((info, p))
+              root_name = 'TERRITORY_ART_PACK_2026-11-11_v2'
+              wanted_manifest = f'{root_name}/manifest.json'
+              names = {str(p) for _, p in items}
+              if wanted_manifest not in names:
+                  raise SystemExit(f'Expected {wanted_manifest}, found {len(items)} entries')
+              manifest = json.loads(source.read(wanted_manifest))
+              files = manifest.get('files', [])
+              if len(files) != 21:
+                  raise SystemExit(f'Expected 21 characters, got {len(files)}')
+              for c in files:
+                  if c.get('category') not in ('heroes','companions','enemies','minibosses','bosses','special'):
+                      raise SystemExit('Invalid role category in manifest')
+                  src_name = f"{root_name}/{c['master']}"
+                  preview_name = f"{root_name}/{c['still_preview']}"
+                  if src_name not in names or preview_name not in names:
+                      raise SystemExit(f'Missing PNG/WebP for {c.get("id")}')
+                  png = source.read(src_name)
+                  if hashlib.sha256(png).hexdigest() != c['sha256']:
+                      raise SystemExit(f'PNG checksum mismatch {c.get("id")}')
+                  if png[:8] != b'\x89PNG\r\n\x1a\n':
+                      raise SystemExit(f'Invalid PNG {c.get("id")}')
+                  webp = source.read(preview_name)
+                  if webp[:4] != b'RIFF' or webp[8:12] != b'WEBP':
+                      raise SystemExit(f'Invalid WebP {c.get("id")}')
+              originals = [str(p) for _,p in items if str(p).startswith(f'{root_name}/03_original_owner_references/')]
+              if len(originals) != 10:
+                  raise SystemExit(f'Expected 10 originals, found {len(originals)}')
               target.mkdir(parents=True, exist_ok=True)
-              report = []
-              for info, name in prepared:
-                  output = target.joinpath(*name.parts)
-                  output.parent.mkdir(parents=True, exist_ok=True)
-                  with z.open(info) as src, output.open("wb") as dst:
-                      shutil.copyfileobj(src, dst)
-                  report.append({"path":str(output.relative_to(target)), "size":info.file_size, "sha256":hashlib.sha256(output.read_bytes()).hexdigest()})
-          summary = {"source_parts":[p.name for p in parts],"assembled_sha256":actual,"file_count":len(report),"png_master_count":len(png_masters),"files":report}
-          (target/"EXTRACTION_REPORT.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False)+"\n", encoding="utf8")
-          print("Extracted",len(report),"files including",len(png_masters),"PNG masters")
+              record = []
+              for info,p in items:
+                  dst = target.joinpath(*p.parts)
+                  dst.parent.mkdir(parents=True, exist_ok=True)
+                  with source.open(info) as f, dst.open('wb') as out:
+                      shutil.copyfileobj(f,out)
+                  record.append({'path':str(p),'bytes':info.file_size,'sha256':hashlib.sha256(dst.read_bytes()).hexdigest()})
+          (target/'EXTRACTION_REPORT.json').write_text(json.dumps({
+              'source_parts':[f'TERRITORY_art_v2_Codex_{i}_of_3.zip' for i in (1,2,3)],
+              'source_zip_sha256':actual,
+              'files_extracted':len(record),
+              'characters':len(files),
+              'owner_originals':len(originals),
+              'note':'WebP are single still frames, not character animations',
+              'files':record
+          },indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+          print('VALIDATED and EXTRACTED:',len(files),'characters,',len(originals),'owner originals,',len(record),'files')
           PY
-      - name: Commit extracted original files to this repository
+      - name: Commit extracted files in new repo only
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/characters/v2-source
           if git diff --cached --quiet; then
-            echo 'No new changes'
+            echo 'No changes to commit'
           else
-            git commit -m "assets: extract verified 21-character original archive"
+            git commit -m "assets: restore checked 21 characters from nested archive"
             git push origin HEAD:main
           fi
