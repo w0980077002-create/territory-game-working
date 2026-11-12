@@ -43,7 +43,9 @@
     "maximum_charges": 50,
     "recharge_one_charge_every_seconds": 120,
     "chest_charge_cost": 1,
-    "autoplay_interval_seconds": 2
+    "autoplay_interval_seconds": 2,
+    "purchase_charge_count": 10,
+    "purchase_gem_cost": 10
   },
   "loot_test_settings": {
     "rarities": [
@@ -270,5 +272,16 @@
     "no_real_money_transactions": true,
     "do_not_touch_production_territory": true,
     "do_not_block_gameplay_on_unknown_original_numeric_values": true
+  },
+  "combat_test_settings": {
+    "potion_gold_cost": 30,
+    "potion_heal_fraction": 0.45,
+    "mode_entry_chaosite": 5,
+    "regular_enemy_base_hp": 120,
+    "regular_enemy_base_attack": 15,
+    "boss_hp_multiplier": 4.5,
+    "boss_attack_multiplier": 1.8,
+    "wave_victory_xp": 20,
+    "boss_victory_xp": 60
   }
 }
