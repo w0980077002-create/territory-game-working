@@ -25,11 +25,12 @@ export class WorldRenderer {
   const shift=camera*depth+phase,index=Math.floor(shift/width);
   for(let n=index;n<=index+1;n++){const x=n*width-shift;c.save();if(n%2){c.translate(x+width,y);c.scale(-1,1);c.drawImage(img,0,0,width+1,height)}else c.drawImage(img,x,y,width+1,height);c.restore()}
  }
- draw(c:CanvasRenderingContext2D,j:JourneyState,time:number,fallback:HTMLImageElement,tension=0,quality=1){
+ draw(c:CanvasRenderingContext2D,j:JourneyState,time:number,fallback:HTMLImageElement,tension=0,quality=1,skyLayer?:(c:CanvasRenderingContext2D)=>void){
   const sky=this.ready('mountains'),city=this.ready('city'),atlas=this.ready('landmarks'),road=this.ready('road');
   c.fillStyle='#1286ed';c.fillRect(0,0,864,940);
   if(sky)this.panorama(c,sky,j.cameraX,.085,35,3900,1300,1700);
   else if(fallback.complete&&fallback.naturalWidth)c.drawImage(fallback,0,0,864,1040);
+  skyLayer?.(c);
   if(city)this.panorama(c,city,j.cameraX,.27,55,2050,683);
   if(atlas){
 

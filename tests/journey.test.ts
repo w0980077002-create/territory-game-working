@@ -41,7 +41,7 @@ test('world culling stays bounded and landmark identity changes along the author
  assert.deepEqual(kinds.slice(0,5),[0,1,2,3,5]);
 });
 test('axes pause freezes world, camera, companions and timers; reload resumes exactly the same journey',()=>{
- const b=scene();b.toggle();for(let i=0;i<90;i++)b.update(.02);assert.ok(b.journey.worldX>300&&b.journey.cameraX>0);b.toggle();const frozen=b.snapshot();
+ const b=scene();b.toggle();for(let i=0;i<90;i++){b.update(.02);if(b.director.state==='decide')b.director.choose('pass')}assert.ok(b.journey.worldX>300&&b.journey.cameraX>0);b.toggle();const frozen=b.snapshot();
  b.update(100);assert.deepEqual(b.snapshot(),frozen);b.checkpoint();const p=parseSave(saves.get(SAVE_KEY)!);assert.ok(p);b.destroy();useGame.setState({p});const loaded=scene();assert.equal(loaded.running,false);assert.deepEqual(loaded.snapshot(),frozen);loaded.toggle();loaded.update(.02);assert.ok(loaded.journey.worldX>frozen.journey!.worldX);assert.equal(loaded.id,frozen.id);loaded.destroy();
 });
 test('legacy mid-fight save migrates to a world site without healing, rerolling foes or rewarding again',()=>{
