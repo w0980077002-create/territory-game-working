@@ -15,10 +15,11 @@
 6. [docs/LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md](docs/LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md) — детальные проверяемые CN правила расхода Chaosite, спутников, шахт, ранних событий, позднего патча и каталоги.
 7. [docs/LOOTBORN_SHOP_PACKS_PRICES_20261112_RU.md](docs/LOOTBORN_SHOP_PACKS_PRICES_20261112_RU.md) — конкретные SKU, региональные наборы, первое пополнение, лимиты, условия покупки и источники.
 8. [docs/LOOTBORN_2026_OFFICIAL_PATCH_MECHANICS_RU.md](docs/LOOTBORN_2026_OFFICIAL_PATCH_MECHANICS_RU.md) — официальные правила китайских патчей 2026: реликвии, авто-боссы, магазины, гильдии, сложные аффиксы и статус будущих возможностей.
-9. [docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md) — **183 проверяемых требования**: статус каждого только после реальной работы/демонстрации. Отделять международную игру от китайской версии!
-10. [docs/ASSETS_AND_21_CHARACTERS.md](docs/ASSETS_AND_21_CHARACTERS.md) — отчёт о загруженных и проверенных материалах.
+9. [docs/LOOTBORN_2026_SEASON_GEMS_MOUNT_FORGE_CN_RU.md](docs/LOOTBORN_2026_SEASON_GEMS_MOUNT_FORGE_CN_RU.md) — официальные CN-2026 сезонные камни и синтез Mythic mount gear, не объединять с постоянной Тёмной энергией.
+10. [docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md) — **201 проверяемое требование**: статус каждого только после реальной работы/демонстрации. Отделять международную игру от китайской версии!
+11. [docs/ASSETS_AND_21_CHARACTERS.md](docs/ASSETS_AND_21_CHARACTERS.md) — отчёт о загруженных и проверенных материалах.
    [docs/CHARACTER_MANIFEST.md](docs/CHARACTER_MANIFEST.md) — **21 конкретный персонаж с именами, ролями и путями PNG/WebP**.
-11. [docs/WORK_ORDER_FOR_CLAUDE.md](docs/WORK_ORDER_FOR_CLAUDE.md) — порядок работы и приёмки.
+12. [docs/WORK_ORDER_FOR_CLAUDE.md](docs/WORK_ORDER_FOR_CLAUDE.md) — порядок работы и приёмки.
 
 ## Нельзя путать проект
 - Текущий рабочий проект TERRITORY — **другой репозиторий** `territory-game-builde`. Его база игроков, кошельки, VIP, инвентари, Supabase, Telegram-бот, сайт и деплой не должны изменяться. Без автоматических миграций, очисток, переносов секретов или вызовов в продакшен.
