@@ -12,4 +12,4 @@ export const skillData=[{name:'Сокрушительный удар',icon:'axe'
 export const enemyIds=characters.filter(c=>c.category==='enemies').map(c=>c.id);
 export const bossIds=characters.filter(c=>c.category==='bosses').map(c=>c.id);
 export const miniIds=characters.filter(c=>c.category==='minibosses').map(c=>c.id);
-export const art=(id:string)=>`${(import.meta.env?.BASE_URL??'/')}art/${id}.webp`;
+export const art=(id:string)=>`${(import.meta.env?.BASE_URL??'/')}art/${id}.webp?v=${typeof __BUILD_ID__==='undefined'?'local':__BUILD_ID__}`;
