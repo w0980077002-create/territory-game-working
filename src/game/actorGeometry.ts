@@ -1,8 +1,9 @@
 import registry from '../data/animation-frames.json';
+import runRegistry from '../data/run-frames.json';
 export type Rect = [number,number,number,number];
 export interface RegisteredFrame {rect:Rect;pivot:[number,number];bounds:Rect;bands:Rect[];source:Rect}
 export interface AnimationClip {atlas:string;referenceHeight:number;legacyCellHeight:number;frames:RegisteredFrame[];fallback:{width:number;height:number;pivot:[number,number];referenceHeight:number;bounds:Rect;bands:Rect[]};envelope:Rect}
-export const clips=registry as unknown as Record<string,AnimationClip>;
+export const clips={...registry,...runRegistry} as unknown as Record<string,AnimationClip>;
 export interface Pose {walking?:boolean;attack?:number;hurt?:number;death?:number;windup?:number;victory?:boolean;time?:number}
 export function poseFrame(p:Pose){if((p.death??0)>0)return 7;if(p.victory)return 3;if((p.hurt??0)>0)return 6;if((p.attack??0)>0)return p.attack!>.46?3:p.attack!>.22?4:5;if((p.windup??0)>0)return 3;if(p.walking)return 1+Math.floor((p.time??0)*8)%2;return 0}
 export function legacyBodyHeight(id:string,cellHeight:number){const c=clips[id];return c?cellHeight*c.referenceHeight/c.legacyCellHeight:cellHeight}

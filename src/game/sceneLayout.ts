@@ -28,3 +28,14 @@ export function enemyPlacement(units:Fighter[],index:number,walking=false){
  const top=slot.y+clips[u.id].envelope[1]*slot.height;
  return {...slot,x,barX:slot.x,barY:top-18,bodyY:slot.y-slot.height*.5};
 }
+
+const travelBands=new Map<string,import('./actorGeometry').Rect[]>();
+/** Arriving guards use a rear lane above Arena, then step onto their battle marks. */
+export function healthAnchorX(x:number,barY:number,boss:boolean){const half=boss?92:46;return Math.min(x,barY<522?748-half-6:852-half)}
+export function travelActorSafe(id:string,x:number,y:number,height:number,flip:boolean,boss:boolean,walking=true){
+ const key=id+(walking?':walk':':idle');let bands=travelBands.get(key);if(!bands){const c=clips[id];bands=[...c.frames.slice(0,walking?3:1).flatMap(f=>f.bands),...c.fallback.bands];travelBands.set(key,bands)}
+ const hud:import('./actorGeometry').Rect[]=[[0,110,120,826],[748,110,864,516],[737,731,864,866],[0,846,864,1536]];
+ for(let b of bands){if(flip)b=[-b[2],b[1],-b[0],b[3]];const r=transformBand(b,x,y,height);if(r[0]<12||r[2]>852||r[3]>840||hud.some(h=>intersects(r,h,6)))return false;}
+ const top=y+clips[id].envelope[1]*height,half=boss?92:46,barX=healthAnchorX(x,top-18,boss),bar:import('./actorGeometry').Rect=[barX-half,top-20,barX+half,top-8];
+ return !hud.some(h=>intersects(bar,h,6));
+}
