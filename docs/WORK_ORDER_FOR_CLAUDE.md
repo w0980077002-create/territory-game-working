@@ -4,7 +4,7 @@
 
 ## Сначала
 1. Прочитать `CLAUDE.md`, `docs/GDD_OWNER_CONSOLIDATED_RU.md`, `docs/SCREEN_100_PERCENT.md`, `docs/ASSETS_AND_21_CHARACTERS.md`.
-2. Проверить, появился ли скрин `assets/references/main-screen-100-percent.png`, и появились ли три папки персонажей. Если нет — перечислить конкретные отсутствующие исходники без придумывания их содержимого.
+2. В корне уже лежат три ZIP-части `TERRITORY_art_v2_Codex_1_of_3.zip`, `...2_of_3.zip`, `...3_of_3.zip`. Объединить, проверить ожидаемый SHA256 из `docs/ASSETS_AND_21_CHARACTERS.md`, распаковать и создать manifest. Для пиксельного сравнения проверить появление `assets/references/main-screen-100-percent.png` (он ещё не загружен).
 3. Создать `ARCHITECTURE.md`: дерево проекта, схемы TypeScript-сущностей, battle state machine, цикл волн/боссов/фарм, формулы с единицами, лут, редкости, Paper Doll, три класса, skills/runes/merge, два напарника, таланты, CloudStorage/offline, UI слои, Telegram API, тесты и изоляция от production. Быстро передать владельцу на утверждение.
 4. Подготовить точный план этапов с конечным объёмом **всех** систем GDD, ни одну не вычеркивать.
 
