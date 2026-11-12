@@ -49,7 +49,7 @@ test('formation does not jump when first enemy dies; visual projection cannot ch
  assert.deepEqual(units,before);
 });
 test('pose priority covers hurt, windup, impact, follow-through, death and paused walk clocks',()=>{
- assert.deepEqual([poseFrame({}),poseFrame({walking:true,time:0}),poseFrame({walking:true,time:.13}),poseFrame({windup:1}),poseFrame({attack:.4}),poseFrame({attack:.1}),poseFrame({attack:.5,hurt:1}),poseFrame({attack:.5,hurt:1,death:.1})],[0,1,2,3,4,5,6,7]);
+ assert.deepEqual([poseFrame({}),poseFrame({walking:true,time:0}),poseFrame({walking:true,time:.13}),poseFrame({windup:1}),poseFrame({attack:.4}),poseFrame({attack:.1}),poseFrame({attack:.5,hurt:1}),poseFrame({attack:.5,hurt:1,death:.2})],[0,1,2,3,4,5,6,7]);
 });
 
 test('legacy three- and five-enemy saves receive distinct safe positions without modifying fighters',()=>{
@@ -70,3 +70,5 @@ test('idle enemies leave all three hero torsos and feet visible; weapon contact 
   }
  }
 });
+
+test('death shows the registered stagger before the grounded fallen pose',()=>{assert.equal(poseFrame({death:.03}),6);assert.equal(poseFrame({death:.2}),7)});

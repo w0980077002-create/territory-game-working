@@ -25,7 +25,7 @@ export class WorldRenderer {
   const shift=camera*depth+phase,index=Math.floor(shift/width);
   for(let n=index;n<=index+1;n++){const x=n*width-shift;c.save();if(n%2){c.translate(x+width,y);c.scale(-1,1);c.drawImage(img,0,0,width+1,height)}else c.drawImage(img,x,y,width+1,height);c.restore()}
  }
- draw(c:CanvasRenderingContext2D,j:JourneyState,time:number,fallback:HTMLImageElement){
+ draw(c:CanvasRenderingContext2D,j:JourneyState,time:number,fallback:HTMLImageElement,tension=0,quality=1){
   const sky=this.ready('mountains'),city=this.ready('city'),atlas=this.ready('landmarks'),road=this.ready('road');
   c.fillStyle='#1286ed';c.fillRect(0,0,864,940);
   if(sky)this.panorama(c,sky,j.cameraX,.085,35,3900,1300,1700);
@@ -37,7 +37,10 @@ export class WorldRenderer {
     const x=o.worldX-j.cameraX*o.depth;if(x+o.width/2<0||x-o.width/2>864)continue;
     c.save();c.translate(x,o.worldY);if(o.flip)c.scale(-1,1);
     const [sx,sy,sw,sh]=landmarkFrames[o.kind];c.drawImage(atlas,sx,sy,sw,sh,-o.width/2,-o.height,o.width,o.height);c.restore();
-    if(o.lit){const lightX=x-o.width*.22,lightY=o.worldY-o.height*.2,r=35+Math.sin(time*9+o.worldX)*4;const light=c.createRadialGradient(lightX,lightY,0,lightX,lightY,r);light.addColorStop(0,'#ffbd5c55');light.addColorStop(1,'#ff9a0000');c.fillStyle=light;c.fillRect(lightX-r,lightY-r,r*2,r*2)}
+    if(o.lit){const lightX=x-o.width*.22,lightY=o.worldY-o.height*.2,r=35+Math.sin(time*9+o.worldX)*4;const light=c.createRadialGradient(lightX,lightY,0,lightX,lightY,r);light.addColorStop(0,'#ffbd5c55');light.addColorStop(1,'#ff9a0000');c.fillStyle=light;c.fillRect(lightX-r,lightY-r,r*2,r*2);
+     // Smoke shares the simulation clock and the landmark's depth.
+     for(let puff=0;puff<Math.max(1,Math.round(3*quality));puff++){const age=(time*.22+puff/3+seed(o.worldX))%1,sx=x+Math.sin(age*4+o.worldX)*18+age*20,sy=o.worldY-o.height*.74-age*85,radius=12+age*25;c.save();c.globalAlpha=(1-age)*.13;const smoke=c.createRadialGradient(sx,sy,1,sx,sy,radius);smoke.addColorStop(0,'#dae6ed');smoke.addColorStop(1,'#c8dfec00');c.fillStyle=smoke;c.fillRect(sx-radius,sy-radius,radius*2,radius*2);c.restore()}
+    }
    }
   }
   // Broad walkable surface and the nearer cliff are separately projected terrain strips.
@@ -52,5 +55,8 @@ export class WorldRenderer {
   c.save();c.fillStyle='#5089a52b';const from=Math.max(j.worldX-j.distance,j.cameraX-30),to=Math.min(j.worldX-60,j.cameraX+880);
   for(let x=Math.ceil(from/32)*32;x<to;x+=32){const side=Math.floor(x/32)%2;c.beginPath();c.ellipse(x-j.cameraX,812+side*8,5,2.4,-.3,0,Math.PI*2);c.fill()}
   c.restore();
+  // Low wind over the roadway; these strokes sit behind creatures.
+  c.save();c.strokeStyle='#e8faff3a';c.lineWidth=2;for(let i=0;i<Math.round(2+2*quality);i++){const x=((i*273+time*38-j.cameraX*.7)%1000+1000)%1000-70,y=740+i*23;c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(x+38,y-5,x+92,y+1);c.stroke()}c.restore();
+  if(tension>0){const shade=c.createRadialGradient(455,670,150,455,670,500);shade.addColorStop(0,'#22133f00');shade.addColorStop(1,`rgba(38,18,66,${Math.min(.26,tension)})`);c.fillStyle=shade;c.fillRect(0,270,864,570)}
  }
 }

@@ -8,7 +8,7 @@ export const rarityNames=['Грубый','Обычный','Добротный','
 export const rarityColors=['#8c9198','#b6c9bd','#56be75','#48bafa','#c97aff','#ffb343','#ff6262','#fff3b1','#a15dff'];
 export const classNames:Record<HeroClass,string>={berserker:'Берсерк',ranger:'Следопыт',runologist:'Рунолог'};
 export const heroArt:Record<HeroClass,string>={berserker:'winged_helmet_warrior',ranger:'strongman_boulder',runologist:'whitebeard_mage'};
-export const skillData=[{name:'Сокрушительный удар',icon:'axe',cd:6,detail:'220% урона',runes:['Огонь · ожог 4 сек','Гром · удар по всем и стан','Пир · лечение 20% HP']},{name:'Клич Одина',icon:'crown',cd:12,detail:'+30% атаки на 5 секунд',runes:['Ярость · +25% крит','Кожа · +50% защиты и щит','Разгон · −2 сек перезарядки']},{name:'Молот Тора',icon:'lightning',cd:10,detail:'3 удара по 120% атаки',runes:['Пробитие · игнор защиты','Цепь · дополнительные цели','Жадность · +50% золота']}];
+export const skillData=[{name:'Сокрушительный удар',icon:'axe',cd:6,detail:'220% урона',runes:['Огонь · ожог 4 сек','Гром · удар по всем и стан','Пир · лечение 20% HP']},{name:'Клич Одина',icon:'crown',cd:12,detail:'+30% атаки на 5 секунд',runes:['Ярость · +25% крит','Кожа · +50% защиты и щит','Разгон · −2 сек перезарядки']},{name:'Молот Тора',icon:'lightning',cd:10,detail:'3 удара по 120% · очищает паутину',runes:['Пробитие · игнор защиты','Цепь · дополнительные цели','Жадность · +50% золота']}];
 export const enemyIds=characters.filter(c=>c.category==='enemies').map(c=>c.id);
 export const bossIds=characters.filter(c=>c.category==='bosses').map(c=>c.id);
 export const miniIds=characters.filter(c=>c.category==='minibosses').map(c=>c.id);
