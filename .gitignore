@@ -1,0 +1,31 @@
+# Separate Telegram game (do not commit credentials or deployment outputs)
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+.cache/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.mobileprovision
+
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Temporary restored ZIP and per-run artifacts: originals already tracked in assets/characters/v2-source
+.tmp/
+tmp/
+temp/
+art-import-tmp/
+playwright-report/
+test-results/
