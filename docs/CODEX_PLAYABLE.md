@@ -1,7 +1,7 @@
 # Codex — первая играбельная сборка
 
 URL: https://w0980077002-create.github.io/territory-game-working/
-Ветка: codex-build. Окружение публикации: codex-pages. Без слияния в main.
+Ветка: `codex-build`. Публикация: `codex-pages`. Одна общая игровая версия для Codex и Claude, доступна по единой ссылке выше.
 
 Запуск: `npm ci`, `npm run dev`. Проверки: `npm test`, `npm run build`.
 
