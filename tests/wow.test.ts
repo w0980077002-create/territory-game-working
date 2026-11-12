@@ -20,7 +20,7 @@ test('boss receipt and the named epic are single-use; all three reward choices k
  for(const action of ['equip','keep','salvage']){
   useGame.setState({p:{...freshPlayer(),wave:5},panel:null});const b=scene();b.units.forEach(u=>u.hp=0);b.victory();const g=()=>useGame.getState(),offer=g().p.rewardOffer!,item=g().p.inventory.find(i=>i.id===offer.itemId)!;assert.equal(item.rarity,4);assert.ok(compareItem(item,g().p)>0);assert.equal(g().p.bosses,1);b.victory();assert.equal(g().p.bosses,1);
   for(let t=0;t<100;t++)b.update(.02);b.toggle();assert.equal(b.running,false);const originalGold=g().p.gold;
-  if(action==='equip'){g().equip(item.id);assert.equal(g().p.equipment.weapon?.id,item.id)}else if(action==='keep'){g().keepReward();assert.ok(g().p.inventory.some(i=>i.id===item.id))}else{g().salvage(item.id);assert.ok(g().p.inventory.some(i=>i.id===item.id));g().salvage(item.id,true);const gold=g().p.gold;g().salvage(item.id,true);assert.equal(g().p.gold,gold);assert.ok(gold>originalGold)}
+  if(action==='equip'){g().equip(item.id);assert.equal(g().p.equipment.weapon?.id,item.id)}else if(action==='keep'){g().keepReward();assert.ok(g().p.inventory.some(i=>i.id===item.id))}else{g().salvage(item.id);assert.ok(g().p.inventory.some(i=>i.id===item.id));g().lockItem(item.id);g().salvage(item.id,true);const gold=g().p.gold;g().salvage(item.id,true);assert.equal(g().p.gold,gold);assert.ok(gold>originalGold)}
   assert.equal(g().p.rewardOffer?.resolved,true);g().open(null);b.continueAfterLoot();assert.equal(b.running,true);const world=b.journey.worldX;for(let n=0;n<150;n++)b.update(.02);assert.ok(b.journey.worldX>=world);assert.equal(g().p.bosses,1);b.destroy();
  }
 });
