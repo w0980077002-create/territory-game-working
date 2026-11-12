@@ -1,4 +1,4 @@
-name: Pre-Claude handoff integrity
+name: Shared-game assets and docs integrity
 
 on:
   push:
@@ -35,5 +35,5 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Validate owner-approved image, 21 characters, docs, and scope
+      - name: Validate shared-game image, 21 characters, docs, and scope
         run: python3 scripts/validate_handoff.py
