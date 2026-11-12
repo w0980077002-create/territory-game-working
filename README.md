@@ -1,10 +1,10 @@
 # VIKING VS ROME: LOOTBORN SAGA
 
-Новая отдельная Telegram Mini App. Цель — полный игровой функционал Lootborn Warriors с нашими персонажами и утверждённым экраном. **Игрового кода ещё нет.** Готовое ТЗ — не готовая игра.
+Новая отдельная Telegram Mini App. Цель — игровой мир VIKING VS ROME с нашими персонажами и утверждённым экраном. **Работающий игровой код и ссылка уже есть:** основа Codex и «Живой мир» Claude объединены в `codex-build`.
 
-## Claude Code: читать в этом порядке
+## Для Codex и Claude: читать в этом порядке
 
-1. **[COMPETITION_RULES.md](COMPETITION_RULES.md)** — Claude Code и Codex работают из одинакового исходного кода в отдельных ветках с отдельными тестовыми ссылками.
+1. **[DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)** — единый рабочий порядок: задания по очереди, одна игра и общая игровая ссылка.
 2. [CLAUDE.md](CLAUDE.md) — единая инструкция для обоих.
 3. [PROJECT_BRIEF.md](PROJECT_BRIEF.md) — решения владельца.
 4. [Экран «100%» — реальный PNG 864×1536](assets/references/main-screen-100-percent.png).
@@ -13,7 +13,7 @@
 
 **21 персонаж уже распакован:** 21 PNG-мастер, 21 одиночный WebP и 10 оригиналов. [Манифест](docs/CHARACTER_MANIFEST.md) · [отчёт](assets/characters/v2-source/EXTRACTION_REPORT.json). Стоп-кадры — не анимации. Не распаковывать повторно.
 
-**Как увидеть работу Claude:** [обязательная постоянная HTTPS-ссылка и тестирование на телефоне](docs/TEST_LINK_DELIVERY.md). Пока ссылки нет: приложение не написано и не опубликовано.
+**Открыть общую игру:** https://w0980077002-create.github.io/territory-game-working/ — постоянная ссылка из `codex-build`. [Порядок мобильного тестирования](docs/TEST_LINK_DELIVERY.md).
 
 **Тестовые числа уже заданы:** [config/test-balance.v1.json](config/test-balance.v1.json). Это редактируемые тестовые значения, не цены оригинала и не реальные платежи.
 

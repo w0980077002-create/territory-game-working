@@ -29,3 +29,6 @@ temp/
 art-import-tmp/
 playwright-report/
 test-results/
+
+# Codex intermediate files
+work/

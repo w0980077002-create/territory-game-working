@@ -1,0 +1,15 @@
+import type {Slot,HeroClass} from '../core/types';
+import characters from './characters.json';
+export {characters};
+export const slots:Slot[]=['weapon','armor','helmet','shield','boots','belt','ring1','ring2','amulet','cloak','extra1','extra2','wings'];
+export const slotNames:Record<Slot,string>={weapon:'Оружие',armor:'Доспех',helmet:'Шлем',shield:'Щит',boots:'Сапоги',belt:'Пояс',ring1:'Кольцо I',ring2:'Кольцо II',amulet:'Амулет',cloak:'Плащ',extra1:'Предмет XI',extra2:'Предмет XII',wings:'Крылья'};
+export const unverifiedSlots=['extra1','extra2'];
+export const rarityNames=['Грубый','Обычный','Добротный','Редкий','Эпический','Сказочный','Мифический','Безупречный','Сумрачный'];
+export const rarityColors=['#8c9198','#b6c9bd','#56be75','#48bafa','#c97aff','#ffb343','#ff6262','#fff3b1','#a15dff'];
+export const classNames:Record<HeroClass,string>={berserker:'Берсерк',ranger:'Следопыт',runologist:'Рунолог'};
+export const heroArt:Record<HeroClass,string>={berserker:'winged_helmet_warrior',ranger:'strongman_boulder',runologist:'whitebeard_mage'};
+export const skillData=[{name:'Сокрушительный удар',icon:'axe',cd:6,detail:'220% урона',runes:['Огонь · ожог 4 сек','Гром · удар по всем и стан','Пир · лечение 20% HP']},{name:'Клич Одина',icon:'crown',cd:12,detail:'+30% атаки на 5 секунд',runes:['Ярость · +25% крит','Кожа · +50% защиты и щит','Разгон · −2 сек перезарядки']},{name:'Молот Тора',icon:'lightning',cd:10,detail:'3 удара по 120% · очищает паутину',runes:['Пробитие · игнор защиты','Цепь · дополнительные цели','Жадность · +50% золота']}];
+export const enemyIds=characters.filter(c=>c.category==='enemies').map(c=>c.id);
+export const bossIds=characters.filter(c=>c.category==='bosses').map(c=>c.id);
+export const miniIds=characters.filter(c=>c.category==='minibosses').map(c=>c.id);
+export const art=(id:string)=>`${(import.meta.env?.BASE_URL??'/')}art/${id}.webp?v=${typeof __BUILD_ID__==='undefined'?'local':__BUILD_ID__}`;
