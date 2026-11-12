@@ -10,7 +10,7 @@ export function stats(p:Player):Stats {
  attack*=1+p.talents[0]*.04+p.relic*.03;defense*=1+p.talents[1]*.03;
  const crit=.07+(p.heroClass==='ranger'?.15:0)+p.talents[0]*.005,critDamage=1.5;
  const lifesteal=p.heroClass==='berserker'?.1:.02, dodge=p.talents[1]*.003;
- return {hp:Math.round(hp),attack:Math.round(attack),defense:Math.round(defense),aspd:p.heroClass==='ranger'?1.2:1,crit,critDamage,lifesteal,dodge,skillDamage:p.heroClass==='runologist'?1.3:1,reduction:0,cp:Math.floor(hp*.2+attack*2.5+defense*1.8+crit*500+critDamage*200+lifesteal*600+dodge*500)};
+ return {hp:Math.round(hp),attack:Math.round(attack),defense:Math.round(defense),aspd:balance.new_player_test_start.attacks_per_second*(p.heroClass==='ranger'?1.2:1),crit,critDamage,lifesteal,dodge,skillDamage:p.heroClass==='runologist'?1.3:1,reduction:0,cp:Math.floor(hp*.2+attack*2.5+defense*1.8+crit*500+critDamage*200+lifesteal*600+dodge*500)};
 }
 export function damage(attack:number,defense:number,level:number,mult=1,crit=false,critDamage=1.5){return Math.max(1,Math.round(attack*mult*(1-defense/(defense+100+15*level))*(crit?critDamage:1)))}
 export const xpNeeded=(level:number)=>Math.round(balance.progression_test_settings.level_exp_base*balance.progression_test_settings.level_exp_multiplier**(level-1));
