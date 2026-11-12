@@ -6,13 +6,14 @@
 Если владелец прислал фото, картинку или скрин со словами «так должно быть 100%», следовать изображению **максимально точно**. Не превращать обязательный макет в «вдохновение», не придумывать собственную компоновку, не сокращать детали, не переименовывать и не добавлять функциональность вместо запрошенной. Последнее прямое решение владельца важнее прежнего описания. Первая картинка — главная игровая сцена, см. [docs/SCREEN_100_PERCENT.md](docs/SCREEN_100_PERCENT.md). **Проверить, что реальный PNG загружен в assets/references/**, перед визуальной приёмкой.
 
 ## Источники требований
-1. [docs/GDD_OWNER_CONSOLIDATED_RU.md](docs/GDD_OWNER_CONSOLIDATED_RU.md) — обязательное подробное ТЗ владельца.
-2. [docs/SCREEN_100_PERCENT.md](docs/SCREEN_100_PERCENT.md) — обязательный экран и критерии сравнения.
-3. [docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md) — **утверждённое дополнение: 12 предметов + отдельные крылья, системный каталог и магазин**.
-4. [docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md](docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md) — глубокий аудит, источники, категории экранов, состояния, противоречия, цены и сезонный контент.
-5. [docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md) — **140 проверяемых требований**: статус каждого только после реальной работы/демонстрации. Отделять международную игру от китайской версии!
-6. [docs/ASSETS_AND_21_CHARACTERS.md](docs/ASSETS_AND_21_CHARACTERS.md) — загрузка владельцем трёх папок с 21 новым персонажем, источники отобранных ассетов TERRITORY.
-7. [docs/WORK_ORDER_FOR_CLAUDE.md](docs/WORK_ORDER_FOR_CLAUDE.md) — порядок работы и приёмки.
+1. [docs/OWNER_ORIGINAL_GDD_20261112_RU.md](docs/OWNER_ORIGINAL_GDD_20261112_RU.md) — исходный исторический текст ТЗ. **Пункты «10 слотов» и другие устаревшие числа заменены более поздними решениями владельца, не возвращать их.**
+2. [docs/GDD_OWNER_CONSOLIDATED_RU.md](docs/GDD_OWNER_CONSOLIDATED_RU.md) — сводное ТЗ с более поздними уточнениями владельца.
+3. [docs/SCREEN_100_PERCENT.md](docs/SCREEN_100_PERCENT.md) — обязательный экран и критерии сравнения.
+4. [docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md](docs/LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md) — **утверждённое дополнение: 12 предметов + отдельные крылья, системный каталог и магазин**.
+5. [docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md](docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md) — глубокий аудит, источники, категории экранов, состояния, противоречия, цены и сезонный контент.
+6. [docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md](docs/LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md) — **140 проверяемых требований**: статус каждого только после реальной работы/демонстрации. Отделять международную игру от китайской версии!
+7. [docs/ASSETS_AND_21_CHARACTERS.md](docs/ASSETS_AND_21_CHARACTERS.md) — загрузка владельцем трёх папок с 21 новым персонажем, источники отобранных ассетов TERRITORY.
+8. [docs/WORK_ORDER_FOR_CLAUDE.md](docs/WORK_ORDER_FOR_CLAUDE.md) — порядок работы и приёмки.
 
 ## Нельзя путать проект
 - Текущий рабочий проект TERRITORY — **другой репозиторий** `territory-game-builde`. Его база игроков, кошельки, VIP, инвентари, Supabase, Telegram-бот, сайт и деплой не должны изменяться. Без автоматических миграций, очисток, переносов секретов или вызовов в продакшен.
