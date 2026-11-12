@@ -29,7 +29,17 @@ jobs:
           actual = hashlib.sha256(archive).hexdigest()
           print(f"assembled zip SHA256: {actual}")
           if actual != expected:
-              raise SystemExit("Archive SHA256 mismatch: nothing was extracted")
+              print("The three files are not raw slices of the expected ZIP. Inspecting parts:")
+              for p in parts:
+                  raw = p.read_bytes()
+                  print(p.name, "size=", len(raw), "sha256=",hashlib.sha256(raw).hexdigest(), "header=",raw[:16].hex())
+                  try:
+                      with zipfile.ZipFile(io.BytesIO(raw)) as zz:
+                          print(" ZIP members=",len(zz.infolist()),"first=",zz.namelist()[:15])
+                          print(" ZIP error=",zz.testzip())
+                  except Exception as exc:
+                      print(" ZIP parse error=",repr(exc))
+              raise SystemExit("Archive layout must be verified before import")
           target = pathlib.Path("assets/characters/v2-source")
           if target.exists() and any(target.iterdir()):
               raise SystemExit("Target not empty; refusing to overwrite art")
