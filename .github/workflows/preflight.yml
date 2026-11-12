@@ -1,0 +1,37 @@
+name: Pre-Claude handoff integrity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'PROJECT_BRIEF.md'
+      - 'README.md'
+      - 'CLAUDE.md'
+      - 'docs/**'
+      - 'assets/characters/**'
+      - 'assets/references/**'
+      - 'scripts/validate_handoff.py'
+      - '.github/workflows/preflight.yml'
+  pull_request:
+    paths:
+      - 'PROJECT_BRIEF.md'
+      - 'README.md'
+      - 'CLAUDE.md'
+      - 'docs/**'
+      - 'assets/characters/**'
+      - 'assets/references/**'
+      - 'scripts/validate_handoff.py'
+      - '.github/workflows/preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate owner-approved image, 21 characters, docs, and scope
+        run: python3 scripts/validate_handoff.py
