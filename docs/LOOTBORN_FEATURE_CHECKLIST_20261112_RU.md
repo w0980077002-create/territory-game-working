@@ -2,7 +2,7 @@
 
 **Дата:** 12.11.2026. **Назначение:** не забыть ни один раздел, механический результат и негативный сценарий из полного GDD и открытого аудита. Этот список не означает, что функции уже реализованы. 
 
-Источники: [основное ТЗ](GDD_OWNER_CONSOLIDATED_RU.md), [дополнение](LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md), [глубокий аудит и ссылки](LOOTBORN_DEEP_AUDIT_20261112_RU.md), [точные версии, экономика и каталоги](LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md), [100%-экран](SCREEN_100_PERCENT.md). 
+Источники: [основное ТЗ](GDD_OWNER_CONSOLIDATED_RU.md), [дополнение](LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md), [глубокий аудит и ссылки](LOOTBORN_DEEP_AUDIT_20261112_RU.md), [точные версии, экономика и каталоги](LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md), [официальные подробности 2026](LOOTBORN_2026_OFFICIAL_PATCH_MECHANICS_RU.md), [100%-экран](SCREEN_100_PERCENT.md). 
 
 **Статус реализации всех строк на дату записи — НЕ НАЧАТО**. OWNER = утверждено владельцем; GLOBAL-OFFICIAL/ GUIDE и CN-OFFICIAL/COMMUNITY относятся к проверяемости источника, а не к готовности. Цифры CN нельзя автоматически применять в глобальном билде.
 
@@ -224,6 +224,37 @@
 | P17 | 35 Sages/274 mixed records | Типы и точная фактическая категория у каждой записи | CN-FAN-CATALOG |
 | P18 | Крылья visible/hidden | Задний слой персонажа и % бонусы даже при скрытом виде | OWNER/GLOBAL-GUIDE |
 
+
+## M. Точные правила официальных китайских патчей 2026 (региональные)
+
+| ID | Механика/экран | Минимальная проверка готовности | Происхождение |
+|---|---|---|---|
+| M01 | Treasure maps | Неопознанная -> опознанная карта через склад; тратит нужную карту один раз | CN-OFFICIAL 2026 |
+| M02 | Treasure zones | Три локации, разные loot tables и поисковый XP | CN-OFFICIAL 2026 |
+| M03 | Treasure outcomes | Неудача/успех/большой успех, XP даже при неудаче | CN-OFFICIAL 2026 |
+| M04 | Search level | Порог суммарно 5 мифических звёзд, улучшение со временем/свитком | CN-OFFICIAL 2026 |
+| M05 | Miracle relic item | Равная/лучшая звезда сохраняется, худшая распыляется, базовый уровень фиксирован | CN-OFFICIAL 2026 |
+| M06 | Boss Auto threshold | 1/3/5 попыток и 1/3/5 поражений с понятной причиной остановки | CN-OFFICIAL 2026 |
+| M07 | Shared realm floor | Общий прогресс этажа по классам после патча, не сбрасывать при switch | CN-OFFICIAL 2026 |
+| M08 | Endless skip | Число пропущенных волн зависит от оставшегося времени | CN-OFFICIAL 2026 |
+| M09 | Event Blessing token | 10/day и +10 с monthly (историч. event), разный loot quality | CN-OFFICIAL 2026 |
+| M10 | Event leftovers/mail | Неиспользованные coins/statues не исчезают, pass rewards высылаются | CN-OFFICIAL 2026 |
+| M11 | Relic quality promote | Повышение после max stars, успех случайный, шанс повышается после неудачи | CN-OFFICIAL 2026 |
+| M12 | Relic star mini-ranks | 4 шага на звезду, 1–5 и 6–10 требуют разные материалы | CN-OFFICIAL 2026 |
+| M13 | Engraving bulk safety | 100000 nectar — UI threshold; улучшение до 30, защитный фильтр распыления | CN-OFFICIAL 2026 |
+| M14 | Changed pack price | ¥30 заменён ¥18 в CN 2026, старая карточка не остаётся действующей | CN-OFFICIAL 2026 |
+| M15 | Retro compensation | 2 недели для fund, 1–3 рабочих дня + 90d lookback для packs, idempotent | CN-OFFICIAL 2026 |
+| M16 | Gift restricted chest | Предметы/сундуки могут быть server-tradeable=false, включая вложения | CN-OFFICIAL 2026 |
+| M17 | PvPvE extraction | 10sec protection/8min max/2min chest refresh/30% loot risk (CN past event) | CN-OFFICIAL 2026 |
+| M18 | Boss affix floor60 | 50% physical resist, DoT→heal 10% missing HP, aura/en regen | CN-OFFICIAL 2026 |
+| M19 | Boss affix floor70 | 95% crit resist, каждые 2с 3 charges shield, 30% dodge | CN-OFFICIAL 2026 |
+| M20 | Boss affix floor80 | DoT удаляет реген-стек, без DoT добавляет, max20, 5%/stack | CN-OFFICIAL 2026 |
+| M21 | Boss affix floor90 | 80% ATK Thorns per hit, 95% crit resist, CC иммунитет кроме slow | CN-OFFICIAL 2026 |
+| M22 | Boss affix floor110 | Buff stacks+2s, успешный CC удаляет 2, cleanse cooldown | CN-OFFICIAL 2026 |
+| M23 | Boss affix floor130 | 95% DoT resist, одиночный удар >5% босса снимает 2 buff stacks | CN-OFFICIAL 2026 |
+| M24 | Skill loadout 2026 | Официальный CN гайд 5 активных и 4 пассива; конфликт с OWNER 3 слота на главном экране зафиксирован | CN-OFFICIAL/OWNER |
+| M25 | Warlock and S3 status | Зимний Warlock и S3 — анонс, не falsely shipped; механика summons-proc в плане | CN-PREVIEW 2026 |
+
 ## Контроль качества и источников
 
-Итого **158 независимых требований/проверок**. Для каждого Claude должен заполнять: `status` = planned/in_progress/playable/verified_device; `owner_approved`; `last_test_date`; `evidence_url`; `source_region`; `unknown_fields[]`. Нельзя автоматически отмечать категорию как готовую, если есть только картинка, макет, PR или CI. Новые функции из обновлений добавляются с новой строкой, старые не удаляются без решения владельца.
+Итого **183 независимых требований/проверок**. Для каждого Claude должен заполнять: `status` = planned/in_progress/playable/verified_device; `owner_approved`; `last_test_date`; `evidence_url`; `source_region`; `unknown_fields[]`. Нельзя автоматически отмечать категорию как готовую, если есть только картинка, макет, PR или CI. Новые функции из обновлений добавляются с новой строкой, старые не удаляются без решения владельца.
