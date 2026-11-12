@@ -2,7 +2,7 @@
 
 **Дата:** 12.11.2026. **Назначение:** не забыть ни один раздел, механический результат и негативный сценарий из полного GDD и открытого аудита. Этот список не означает, что функции уже реализованы. 
 
-Источники: [основное ТЗ](GDD_OWNER_CONSOLIDATED_RU.md), [дополнение](LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md), [глубокий аудит и ссылки](LOOTBORN_DEEP_AUDIT_20261112_RU.md), [точные версии, экономика и каталоги](LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md), [официальные подробности 2026](LOOTBORN_2026_OFFICIAL_PATCH_MECHANICS_RU.md), [100%-экран](SCREEN_100_PERCENT.md). 
+Источники: [основное ТЗ](GDD_OWNER_CONSOLIDATED_RU.md), [дополнение](LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md), [глубокий аудит и ссылки](LOOTBORN_DEEP_AUDIT_20261112_RU.md), [точные версии, экономика и каталоги](LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md), [официальные подробности 2026](LOOTBORN_2026_OFFICIAL_PATCH_MECHANICS_RU.md), [сезонные камни и маунты](LOOTBORN_2026_SEASON_GEMS_MOUNT_FORGE_CN_RU.md), [100%-экран](SCREEN_100_PERCENT.md). 
 
 **Статус реализации всех строк на дату записи — НЕ НАЧАТО**. OWNER = утверждено владельцем; GLOBAL-OFFICIAL/ GUIDE и CN-OFFICIAL/COMMUNITY относятся к проверяемости источника, а не к готовности. Цифры CN нельзя автоматически применять в глобальном билде.
 
@@ -255,6 +255,30 @@
 | M24 | Skill loadout 2026 | Официальный CN гайд 5 активных и 4 пассива; конфликт с OWNER 3 слота на главном экране зафиксирован | CN-OFFICIAL/OWNER |
 | M25 | Warlock and S3 status | Зимний Warlock и S3 — анонс, не falsely shipped; механика summons-proc в плане | CN-PREVIEW 2026 |
 
+
+## N. Сезонные камни, отдельная сила и синтез Mythic снаряжения ездовых животных (CN 2026)
+
+| ID | Механика/экран | Минимальная проверка готовности | Происхождение |
+|---|---|---|---|
+| N01 | Сезонные камни 2+1 | На слот предмета 2 обычных +1 сияющий, тип гнезда проверять | CN-OFFICIAL 2026 |
+| N02 | Separate seasonal score | Сезонные камни не повышают базовый CP, но улучшают сезонные статы | CN-OFFICIAL 2026 |
+| N03 | Desperate Abyss only flawless | Только безупречный аффикс; сезонные статы не действуют | CN-OFFICIAL 2026 |
+| N04 | Seasonal gem sources | Обычные из Apocalypse Invasion; сияющие из Boss Hunt; 3 sweep/день | CN-OFFICIAL 2026 |
+| N05 | Boss HP bars & gem drops | За больше HP-полос и более высокого босса — соответствующая модель наград | CN-OFFICIAL 2026 |
+| N06 | Season end gem return | Сезонный reset, конвертация в обычные и выдача по почте | CN-OFFICIAL 2026 |
+| N07 | First clear once | Личный и общий в группе серверов первый проход: два независимых одноразовых claim | CN-OFFICIAL 2026 |
+| N08 | Desperate Abyss chapters | Каждая сложность 3 этапа, 1-й открывает следующую, рейтинг tie-earliest | CN-OFFICIAL 2026 |
+| N09 | New Dark gear & engravings | 3 класса ×7 Dark pieces=21; 12 engravings c отдельными источниками | CN-OFFICIAL 2026 |
+| N10 | Ice-shield counter | Щит 10% maxHP/сек, 20 ice hits за 3сек отключают на 10сек | CN-OFFICIAL 2026 |
+| N11 | DoT-counter regeneration | Стек регена каждые 2сек без DoT, DoT снимает стек; max20 | CN-OFFICIAL 2026 |
+| N12 | Doom Orb timeout & cancel | Через 10сек 80% maxHP и 6с stun; прерывание при bossHP ниже35% | CN-OFFICIAL 2026 |
+| N13 | Mount forge ingredients | 2 mythic gear same name/slot/max upgrade; префильтр | CN-OFFICIAL 2026 |
+| N14 | Mount forge outcome | 95% обычный fully upgraded, 5% редкий unupgraded с min2 skills | CN-OFFICIAL 2026 |
+| N15 | Mount skill inheritance | 36% per mythic skill (обычный результат), остальные reroll | CN-OFFICIAL 2026 |
+| N16 | Mount merge keys | Gold keys по числу skill; 0 mythic skills → 5 silver keys | CN-OFFICIAL 2026 |
+| N17 | Mount trade restriction | Если донор non-giftable, результат non-giftable, оба донора расходуются | CN-OFFICIAL 2026 |
+| N18 | Mount gear set skills | Tier per 4 mythic skills, 3 совместимых эффекта, mixed = половина | CN-OFFICIAL 2026 |
+
 ## Контроль качества и источников
 
-Итого **183 независимых требований/проверок**. Для каждого Claude должен заполнять: `status` = planned/in_progress/playable/verified_device; `owner_approved`; `last_test_date`; `evidence_url`; `source_region`; `unknown_fields[]`. Нельзя автоматически отмечать категорию как готовую, если есть только картинка, макет, PR или CI. Новые функции из обновлений добавляются с новой строкой, старые не удаляются без решения владельца.
+Итого **201 независимое требование/проверка**. Для каждого Claude должен заполнять: `status` = planned/in_progress/playable/verified_device; `owner_approved`; `last_test_date`; `evidence_url`; `source_region`; `unknown_fields[]`. Нельзя автоматически отмечать категорию как готовую, если есть только картинка, макет, PR или CI. Новые функции из обновлений добавляются с новой строкой, старые не удаляются без решения владельца.
