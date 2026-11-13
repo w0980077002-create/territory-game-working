@@ -2,6 +2,7 @@ import {useEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import type {Item,Player} from '../core/types';
 import {useGame} from '../core/store';
+import {xpNeeded} from '../core/formulas';
 import {art,heroArt,classNames,rarityColors,rarityNames,slotNames} from '../data/catalog';
 import {Icon,gearIcon} from './Icon';
 import {sound,unlockAudio} from '../game/Sound';
@@ -33,3 +34,12 @@ export function TrophyReveal({item,encounter}:{item:Item;encounter:string}){cons
 /** Every effect follows a committed state change, including duplicate-click rejection. */
 export function forgeFeedback(before:Item){const current=useGame.getState().p.equipment[before.slot];if(current?.id!==before.id||current.upgrade!==before.upgrade+1)return;const p=useGame.getState().p;unlockAudio(p.sound);sound('forge',p.sound);window.dispatchEvent(new CustomEvent('saga-forged',{detail:{id:current.id,upgrade:current.upgrade}}))}
 export function ForgeEcho(){const [strike,setStrike]=useState<{id:string;upgrade:number;key:number}|null>(null);useEffect(()=>{let timer:ReturnType<typeof setTimeout>;const receive=(event:Event)=>{const detail=(event as CustomEvent).detail;setStrike({...detail,key:Date.now()});clearTimeout(timer);timer=setTimeout(()=>setStrike(null),1100)};window.addEventListener('saga-forged',receive);return()=>{clearTimeout(timer);window.removeEventListener('saga-forged',receive)}},[]);return strike?<div className="forge-echo" key={strike.key} role="status"><span>Закалено <b>+{strike.upgrade}</b></span>{[0,1,2,3].map(i=><i key={i} style={{'--n':i} as React.CSSProperties}/>)}</div>:null}
+
+export function ExperienceMeter({p}:{p:Player}){const goal=xpNeeded(p.level);return <div className="experience-meter"><div><strong>До уровня {p.level+1}</strong><span>{p.xp} / {goal} XP</span></div><progress max={goal} value={Math.min(goal,p.xp)} aria-label={`Опыт до уровня ${p.level+1}`}/><small>Ещё {Math.max(0,goal-p.xp)} опыта · сражайтесь и разбирайте добычу</small></div>}
+
+export function LevelUpFeedback(){
+ const level=useGame(s=>s.p.level),reduced=useGame(s=>s.p.reducedMotion),previous=useRef(level),[award,setAward]=useState<{level:number;points:number}|null>(null);
+ useEffect(()=>{if(level>previous.current)setAward({level,points:level-previous.current});previous.current=level},[level]);
+ useEffect(()=>{if(award===null)return;const timer=setTimeout(()=>setAward(null),2600);return()=>clearTimeout(timer)},[award]);
+ return award===null?null:createPortal(<div className="level-award" data-motion={reduced?'reduced':undefined} role="status" key={award.level}><span aria-hidden="true">✦</span><div><small>ЛЕГЕНДА РАСТЁТ</small><strong>Уровень {award.level}</strong><p>Характеристики выросли · +{award.points} к талантам</p></div><span aria-hidden="true">✦</span></div>,document.body);
+}
