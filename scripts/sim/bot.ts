@@ -11,6 +11,10 @@ export function installHeadless(){
  if(!g.cancelAnimationFrame)Object.defineProperty(globalThis,'cancelAnimationFrame',{value:()=>{},configurable:true});
  if(!g.localStorage){const saves=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{value:{getItem:(k:string)=>saves.get(k)??null,setItem:(k:string,v:string)=>saves.set(k,v),removeItem:(k:string)=>saves.delete(k)},configurable:true})}
 }
+const nativeRandom=Math.random;
+/** Deterministic Math.random for reproducible simulations (mulberry32). Call restoreRandom() afterwards. */
+export function seedRandom(seed:number){let a=seed>>>0;Math.random=()=>{a=a+0x6d2b79f5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296}}
+export function restoreRandom(){Math.random=nativeRandom}
 export interface StageLog {stage:number;level:number;cp:number;defeats:number;waveTime:number;bossTime:number;bossLeft:number;hpLeft:number;gold:number;taken:number}
 const G=()=>useGame.getState();
 export function manage(spend=.5){
