@@ -15,10 +15,6 @@ export function worldObjectsAround(cameraX:number):WorldObject[]{
  }
  // Opening composition: a large dragon-roof gate at the left, with an open road ahead.
  if(cameraX<1200)objects.push({id:'arrival-gate',kind:0,worldX:75,worldY:710,width:470,height:500,depth:.88,flip:false,lit:true});
- // Atlas frames have different proportions (especially the suspension bridge).
- // Derive height from their painted bounds rather than stretching every district
- // into a tower-shaped rectangle. All bases remain registered to the snow line.
- for(const o of objects){const [, ,w,h]=landmarkFrames[o.kind];o.height=o.width*h/w;}
  return objects.sort((a,b)=>a.depth-b.depth);
 }
 export class WorldRenderer {
