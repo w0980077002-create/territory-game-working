@@ -39,7 +39,9 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
  const cancel=()=>{setMulti(false);setIds([]);setConfirm(false)};
  const selectWeaker=()=>{setIds(prev=>[...new Set([...prev,...eligible.filter(i=>compareItem(i,p)<0).map(i=>i.id)])]);setConfirm(false)};
  const execute=()=>{if(!chosen.length)return;const count=storage?(onClaim?.(chosen.map(i=>i.id))??0):onBulkSalvage(chosen.map(i=>i.id));if(count>0)cancel();else setConfirm(false)};
- useEffect(()=>setConfirm(false),[filter,slot,order,p]);
+ // Refill/autosave recreates p every 15s. It must not cancel a decision the player is reading.
+ const selectionKey=chosen.map(i=>`${i.id}:${itemPower(i)}:${i.level}`).join('|');
+ useEffect(()=>setConfirm(false),[filter,slot,order,selectionKey]);
 
  return <>
   <div className="bulk-toolbar">
