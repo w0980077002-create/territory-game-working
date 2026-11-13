@@ -18,10 +18,10 @@ type GooseAct={kind:'dive';t:number;target:Fighter}|{kind:'loop'|'cower'|'fetch'
 type DogAct={kind:'guard'|'dig'|'cheer'|'growl';t:number;dur:number;tx?:number};
 const ease=(f:number)=>f*f*(3-2*f);
 export class CompanionBrain {
- dive=5;guard=4;rescued=false;armed=0;goose:GooseAct|null=null;dog:DogAct|null=null;emotes:Emote[]=[];private cowered=false;
- reset(){this.dive=5;this.guard=4;this.rescued=false;this.armed=0;this.goose=null;this.dog=null;this.cowered=false}
+ dive=5;guard=4;rescued=false;rescues=0;rescueMax=1;diveScale=1;guardScale=1;guardCut:number=team.guardReduction;armed=0;goose:GooseAct|null=null;dog:DogAct|null=null;emotes:Emote[]=[];private cowered=false;
+ reset(){this.dive=5;this.guard=4;this.rescued=false;this.rescues=0;this.armed=0;this.goose=null;this.dog=null;this.cowered=false}
  snapshot():TeamSnapshot{return {dive:this.dive,guard:this.guard,rescued:this.rescued}}
- restore(s?:TeamSnapshot){this.reset();if(s){this.dive=s.dive;this.guard=s.guard;this.rescued=s.rescued}}
+ restore(s?:TeamSnapshot){this.reset();if(s){this.dive=s.dive;this.guard=s.guard;this.rescued=s.rescued;this.rescues=s.rescued?this.rescueMax:0}}
  emote(who:Emote['who'],glyph:string,seconds=1.4,x?:number,y?:number){this.emotes=this.emotes.filter(e=>e.who!==who||who==='spot');this.emotes.push({who,glyph,t:seconds,max:seconds,x,y})}
  /** Scripted moments requested by the world (events, victory). */
  play(who:'goose'|'dog',kind:string,dur:number,tx?:number,ty?:number){if(who==='goose')this.goose={kind:kind as 'loop',t:0,dur,tx,ty};else this.dog={kind:kind as 'dig',t:0,dur,tx}}
@@ -36,13 +36,13 @@ export class CompanionBrain {
   if(h.boss&&h.intro>0&&!this.cowered){this.cowered=true;this.play('goose','cower',1.3);this.emote('goose','!',1.2);this.play('dog','growl',1.1)}
   if(h.intro>0||h.stun>0)return;
   // Goose: only when the hero's own interrupt is on cooldown — the bird covers the gap, it does not play the game for you.
-  if(!this.goose&&this.dive<=0&&!h.boss&&h.cooldowns[0]>.3){const u=h.units.find(u=>u.hp>0&&roleOf(u.id)==='ranged'&&u.windup>=team.diveMinWindup);if(u){this.goose={kind:'dive',t:0,target:u};this.dive=team.diveCooldown;this.emote('goose','!',.7)}}
+  if(!this.goose&&this.dive<=0&&!h.boss&&h.cooldowns[0]>.3){const u=h.units.find(u=>u.hp>0&&roleOf(u.id)==='ranged'&&u.windup>=team.diveMinWindup);if(u){this.goose={kind:'dive',t:0,target:u};this.dive=team.diveCooldown*this.diveScale;this.emote('goose','!',.7)}}
   // Dog: a heavy melee blow is about to land, or any melee blow while the hero is badly hurt.
-  if(!this.dog&&this.guard<=0){const low=h.hp/h.maxHp<team.heavyBelow,u=h.units.find(u=>u.hp>0&&roleOf(u.id)!=='ranged'&&!/spider|fungal|fire_abyss/.test(u.id)&&u.windup>0&&u.windup<.32&&(low||h.boss||/boar|club/.test(u.id)));if(u){this.dog={kind:'guard',t:0,dur:team.guardWindow};this.guard=team.guardCooldown;this.armed=team.guardWindow;this.emote('dog','!',.8);h.onGuardReady()}}
-  if(!this.rescued&&h.hp>0&&h.hp/h.maxHp<team.rescueBelow&&h.compCd[1]>1.2){this.rescued=true;h.compCd[1]=.05;this.emote('dog','♥',1.4);h.onRescue()}
+  if(!this.dog&&this.guard<=0){const low=h.hp/h.maxHp<team.heavyBelow,u=h.units.find(u=>u.hp>0&&roleOf(u.id)!=='ranged'&&!/spider|fungal|fire_abyss/.test(u.id)&&u.windup>0&&u.windup<.32&&(low||h.boss||/boar|club/.test(u.id)));if(u){this.dog={kind:'guard',t:0,dur:team.guardWindow};this.guard=team.guardCooldown*this.guardScale;this.armed=team.guardWindow;this.emote('dog','!',.8);h.onGuardReady()}}
+  if(!this.rescued&&h.hp>0&&h.hp/h.maxHp<team.rescueBelow&&h.compCd[1]>1.2){this.rescues++;this.rescued=this.rescues>=this.rescueMax;h.compCd[1]=.05;this.emote('dog','♥',1.4);h.onRescue()}
  }
  /** Asked by the fight when a melee hit lands on the hero. Consumes the dog's guard. */
- absorb(h:TeamHost){if(this.armed<=0)return 1;this.armed=0;h.onGuardHit();return team.guardReduction}
+ absorb(h:TeamHost){if(this.armed<=0)return 1;this.armed=0;h.onGuardHit();return this.guardCut}
  /** Offsets from the companion's home spot, in screen pixels. */
  goosePose(clock:number,home:{x:number;y:number},target?:{x:number;y:number}){
   const g=this.goose,bob=Math.sin(clock*3.1)*5;if(!g)return {dx:0,dy:bob,attack:0};
