@@ -12,9 +12,10 @@ export function AutobattleDialog(){
  const [auto,setAuto]=useState(g.auto);
  const [stopOnDeath,setStopOnDeath]=useState(g.stopOnDeath);
  const [continueOnVictory,setContinueOnVictory]=useState(g.continueOnVictory);
+ const [autoSalvageWeaker,setAutoSalvageWeaker]=useState(g.autoSalvageWeaker);
  const saveRef=useRef<HTMLButtonElement>(null);
  const close=()=>g.open(null);
- const save=()=>{g.configure({speed,auto,stopOnDeath,continueOnVictory});g.open(null)};
+ const save=()=>{g.configure({speed,auto,stopOnDeath,continueOnVictory,autoSalvageWeaker});g.open(null)};
  useEffect(()=>{
   const previous=document.activeElement as HTMLElement|null;
   const viewport=document.querySelector<HTMLElement>('.viewport');
@@ -53,6 +54,11 @@ export function AutobattleDialog(){
         <span className="autobattle-square" aria-hidden="true">{continueOnVictory?'✔':''}</span>
         <span>Авто-переход после победы</span>
        </label>
+       <label className="autobattle-check">
+        <input type="checkbox" checked={autoSalvageWeaker} onChange={e=>setAutoSalvageWeaker(e.target.checked)}/>
+        <span className="autobattle-square" aria-hidden="true">{autoSalvageWeaker?'✔':''}</span>
+        <span>Разбирать вещи слабее надетых</span>
+       </label>
       </div>
       <aside className="autobattle-rules">
        <strong>Условия боя</strong>
@@ -62,7 +68,7 @@ export function AutobattleDialog(){
       </aside>
      </div>
      <button ref={saveRef} className="autobattle-save" onClick={save}>Сохранить</button>
-     <p className="autobattle-footer-note">Экипировка сохраняется в рюкзаке · автоматический разбор выключен</p>
+     <p className="autobattle-footer-note">{autoSalvageWeaker?'Слабые обычные находки разбираются в золото и опыт · редкие, уникальные, комплектные и защищённые предметы сохраняются':'Разбор выключен · вещи сохраняются в рюкзаке'}</p>
     </div>
    </section>
   </div>,
