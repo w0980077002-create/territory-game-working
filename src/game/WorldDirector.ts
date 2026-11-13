@@ -232,7 +232,8 @@ export class WorldDirector {
   }else if(ev.kind==='ambush'){
    const hidden=this.state==='approach'||this.state==='decide';
    for(const dx of [-6,96]){scenery(c,hidden?'bush':'bush-empty',x+dx,y,82,93);if(hidden){c.globalAlpha=.25+.12*Math.sin(t*2);c.drawImage(lampGlow(),x+dx-18,y-34,36,24);c.globalAlpha=1;}}
-   if(ev.variant.id==='slide')scenery(c,'bush',x+42+(hidden?Math.sin(t*18)*.5:0),y-91,65,142);
+   // Avalanche ambush uses the grounded bushes above; a second bush at y-91
+   // used to hang in the air without any supporting ledge.
   }else if(ev.variant.id==='spider_queen'){
    scenery(c,'lanterns',x,y,150,170);
    // Fine silk is an effect over the painted lanterns, not a replacement prop.

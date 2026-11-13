@@ -93,7 +93,7 @@ export const legendLap=(stage:number)=>Math.floor(regionIndex(stage)/regions.len
 export const regionTitle=(stage:number)=>{const lap=legendLap(stage);return (lap?`Легенда ${'I'.repeat(Math.min(3,lap))}${lap>3?'+':''} · `:'')+regionOf(stage).name};
 /**
  * Threat multiplier of a stage relative to stage 1. Stages 1–60 come from a table calibrated by the
- * headless bot (scripts/sim/calibrate.ts); later «legend» stages continue the table's last slope.
+ * fixed ordinary builds (scripts/sim/fair-tune.ts); later «legend» stages continue the table's last slope.
  */
 export function growth(stage:number,kind:'hp'|'atk'){
  const table:number[]=kind==='hp'?curve.hp_table:curve.attack_table,s=Math.max(1,Math.floor(stage));
@@ -124,12 +124,12 @@ export function campaignPlan(stage:number,wave:number,seed=7):EncounterPlan{
  if(wave>=5){
   const [id,title]=region.bosses[n-1],finale=n===10,mid=n===5,scale=finale?curve.finale_hp:mid?curve.midboss_hp:1,affix=finale?undefined:affixFor(stage,5,0,seed);
   const legion=region.id==='limes'&&finale;
-  const units:FoePlan[]=[{id,hp:t.bossHp*scale*affixHp(affix)*(legion?.7:1),atk:t.bossAtk*(finale?curve.finale_attack:1),def:t.def,affix,title}];
-  if(legion)units.push({id:H,hp:t.hp*1.6,atk:t.atk*1.2,def:t.def,title:'Знаменосец'},{id:S,hp:t.hp*1.3,atk:t.atk*1.25,def:t.def,title:'Баллистарий'});
+  const units:FoePlan[]=[{id,hp:t.bossHp*scale*affixHp(affix)*(legion?.7:1),atk:t.bossAtk*(finale?curve.finale_attack:1)*(legion?.65:1),def:t.def,affix,title}];
+  if(legion)units.push({id:H,hp:t.hp*1.6,atk:t.bossAtk*.175,def:t.def,title:'Знаменосец'},{id:S,hp:t.hp*1.3,atk:t.bossAtk*.175,def:t.def,title:'Баллистарий'});
   return {units,boss:true,finale,timer:balance.locked_owner_rules.boss_timer_seconds+(finale?curve.finale_timer_bonus:0),title,hint:finale?`Финал региона. ${hazard?hazards[hazard].hint:''}`:affix?affixes[affix].hint:hazard?hazards[hazard].hint:'Срывайте тяжёлые атаки и берегите щит для ярости.',role:finale?'Владыка региона':mid?'Страж рубежа':'Страж',hazard,region,bossName:title,ultimates:finale||mid?region.ultimates:undefined};
  }
  const pick=Math.floor(roll(seed,stage,wave,5)*region.packs.length),pack=region.packs[(pick+wave+n)%region.packs.length],share=pack.length===3?curve.trio_hp_share:1;
- const units=pack.map((id,i)=>{const affix=affixFor(stage,wave,i,seed);return {id,hp:t.hp*curve.wave_hp[wave-1]*share*affixHp(affix),atk:t.atk*curve.wave_attack[wave-1]*(pack.length===3?.85:1),def:t.def,affix}});
+ const units=pack.map((id,i)=>{const affix=affixFor(stage,wave,i,seed);return {id,hp:t.hp*curve.wave_hp[wave-1]*share*affixHp(affix),atk:t.atk*curve.wave_attack[wave-1]*(pack.length===3?2/3:1),def:t.def,affix}});
  const elite=units.find(u=>u.affix);
  return {units,boss:false,finale:false,timer:0,title:`${region.districts[wave-1]}`,hint:elite?affixes[elite.affix!].hint:hazard?hazards[hazard].hint:'Обычный отряд. Срыв атаки открывает окно слабости.',role:wave===4?'Элита':'Отряд',hazard,region};
 }

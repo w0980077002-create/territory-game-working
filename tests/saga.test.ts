@@ -73,8 +73,9 @@ test('potion price follows the stage and has a cooldown',()=>{
  const b=at(1,1);assert.equal(b.potionCost(),balance.combat_test_settings.potion_gold_cost);b.hp=1;const gold=useGame.getState().p.gold;b.heal();assert.equal(useGame.getState().p.gold,gold-30);b.hp=1;b.heal();assert.equal(useGame.getState().p.gold,gold-30);b.destroy();
  const late=at(30,1);assert.ok(late.potionCost()>300);late.destroy();
 });
-test('SIM: a diligent bot of every class finishes all sixty story stages without a hard wall',t=>{
- // Keep Claude's seeds. Advance the wall clock with the simulated battle, so
+test('SIM: an ordinary player of every class finishes all sixty story stages without a hard wall',t=>{
+ // Keep Claude's seeds and determinism check. Constrain purchases and skill timing
+ // to ordinary play; an unlimited optimiser must not set the difficulty floor. Advance the wall clock with the simulated battle, so
  // horn recharge uses elapsed play time rather than the CPU speed of the runner.
  // Date.now is restored by the test context; Math.random is restored even on failure.
  let now=Date.UTC(2026,10,13);
@@ -82,16 +83,16 @@ test('SIM: a diligent bot of every class finishes all sixty story stages without
  for(const [n,c] of (['berserker','ranger','runologist'] as const).entries()){
   const run=()=>{
    now=Date.UTC(2026,10,13);seedRandom(2026+n);
-   try{return playCampaign(c,61,{advanceTime:seconds=>{now+=seconds*1000}})}
+   try{return playCampaign(c,61,{ordinary:true,skillDelay:1.7,advanceTime:seconds=>{now+=seconds*1000}})}
    finally{restoreRandom()}
   };
   const log=run();
   assert.deepEqual(run(),log,c+' must replay identically in the same process');
   assert.deepEqual(log.map(r=>r.stage),Array.from({length:60},(_,i)=>i+1),c+' must clear every stage');
   const worst=Math.max(...log.map(r=>r.defeats));
-  assert.ok(worst<=14,c+' wall: '+worst+' defeats on one stage');
-  const times=log.filter(r=>r.stage>=12).map(r=>r.bossTime).sort((a,b)=>a-b);
-  const median=times[Math.floor(times.length/2)];
-  assert.ok(median>6,c+' bosses must not melt: median '+median);
+  assert.ok(worst<=6,c+' wall: '+worst+' defeats on one stage');
+  // Fight duration is asserted for fixed mixed gear in fairness.test.ts.
+  // This inventory optimiser must be allowed to win faster as its equipment improves;
+  // calibrating all enemies against its purchases caused the original campaign wall.
  }
 });
