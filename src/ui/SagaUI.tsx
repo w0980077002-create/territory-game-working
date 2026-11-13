@@ -8,7 +8,7 @@ import {Icon,gearIcon} from './Icon';
 import {sound,unlockAudio} from '../game/Sound';
 
 export type Material='chest'|'forge'|'rune'|'sea'|'roman'|'moon'|'gold';
-const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',arena:'roman',battle:'roman',controls:'roman',hero:'moon',companions:'moon',shop:'chest',rewards:'gold',events:'gold',collection:'moon'};
+const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',companions:'moon',shop:'chest',rewards:'gold',events:'gold',collection:'moon'};
 const atmospheres:Record<Material,[string,string,string]>={chest:['СОКРОВИЩА СЕВЕРА','Сталь помнит удары. Дуб помнит века.','chest'],forge:['СЕРДЦЕ ОГНЯ','Из жара рождается сила.','axe'],rune:['ПРОБУЖДЕНИЕ ЗНАКА','Лёд хранит древние имена.','rune'],sea:['СЕВЕРНАЯ ГАВАНЬ','Каждая дорога становится сагой.','ship'],roman:['НАСЛЕДИЕ ИМПЕРИИ','Доблесть оставляет след на бронзе.','shield'],moon:['ПОД СЕВЕРНОЙ ЗВЕЗДОЙ','У каждой легенды есть имя.','wings'],gold:['ДАРЫ ДРЕВНЕГО МИРА','Каждая находка имеет историю.','crown']};
 export function panelMaterial(panel:string):Material{return panel.startsWith('gear:')?'forge':themes[panel]??'sea'}
 export function Atmosphere({kind}:{kind:Material}){return <div className={`ambient ambient-${kind}`} aria-hidden="true">{Array.from({length:5},(_,i)=><i key={i} style={{'--n':i} as React.CSSProperties}/>)}</div>}
@@ -22,7 +22,34 @@ function SceneArt({kind}:{kind:Material}){const id=useId().replace(/:/g,'');cons
  </svg>}
 export function Scene({kind,panel}:{kind:Material;panel:string}){const [eyebrow,quote]=atmospheres[kind];return <div className={`saga-scene scene-${kind}`}><SceneArt kind={kind}/><div className="scene-caption"><small>{panel==='shop'?'ТОРГОВЫЕ РЯДЫ':eyebrow}</small><span>{quote}</span></div><Atmosphere kind={kind}/></div>}
 
-export function DialogShell({panel,title,children,footer,rarity,dismissible=true}:{panel:string;title:string;children:React.ReactNode;footer:React.ReactNode;rarity?:number;dismissible?:boolean}){const toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError),close=useGame(s=>s.open),reduced=useGame(s=>s.p.reducedMotion),kind=panelMaterial(panel),ref=useRef<HTMLElement>(null);useEffect(()=>{const previous=document.activeElement as HTMLElement|null;const background=document.querySelector<HTMLElement>('.viewport');if(background)background.inert=true;return()=>{if(background)background.inert=false;previous?.focus({preventScroll:true})}},[]);useEffect(()=>{ref.current?.querySelector<HTMLButtonElement>('.close, .action')?.focus({preventScroll:true})},[panel]);const body=useRef<HTMLDivElement>(null);useEffect(()=>{if(body.current)body.current.scrollTop=0},[panel]);return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClick={e=>{if(dismissible&&e.target===e.currentTarget)close(null)}} onKeyDown={e=>{if(dismissible&&e.key==='Escape'){e.stopPropagation();close(null)}if(e.key==='Tab'){const controls=Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),select,input:not([hidden]),[tabindex="0"]')??[]).filter(el=>el.getClientRects().length);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}}}><section ref={ref} className={`modal saga-modal material-${kind}`} data-panel={panel} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}><header className="modal-header"><div className="header-seal"><Icon name={atmospheres[kind][2]}/></div><div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&<button className="close" onClick={()=>close(null)} aria-label="Закрыть">×</button>}</header><div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status">{toast}</div>}</div><div className="modal-body" ref={body} key={panel}><Scene kind={kind} panel={panel}/>{children}</div>{footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/></section></div>,document.body)}
+export function DialogShell({panel,title,children,footer,rarity,dismissible=true}:{panel:string;title:string;children:React.ReactNode;footer:React.ReactNode;rarity?:number;dismissible?:boolean}){
+ const toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError),close=useGame(s=>s.open),reduced=useGame(s=>s.p.reducedMotion);
+ const kind=panelMaterial(panel),ref=useRef<HTMLElement>(null),body=useRef<HTMLDivElement>(null);
+ useEffect(()=>{
+  const previous=document.activeElement as HTMLElement|null,background=document.querySelector<HTMLElement>('.viewport');
+  if(background)background.inert=true;
+  return()=>{if(background)background.inert=false;previous?.focus({preventScroll:true})};
+ },[]);
+ useEffect(()=>{ref.current?.focus({preventScroll:true});if(body.current)body.current.scrollTop=0},[panel]);
+ const keyDown=(e:React.KeyboardEvent)=>{
+  if(dismissible&&e.key==='Escape'&&!document.querySelector(':popover-open')){e.stopPropagation();close(null)}
+  if(e.key!=='Tab')return;
+  const controls=Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),select,input:not(:disabled):not([hidden]),textarea,a[href],summary,[tabindex="0"]')??[]).filter(el=>el.getClientRects().length);
+  const first=controls[0],last=controls.at(-1),active=document.activeElement;
+  if(!first){e.preventDefault();ref.current?.focus();return}
+  if(e.shiftKey&&(active===first||active===ref.current||!ref.current?.contains(active))){e.preventDefault();last?.focus()}
+  else if(!e.shiftKey&&(active===last||active===ref.current||!ref.current?.contains(active))){e.preventDefault();first.focus()}
+ };
+ const showScene=!['inventory','item','autobattle','menu','controls','battle','equipment','hero'].includes(panel)&&!panel.startsWith('gear:');
+ return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClick={e=>{if(dismissible&&e.target===e.currentTarget)close(null)}} onKeyDown={keyDown}>
+  <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
+   <header className="modal-header"><div className="header-seal"><Icon name={atmospheres[kind][2]}/></div><div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&<button className="close" onClick={()=>close(null)} aria-label="Закрыть">×</button>}</header>
+   <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status">{toast}</div>}</div>
+   <div className="modal-body" ref={body} key={panel}>{showScene&&<Scene kind={kind} panel={panel}/>}<div className="panel-content">{children}</div></div>
+   {footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/>
+  </section>
+ </div>,document.body);
+}
 
 export function HeroPortrait({p,compact=false}:{p:Player;compact?:boolean}){return <div className={`saga-portrait ${compact?'compact':''}`}><div className="portrait-halo"/>{p.wingVisible&&p.equipment.wings&&<Icon name="wings" className="portrait-wings"/>}<img className="portrait-hero" src={art(heroArt[p.heroClass])} alt={classNames[p.heroClass]}/><span>{classNames[p.heroClass]} <b>· ур.{p.level}</b></span></div>}
 

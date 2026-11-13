@@ -1,3 +1,5 @@
+import {CompactFilter} from './CompactFilter';
+import {Icon} from './Icon';
 import {useState} from 'react';
 import {useGame} from '../core/store';
 import {slots,slotNames} from '../data/catalog';
@@ -13,16 +15,16 @@ export function Backpack({storage,setStorage}:{storage:boolean;setStorage:(value
  const [filter,setFilter]=useState<LootFilter>('all');
  const [slot,setSlot]=useState<Slot|undefined>(),[order,setOrder]=useState('newest');
  return <DialogShell panel="inventory" title="Рюкзак" footer={null}>
-  <div className="pack-capacity"><strong>{p.inventory.length}/{balance.loot_test_settings.starter_inventory_capacity}</strong><span>Хранение: {p.pendingLoot?.length??0}</span><span className="pack-wallet">{p.gold.toLocaleString('ru')} зол.</span></div>
-  <div className="pack-tabs" role="tablist" aria-label="Место хранения">
-   <button role="tab" aria-selected={!storage} onClick={()=>setStorage(false)}>Рюкзак <small>{p.inventory.length}</small></button>
-   <button role="tab" aria-selected={storage} onClick={()=>setStorage(true)}>Хранение <small>{p.pendingLoot?.length??0}</small></button>
+  <div className="pack-capacity"><strong><Icon name="chest"/>{p.inventory.length} / {balance.loot_test_settings.starter_inventory_capacity}</strong><span>На хранении: {p.pendingLoot?.length??0}</span><span className="pack-wallet">{p.gold.toLocaleString('ru')} зол.</span></div>
+  <div className="pack-tabs" role="group" aria-label="Место хранения">
+   <button aria-pressed={!storage} onClick={()=>setStorage(false)}>Рюкзак <small>{p.inventory.length}</small></button>
+   <button aria-pressed={storage} onClick={()=>setStorage(true)}>Хранение <small>{p.pendingLoot?.length??0}</small></button>
   </div>
   <div className="pack-filters">
-   <select aria-label="Тип предмета" value={slot??''} onChange={e=>setSlot(e.target.value as Slot||undefined)}><option value="">Все типы</option>{slots.map(s=><option key={s} value={s}>{slotNames[s]}</option>)}</select>
-   <select aria-label="Фильтр качества" value={filter} onChange={e=>setFilter(e.target.value as LootFilter)}><option value="all">Всё качество</option><option value="better">Сильнее</option><option value="rare">Редкие</option><option value="unique">Именные / сеты</option><option value="locked">С замком</option></select>
-   <select aria-label="Сортировка" value={order} onChange={e=>setOrder(e.target.value)}><option value="newest">Новые ↓</option><option value="power">Сила ↓</option><option value="rarity">Редкость ↓</option></select>
+   <CompactFilter label="Тип предмета" value={slot??''} onChange={value=>setSlot(value as Slot||undefined)} options={[{value:'',label:'Все типы'},...slots.map(s=>({value:s,label:slotNames[s]}))]}/>
+   <CompactFilter label="Фильтр качества" value={filter} onChange={value=>setFilter(value as LootFilter)} options={[{value:'all',label:'Качество'},{value:'better',label:'Сильнее'},{value:'rare',label:'Редкие'},{value:'unique',label:'Именные / сеты'},{value:'locked',label:'С замком'}]}/>
+   <CompactFilter label="Сортировка" value={order} onChange={setOrder} options={[{value:'newest',label:'Новые ↓'},{value:'power',label:'Сила ↓'},{value:'rarity',label:'Редкость ↓'}]}/>
   </div>
-  <InventoryGrid key={storage?'storage':'backpack'} p={p} filter={filter} slot={slot} order={order} storage={storage} onSelect={g.select} onBulkSalvage={g.bulkSalvage} onClaim={g.claimStored}/>
+  <InventoryGrid controls={<label className="pack-auto"><input type="checkbox" checked={g.autoSalvageWeaker} onChange={e=>g.configure({autoSalvageWeaker:e.target.checked})}/><span>Авторазбор слабой новой добычи</span></label>} key={storage?'storage':'backpack'} p={p} filter={filter} slot={slot} order={order} storage={storage} onSelect={g.select} onBulkSalvage={g.bulkSalvage} onClaim={g.claimStored}/>
  </DialogShell>;
 }

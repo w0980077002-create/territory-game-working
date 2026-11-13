@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react';
 import balance from '../../config/test-balance.v1.json';
 const capacity=balance.loot_test_settings.starter_inventory_capacity;
-import type {CSSProperties} from 'react';
+import type {CSSProperties,ReactNode} from 'react';
 import type {Player,Slot} from '../core/types';
 import {canBulkSalvage,compareItem} from '../core/store';
 import {itemPower} from '../core/formulas';
@@ -11,6 +11,7 @@ import {Icon,gearIcon} from './Icon';
 import './bulkSalvage.css';
 
 interface Props {
+ controls?:ReactNode;
  p:Player;
  filter:LootFilter;
  slot?:Slot;
@@ -22,7 +23,7 @@ interface Props {
 }
 
 /** Selection stays local to this panel; never changes inventory until final confirmation. */
-export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storage=false,onClaim}:Props){
+export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storage=false,onClaim,controls}:Props){
  const [multi,setMulti]=useState(false);
  const [ids,setIds]=useState<string[]>([]);
  const [confirm,setConfirm]=useState(false);
@@ -42,6 +43,7 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
 
  return <>
   <div className="bulk-toolbar">
+   {!multi&&controls}
    <button type="button" className={multi?'bulk-mode active':'bulk-mode'} onClick={()=>multi?cancel():setMulti(true)} aria-pressed={multi}>{multi?'Готово':'☑ Выбрать'}</button>
    {storage&&!multi&&<button className="bulk-secondary" disabled={!p.pendingLoot?.length||p.inventory.length>=capacity} onClick={()=>onClaim?.()}>Забрать доступные</button>}
    {multi&&<>

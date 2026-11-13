@@ -1,77 +1,22 @@
-import {useEffect,useRef,useState} from 'react';
-import {createPortal} from 'react-dom';
+import {useState} from 'react';
 import {useGame} from '../core/store';
+import {DialogShell} from './SagaUI';
 import './autobattle.css';
 
-/** The approved combat-settings screen, modelled on the owner's in-game reference.
- * All visible controls are functional; existing premium currencies and inventory are untouched.
- */
+/** Draft settings commit together; closing still discards unsaved changes. */
 export function AutobattleDialog(){
  const g=useGame();
- const [speed,setSpeed]=useState<1|2>(g.speed===2?2:1);
- const [auto,setAuto]=useState(g.auto);
- const [stopOnDeath,setStopOnDeath]=useState(g.stopOnDeath);
- const [continueOnVictory,setContinueOnVictory]=useState(g.continueOnVictory);
- const [autoSalvageWeaker,setAutoSalvageWeaker]=useState(g.autoSalvageWeaker);
- const saveRef=useRef<HTMLButtonElement>(null);
- const close=()=>g.open(null);
+ const [speed,setSpeed]=useState<1|2>(g.speed===2?2:1),[auto,setAuto]=useState(g.auto),[stopOnDeath,setStopOnDeath]=useState(g.stopOnDeath),[continueOnVictory,setContinueOnVictory]=useState(g.continueOnVictory),[autoSalvageWeaker,setAutoSalvageWeaker]=useState(g.autoSalvageWeaker);
  const save=()=>{g.configure({speed,auto,stopOnDeath,continueOnVictory,autoSalvageWeaker});g.open(null)};
- useEffect(()=>{
-  const previous=document.activeElement as HTMLElement|null;
-  const viewport=document.querySelector<HTMLElement>('.viewport');
-  if(viewport)viewport.inert=true;
-  saveRef.current?.focus({preventScroll:true});
-  return()=>{if(viewport)viewport.inert=false;previous?.focus({preventScroll:true})};
- },[]);
- return createPortal(
-  <div className="autobattle-shade" onMouseDown={e=>{if(e.target===e.currentTarget)close()}} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();close()}}}>
-   <section className="autobattle-dialog" role="dialog" aria-modal="true" aria-labelledby="autobattle-title">
-    <header className="autobattle-heading">
-     <h2 id="autobattle-title">Автобой</h2>
-     <button className="autobattle-close" onClick={close} aria-label="Закрыть без сохранения">✕</button>
-    </header>
-    <div className="autobattle-body">
-     <div className="autobattle-options">
-      <div className="autobattle-settings">
-       <label className="autobattle-speed">
-        <span>Скорость боя</span>
-        <select value={speed} onChange={e=>setSpeed(Number(e.target.value)===2?2:1)} aria-label="Скорость боя">
-         <option value={1}>×1</option><option value={2}>×2</option>
-        </select>
-       </label>
-       <label className="autobattle-check">
-        <input type="checkbox" checked={auto} onChange={e=>setAuto(e.target.checked)}/>
-        <span className="autobattle-square" aria-hidden="true">{auto?'✔':''}</span>
-        <span>Автобой навыков</span>
-       </label>
-       <label className="autobattle-check">
-        <input type="checkbox" checked={stopOnDeath} onChange={e=>setStopOnDeath(e.target.checked)}/>
-        <span className="autobattle-square" aria-hidden="true">{stopOnDeath?'✔':''}</span>
-        <span>Остановить при смерти</span>
-       </label>
-       <label className="autobattle-check">
-        <input type="checkbox" checked={continueOnVictory} onChange={e=>setContinueOnVictory(e.target.checked)}/>
-        <span className="autobattle-square" aria-hidden="true">{continueOnVictory?'✔':''}</span>
-        <span>Авто-переход после победы</span>
-       </label>
-       <label className="autobattle-check">
-        <input type="checkbox" checked={autoSalvageWeaker} onChange={e=>setAutoSalvageWeaker(e.target.checked)}/>
-        <span className="autobattle-square" aria-hidden="true">{autoSalvageWeaker?'✔':''}</span>
-        <span>Разбирать вещи слабее надетых</span>
-       </label>
-      </div>
-      <aside className="autobattle-rules">
-       <strong>Условия боя</strong>
-       <p>Главы проходятся без расхода специальных камней.</p>
-       <p>Опыт и награды начисляются за реальные победы.</p>
-       <p>После поражения повторяется <b>тот же этап</b>.</p>
-      </aside>
-     </div>
-     <button ref={saveRef} className="autobattle-save" onClick={save}>Сохранить</button>
-     <p className="autobattle-footer-note">{autoSalvageWeaker?'Слабые обычные находки разбираются в золото и опыт · редкие, уникальные, комплектные и защищённые предметы сохраняются':'Разбор выключен · вещи сохраняются в рюкзаке'}</p>
-    </div>
-   </section>
-  </div>,
-  document.body
- );
+ return <DialogShell panel="autobattle" title="Автобой" footer={<footer className="modal-footer autobattle-actions"><button className="action secondary" onClick={()=>g.open(null)}>Отмена</button><button className="action" onClick={save}>Сохранить</button></footer>}>
+  <div className="autobattle-speed"><strong>Скорость боя</strong><div role="group" aria-label="Скорость боя">{([1,2] as const).map(n=><button key={n} aria-pressed={speed===n} onClick={()=>setSpeed(n)}>×{n}</button>)}</div></div>
+  <div className="autobattle-settings">{[
+   {label:'Автобой навыков',value:auto,set:setAuto},
+   {label:'Остановить при смерти',value:stopOnDeath,set:setStopOnDeath},
+   {label:'Авто-переход после победы',value:continueOnVictory,set:setContinueOnVictory},
+   {label:'Разбирать вещи слабее надетых',value:autoSalvageWeaker,set:setAutoSalvageWeaker}
+  ].map(o=><label className="autobattle-check" key={o.label}><input type="checkbox" checked={o.value} onChange={e=>o.set(e.target.checked)}/><span>{o.label}</span></label>)}</div>
+  <p className="autobattle-note">{autoSalvageWeaker?'Слабые обычные находки → золото и опыт. Редкие, именные, комплектные и защищённые вещи сохраняются.':'Авторазбор выключен. Новые вещи сохраняются в рюкзаке.'}</p>
+  <details className="saga-disclosure"><summary>Условия боя</summary><p>Главы проходятся без специальных камней. Опыт и награды начисляются за реальные победы. После поражения повторяется тот же этап.</p></details>
+ </DialogShell>;
 }

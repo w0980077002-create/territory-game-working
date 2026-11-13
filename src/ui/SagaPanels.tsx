@@ -1,3 +1,4 @@
+import {CompactFilter} from './CompactFilter';
 /** Saga windows: chapter map, album and (later) every long-term system. Rendered inside the shared DialogShell. */
 import {useGame} from '../core/store';
 import type {Player} from '../core/types';
@@ -48,14 +49,14 @@ export function SagaItemLines({item,p}:{item:Item;p:Player}){
  const set=setOf(item),perk=perkOf(item),rune=engraveOf(item);if(!set&&!perk&&!rune)return null;const n=set?setCounts(p)[set]:0;
  return <div className="saga-item-lines">
   {perk&&<div className="perk-line"><strong>✦ {perk.tag}</strong><p>{perk.text}</p><small>{perk.source}</small></div>}
-  {set&&<div className="set-line" style={{'--tone':sets[set].color} as React.CSSProperties}><strong>Комплект «{sets[set].name}» · надето {n}/6</strong><ol>{sets[set].bonuses.map((b,i)=><li key={i} className={n>=(i+1)*2?'on':''}><b>{(i+1)*2}</b>{b}</li>)}</ol></div>}
+  {set&&<div className="set-line" style={{'--tone':sets[set].color} as React.CSSProperties}><strong>Комплект «{sets[set].name}» · надето {n}/6</strong><ol>{sets[set].bonuses.map((b,i)=><li key={i} className={n>=(i+1)*2?'on':''}><b>{(i+1)*2}</b><span>{b}</span></li>)}</ol></div>}
   {rune&&<div className="rune-line"><b>{engravings[rune].sign}</b> {engravings[rune].name}: {engravings[rune].text}</div>}
  </div>;
 }
 /** Active set bonuses of the hero at a glance. */
 export function SetSummary({p}:{p:Player}){
  const n=setCounts(p),active=setIds.filter(id=>n[id]>0);
- return <div className="saga-section"><h3>Комплекты</h3>{active.length?active.map(id=><div key={id} className="set-line" style={{'--tone':sets[id].color} as React.CSSProperties}><strong>{sets[id].name} · {n[id]}/6 <small>{sets[id].tag}</small></strong><ol>{sets[id].bonuses.map((b,i)=><li key={i} className={n[id]>=(i+1)*2?'on':''}><b>{(i+1)*2}</b>{b}</li>)}</ol></div>):<p className="hint">Предметы комплектов выпадают в своих регионах и куются по рецептам в Кузнице. 2, 4 и 6 вещей одного набора включают боевые бонусы.</p>}</div>;
+ return <div className="saga-section"><h3>Комплекты</h3>{active.length?active.map(id=><div key={id} className="set-line" style={{'--tone':sets[id].color} as React.CSSProperties}><strong>{sets[id].name} · {n[id]}/6 <small>{sets[id].tag}</small></strong><ol>{sets[id].bonuses.map((b,i)=><li key={i} className={n[id]>=(i+1)*2?'on':''}><b>{(i+1)*2}</b><span>{b}</span></li>)}</ol></div>):<p className="hint">Предметы комплектов выпадают в своих регионах и куются по рецептам в Кузнице. 2, 4 и 6 вещей одного набора включают боевые бонусы.</p>}</div>;
 }
 export function SpecChooser({p}:{p:Player}){
  const current=specIndex(p);
@@ -80,11 +81,11 @@ export function Recipes({p}:{p:Player}){
  const [set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost'),[slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice'),plan=craftPlan(set,p),open=setUnlocked(p,set),n=setCounts(p)[set];
  return <div className="saga-section"><h3>Рецепты комплектов</h3><Materials p={p}/>
   <div className="tabs wrap">{setIds.map(id=><button key={id} className={set===id?'selected':''} onClick={()=>setSet(id)} style={{'--tone':sets[id].color} as React.CSSProperties}>{setUnlocked(p,id)?'':'🔒 '}{sets[id].name}</button>)}</div>
-  <div className="set-line" style={{'--tone':sets[set].color} as React.CSSProperties}><strong>{sets[set].name} · {sets[set].tag} · надето {n}/6</strong><ol>{sets[set].bonuses.map((b,i)=><li key={i} className={n>=(i+1)*2?'on':''}><b>{(i+1)*2}</b>{b}</li>)}</ol></div>
-  <label className="inventory-order">Слот <select value={slot} onChange={e=>setSlot(e.target.value as Slot)}>{slots.filter(s=>s!=='wings').map(s=><option key={s} value={s}>{slotNames[s]}{setOf(p.equipment[s])===set?' ✓':''}</option>)}</select></label>
+  <div className="set-line" style={{'--tone':sets[set].color} as React.CSSProperties}><strong>{sets[set].name} · {sets[set].tag} · надето {n}/6</strong><ol>{sets[set].bonuses.map((b,i)=><li key={i} className={n>=(i+1)*2?'on':''}><b>{(i+1)*2}</b><span>{b}</span></li>)}</ol></div>
+  <div className="inventory-order"><span>Слот</span><CompactFilter label="Слот для ковки" value={slot} onChange={v=>setSlot(v as Slot)} options={slots.filter(s=>s!=='wings').map(s=>({value:s,label:slotNames[s]+(setOf(p.equipment[s])===set?' ✓':'')}))}/></div>
   <Btn disabled={!open||p.gold<plan.gold||matCount(p,plan.material)<plan.mats} onClick={()=>craftSet(set,slot)}>{open?`Выковать ур.${plan.level} · ${rarityNames[plan.rarity]}+ · ${short(plan.gold)} золота · ${plan.mats} × ${materials[plan.material].name}`:`Откроется в регионе «${regions[sets[set].region].name}»`}</Btn>
   <p className="hint">Материалы дают победы в регионе: {Math.round(dropRules.materialWave*100)}% за встречу, {dropRules.materialBoss} за стража, {dropRules.materialFinale} за владыку. Благословение даёт шанс выковать вещь на ступень лучше.</p>
-  <label className="inventory-order">Обмен 3 → 1 <select value={from} onChange={e=>setFrom(e.target.value)}>{materialIds.map(id=><option key={id} value={id}>{materials[id].name} ({matCount(p,id)})</option>)}</select></label>
+  <div className="inventory-order"><span>Обмен 3 → 1</span><CompactFilter label="Материал для обмена" value={from} onChange={setFrom} options={materialIds.map(id=>({value:id,label:`${materials[id].name} (${matCount(p,id)})`}))}/></div>
   <Btn kind="secondary" disabled={matCount(p,from)<3||from===plan.material} onClick={()=>trade(from,plan.material)}>Обменять на {materials[plan.material].name}</Btn>
  </div>;
 }

@@ -1,23 +1,14 @@
-/* Backpack-only selection. Uses the existing wood/metal modal palette. */
-.bulk-toolbar{display:flex;align-items:stretch;flex-wrap:wrap;gap:10px;margin:12px 0}
-.bulk-toolbar button{flex:1 1 auto}
-.bulk-mode,.bulk-secondary{border:3px solid #a48b67;border-radius:12px;background:linear-gradient(#476574,#223c4c);color:#ffecce;min-height:65px;padding:10px 16px;font-size:23px}
-.bulk-mode.active{background:linear-gradient(#8c6239,#513922);border-color:#ffd882;color:#fff2bc}
-.bulk-secondary{background:linear-gradient(#436478,#27465b);border-color:#6f929c}
-.bulk-status{border:3px solid #6e8791;border-radius:12px;background:#173345;padding:14px 18px;margin:10px 0 18px;display:flex;flex-direction:column;gap:5px;color:#ffdd9e}
-.bulk-status strong{font-size:25px}
-.bulk-status span{font-size:20px;color:#d0e3eb;font-weight:600}
-.inventory-grid .bulk-gear{position:relative;border-color:#829ca5}
-.inventory-grid .bulk-gear.chosen{border-color:#ffe09c;background:linear-gradient(#4b634c,#29423a);box-shadow:0 0 0 3px #ffe09c55,inset 0 0 22px #ffe09c27}
-.inventory-grid .bulk-gear.protected{opacity:.72}
-.inventory-grid .bulk-tick{position:absolute;right:5px;top:4px;width:36px;height:36px;line-height:30px;text-align:center;background:#102b3b;border:3px solid #f0cd80;border-radius:8px;font-size:27px;color:#ffdc8c;z-index:1}
-.bulk-action{margin:16px 0 22px;padding:12px;border:3px solid #aa8e60;border-radius:14px;background:linear-gradient(#3d3330,#1c303c)}
-.bulk-preview{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:24px;padding:7px}
-.bulk-preview strong{color:#ffe7a2}
-.bulk-preview span{color:#adf0bd;font-size:22px}
-.bulk-confirm{border-top:2px solid #8a8065;margin-top:12px;padding:15px 4px 2px}
-.bulk-confirm>strong{font-size:25px;color:#ffe4a6}
-.bulk-confirm p{font-size:22px;line-height:1.25;color:#e5d8bf}
-.bulk-confirm>div{display:grid;grid-template-columns:1fr 1.5fr;gap:12px;align-items:center}
-.bulk-confirm .action{margin:0;font-size:22px}
-.bulk-confirm .bulk-secondary{height:100%}
+/* InventoryGrid owns the same touch geometry wherever it is used. */
+.saga-modal .bulk-toolbar{display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0;margin:8px 0}
+.saga-modal .bulk-toolbar button{flex:1;min-width:0;min-height:44px;padding:7px;font-size:12px;line-height:1.3;border:1px solid #b18c54;border-radius:6px;background:var(--saga-iron);color:#efddb3}
+.saga-modal .bulk-toolbar [hidden]{display:none}
+.saga-modal .bulk-mode.active{border-color:#f2c467;color:#ffe8a7;background:linear-gradient(#aa702738,#0003),var(--saga-oak)}
+.saga-modal .bulk-action{flex:none;margin:10px 0;padding:8px;border:1px solid #aa834e;border-radius:7px;background:linear-gradient(#0003,#0007),var(--saga-oak)}
+.saga-modal .bulk-preview{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;font-size:13px;padding:0 0 5px;gap:4px;min-width:0}
+.saga-modal .bulk-preview strong{color:#ffe5a2}.saga-modal .bulk-preview span{font-size:12px;color:#c6d9a8}.saga-modal .bulk-preview [hidden]{display:none}
+.saga-modal .bulk-action .action{margin:0;min-height:44px;background:linear-gradient(#91331988,#3e130a88),var(--saga-iron);border-color:#d0a05a}
+.saga-modal .bulk-confirm{margin:0;padding:4px 0;border:0}.saga-modal .bulk-confirm>strong{font-size:14px;color:#ffe1a0}.saga-modal .bulk-confirm p{font-size:12px;line-height:1.4;margin:6px 0}
+.saga-modal .bulk-confirm>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:7px}
+.saga-modal .bulk-confirm button{min-width:0;min-height:44px;font-size:13px;padding:7px;border:1px solid #a58a5c;border-radius:5px;background:var(--saga-iron);color:#ebd7ae}
+.saga-modal[data-panel="inventory"] .bulk-toolbar,.saga-modal[data-panel="inventory"] .bulk-action{margin:0}
+@media(max-height:650px){.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-auto,.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-capacity{display:none}}
