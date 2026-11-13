@@ -17,7 +17,7 @@ test('victories flow automatically but a hero death waits for the axes before re
 test('autobattle settings actually control defeat retry, victory continuation and survive save',()=>{
  const g=()=>useGame.getState();
  g().configure({auto:true,speed:2,stopOnDeath:false,continueOnVictory:false});
- assert.deepEqual(parseSave(exportSave())!.preferences,{auto:true,speed:2,stopOnDeath:false,continueOnVictory:false});
+ assert.deepEqual(parseSave(exportSave())!.preferences,{auto:true,speed:2,stopOnDeath:false,continueOnVictory:false,autoSalvageWeaker:false});
  const death=scene();death.toggle();death.phase='fight';const index=death.journey.encounterIndex;death.defeat();
  assert.equal(death.running,true,'optional auto-retry keeps free fight active');death.update(2.1);
  assert.equal(death.phase,'walk');assert.equal(death.journey.encounterIndex,index);death.destroy();
@@ -47,7 +47,7 @@ test('boss receipt and the named epic are single-use; all three reward choices k
  }
 });
 test('locked items cannot be dismantled; sort/filter is read-only and settings serialize',()=>{
- const g=()=>useGame.getState();g().mutate(p=>{p.inventory=[makeItem('weapon',4,4),makeItem('armor',1,1)]});const id=g().p.inventory[0].id;g().lockItem(id);const before=structuredClone(g().p);g().salvage(id,true);assert.deepEqual(g().p,before);assert.equal(inventoryItems(g().p,'locked').length,1);inventoryItems(g().p,'all',undefined,'rarity');assert.deepEqual(g().p,before);g().configure({auto:false,speed:2});const saved=parseSave(exportSave())!;assert.deepEqual(saved.preferences,{auto:false,speed:2,stopOnDeath:true,continueOnVictory:true});
+ const g=()=>useGame.getState();g().mutate(p=>{p.inventory=[makeItem('weapon',4,4),makeItem('armor',1,1)]});const id=g().p.inventory[0].id;g().lockItem(id);const before=structuredClone(g().p);g().salvage(id,true);assert.deepEqual(g().p,before);assert.equal(inventoryItems(g().p,'locked').length,1);inventoryItems(g().p,'all',undefined,'rarity');assert.deepEqual(g().p,before);g().configure({auto:false,speed:2});const saved=parseSave(exportSave())!;assert.deepEqual(saved.preferences,{auto:false,speed:2,stopOnDeath:true,continueOnVictory:true,autoSalvageWeaker:false});
 });
 test('import backs up live state first, restores OFF, and retains owned gear and settings',()=>{
  const b=scene();b.toggle();b.update(.5);const old=b.id,oldGear=useGame.getState().p.equipment.weapon!.id;const incoming=freshPlayer();incoming.stage=3;incoming.preferences={auto:false,speed:2};assert.ok(useGame.getState().importSave(incoming));const backup=parseSave(saves.get(SAVE_KEY+':before-import')!)!;assert.equal(backup.encounter?.id,old);assert.equal(backup.equipment.weapon!.id,oldGear);assert.equal(useGame.getState().p.stage,3);assert.equal(b.running,false);assert.equal(useGame.getState().speed,2);b.destroy();
