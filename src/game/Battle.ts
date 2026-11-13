@@ -105,7 +105,7 @@ export class Battle implements TeamHost {
   let index=-1;if(danger&&this.cooldowns[0]<=0)index=0;else if((this.hazard.remaining>0||exposed)&&this.cooldowns[2]<=0)index=2;else if(this.buff<=0&&this.cooldowns[1]<=0)index=1;else if(!soon&&this.cooldowns[2]<=0&&this.combatTime>.7)index=2;else if(!this.boss&&!soon&&this.cooldowns[0]<=0&&this.combatTime>1)index=0;
   if(index>=0){this.skill(index);this.autoDecision=.65}
  }
- placeEncounter(reset=true){for(const [i,u] of this.units.entries()){const v=enemyPlacement(this.units,i);if(reset||u.worldX===undefined)u.worldX=this.journey.targetX+v.barX-375;if(reset||u.worldY===undefined)u.worldY=this.phase==='walk'?724:v.y;if(reset){u.reveal=this.phase==='walk'?0:1;u.travelSpeed=0;}}}
+ placeEncounter(reset=true){for(const [i,u] of this.units.entries()){warmRun(u.id);const v=enemyPlacement(this.units,i);if(reset||u.worldX===undefined)u.worldX=this.journey.targetX+v.barX-375;if(reset||u.worldY===undefined)u.worldY=this.phase==='walk'?724:v.y;if(reset){u.reveal=this.phase==='walk'?0:1;u.travelSpeed=0;}}}
  travelEnemies(dt:number){
   const offset=this.journey.targetX-this.journey.cameraX-375;
   for(const [i,u] of this.units.entries()){
@@ -169,7 +169,16 @@ export class Battle implements TeamHost {
  character(id:string,x:number,y:number,size:number,attack:number,hurt:number,walking=false,death=0,windup=0,victory=false,registeredHeight=false,flip=false,walkTime=this.journey.distance/160){const c=this.ctx;c.save();c.fillStyle='#1c3559';c.globalAlpha*=.2;c.beginPath();c.ellipse(x,y+1,size*.3,9,0,0,Math.PI*2);c.fill();c.restore();if(drawActor(c,id,x,y,size,walking?walkTime:this.clock,walking,attack,hurt,death,windup,victory,registeredHeight,flip))return;const img=this.images.get(id);if(img)drawFallback(c,img,id,x,y,size,registeredHeight,flip)}
  wing(x:number,y:number,size:number){const img=this.images.get('wings');if(!img?.complete||!img.naturalWidth)return;const c=this.ctx,half=img.naturalWidth/2,flap=Math.sin(this.clock*4)*.14;c.save();c.translate(x,y);for(const sign of [-1,1]){c.save();c.rotate(sign*flap);c.drawImage(img,sign<0?0:half,0,half,img.naturalHeight,sign<0?-size*1.25:0,-size*.95,size*1.25,size*1.3);c.restore()}c.restore()}
  bar(x:number,y:number,w:number,f:number,color:string){const c=this.ctx;c.fillStyle='#202a38';c.fillRect(x-w/2-2,y-2,w+4,12);c.fillStyle='#4a2632';c.fillRect(x-w/2,y,w,8);c.fillStyle=color;c.fillRect(x-w/2,y,w*Math.max(0,f),8);c.fillStyle='#ffffff55';c.fillRect(x-w/2,y,w*Math.max(0,f),2)}
- draw(){const c=this.ctx,labels:CombatLabel[]=[];c.clearRect(0,0,864,940);this.scenery.draw(c,this.journey,this.clock,this.world,this.chapterBoss()&&this.phase==='fight'?.08+(this.units[0].bossPhase-1)*.06:0,this.quality,sky=>this.director.life.sky(sky,this.director.env()));this.director.back(c);
+ rasterViewport='';
+ syncCanvasResolution(){
+  if(typeof window==='undefined'||!this.canvas.getBoundingClientRect)return;
+  const key=[window.innerWidth,window.innerHeight,window.devicePixelRatio].join(':');if(key===this.rasterViewport)return;
+  this.rasterViewport=key;
+  const ratio=Math.max(1,Math.min(3,(window.devicePixelRatio||1)*this.canvas.getBoundingClientRect().width/864));
+  this.canvas.width=Math.ceil(864*ratio);this.canvas.height=Math.ceil(940*ratio);
+  this.ctx.setTransform(ratio,0,0,ratio,0,0);
+ }
+ draw(){this.syncCanvasResolution();const c=this.ctx,labels:CombatLabel[]=[];c.clearRect(0,0,864,940);this.scenery.draw(c,this.journey,this.clock,this.world,this.chapterBoss()&&this.phase==='fight'?.08+(this.units[0].bossPhase-1)*.06:0,this.quality,sky=>this.director.life.sky(sky,this.director.env()));this.director.back(c);
  // Environmental light and fog are independent of combat actors and UI.
  c.save();if(this.running&&!this.reducedMotion()){const [sx,sy]=this.comics.offset(false,this.quality);c.translate(Math.max(-4,Math.min(4,sx+(Math.random()-.5)*this.shake)),Math.max(-4,Math.min(4,sy+(Math.random()-.5)*this.shake)));}const p=useGame.getState().p,walking=this.phase==='walk'&&this.journey.velocity>3,attackLunge=this.heroAttack>.2&&p.heroClass==='berserker'?Math.sin(this.heroAttack*5)*20:0;
  if(this.phase==='walk'&&!this.director.hidesResident()){
