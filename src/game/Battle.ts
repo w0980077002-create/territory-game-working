@@ -15,7 +15,7 @@ import {clips,legacyBodyHeight} from './actorGeometry';
 import {newJourney,nextSite,stepJourney,projectX,districts,siteX} from './Journey';
 import {chapterOne,encounterBriefs,firstChapter} from './Chapter';
 import {ComicFeedback} from './ComicFeedback';
-import {poseFrame,type Rect} from './actorGeometry';
+import {poseFrame,enemyLunge,type Rect} from './actorGeometry';
 import {swordTip,swordCanReach,reactionOffset,projectilePoint,drawSwordWave} from './Impact';
 import {layoutLabels,feedbackBands,type CombatLabel,type PlacedLabel} from './CombatLabels';
 import {WorldRenderer} from './WorldRenderer';
@@ -255,7 +255,18 @@ export class Battle implements TeamHost {
    if((u.cover??0)>0){c.save();c.strokeStyle='#8fd8ff';c.lineWidth=3;c.setLineDash([9,7]);c.lineDashOffset=-this.clock*26;c.beginPath();c.ellipse(v.x,v.y-v.height*.5,v.height*.36,v.height*.56,0,0,Math.PI*2);c.stroke();c.restore()}
    if((this.foeRate(u,p)<1||(u.frozen??0)>0)&&u.hp>0){c.save();c.strokeStyle='#9aefff';c.lineWidth=3;c.beginPath();c.ellipse(v.x,v.y-4,v.height*.34,10,0,0,Math.PI*2);c.stroke();c.beginPath();c.moveTo(v.x-30,v.y-9);c.lineTo(v.x-10,v.y-26);c.lineTo(v.x+8,v.y-10);c.lineTo(v.x+30,v.y-24);c.stroke();c.restore()}
    if((u.exposed??0)>0){c.save();c.strokeStyle='#b7f9ff99';c.lineWidth=3;c.beginPath();c.ellipse(v.x,v.y-3,v.height*.32,8,0,0,Math.PI*2);c.stroke();c.restore()}
-   const recoil=reactionOffset(u.reaction??0,u.reactionStrength??0,this.reducedMotion());this.character(u.id,v.x+recoil,v.y,v.height,u.blockedHit&&u.hurt>0?0:u.attack,u.blockedHit?0:u.hurt,this.phase==='walk'&&(u.travelSpeed??0)>3,u.dead,u.windup,false,true,v.flip,this.clock);c.restore();
+   // Give physical motion to the approved original enemy sprites. Previously the
+   // attack flags changed atlas frames but did not move the enemy toward its hit.
+   // Keep this cosmetic: no damage, timers, collisions or save state changes.
+   const recoil=reactionOffset(u.reaction??0,u.reactionStrength??0,this.reducedMotion());
+   const ranged=/spearman|mage|spider|fungal|fire_abyss/.test(u.id);
+   const active=u.hp>0&&this.phase==='fight'&&!this.reducedMotion();
+   const lunge=active?enemyLunge(u.attack,ranged):0;
+   const winding=active&&u.windup>0;
+   const windT=winding?1-Math.min(1,u.windup/Math.max(.01,u.castTotal??.7)):0;
+   const brace=winding?Math.sin(windT*Math.PI)*5:0;
+   const idle=active&&u.windup<=0&&u.attack<=0&&u.hurt<=0?Math.sin(this.clock*2.4+u.role*.7)*2.25:0;
+   this.character(u.id,v.x+recoil+lunge+brace,v.y+idle,v.height,u.blockedHit&&u.hurt>0?0:u.attack,u.blockedHit?0:u.hurt,this.phase==='walk'&&(u.travelSpeed??0)>3,u.dead,u.windup,false,true,v.flip,this.clock);c.restore();
   }});
  }
  if(this.plan.hazard&&this.phase==='fight')paintHazard(c,this.plan.hazard,this.hazardWarn,this.hazardFlash,this.heroX,this.clock,this.curse);if(this.hazard.remaining>0){c.save();c.translate(this.heroX,799);c.scale(1,.19);c.fillStyle='#9c65d62a';c.beginPath();c.arc(0,0,91,0,Math.PI*2);c.fill();c.strokeStyle='#cfb6ff';c.lineWidth=2;for(let ring=1;ring<=3;ring++){c.beginPath();c.arc(0,0,ring*29,0,Math.PI*2);c.stroke()}for(let n=0;n<10;n++){c.beginPath();c.moveTo(0,0);c.lineTo(Math.cos(n*Math.PI/5)*91,Math.sin(n*Math.PI/5)*91);c.stroke()}c.restore()}
