@@ -8,7 +8,7 @@ import {hazards} from '../saga/regions';
 const hash=(n:number)=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v)};
 /** After the painted scenery, before props and actors. */
 export function paintBiomeBack(c:CanvasRenderingContext2D,region:Region,_time:number,_cameraX:number,_quality:number,_reduced:boolean){
- const look=region.look;if(look.mode==='none')return;
+ // Keep the original approved painted world visible: regional full-screen colour filters\n // and veils made the snowy art look pale, muddy and inconsistent on Android.\n const look=region.look;if(look.mode==='none'||look.mode==='color')return;
  c.save();c.globalCompositeOperation=look.mode;c.globalAlpha=look.gradeAlpha;c.fillStyle=look.grade;c.fillRect(0,0,864,940);c.restore();
  if(look.veil){c.fillStyle=look.veil;c.fillRect(0,0,864,940)}
  // Regional identity comes from the grade, weather and gameplay telegraphs.
