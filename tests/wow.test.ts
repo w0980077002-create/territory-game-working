@@ -6,8 +6,8 @@ test('menus freeze combat but closing resumes a previously running journey; manu
  const b=scene();b.toggle();for(let n=0;n<100;n++){b.update(.02);if(b.director.state==='decide')b.director.choose('pass')}useGame.getState().open('shop');assert.equal(b.running,false);const snap=b.snapshot();b.update(20);assert.deepEqual(b.snapshot(),snap);useGame.getState().open(null);assert.equal(b.running,true);b.update(.02);assert.ok(b.journey.worldX>snap.journey!.worldX);
  b.toggle();assert.equal(b.running,false);useGame.getState().open('shop');useGame.getState().open(null);assert.equal(b.running,false);b.destroy();
 });
-test('one tap continues the free campaign across defeat and boss trophies, without duplicating rewards',()=>{
- const b=scene();b.toggle();b.phase='fight';b.defeat();assert.equal(b.running,true);b.update(2.1);assert.equal(b.mode,'campaign');assert.equal(b.running,true);assert.equal(b.phase,'walk');b.destroy();
+test('victories flow automatically but a hero death waits for the axes before retrying',()=>{
+ const b=scene();b.toggle();b.phase='fight';const site=b.journey.encounterIndex;b.defeat();assert.equal(b.running,false);const frozen=b.snapshot();b.update(2.1);assert.deepEqual(b.snapshot(),frozen);b.resume();assert.equal(b.running,false);b.toggle();b.update(2.1);assert.equal(b.mode,'campaign');assert.equal(b.running,true);assert.equal(b.phase,'walk');assert.equal(b.journey.encounterIndex,site);b.destroy();
  useGame.setState({p:{...freshPlayer(),wave:5},panel:null});const boss=scene();boss.toggle();boss.units.forEach(u=>u.hp=0);boss.victory();const g=()=>useGame.getState(),offer=g().p.rewardOffer!,item=offer.itemId;
  assert.equal(g().p.bosses,1);assert.equal(offer.resolved,false);assert.ok(g().p.inventory.some(i=>i.id===item));
  boss.update(1.3);assert.equal(g().p.rewardOffer?.resolved,true);assert.equal(boss.running,true);boss.update(.5);
