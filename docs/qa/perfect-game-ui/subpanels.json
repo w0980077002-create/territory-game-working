@@ -1,0 +1,482 @@
+[
+  {
+    "width": 320,
+    "height": 568,
+    "state": "saved-builds",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "quests-День",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "quests-Неделя",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "quests-Сага",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "quests-Мастерство",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "hunt-sources",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "trophy-guide",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "recipe-frost",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "recipe-storm",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "recipe-rune",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "recipe-stone",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "recipe-legion",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "recipe-ember",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "runes-selected",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "companion-evolved",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "daily-claimed",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "shop-purchased",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "event-rewards-ready",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "event-reward-claimed",
+    "clipped": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "state": "actual-new-loot",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "saved-builds",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "quests-День",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "quests-Неделя",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "quests-Сага",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "quests-Мастерство",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "hunt-sources",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "trophy-guide",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "recipe-frost",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "recipe-storm",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "recipe-rune",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "recipe-stone",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "recipe-legion",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "recipe-ember",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "runes-selected",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "companion-evolved",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "daily-claimed",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "shop-purchased",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "event-rewards-ready",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "event-reward-claimed",
+    "clipped": []
+  },
+  {
+    "width": 360,
+    "height": 780,
+    "state": "actual-new-loot",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "saved-builds",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "quests-День",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "quests-Неделя",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "quests-Сага",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "quests-Мастерство",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "hunt-sources",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "trophy-guide",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "recipe-frost",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "recipe-storm",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "recipe-rune",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "recipe-stone",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "recipe-legion",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "recipe-ember",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "runes-selected",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "companion-evolved",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "daily-claimed",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "shop-purchased",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "event-rewards-ready",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "event-reward-claimed",
+    "clipped": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "state": "actual-new-loot",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "saved-builds",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "quests-День",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "quests-Неделя",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "quests-Сага",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "quests-Мастерство",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "hunt-sources",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "trophy-guide",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "recipe-frost",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "recipe-storm",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "recipe-rune",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "recipe-stone",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "recipe-legion",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "recipe-ember",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "runes-selected",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "companion-evolved",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "daily-claimed",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "shop-purchased",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "event-rewards-ready",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "event-reward-claimed",
+    "clipped": []
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "state": "actual-new-loot",
+    "clipped": []
+  }
+]
