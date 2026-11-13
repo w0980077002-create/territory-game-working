@@ -31,7 +31,7 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage}:Props
  const xp=chosen.reduce((n,i)=>n+10+i.level*2,0);
  const toggle=(id:string)=>{setIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);setConfirm(false)};
  const cancel=()=>{setMulti(false);setIds([]);setConfirm(false)};
- const selectVisible=()=>{setIds(prev=>[...new Set([...prev,...eligible.map(i=>i.id)])]);setConfirm(false)};
+ const selectWeaker=()=>{setIds(prev=>[...new Set([...prev,...eligible.filter(i=>compareItem(i,p)<0).map(i=>i.id)])]);setConfirm(false)};
  const execute=()=>{if(!chosen.length)return;const count=onBulkSalvage(chosen.map(i=>i.id));if(count>0)cancel();else setConfirm(false)};
  useEffect(()=>setConfirm(false),[filter,slot,order]);
 
@@ -39,7 +39,7 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage}:Props
   <div className="bulk-toolbar">
    <button type="button" className={multi?'bulk-mode active':'bulk-mode'} onClick={()=>multi?cancel():setMulti(true)} aria-pressed={multi}>{multi?'Отменить выбор':'☑ Выбрать вещи'}</button>
    {multi&&<>
-    <button type="button" className="bulk-secondary" disabled={!eligible.length} onClick={selectVisible}>Отметить доступные</button>
+    <button type="button" className="bulk-secondary" disabled={!eligible.some(i=>compareItem(i,p)<0)} onClick={selectWeaker}>Выбрать слабее</button>
     <button type="button" className="bulk-secondary" disabled={!ids.length} onClick={()=>{setIds([]);setConfirm(false)}}>Снять выбор</button>
    </>}
   </div>
