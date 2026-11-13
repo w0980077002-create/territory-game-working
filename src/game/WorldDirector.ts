@@ -34,7 +34,7 @@ export class WorldDirector {
  /** Plan the event of the current leg. Called after every spawn and restore. */
  begin(resume=false){
   const b=this.b,p=useGame.getState().p;this.fired.clear();this.bolts=[];this.lines=[];this.signaled=false;this.t=0;this.choice='';
-  this.weather=weatherOf(p.world,b.stage);
+  this.weather=b.plan.region.look.mode==='none'?weatherOf(p.world,b.stage):'clear';
   this.gloom=this.campaign()?[0,.04,.09,.15,.3][b.wave-1]??0:b.mode==='darkness'?.3:b.mode==='dungeon'?.2:0;
   this.ev=this.campaign()?planLeg(p.world,b.stage,b.wave):null;this.open=!!this.ev;this.x=b.journey.targetX-(this.ev?.kind==='omen'&&b.journey.worldX<b.journey.targetX-1000?640:300);
   this.state=this.ev&&b.phase==='walk'&&(resume||b.journey.worldX<(this.ev.kind==='omen'?this.x-60:this.stopX()-30))?'approach':'none';

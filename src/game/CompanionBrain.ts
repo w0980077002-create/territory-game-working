@@ -29,7 +29,7 @@ export class CompanionBrain {
   for(const e of this.emotes)e.t-=dt;this.emotes=this.emotes.filter(e=>e.t>0);
   const rate=h.companionRate();this.dive=Math.max(0,this.dive-dt*rate);this.guard=Math.max(0,this.guard-dt*rate);this.armed=Math.max(0,this.armed-dt);
   if(this.goose){this.goose.t+=dt;const g=this.goose;
-   if(g.kind==='dive'){if(g.t>=team.diveFlight&&g.t-dt<team.diveFlight){const u=g.target,broke=u.hp>0&&u.windup>0;if(broke){u.windup=0;u.ability='';u.cd=Math.max(u.cd,2.2);u.exposed=Math.max(u.exposed??0,team.diveExposed)}h.onDive(u,broke)}if(g.t>=team.diveFlight*2+.25)this.goose=null}
+   if(g.kind==='dive'){if(g.t>=team.diveFlight&&g.t-dt<team.diveFlight){const u=g.target,broke=u.hp>0&&u.windup>0;if(broke){u.windup=0;u.fury=0;u.ability='';u.cd=Math.max(u.cd,2.2);u.exposed=Math.max(u.exposed??0,team.diveExposed)}h.onDive(u,broke)}if(g.t>=team.diveFlight*2+.25)this.goose=null}
    else if(g.t>=g.dur)this.goose=null}
   if(this.dog){this.dog.t+=dt;if(this.dog.t>=this.dog.dur)this.dog=null}
   if(h.phase!=='fight')return;
