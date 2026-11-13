@@ -73,7 +73,25 @@ test('potion price follows the stage and has a cooldown',()=>{
  const b=at(1,1);assert.equal(b.potionCost(),balance.combat_test_settings.potion_gold_cost);b.hp=1;const gold=useGame.getState().p.gold;b.heal();assert.equal(useGame.getState().p.gold,gold-30);b.hp=1;b.heal();assert.equal(useGame.getState().p.gold,gold-30);b.destroy();
  const late=at(30,1);assert.ok(late.potionCost()>300);late.destroy();
 });
-test('SIM: a diligent bot of every class finishes all sixty story stages without a hard wall',()=>{
- // Seeded, so the run is reproducible; thresholds stay generous because float details may differ between engines.
- for(const [n,c] of (['berserker','ranger','runologist'] as const).entries()){seedRandom(2026+n);let log;try{log=playCampaign(c,61)}finally{restoreRandom()}assert.equal(log.at(-1)?.stage,60,c+' stopped at '+log.at(-1)?.stage);const worst=Math.max(...log.map(r=>r.defeats));assert.ok(worst<=30,c+' wall: '+worst+' defeats on one stage');const times=log.filter(r=>r.stage>=12).map(r=>r.bossTime).sort((a,b)=>a-b);assert.ok(times[Math.floor(times.length/2)]>6,c+' bosses must not melt: median '+times[Math.floor(times.length/2)])}
+test('SIM: a diligent bot of every class finishes all sixty story stages without a hard wall',t=>{
+ // Keep Claude's seeds. Advance the wall clock with the simulated battle, so
+ // horn recharge uses elapsed play time rather than the CPU speed of the runner.
+ // Date.now is restored by the test context; Math.random is restored even on failure.
+ let now=Date.UTC(2026,10,13);
+ t.mock.method(Date,'now',()=>now);
+ for(const [n,c] of (['berserker','ranger','runologist'] as const).entries()){
+  const run=()=>{
+   now=Date.UTC(2026,10,13);seedRandom(2026+n);
+   try{return playCampaign(c,61,{advanceTime:seconds=>{now+=seconds*1000}})}
+   finally{restoreRandom()}
+  };
+  const log=run();
+  assert.deepEqual(run(),log,c+' must replay identically in the same process');
+  assert.deepEqual(log.map(r=>r.stage),Array.from({length:60},(_,i)=>i+1),c+' must clear every stage');
+  const worst=Math.max(...log.map(r=>r.defeats));
+  assert.ok(worst<=14,c+' wall: '+worst+' defeats on one stage');
+  const times=log.filter(r=>r.stage>=12).map(r=>r.bossTime).sort((a,b)=>a-b);
+  const median=times[Math.floor(times.length/2)];
+  assert.ok(median>6,c+' bosses must not melt: median '+median);
+ }
 });

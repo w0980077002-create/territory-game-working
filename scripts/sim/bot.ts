@@ -33,14 +33,16 @@ export function manage(spend=.5){
  }
  while(G().p.horn>0&&G().p.inventory.length<70){G().hornLoot();const id=G().selected;if(!id)break;const item=G().p.inventory.find(i=>i.id===id);if(item&&compareItem(item,G().p)>0)G().equip(id);else if(item)G().salvage(id,true);G().open(null)}
 }
-/** Plays the campaign from the current save up to `untilStage`. Returns one log row per cleared stage. */
-export function playCampaign(heroClass:HeroClass,untilStage:number,opts:{spend?:number;maxSeconds?:number;potions?:boolean}={}):StageLog[]{
+/** Plays a fresh campaign up to `untilStage`. Returns one log row per cleared stage.
+ * advanceTime lets tests advance a mocked wall clock by the same real seconds as update().
+ */
+export function playCampaign(heroClass:HeroClass,untilStage:number,opts:{spend?:number;maxSeconds?:number;potions?:boolean;advanceTime?:(seconds:number)=>void}={}):StageLog[]{
  installHeadless();useGame.setState({p:{...freshPlayer(),heroClass},auto:true,panel:null,selected:null,recoveryRequired:false});
  const b=new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement),log:StageLog[]=[];b.toggle();
  let defeats=0,waveTime=0,waves=0,simTime=0,farmLeft=0,taken=0;const limit=opts.maxSeconds??200000;
  while(G().p.stage<untilStage&&simTime<limit){
   const before=G().p,phase=b.phase,boss=b.boss,mode=b.mode,time=b.combatTime,timer=b.timer,stage=before.stage,hpBefore=b.hp;
-  b.update(.05);simTime+=.05;if(phase==='fight'&&boss&&mode==='campaign')taken+=Math.max(0,hpBefore-b.hp)/b.maxHp;if(phase==='walk')taken=0;
+  opts.advanceTime?.(.05);b.update(.05);simTime+=.05;if(phase==='fight'&&boss&&mode==='campaign')taken+=Math.max(0,hpBefore-b.hp)/b.maxHp;if(phase==='walk')taken=0;
   if(b.director.state==='decide'){const ev=b.director.ev;b.director.choose(ev?.options[0]??'pass')}
   if(opts.potions!==false&&b.phase==='fight'&&b.hp>0&&b.hp<b.maxHp*.3&&b.potionCd<=0&&G().p.gold>=b.potionCost()*3)b.heal();
   if(phase==='fight'&&b.phase==='victory'){
