@@ -7,7 +7,7 @@ Object.defineProperty(globalThis,'Image',{value:class {src='';complete=false;nat
 Object.defineProperty(globalThis,'requestAnimationFrame',{value:()=>1});
 Object.defineProperty(globalThis,'cancelAnimationFrame',{value:()=>{}});
 const saves=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{value:{getItem:(k:string)=>saves.get(k)??null,setItem:(k:string,v:string)=>saves.set(k,v)}});
-beforeEach(()=>{useGame.setState({p:freshPlayer(),auto:false})});
+beforeEach(()=>{useGame.setState({p:freshPlayer(),auto:false,stopOnDeath:true,continueOnVictory:true})});
 function scene(active=true){const b=new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement);if(active)b.toggle();return b}
 test('initial OFF, ON/OFF/ON freezes all encounter values and keeps same enemies',()=>{const b=scene(false);const first=b.snapshot();b.update(2);assert.deepEqual(b.snapshot(),first);b.toggle();b.update(.5);const running=b.snapshot();b.toggle();for(let i=0;i<50;i++)b.update(1);assert.deepEqual(b.snapshot(),running);b.toggle();b.update(.1);assert.equal(b.id,running.id);assert.ok(b.clock>running.clock);b.destroy()});
 test('paused boss freezes timer, projectiles, effects and skills; x2 cannot advance OFF',()=>{const b=scene();useGame.getState().mutate(p=>{p.wave=5});b.spawn();b.phase='fight';b.cooldowns=[3,4,5];b.shoot('enemy','fire',0,10);b.burst(10,10,'red',2);b.update(.1);b.toggle();const snapshot=b.snapshot(),fx=JSON.stringify(b.fx);useGame.setState({speed:2});b.update(20);b.skill(0);b.heal();assert.deepEqual(b.snapshot(),snapshot);assert.equal(JSON.stringify(b.fx),fx);b.destroy()});
