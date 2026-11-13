@@ -56,6 +56,14 @@ export function shouldAutoSalvage(p:Player,item:Item){
  if(item.origin&&/босс|трофей|награда|покупка/i.test(item.origin))return false;
  return compareItem(item,p)<0;
 }
+/** Bulk clean-up is deliberately stricter than a confirmed individual salvage. */
+export function canBulkSalvage(p:Player,item:Item):boolean{
+ if(!p.inventory.some(i=>i.id===item.id)||item.locked||item.slot==='wings'||item.rarity>=3||item.upgrade>0)return false;
+ if(item.uniqueId||uniqueOf(item)||item.set||item.perk||item.engrave||item.percent)return false;
+ if(item.origin&&/босс|награда|покупка|boss|reward|shop/i.test(item.origin))return false;
+ if(p.rewardOffer?.itemId===item.id)return false;
+ return !Object.values(p.equipment).some(i=>i?.id===item.id);
+}
 export function addLoot(p:Player,item:Item,allowAutoSalvage=false){
  if([...p.inventory,...(p.pendingLoot??[]),...Object.values(p.equipment)].some(i=>i?.id===item.id))return false;
  if(allowAutoSalvage&&shouldAutoSalvage(p,item)){
@@ -68,7 +76,7 @@ export function addLoot(p:Player,item:Item,allowAutoSalvage=false){
 }
 
 export const initialBattle:BattleView={hp:1,maxHp:1,enemyHp:1,enemyMax:1,phase:'walk',boss:false,timer:30,cooldowns:[0,0,0],enemyName:'',mode:'campaign',running:false,bossPhase:1,ability:''};
-interface Store {p:Player;panel:string|null;selected:string|null;toast:string;auto:boolean;speed:number;stopOnDeath:boolean;continueOnVictory:boolean;autoSalvageWeaker:boolean;battle:BattleView;storageError:boolean;recoveryRequired:boolean;open:(s:string|null)=>void;notice:(s:string)=>void;select:(id:string|null)=>void;mutate:(fn:(p:Player)=>void)=>void;persist:()=>void;hornLoot:()=>void;equip:(id:string)=>void;salvage:(id:string,confirmed?:boolean)=>void;lockItem:(id:string)=>void;keepReward:()=>void;configure:(settings:{auto?:boolean;speed?:1|2;stopOnDeath?:boolean;continueOnVictory?:boolean;autoSalvageWeaker?:boolean})=>void;importSave:(p:Player)=>boolean;upgrade:(slot:Slot,expected?:{id:string;upgrade:number})=>void;train:(type:string,index?:number)=>void;claim:(id:string)=>void;buy:(id:string)=>void;win:(mode:string,encounterId?:string,snapshot?:EncounterSnapshot)=>void;unequip:(slot:Slot)=>void;setClass:(c:HeroClass)=>void}
+interface Store {p:Player;panel:string|null;selected:string|null;toast:string;auto:boolean;speed:number;stopOnDeath:boolean;continueOnVictory:boolean;autoSalvageWeaker:boolean;battle:BattleView;storageError:boolean;recoveryRequired:boolean;open:(s:string|null)=>void;notice:(s:string)=>void;select:(id:string|null)=>void;mutate:(fn:(p:Player)=>void)=>void;persist:()=>void;hornLoot:()=>void;equip:(id:string)=>void;salvage:(id:string,confirmed?:boolean)=>void;bulkSalvage:(ids:string[])=>number;lockItem:(id:string)=>void;keepReward:()=>void;configure:(settings:{auto?:boolean;speed?:1|2;stopOnDeath?:boolean;continueOnVictory?:boolean;autoSalvageWeaker?:boolean})=>void;importSave:(p:Player)=>boolean;upgrade:(slot:Slot,expected?:{id:string;upgrade:number})=>void;train:(type:string,index?:number)=>void;claim:(id:string)=>void;buy:(id:string)=>void;win:(mode:string,encounterId?:string,snapshot?:EncounterSnapshot)=>void;unequip:(slot:Slot)=>void;setClass:(c:HeroClass)=>void}
 const loadedPlayer=read();refill(loadedPlayer);
 export const useGame=create<Store>((set,get)=>({p:loadedPlayer,panel:null,selected:null,toast:'',auto:loadedPlayer.preferences?.auto??true,speed:loadedPlayer.preferences?.speed??1,stopOnDeath:loadedPlayer.preferences?.stopOnDeath??true,continueOnVictory:loadedPlayer.preferences?.continueOnVictory??true,autoSalvageWeaker:loadedPlayer.preferences?.autoSalvageWeaker??false,battle:initialBattle,storageError:false,recoveryRequired,
  open:panel=>{if(panel){if(!get().panel&&get().battle.running)resumeAfterPanel=true;encounterPause?.()}haptic();set({panel,selected:null});if(!panel&&resumeAfterPanel){resumeAfterPanel=false;encounterResume?.()}},notice:toast=>{set({toast});setTimeout(()=>{if(get().toast===toast)set({toast:''})},3200)},select:selected=>{if(selected){if(!get().panel&&get().battle.running)resumeAfterPanel=true;encounterPause?.()}set({selected,panel:selected?'item':null});if(!selected&&resumeAfterPanel){resumeAfterPanel=false;encounterResume?.()}},
@@ -78,7 +86,19 @@ export const useGame=create<Store>((set,get)=>({p:loadedPlayer,panel:null,select
  unequip:slot=>{const g=get(),item=g.p.equipment[slot];if(!item)return;if(g.p.inventory.length>=balance.loot_test_settings.starter_inventory_capacity){g.notice('Рюкзак полон');return}g.mutate(p=>{p.inventory.push(p.equipment[slot]!);delete p.equipment[slot]});g.notice('Предмет перемещён в рюкзак')},
  equip:id=>{const g=get();const i=[...g.p.inventory,...(g.p.pendingLoot??[])].find(x=>x.id===id);if(!i)return;g.mutate(p=>{p.inventory=p.inventory.filter(x=>x.id!==id);if(p.pendingLoot)p.pendingLoot=p.pendingLoot.filter(x=>x.id!==id);const old=p.equipment[i.slot];delete p.equipment[i.slot];if(old)addLoot(p,old);p.equipment[i.slot]=i;if(p.rewardOffer?.itemId===id)p.rewardOffer.resolved=true});g.select(null);g.notice('Экипировано · характеристики обновлены')},
  salvage:(id,confirmed=false)=>{const g=get();const i=g.p.inventory.find(x=>x.id===id);if(!i)return;if(i.locked){g.notice('Предмет защищён · сначала снимите замок');return}if((i.rarity>=3||uniqueOf(i)||i.perk||i.set)&&!confirmed){g.notice('Подтвердите распыление редкой вещи');return}g.mutate(p=>{p.inventory=p.inventory.filter(x=>x.id!==id);p.gold+=Math.round(itemPower(i)/3);xp(p,10+i.level*2);if(p.rewardOffer?.itemId===id)p.rewardOffer.resolved=true});g.select(null);g.notice('Предмет распылён: золото и опыт получены')},
- lockItem:id=>{const item=get().p.inventory.find(i=>i.id===id);if(item)get().mutate(p=>{const i=p.inventory.find(i=>i.id===id)!;i.locked=!i.locked})},
+ bulkSalvage:ids=>{
+   const g=get();if(g.recoveryRequired||!Array.isArray(ids))return 0;
+   const chosen=new Set(ids);
+   const items=g.p.inventory.filter(i=>chosen.has(i.id)&&canBulkSalvage(g.p,i));
+   if(!items.length){g.notice('Не выбрано доступных для разбора вещей');return 0}
+   const itemIds=new Set(items.map(i=>i.id));
+   const gold=items.reduce((sum,i)=>sum+Math.round(itemPower(i)/3),0);
+   const experience=items.reduce((sum,i)=>sum+10+i.level*2,0);
+   g.mutate(p=>{p.inventory=p.inventory.filter(i=>!itemIds.has(i.id));p.gold+=gold;xp(p,experience)});
+   g.notice(`Распылено ${items.length} вещей · +${gold} золота и +${experience} опыта`);
+   return items.length;
+  },
+  lockItem:id=>{const item=get().p.inventory.find(i=>i.id===id);if(item)get().mutate(p=>{const i=p.inventory.find(i=>i.id===id)!;i.locked=!i.locked})},
  keepReward:()=>{if(get().p.rewardOffer&&!get().p.rewardOffer!.resolved)get().mutate(p=>{p.rewardOffer!.resolved=true})},
  configure:settings=>{set({...('auto'in settings?{auto:!!settings.auto}:{}),...('speed'in settings?{speed:settings.speed===2?2:1}:{}),...('stopOnDeath'in settings?{stopOnDeath:settings.stopOnDeath!==false}:{}),...('continueOnVictory'in settings?{continueOnVictory:settings.continueOnVictory!==false}:{}),...('autoSalvageWeaker'in settings?{autoSalvageWeaker:settings.autoSalvageWeaker===true}:{})});get().persist()},
  importSave:incoming=>{const checked=parseSave(JSON.stringify(incoming),true);if(!checked){get().notice('Некорректное сохранение');return false}resumeAfterPanel=false;encounterPause?.();try{localStorage.setItem(SAVE_KEY+':before-import',get().recoveryRequired?unreadableSave():exportSave())}catch{get().notice('Не удалось создать резервную копию · импорт отменён');return false}set({recoveryRequired:false,p:checked,auto:checked.preferences?.auto??true,speed:checked.preferences?.speed??1,stopOnDeath:checked.preferences?.stopOnDeath??true,continueOnVictory:checked.preferences?.continueOnVictory??true,autoSalvageWeaker:checked.preferences?.autoSalvageWeaker??false,selected:null});encounterRestore?.();get().persist();get().notice('Импорт завершён · копия сохранена');return true},
