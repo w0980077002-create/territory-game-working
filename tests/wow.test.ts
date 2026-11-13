@@ -2,8 +2,17 @@ import {test,beforeEach} from 'node:test';import assert from 'node:assert/strict
 import {Battle} from '../src/game/Battle';import {useGame,freshPlayer,makeItem,parseSave,SAVE_KEY,compareItem,exportSave} from '../src/core/store';import {stats} from '../src/core/formulas';import {inventoryItems} from '../src/core/loot';import {chapterOne} from '../src/game/Chapter';
 Object.defineProperty(globalThis,'Image',{value:class{src='';complete=false;naturalWidth=0}});Object.defineProperty(globalThis,'requestAnimationFrame',{value:()=>1});Object.defineProperty(globalThis,'cancelAnimationFrame',{value:()=>{}});const saves=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{value:{setItem:(k:string,v:string)=>saves.set(k,v),getItem:(k:string)=>saves.get(k)??null}});
 beforeEach(()=>useGame.setState({p:freshPlayer(),panel:null,selected:null,auto:false,speed:1}));const scene=()=>new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement);
-test('opening any menu pauses the entire encounter; closing never silently resumes',()=>{
- const b=scene();b.toggle();for(let n=0;n<100;n++){b.update(.02);if(b.director.state==='decide')b.director.choose('pass')}useGame.getState().open('shop');assert.equal(b.running,false);const snap=b.snapshot();b.update(20);assert.deepEqual(b.snapshot(),snap);useGame.getState().open(null);b.update(20);assert.deepEqual(b.snapshot(),snap);b.toggle();b.update(.02);assert.ok(b.journey.worldX>snap.journey!.worldX);b.destroy();
+test('menus freeze combat but closing resumes a previously running journey; manual pause stays paused',()=>{
+ const b=scene();b.toggle();for(let n=0;n<100;n++){b.update(.02);if(b.director.state==='decide')b.director.choose('pass')}useGame.getState().open('shop');assert.equal(b.running,false);const snap=b.snapshot();b.update(20);assert.deepEqual(b.snapshot(),snap);useGame.getState().open(null);assert.equal(b.running,true);b.update(.02);assert.ok(b.journey.worldX>snap.journey!.worldX);
+ b.toggle();assert.equal(b.running,false);useGame.getState().open('shop');useGame.getState().open(null);assert.equal(b.running,false);b.destroy();
+});
+test('one tap continues the free campaign across defeat and boss trophies, without duplicating rewards',()=>{
+ const b=scene();b.toggle();b.phase='fight';b.defeat();assert.equal(b.running,true);b.update(2.1);assert.equal(b.mode,'campaign');assert.equal(b.running,true);assert.equal(b.phase,'walk');b.destroy();
+ useGame.setState({p:{...freshPlayer(),wave:5},panel:null});const boss=scene();boss.toggle();boss.units.forEach(u=>u.hp=0);boss.victory();const g=()=>useGame.getState(),offer=g().p.rewardOffer!,item=offer.itemId;
+ assert.equal(g().p.bosses,1);assert.equal(offer.resolved,false);assert.ok(g().p.inventory.some(i=>i.id===item));
+ boss.update(1.3);assert.equal(g().p.rewardOffer?.resolved,true);assert.equal(boss.running,true);boss.update(.5);
+ assert.equal(g().p.stage,2);assert.equal(g().p.bosses,1);assert.ok(g().p.inventory.some(i=>i.id===item));assert.equal(boss.running,true);
+ boss.toggle();assert.equal(boss.running,false);const snap=boss.snapshot();boss.update(5);assert.deepEqual(boss.snapshot(),snap);boss.destroy();
 });
 test('paid mode selection is free and reversible; actual start charges once, including reload',()=>{
  const b=scene(),g=()=>useGame.getState(),initial=g().p.chaosite,original=b.snapshot();b.startMode('dungeon');b.startMode('darkness');assert.equal(g().p.chaosite,initial);assert.equal(b.id,original.id);assert.deepEqual(b.journey,original.journey);b.startMode('campaign');assert.equal(b.pendingMode,undefined);assert.equal(b.id,original.id);
