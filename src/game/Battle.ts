@@ -172,9 +172,10 @@ export class Battle implements TeamHost {
  rasterViewport='';
  syncCanvasResolution(){
   if(typeof window==='undefined'||!this.canvas.getBoundingClientRect)return;
-  const key=[window.innerWidth,window.innerHeight,window.devicePixelRatio].join(':');if(key===this.rasterViewport)return;
+  const displayedWidth=this.canvas.getBoundingClientRect().width;
+  const key=[displayedWidth,window.devicePixelRatio].join(':');if(key===this.rasterViewport)return;
   this.rasterViewport=key;
-  const ratio=Math.max(1,Math.min(3,(window.devicePixelRatio||1)*this.canvas.getBoundingClientRect().width/864));
+  const ratio=Math.max(1,Math.min(3,(window.devicePixelRatio||1)*displayedWidth/864));
   this.canvas.width=Math.ceil(864*ratio);this.canvas.height=Math.ceil(940*ratio);
   this.ctx.setTransform(ratio,0,0,ratio,0,0);
  }
