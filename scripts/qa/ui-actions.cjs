@@ -18,6 +18,8 @@ const out=process.env.OUT||'.tmp/ui-actions',base=process.env.BASE_URL||'http://
   const state=()=>page.evaluate(()=>JSON.parse(JSON.stringify(window.__lootborn.useGame.getState().p)));
   await open('inventory');
   const type=()=>page.getByRole('button',{name:/^Тип предмета:/});
+  for(const name of ['Сила ↓','Редкость ↓','Новые ↓']){await page.getByRole('button',{name:/^Сортировка:/}).tap();await page.getByRole('option',{name,exact:true}).tap();assert.equal(await page.getByRole('button',{name:/^Сортировка:/}).evaluate(el=>el.firstElementChild.scrollWidth<=el.firstElementChild.clientWidth),true,'sort label must fit beside arrow')}
+  await page.getByRole('dialog').screenshot({path:`${out}/${width}-inventory.png`});
   await type().tap();await page.getByRole('listbox').waitFor();await page.screenshot({path:`${out}/${width}-filter.png`});
   await page.getByRole('option',{name:'Крылья',exact:true}).scrollIntoViewIfNeeded();await page.getByRole('option',{name:'Крылья',exact:true}).tap();
   assert.match(await type().getAttribute('aria-label'),/Крылья/);

@@ -23,7 +23,7 @@ export function Backpack({storage,setStorage}:{storage:boolean;setStorage:(value
   <div className="pack-filters">
    <CompactFilter label="Тип предмета" value={slot??''} onChange={value=>setSlot(value as Slot||undefined)} options={[{value:'',label:'Все типы'},...slots.map(s=>({value:s,label:slotNames[s]}))]}/>
    <CompactFilter label="Фильтр качества" value={filter} onChange={value=>setFilter(value as LootFilter)} options={[{value:'all',label:'Качество'},{value:'better',label:'Сильнее'},{value:'rare',label:'Редкие'},{value:'unique',label:'Именные / сеты'},{value:'locked',label:'С замком'}]}/>
-   <CompactFilter label="Сортировка" value={order} onChange={setOrder} options={[{value:'newest',label:'Новые ↓'},{value:'power',label:'Сила ↓'},{value:'rarity',label:'Редкость ↓'}]}/>
+   <CompactFilter label="Сортировка" value={order} onChange={setOrder} options={[{value:'newest',label:'Новые ↓',shortLabel:'Новые'},{value:'power',label:'Сила ↓',shortLabel:'Сила'},{value:'rarity',label:'Редкость ↓',shortLabel:'Редкость'}]}/>
   </div>
   <InventoryGrid controls={<label className="pack-auto"><input type="checkbox" checked={g.autoSalvageWeaker} onChange={e=>g.configure({autoSalvageWeaker:e.target.checked})}/><span>Авторазбор слабой новой добычи</span></label>} key={storage?'storage':'backpack'} p={p} filter={filter} slot={slot} order={order} storage={storage} onSelect={g.select} onBulkSalvage={g.bulkSalvage} onClaim={g.claimStored}/>
  </DialogShell>;

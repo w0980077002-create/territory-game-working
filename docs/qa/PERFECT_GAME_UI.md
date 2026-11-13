@@ -44,7 +44,7 @@ Evidence: [geometry](perfect-game-ui/geometry.json), [interactions](perfect-game
 
 ## Visual iteration and independent criticism
 
-Real screenshots caught issues that builds/tests did not: inflated perk text after a cascade conflict, fused hero labels/values, metal decoration over a footer button, stacked autobattle actions and the forge CTA below the fold. All were corrected and captured again. A separate read-only critic inspected final 320px hero, inventory, forge, autobattle and bulk confirmation, plus 390px item/set and inventory, and independently exercised the production filter's last option/focus/Escape behavior. No blocker remained in those checks; this is not a claim that the critic personally inspected every window.
+Real screenshots caught issues that builds/tests did not: inflated perk text after a cascade conflict, fused hero labels/values, metal decoration over a footer button, stacked autobattle actions, the forge CTA below the fold, a 3px mastery-tab overflow and a 6px active sort-label overflow on 320px. Sort triggers now use full accessible names and shorter visible labels, with equal filter columns. All were corrected and captured again. A separate read-only critic inspected final 320px hero, inventory, forge, autobattle and bulk confirmation, plus 390px item/set and inventory, and independently exercised the production filter's last option/focus/Escape behavior. No blocker remained in those checks; this is not a claim that the critic personally inspected every window.
 
 | Evidence | Image |
 |---|---|
