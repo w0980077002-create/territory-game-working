@@ -4,7 +4,7 @@
  * Layers: wind bed, generative mood music (city / tense / boss), snow footsteps, one-shot effects.
  * Pause fades the world layers; mute fades the master and suspends the context.
  */
-export type Sfx='hit'|'skill'|'win'|'death'|'block'|'critical'|'honk'|'bark'|'growl'|'boss'|'coin'|'loot'|'rare'|'rune'|'flutter'|'dig'|'alarm'|'potion'|'feat'|'thunder'|'whoosh';
+export type Sfx='hit'|'skill'|'win'|'death'|'block'|'critical'|'honk'|'bark'|'growl'|'boss'|'coin'|'loot'|'rare'|'rune'|'flutter'|'dig'|'alarm'|'potion'|'feat'|'thunder'|'whoosh'|'forge';
 export type Mood='city'|'tense'|'boss';
 export interface AudioFrame {enabled:boolean;running:boolean;hidden:boolean;volume:number;mood:Mood;wind:number;walked:number;quality:number}
 const scales:Record<Mood,number[]>={city:[293.66,349.23,392,440,523.25,587.33,698.46],tense:[146.83,164.81,174.61,220,233.08,293.66],boss:[73.42,87.31,98,110,116.54]};
@@ -65,6 +65,7 @@ export class AudioDirector {
  play(kind:Sfx){
   if(!this.ready())return;const now=this.ctx!.currentTime,gap=kind==='hit'?.07:.12;if(now-(this.last.get(kind)??-1)<gap)return;this.last.set(kind,now);
   switch(kind){
+   case 'forge':this.tone(145,44,.22,'triangle',.12);this.burst(.07,'lowpass',1200,.7,.1);this.steel(.05);break;
    case 'hit':this.burst(.05,'highpass',2200,.6,.09);this.tone(190,70,.09,'square',.035);this.steel(.018);break;
    case 'critical':this.burst(.07,'highpass',1800,.6,.12);this.tone(240,48,.2,'triangle',.09);this.steel(.04);break;
    case 'block':this.steel(.06);this.tone(320,210,.08,'square',.03);break;

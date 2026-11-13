@@ -1,0 +1,30 @@
+{
+  "capybara_bruiser": {
+    "width": 611,
+    "height": 768
+  },
+  "senior_driller": {
+    "width": 768,
+    "height": 741
+  },
+  "moss_eater": {
+    "width": 654,
+    "height": 768
+  },
+  "spider_queen": {
+    "width": 582,
+    "height": 768
+  },
+  "fungal_king": {
+    "width": 654,
+    "height": 768
+  },
+  "minotaur_echo": {
+    "width": 695,
+    "height": 768
+  },
+  "fire_abyss_lord": {
+    "width": 768,
+    "height": 767
+  }
+}

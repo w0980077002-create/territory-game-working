@@ -8,6 +8,7 @@ import {freshWorld,legOf,roll,type EventKind,type WorldSave,type CountKey} from 
 import {variants,boons,feats,boonValues,weathers,type Feat,type Variant,type WeatherId} from '../data/world-variants';
 import {bossIds} from '../data/catalog';
 import balance from '../../config/test-balance.v1.json';
+import {stageGold} from '../saga/regions';
 export interface LegPlan {leg:number;stage:number;wave:number;kind:EventKind;variant:Variant;options:string[]}
 const affinity:EventKind[]=['cache','caravan','ambush','altar'];
 const DEFAULT_SEED=0x5eed;
@@ -39,7 +40,7 @@ export function weatherOf(world:WorldSave|undefined,stage:number):WeatherId{
  return r<.4?'clear':open[1+Math.floor((r-.4)/.6*(open.length-1))]?.id??'clear';
 }
 export interface Outcome {lines:string[];feats:Feat[];item?:Item}
-const goldBase=(stage:number)=>Math.round(balance.test_rewards.regular_win_gold_base*1.14**(stage-1));
+const goldBase=(stage:number)=>stageGold(stage,false);
 const horn=(p:Player,n:number)=>{const before=p.horn;p.horn=Math.min(balance.horn_test_settings.maximum_charges,p.horn+n);return p.horn-before};
 function note(w:WorldSave,line:string){w.log.push(line);if(w.log.length>8)w.log.shift()}
 /** Count progress, unlock feats and pay their one-time rewards. Call only inside a store mutation. */

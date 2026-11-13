@@ -282,14 +282,16 @@
     "boss_hp_multiplier": 4.5,
     "boss_attack_multiplier": 1.8,
     "wave_victory_xp": 20,
-    "boss_victory_xp": 60
+    "boss_victory_xp": 60,
+    "potion_cooldown_seconds": 4,
+    "potion_stage_gold_share": 1.2
   },
   "first_chapter_test": {
     "mode": "TEST_ONLY",
     "regular_hp_multipliers": [
       [
         4.5,
-        4.0
+        4
       ],
       [
         4.2,
@@ -297,10 +299,10 @@
       ],
       [
         4.5,
-        4.0
+        4
       ],
       [
-        5.0,
+        5,
         4.5
       ]
     ],
@@ -335,5 +337,243 @@
       1.3,
       1.5
     ]
+  },
+  "gear_rpg_test": {
+    "mode": "TEST_ONLY",
+    "version": 1,
+    "regular_equipment_chance": 0.3,
+    "upgrade_stat_multiplier": 1.12,
+    "effects": {
+      "frost": {
+        "cooldown": 6,
+        "duration": 2.2,
+        "rate": 0.55
+      },
+      "bulwark": {
+        "cooldown": 8,
+        "duration": 3,
+        "hp_fraction": 0.18
+      },
+      "pack": {
+        "cooldown": 7,
+        "heal_fraction": 0.04,
+        "dog_seconds": 2.5
+      },
+      "tempo": {
+        "cooldown": 7,
+        "duration": 3,
+        "rate": 1.45
+      }
+    },
+    "drops": {
+      "campaign": [
+        {
+          "id": "ice_silk",
+          "chance": 0.08
+        },
+        {
+          "id": "storm_ring",
+          "chance": 0.12
+        }
+      ],
+      "dungeon": [
+        {
+          "id": "oath_shield",
+          "chance": 0.2
+        },
+        {
+          "id": "pack_sigil",
+          "chance": 0.2
+        }
+      ],
+      "darkness": [
+        {
+          "id": "ice_silk",
+          "chance": 0.1
+        },
+        {
+          "id": "storm_ring",
+          "chance": 0.15
+        },
+        {
+          "id": "oath_shield",
+          "chance": 0.15
+        },
+        {
+          "id": "pack_sigil",
+          "chance": 0.15
+        }
+      ]
+    }
+  },
+  "campaign_curve_test": {
+    "mode": "TEST_ONLY",
+    "note": "TEST_ONLY: fixed mixed-equipment builds at lv8@2-3 and lv18@4-4; scripts/sim/fair-tune.ts. No scaling against live player stats.",
+    "regular_hp_scale": 4.3,
+    "boss_hp_scale": 20,
+    "wave_hp": [
+      1,
+      1.05,
+      1.1,
+      1.2
+    ],
+    "wave_attack": [
+      1.1,
+      1.2,
+      1.3,
+      1.5
+    ],
+    "trio_hp_share": 0.72,
+    "midboss_hp": 1.15,
+    "finale_hp": 1.25,
+    "finale_timer_bonus": 15,
+    "affix_from_stage": 4,
+    "defense_cap_stage": 60,
+    "gold_soft_cap_stage": 40,
+    "gold_linear_after_cap": 0.05,
+    "xp_linear": 0.35,
+    "farm_hp": 0.6,
+    "farm_attack": 0.8,
+    "lair_hp": 0.8,
+    "dark_hp": 0.7,
+    "arena_hp": 0.55,
+    "hp_table": [
+      1,
+      1.5,
+      1.56664,
+      1.67388,
+      1.96288,
+      2.25467,
+      2.35747,
+      2.44202,
+      2.92851,
+      2.94315,
+      3.29758,
+      3.46579,
+      4.12331,
+      4.14393,
+      4.16465,
+      4.49902,
+      4.52152,
+      5.01828,
+      5.35157,
+      5.37833,
+      6.02249,
+      6.18949,
+      6.22043,
+      6.25154,
+      6.28279,
+      7.29041,
+      7.32687,
+      7.3635,
+      7.40032,
+      7.43732,
+      9.07353,
+      9.82167,
+      11.04836,
+      11.1036,
+      11.15912,
+      11.94275,
+      14.57015,
+      14.643,
+      16.80277,
+      16.88678,
+      16.97122,
+      17.05607,
+      18.879,
+      20.20365,
+      20.30466,
+      20.40619,
+      22.49713,
+      23.02692,
+      23.14206,
+      23.25777,
+      23.37405,
+      27.65771,
+      27.796,
+      27.93498,
+      28.07466,
+      28.21503,
+      28.3561,
+      28.49788,
+      28.64037,
+      28.78358
+    ],
+    "attack_table": [
+      1,
+      1.35,
+      1.8225,
+      2.46038,
+      3.32151,
+      4.48403,
+      6.05345,
+      6.52372,
+      7.58315,
+      7.62106,
+      8.58766,
+      8.674,
+      10.2605,
+      10.3118,
+      11.31958,
+      11.37618,
+      12.38121,
+      12.44311,
+      14.09999,
+      15.78494,
+      17.19544,
+      17.28142,
+      19.28686,
+      19.47874,
+      20.93238,
+      21.03704,
+      22.19458,
+      22.30556,
+      23.5305,
+      23.64815,
+      25.97692,
+      26.1068,
+      27.42317,
+      27.56028,
+      28.8138,
+      29.10382,
+      31.98696,
+      32.14689,
+      33.51059,
+      37.84737,
+      39.64973,
+      39.84798,
+      43.11516,
+      43.33073,
+      44.88754,
+      45.11198,
+      48.63293,
+      49.02585,
+      51.16347,
+      51.41928,
+      52.89897,
+      53.16347,
+      56.93651,
+      57.2212,
+      58.78105,
+      59.07495,
+      60.71341,
+      61.01698,
+      62.6653,
+      72.27986
+    ],
+    "bot_target": {
+      "note": "Historical unlimited-bot targets, retained for reference only. Active calibration: scripts/sim/fair-tune.ts against fixed ordinary builds; validation: tests/fairness.test.ts.",
+      "boss_seconds_start": 6,
+      "boss_seconds_end": 14,
+      "ramp_stages": 10,
+      "taken_start": 0.3,
+      "taken_end": 0.9,
+      "margin": {
+        "hp": 0.9,
+        "attack": 0.8
+      }
+    },
+    "mitigation_cap": 0.8,
+    "finale_attack": 1
   }
 }

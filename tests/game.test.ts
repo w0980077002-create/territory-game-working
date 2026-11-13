@@ -21,3 +21,16 @@ test('horn refresh precedes zero-charge check and partial purchase charges only 
 test('unequip preserves item and rejects capacity overflow',()=>{const g=()=>useGame.getState();const id=g().p.equipment.weapon!.id;g().unequip('weapon');assert.equal(g().p.equipment.weapon,undefined);assert.ok(g().p.inventory.some(i=>i.id===id));g().unequip('weapon');assert.equal(g().p.inventory.filter(i=>i.id===id).length,1)});
 test('double horn tap opens one comparison and consumes one charge',()=>{const g=()=>useGame.getState(),before=g().p.horn;g().hornLoot();g().hornLoot();assert.equal(g().p.horn,before-1);assert.equal(g().p.inventory.length,1)});
 test('full backpack holds boss loot for manual collection instead of destroying it',()=>{const g=()=>useGame.getState();g().mutate(p=>{p.inventory=Array.from({length:80},()=>makeItem('weapon',1,4));p.wave=5});g().win('campaign','capacity-fight');assert.equal(g().p.pendingLoot?.length,1);const id=g().p.pendingLoot![0].id;g().claim('pending');assert.equal(g().p.pendingLoot?.length,1);g().salvage(g().p.inventory[0].id,true);g().claim('pending');assert.equal(g().p.pendingLoot?.length,0);assert.ok(g().p.inventory.some(i=>i.id===id))});
+
+test('horn grants include offline regeneration and restart the clock when filling the horn',async()=>{
+ const {grantHorn}=await import('../src/core/store');const p=freshPlayer();
+ p.horn=10;p.hornAt=1000000;grantHorn(p,5,1240000);assert.equal(p.horn,17);
+ p.horn=48;p.hornAt=1240000;grantHorn(p,5,1300000);assert.equal(p.horn,50);assert.equal(p.hornAt,1300000);
+ p.horn--;refill(p,1360000);assert.equal(p.horn,49,'a full horn cannot bank partial recharge time');
+ refill(p,1420000);assert.equal(p.horn,50);
+});
+
+test('a full horn grant cannot move a future recharge clock backwards',async()=>{
+ const {grantHorn}=await import('../src/core/store');const p=freshPlayer();p.horn=49;p.hornAt=2000000;
+ grantHorn(p,5,1000000);assert.equal(p.horn,50);assert.equal(p.hornAt,2000000);
+});

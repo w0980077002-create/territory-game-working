@@ -1,9 +1,31 @@
 import {test,beforeEach} from 'node:test';import assert from 'node:assert/strict';
 import {Battle} from '../src/game/Battle';import {useGame,freshPlayer,makeItem,parseSave,SAVE_KEY,compareItem,exportSave} from '../src/core/store';import {stats} from '../src/core/formulas';import {inventoryItems} from '../src/core/loot';import {chapterOne} from '../src/game/Chapter';
 Object.defineProperty(globalThis,'Image',{value:class{src='';complete=false;naturalWidth=0}});Object.defineProperty(globalThis,'requestAnimationFrame',{value:()=>1});Object.defineProperty(globalThis,'cancelAnimationFrame',{value:()=>{}});const saves=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{value:{setItem:(k:string,v:string)=>saves.set(k,v),getItem:(k:string)=>saves.get(k)??null}});
-beforeEach(()=>useGame.setState({p:freshPlayer(),panel:null,selected:null,auto:false,speed:1}));const scene=()=>new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement);
-test('opening any menu pauses the entire encounter; closing never silently resumes',()=>{
- const b=scene();b.toggle();for(let n=0;n<100;n++){b.update(.02);if(b.director.state==='decide')b.director.choose('pass')}useGame.getState().open('shop');assert.equal(b.running,false);const snap=b.snapshot();b.update(20);assert.deepEqual(b.snapshot(),snap);useGame.getState().open(null);b.update(20);assert.deepEqual(b.snapshot(),snap);b.toggle();b.update(.02);assert.ok(b.journey.worldX>snap.journey!.worldX);b.destroy();
+beforeEach(()=>useGame.setState({p:freshPlayer(),panel:null,selected:null,auto:false,speed:1,stopOnDeath:true,continueOnVictory:true}));const scene=()=>new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement);
+test('menus freeze combat but closing resumes a previously running journey; manual pause stays paused',()=>{
+ const b=scene();b.toggle();for(let n=0;n<100;n++){b.update(.02);if(b.director.state==='decide')b.director.choose('pass')}useGame.getState().open('shop');assert.equal(b.running,false);const snap=b.snapshot();b.update(20);assert.deepEqual(b.snapshot(),snap);useGame.getState().open(null);assert.equal(b.running,true);b.update(.02);assert.ok(b.journey.worldX>snap.journey!.worldX);
+ b.toggle();assert.equal(b.running,false);useGame.getState().open('shop');useGame.getState().open(null);assert.equal(b.running,false);b.destroy();
+});
+test('victories flow automatically but a hero death waits for the axes before retrying',()=>{
+ const b=scene();b.toggle();b.phase='fight';const site=b.journey.encounterIndex;b.defeat();assert.equal(b.running,false);const frozen=b.snapshot();b.update(2.1);assert.deepEqual(b.snapshot(),frozen);b.resume();assert.equal(b.running,false);b.toggle();b.update(2.1);assert.equal(b.mode,'campaign');assert.equal(b.running,true);assert.equal(b.phase,'walk');assert.equal(b.journey.encounterIndex,site);b.destroy();
+ useGame.setState({p:{...freshPlayer(),wave:5},panel:null});const boss=scene();boss.toggle();boss.units.forEach(u=>u.hp=0);boss.victory();const g=()=>useGame.getState(),offer=g().p.rewardOffer!,item=offer.itemId;
+ assert.equal(g().p.bosses,1);assert.equal(offer.resolved,false);assert.ok(g().p.inventory.some(i=>i.id===item));
+ boss.update(1.3);assert.equal(g().p.rewardOffer?.resolved,true);assert.equal(boss.running,true);boss.update(.5);
+ assert.equal(g().p.stage,2);assert.equal(g().p.bosses,1);assert.ok(g().p.inventory.some(i=>i.id===item));assert.equal(boss.running,true);
+ boss.toggle();assert.equal(boss.running,false);const snap=boss.snapshot();boss.update(5);assert.deepEqual(boss.snapshot(),snap);boss.destroy();
+});
+test('autobattle settings actually control defeat retry, victory continuation and survive save',()=>{
+ const g=()=>useGame.getState();
+ g().configure({auto:true,speed:2,stopOnDeath:false,continueOnVictory:false});
+ assert.deepEqual(parseSave(exportSave())!.preferences,{auto:true,speed:2,stopOnDeath:false,continueOnVictory:false,autoSalvageWeaker:false});
+ const death=scene();death.toggle();death.phase='fight';const index=death.journey.encounterIndex;death.defeat();
+ assert.equal(death.running,true,'optional auto-retry keeps free fight active');death.update(2.1);
+ assert.equal(death.phase,'walk');assert.equal(death.journey.encounterIndex,index);death.destroy();
+ useGame.setState({p:freshPlayer(),stopOnDeath:true,continueOnVictory:false,panel:null});
+ const win=scene();win.toggle();win.units.forEach(u=>u.hp=0);win.victory();
+ assert.equal(win.running,false,'disabled auto-advance pauses after a win');const progress=g().p.wave;
+ win.update(4);assert.equal(g().p.wave,progress);win.toggle();win.update(2);
+ assert.equal(win.phase,'walk');win.destroy();
 });
 test('paid mode selection is free and reversible; actual start charges once, including reload',()=>{
  const b=scene(),g=()=>useGame.getState(),initial=g().p.chaosite,original=b.snapshot();b.startMode('dungeon');b.startMode('darkness');assert.equal(g().p.chaosite,initial);assert.equal(b.id,original.id);assert.deepEqual(b.journey,original.journey);b.startMode('campaign');assert.equal(b.pendingMode,undefined);assert.equal(b.id,original.id);
@@ -19,13 +41,13 @@ test('boss phase2 creates a timed poison floor; hammer clears it without changin
 test('boss receipt and the named epic are single-use; all three reward choices keep the item or pay once',()=>{
  for(const action of ['equip','keep','salvage']){
   useGame.setState({p:{...freshPlayer(),wave:5},panel:null});const b=scene();b.units.forEach(u=>u.hp=0);b.victory();const g=()=>useGame.getState(),offer=g().p.rewardOffer!,item=g().p.inventory.find(i=>i.id===offer.itemId)!;assert.equal(item.rarity,4);assert.ok(compareItem(item,g().p)>0);assert.equal(g().p.bosses,1);b.victory();assert.equal(g().p.bosses,1);
-  for(let t=0;t<100;t++)b.update(.02);b.toggle();assert.equal(b.running,false);const originalGold=g().p.gold;
-  if(action==='equip'){g().equip(item.id);assert.equal(g().p.equipment.weapon?.id,item.id)}else if(action==='keep'){g().keepReward();assert.ok(g().p.inventory.some(i=>i.id===item.id))}else{g().salvage(item.id);assert.ok(g().p.inventory.some(i=>i.id===item.id));g().salvage(item.id,true);const gold=g().p.gold;g().salvage(item.id,true);assert.equal(g().p.gold,gold);assert.ok(gold>originalGold)}
+  for(let t=0;t<100;t++)b.update(.02);assert.equal(b.running,false);const originalGold=g().p.gold;
+  if(action==='equip'){g().equip(item.id);assert.equal(g().p.equipment.weapon?.id,item.id)}else if(action==='keep'){g().keepReward();assert.ok(g().p.inventory.some(i=>i.id===item.id))}else{g().salvage(item.id);assert.ok(g().p.inventory.some(i=>i.id===item.id));g().lockItem(item.id);g().salvage(item.id,true);const gold=g().p.gold;g().salvage(item.id,true);assert.equal(g().p.gold,gold);assert.ok(gold>originalGold)}
   assert.equal(g().p.rewardOffer?.resolved,true);g().open(null);b.continueAfterLoot();assert.equal(b.running,true);const world=b.journey.worldX;for(let n=0;n<150;n++)b.update(.02);assert.ok(b.journey.worldX>=world);assert.equal(g().p.bosses,1);b.destroy();
  }
 });
 test('locked items cannot be dismantled; sort/filter is read-only and settings serialize',()=>{
- const g=()=>useGame.getState();g().mutate(p=>{p.inventory=[makeItem('weapon',4,4),makeItem('armor',1,1)]});const id=g().p.inventory[0].id;g().lockItem(id);const before=structuredClone(g().p);g().salvage(id,true);assert.deepEqual(g().p,before);assert.equal(inventoryItems(g().p,'locked').length,1);inventoryItems(g().p,'all',undefined,'rarity');assert.deepEqual(g().p,before);g().configure({auto:false,speed:2});const saved=parseSave(exportSave())!;assert.deepEqual(saved.preferences,{auto:false,speed:2});
+ const g=()=>useGame.getState();g().mutate(p=>{p.inventory=[makeItem('weapon',4,4),makeItem('armor',1,1)]});const id=g().p.inventory[0].id;g().lockItem(id);const before=structuredClone(g().p);g().salvage(id,true);assert.deepEqual(g().p,before);assert.equal(inventoryItems(g().p,'locked').length,1);inventoryItems(g().p,'all',undefined,'rarity');assert.deepEqual(g().p,before);g().configure({auto:false,speed:2});const saved=parseSave(exportSave())!;assert.deepEqual(saved.preferences,{auto:false,speed:2,stopOnDeath:true,continueOnVictory:true,autoSalvageWeaker:false});
 });
 test('import backs up live state first, restores OFF, and retains owned gear and settings',()=>{
  const b=scene();b.toggle();b.update(.5);const old=b.id,oldGear=useGame.getState().p.equipment.weapon!.id;const incoming=freshPlayer();incoming.stage=3;incoming.preferences={auto:false,speed:2};assert.ok(useGame.getState().importSave(incoming));const backup=parseSave(saves.get(SAVE_KEY+':before-import')!)!;assert.equal(backup.encounter?.id,old);assert.equal(backup.equipment.weapon!.id,oldGear);assert.equal(useGame.getState().p.stage,3);assert.equal(b.running,false);assert.equal(useGame.getState().speed,2);b.destroy();
