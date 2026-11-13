@@ -27,10 +27,6 @@ function pine(c:CanvasRenderingContext2D,x:number,y:number,h:number,tone:string,
  c.fillStyle=tone;c.beginPath();c.moveTo(x,y-h);for(let n=1;n<=4;n++){const w=h*.09+n*h*.075,py=y-h+n*h*.24;c.lineTo(x+w,py);c.lineTo(x+w*.45,py-h*.035)}c.lineTo(x+h*.05,y-h*.03);c.lineTo(x+h*.05,y);c.lineTo(x-h*.05,y);c.lineTo(x-h*.05,y-h*.03);for(let n=4;n>=1;n--){const w=h*.09+n*h*.075,py=y-h+n*h*.24;c.lineTo(x-w*.45,py-h*.035);c.lineTo(x-w,py)}c.closePath();c.fill();
  c.fillStyle=rim;c.beginPath();c.moveTo(x,y-h);c.lineTo(x+h*.16,y-h*.76);c.lineTo(x+h*.05,y-h*.79);c.lineTo(x+h*.24,y-h*.52);c.lineTo(x+h*.02,y-h*.6);c.closePath();c.fill();
 }
-function crag(c:CanvasRenderingContext2D,x:number,y:number,w:number,h:number,seed:number,tone:string,face:string){
- c.fillStyle=tone;c.beginPath();c.moveTo(x-w/2,y);c.lineTo(x-w*.32,y-h*(.5+hash(seed)*.2));c.lineTo(x-w*.1,y-h*.82);c.lineTo(x+w*.04,y-h);c.lineTo(x+w*.2,y-h*(.62+hash(seed+1)*.2));c.lineTo(x+w*.36,y-h*.4);c.lineTo(x+w/2,y);c.closePath();c.fill();
- c.fillStyle=face;c.beginPath();c.moveTo(x+w*.04,y-h);c.lineTo(x+w*.2,y-h*(.62+hash(seed+1)*.2));c.lineTo(x+w*.36,y-h*.4);c.lineTo(x+w*.12,y-h*.3);c.lineTo(x-w*.02,y-h*.62);c.closePath();c.fill();
-}
 function vexillum(c:CanvasRenderingContext2D,x:number,y:number,h:number,time:number,seed:number){
  const sway=Math.sin(time*2+seed*7)*4;c.save();c.strokeStyle=INK;c.lineWidth=3;c.lineJoin='round';c.strokeStyle='#4b3421';c.lineWidth=6;c.beginPath();c.moveTo(x,y);c.lineTo(x,y-h);c.stroke();c.strokeStyle=INK;c.lineWidth=2.5;
  c.fillStyle='#d6b25a';c.fillRect(x-h*.2,y-h,h*.4,h*.045);c.strokeRect(x-h*.2,y-h,h*.4,h*.045);
@@ -61,17 +57,18 @@ export function paintBiomeBack(c:CanvasRenderingContext2D,region:Region,time:num
   if(!reduced){c.globalCompositeOperation='lighter';for(let n=0;n<Math.round(9*quality);n++){const x=((n*113-cameraX*.5+Math.sin(t*.6+n)*26)%900+900)%900,y=520+hash(n)*170+Math.sin(t*.9+n*2)*12,r=20+hash(n+2)*14,g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,n%3?'#8dffb055':'#c59bff66');g.addColorStop(1,'#8dffb000');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2)}c.globalCompositeOperation='source-over'}
   strip(cameraX,.86,470,(i,x)=>{const kind=hash(i+1);if(kind<.4)scenery(c,'rune',x,716,118);else if(kind<.75)scenery(c,'tree',x,718,150);else scenery(c,'mushrooms',x,716,84)});
  }else if(region.id==='peaks'){
-  strip(cameraX,.28,330,(i,x)=>crag(c,x,712,300+hash(i)*120,300+hash(i+2)*160,i,'#4a3d38','#6a584c'));
-  strip(cameraX,.55,410,(i,x)=>crag(c,x,716,240+hash(i+5)*90,190+hash(i+7)*110,i+40,'#3a2f2c','#59483d'));
-  strip(cameraX,.75,760,(i,x)=>{c.strokeStyle='#2b1f18';c.lineWidth=7;c.beginPath();c.moveTo(x,716);c.lineTo(x+30,560);c.lineTo(x+60,716);c.moveTo(x+30,560);c.lineTo(x+150,585);c.stroke();c.lineWidth=2;c.strokeStyle='#17110d';c.beginPath();c.moveTo(x+150,585);c.lineTo(x+150,640+Math.sin(t*1.3+i)*10);c.stroke();c.fillStyle='#6b5a4c';c.fillRect(x+136,640+Math.sin(t*1.3+i)*10,28,22)});
+  // The approved fortress painting is the landscape. Never cover it with
+  // temporary flat-shaded canvas polygons or construction-line overlays.
+  // Unique painted/parallax mountain assets can be added as a separate art pass.
  }else if(region.id==='limes'){
   const sun=c.createRadialGradient(650,250,10,650,250,420);sun.addColorStop(0,'#ffe0a055');sun.addColorStop(1,'#ffe0a000');c.fillStyle=sun;c.fillRect(0,0,864,700);
   strip(cameraX,.5,560,(i,x)=>palisade(c,x,714,330,62,hash(i)>.35),420);
   strip(cameraX,.78,330,(i,x)=>vexillum(c,x,716,120+hash(i)*36,t,hash(i+2)));
  }else if(region.id==='ember'){
   const sky=c.createLinearGradient(0,0,0,640);sky.addColorStop(0,'#3b0a0acc');sky.addColorStop(.6,'#a6341a55');sky.addColorStop(1,'#ff8a3a22');c.fillStyle=sky;c.fillRect(0,0,864,640);
-  strip(cameraX,.2,900,(i,x)=>{crag(c,x,712,520,430,i+90,'#231216','#3a1b1a');const pulse=.5+.5*Math.sin(t*1.4+i);const g=c.createRadialGradient(x+20,290,0,x+20,290,120);g.addColorStop(0,`rgba(255,150,60,${.35+pulse*.25})`);g.addColorStop(1,'#ff6a2000');c.fillStyle=g;c.fillRect(x-100,170,240,240)},520);
-  strip(cameraX,.55,300,(i,x)=>crag(c,x,716,200+hash(i)*90,150+hash(i+3)*100,i+140,'#1c0f12','#33181a'));
+  // Atmospheric heat glow remains behind combat, but temporary geometric
+  // cliffs are deliberately removed until authored volcanic scenery exists.
+  strip(cameraX,.2,900,(i,x)=>{const pulse=.5+.5*Math.sin(t*1.4+i);const g=c.createRadialGradient(x+20,290,0,x+20,290,120);g.addColorStop(0,`rgba(255,150,60,${.35+pulse*.25})`);g.addColorStop(1,'#ff6a2000');c.fillStyle=g;c.fillRect(x-100,170,240,240)},520);
   // Lava seams breathing under the road.
   c.globalCompositeOperation='lighter';strip(cameraX,1,230,(i,x)=>{const pulse=.45+.3*Math.sin(t*2+i*1.7);c.strokeStyle=`rgba(255,${120+Math.round(pulse*80)},50,${pulse})`;c.lineWidth=4;c.beginPath();c.moveTo(x,742+hash(i)*60);c.lineTo(x+34,752+hash(i+1)*50);c.lineTo(x+70,738+hash(i+2)*64);c.lineTo(x+118,756+hash(i+3)*40);c.stroke()},140);c.globalCompositeOperation='source-over';
  }
