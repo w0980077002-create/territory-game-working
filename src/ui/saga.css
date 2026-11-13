@@ -105,3 +105,17 @@
 @media(prefers-reduced-motion:reduce){.level-award{animation:none}}
 .saga-modal .rune-options button{overflow-wrap:anywhere}
 .level-award[data-motion="reduced"]{animation:none}
+
+/* Mobile item detail: set/perk text must NEVER inherit the 62px icon column.
+   Prevent the letter-by-letter wrap observed on Android in New loot. */
+@media (max-width:480px){
+ .saga-modal .comparison{grid-template-columns:minmax(0,1fr)}
+ .saga-modal .comparison .item-card{display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:12px;align-items:start;text-align:left}
+ .saga-modal .comparison .item-card>.icon{grid-column:1;grid-row:1/4;width:74px;height:74px}
+ .saga-modal .comparison .item-card>h4{grid-column:2;grid-row:1}
+ .saga-modal .comparison .item-card>small{grid-column:2;grid-row:2}
+ .saga-modal .comparison .item-card>p{grid-column:2;grid-row:3}
+ .saga-modal .comparison .item-card>.unique-effect,
+ .saga-modal .comparison .item-card>.saga-item-lines{grid-column:1/-1;min-width:0;width:100%;overflow-wrap:break-word}
+ .saga-modal .comparison .item-card .set-line{min-width:0;width:100%}
+}
