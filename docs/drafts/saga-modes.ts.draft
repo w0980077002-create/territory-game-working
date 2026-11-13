@@ -1,0 +1,173 @@
+/**
+ * PvE modes beyond the story: Lair (three tactical mini-bosses), Realm of Darkness (floors with pacts),
+ * Tower of Trials (chosen challenges) and Sea Expeditions (routes with risk and banked loot).
+ * Pure rules over the save. Item creation is injected (`Tools`) so this module never imports the store.
+ * All numbers TEST_ONLY.
+ */
+import type {Item,Player,Slot} from '../core/types';
+import {roll} from '../core/world';
+import {boxOf,peekBox,bumpCount,count,setFlag,hasFlag,sagaOf} from './save';
+import {threat,regionOf,regions,type AffixId,type HazardId,type EncounterPlan,type FoePlan,type Mods} from './regions';
+import {grant,type Reward} from './rewards';
+import {matKey,setIds,type PerkId,type SetId} from './gear';
+import {stageGold} from './regions';
+export interface Tools {makeItem:(slot:Slot,level:number,rarity:number)=>Item;makePerkItem:(id:PerkId,level:number,origin:string)=>Item;asSetItem:(item:Item,set:SetId)=>Item;rollItem:(p:Player)=>Item}
+const V='01_sword_shield_veteran',S='02_roman_spearman',P='03_pirate_bandit',C='04_club_raider',H='05_shield_spearman',L='06_red_crest_legionary',M='07_purple_mage',B='08_armored_boar';
+const big=['spider_queen','fungal_king','minotaur_echo','fire_abyss_lord'],minis=['capybara_bruiser','senior_driller','moss_eater'];
+const solo=(p:Player,unit:FoePlan,title:string,hint:string,role:string,extra:Partial<EncounterPlan>={}):EncounterPlan=>({units:[unit],boss:true,finale:false,timer:30,title,hint,role,region:regionOf(p.stage),bossName:unit.title??title,...extra});
+// ───────────── Lair ─────────────
+export const lairBosses:{id:string;name:string;affix:AffixId;tactic:string;counter:string;perk:PerkId}[]=[
+ {id:minis[0],name:'Капибара-Громила',affix:'frenzy',tactic:'Разгоняется с каждым ударом и во второй фазе бьёт дважды.',counter:'Срывайте замах Сокрушительным ударом — ярость сбрасывается.',perk:'belt'},
+ {id:minis[1],name:'Старший бурильщик',affix:'swift',tactic:'Бур пробивает броню и сверлит щиты; замах короткий.',counter:'Не полагайтесь на щит: держите лечение и оглушайте руной Грома.',perk:'boots'},
+ {id:minis[2],name:'Пожиратель мха',affix:'regen',tactic:'Лечится, пока его не жгут, и замедляет героя корнями.',counter:'Руна Огня останавливает лечение. Молот Тора снимает замедление.',perk:'moss'}
+];
+export const LAIR_MAX_TIER=10,lairPerkChance=.15,lairPity=8;
+interface LairBox {pick?:number}
+export const lairPick=(p:Player)=>{const v=peekBox<LairBox>(p,'lair')?.pick;return v===1||v===2?v:0};
+export const lairWins=(p:Player,i:number)=>count(p,'lair:'+i);
+export const lairTier=(p:Player,i:number)=>Math.min(LAIR_MAX_TIER,Math.floor(lairWins(p,i)/2));
+export function chooseLair(p:Player,i:number){boxOf<LairBox>(p,'lair',()=>({})).pick=i===1||i===2?i:0}
+export function lairPlan(p:Player):EncounterPlan{const i=lairPick(p),def=lairBosses[i],tier=lairTier(p,i),t=threat(p.stage+Math.floor(tier/2));return solo(p,{id:def.id,hp:t.bossHp*(.8+tier*.05),atk:t.bossAtk*(1+tier*.03),def:t.def,affix:def.affix,title:def.name},`Логово · ${def.name}`,def.counter,`Логово · сила ${tier+1}`)}
+export const lairGoals=[{wins:1,gems:10,text:'Первая победа'},{wins:5,gems:20,text:'5 побед'},{wins:15,gems:40,text:'15 побед'}];
+export function winLair(p:Player,tools:Tools):Item{
+ const i=lairPick(p),def=lairBosses[i],tier=lairTier(p,i);bumpCount(p,'lair:'+i);p.gold+=Math.round(stageGold(p.stage,true)*(1+tier*.1));p.gems+=5;
+ const owned=hasFlag(p,'perk:'+def.perk),pity=bumpCount(p,'pity:lair:'+i);
+ if(Math.random()<lairPerkChance||pity>=lairPity&&!owned){sagaOf(p).n['pity:lair:'+i]=0;setFlag(p,'perk:'+def.perk);return tools.makePerkItem(def.perk,p.level+1,'Трофей Логова · '+def.name)}
+ const item=tools.rollItem(p);item.origin='Логово · '+def.name;return item;
+}
+export function claimLairGoal(p:Player,i:number,goal:number):Reward|null{const g=lairGoals[goal];if(!g||lairWins(p,i)<g.wins||!setFlag(p,`lair:${i}:${goal}`))return null;const r={gems:g.gems,chaosite:5};grant(p,r);return r}
+// ───────────── Realm of Darkness ─────────────
+export interface Pact {id:string;name:string;boon:string;curse:string;mods:Mods;foeHp?:number;affix?:AffixId;timer?:number;dusk?:number;loot?:number}
+export const pacts:Pact[]=[
+ {id:'glass',name:'Пакт Стекла',boon:'+30% урона героя',curse:'−20% HP героя',mods:{dmg:1.3,maxHp:.8}},
+ {id:'greed',name:'Пакт Алчности',boon:'+100% Камней Сумрака',curse:'Враг +25% HP',mods:{},foeHp:1.25,dusk:2},
+ {id:'haste',name:'Пакт Спешки',boon:'Навыки перезаряжаются на 25% быстрее',curse:'Враг действует на 15% быстрее',mods:{cd:1/.75,foeRate:1.15}},
+ {id:'venom',name:'Пакт Яда',boon:'+25% шанс особого трофея Тьмы',curse:'Враг становится Ядовитым',mods:{},affix:'venom',loot:.25},
+ {id:'ward',name:'Пакт Оберега',boon:'Щит 25% HP в начале боя',curse:'Пёс не лечит',mods:{shield:.25,noDogHeal:true}},
+ {id:'frail',name:'Пакт Хрупкости',boon:'Враг −20% HP',curse:'Таймер короче на 8 сек',mods:{},foeHp:.8,timer:-8},
+ {id:'calm',name:'Тихая тропа',boon:'Без изменений',curse:'Без награды сверх обычной',mods:{}}
+];
+export const MAX_PACTS=3,darkHazards:(HazardId|undefined)[]=[undefined,'curse','heat','rockfall','storm','blizzard'];
+interface DarkBox {pacts?:string[];offer?:string[];offerFloor?:number;temper?:number}
+export const darkBox=(p:Player)=>peekBox<DarkBox>(p,'dark')??{};
+export const activePacts=(p:Player)=>(darkBox(p).pacts??[]).flatMap(id=>pacts.find(v=>v.id===id)??[]);
+/** Three choices for the current floor, fixed by seed so reopening the window cannot reroll them. */
+export function pactOffer(p:Player):Pact[]{const seed=(p.world?.seed??7)^0x5a17,order=pacts.filter(v=>v.id!=='calm').map((v,i)=>({v,r:roll(seed,p.darkFloor,i)})).sort((a,b)=>a.r-b.r).slice(0,2).map(v=>v.v);return [...order,pacts.find(v=>v.id==='calm')!]}
+/** A pact must be chosen before each new floor. `calm` keeps the current pacts. */
+export const pactPending=(p:Player)=>p.darkFloor>1&&darkBox(p).offerFloor!==p.darkFloor;
+export function choosePact(p:Player,id:string){if(!pactOffer(p).some(v=>v.id===id))return false;const box=boxOf<DarkBox>(p,'dark',()=>({}));box.offerFloor=p.darkFloor;if(id!=='calm'){const list=(box.pacts??[]).filter(v=>v!==id);list.push(id);box.pacts=list.slice(-MAX_PACTS)}return true}
+export const darkTemper=(p:Player)=>Math.min(50,darkBox(p).temper??0);
+export function mergeMods(list:Mods[]):Mods{const out:Mods={};for(const m of list){for(const k of ['dmg','maxHp','foeRate','cd'] as const)if(m[k]!==undefined)out[k]=(out[k]??1)*m[k]!;if(m.shield)out.shield=Math.max(out.shield??0,m.shield);if(m.noDogHeal)out.noDogHeal=true;if(m.noPotion)out.noPotion=true}return out}
+export function darkPlan(p:Player):EncounterPlan{
+ const floor=p.darkFloor,active=activePacts(p),t=threat(Math.max(p.stage,2)+Math.floor(floor/3)),id=big[(floor-1)%big.length],hazard=darkHazards[Math.floor((floor-1)/5)%darkHazards.length];
+ const hp=active.reduce((a,v)=>a*(v.foeHp??1),1),affix=active.find(v=>v.affix)?.affix??(floor%5===0?'bulwark':undefined),timer=30+active.reduce((a,v)=>a+(v.timer??0),0);
+ const mods=mergeMods([...active.map(v=>v.mods),{dmg:1+darkTemper(p)*.01}]);
+ return solo(p,{id,hp:t.bossHp*.7*(1+(floor-1)*.06)*hp,atk:t.bossAtk*(1+(floor-1)*.02),def:t.def,affix,title:floor%10===0?'Владыка этажа':undefined},`Тьма · этаж ${floor}`,active.length?active.map(v=>v.name).join(' · '):'Босс Царства Тьмы. Между этажами выбирайте пакт.',`Царство Тьмы`,{timer,hazard,mods,ultimates:floor%5===0?['Затмение','Голод Тьмы']:undefined});
+}
+export const duskReward=(p:Player)=>Math.round((2+Math.floor(p.darkFloor/5))*activePacts(p).reduce((a,v)=>a*(v.dusk??1),1));
+export function winDark(p:Player,tools:Tools):Item{
+ const floor=p.darkFloor,dusk=duskReward(p),bonus=activePacts(p).reduce((a,v)=>a+(v.loot??0),0);sagaOf(p).n[matKey('dusk')]=count(p,matKey('dusk'))+dusk;p.gold+=Math.round(stageGold(p.stage,true)*(1+floor*.05));p.gems+=5;p.darkFloor++;
+ const item=tools.rollItem(p);if(item.slot!=='wings'&&Math.random()<.2+bonus)tools.asSetItem(item,setIds[Math.floor(Math.random()*setIds.length)]);item.origin=`Царство Тьмы · этаж ${floor}`;return item;
+}
+/** The Darkness has its own shop: its trophies are bought with Dusk Stones, never dropped into normal loot. */
+export const darkShop:{id:'void'|'duskwings'|'temper';name:string;floor:number;cost:number;text:string}[]=[
+ {id:'temper',name:'Сумрачная закалка',floor:1,cost:6,text:'+1% урона героя в Царстве Тьмы за ранг (до 50)'},
+ {id:'void',name:'Клинок Сумрака',floor:10,cost:40,text:'Именное оружие: метки Сумрака усиливают каждый следующий удар'},
+ {id:'duskwings',name:'Крылья Сумрака',floor:20,cost:80,text:'Особые крылья: высокие проценты и +5% уклонения'}
+];
+export function buyDark(p:Player,id:string,tools:Tools):Item|true|null{
+ const offer=darkShop.find(v=>v.id===id),dusk=count(p,matKey('dusk'));if(!offer||p.darkFloor-1<offer.floor-1&&offer.id!=='temper'||dusk<offer.cost)return null;
+ if(offer.id==='temper'){const box=boxOf<DarkBox>(p,'dark',()=>({}));if((box.temper??0)>=50)return null;box.temper=(box.temper??0)+1;sagaOf(p).n[matKey('dusk')]=dusk-offer.cost;return true}
+ if(!setFlag(p,'perk:'+offer.id))return null;sagaOf(p).n[matKey('dusk')]=dusk-offer.cost;const item=tools.makePerkItem(offer.id,p.level+2,'Сокровищница Тьмы');if(offer.id==='duskwings')item.percent={hp:22,attack:16,defense:14};return item;
+}
+// ───────────── Tower of Trials ─────────────
+export interface Challenge {id:string;name:string;text:string;bonus:number}
+export const challenges:Challenge[]=[
+ {id:'no_potion',name:'Без зелий',text:'Красная сфера заперта',bonus:.2},{id:'swarm',name:'Толпа',text:'Три врага вместо двух',bonus:.25},{id:'elite',name:'Элита',text:'Каждый враг с особым свойством',bonus:.3},
+ {id:'hazard',name:'Стихия',text:'Опасность случайного региона',bonus:.25},{id:'fragile',name:'Хрупкость',text:'HP героя −30%',bonus:.3},{id:'swift',name:'Натиск врага',text:'Враги действуют на 20% быстрее',bonus:.25}
+];
+export const TOWER_UNLOCK_STAGE=6,MAX_CHALLENGES=3;
+interface TowerBox {floor?:number;best?:number;mods?:string[]}
+export const towerBox=(p:Player)=>peekBox<TowerBox>(p,'tower')??{};
+export const towerFloor=(p:Player)=>Math.max(1,towerBox(p).floor??1);
+export const towerMods=(p:Player)=>(towerBox(p).mods??[]).filter(id=>challenges.some(c=>c.id===id)).slice(0,MAX_CHALLENGES);
+export const towerBonus=(p:Player)=>towerMods(p).reduce((a,id)=>a+challenges.find(c=>c.id===id)!.bonus,0);
+export function toggleChallenge(p:Player,id:string){if(!challenges.some(c=>c.id===id))return;const box=boxOf<TowerBox>(p,'tower',()=>({})),list=box.mods??[];box.mods=list.includes(id)?list.filter(v=>v!==id):list.length<MAX_CHALLENGES?[...list,id]:list}
+const towerPacks=[[V,H],[P,C],[S,M],[L,B],[C,B],[M,M],[L,S],[P,P]],affixRing:AffixId[]=['bulwark','frenzy','regen','venom','warded','swift'],hazardRing:HazardId[]=['storm','curse','rockfall','heat','blizzard'];
+export function towerPlan(p:Player):EncounterPlan{
+ const floor=towerFloor(p),mods=towerMods(p),has=(id:string)=>mods.includes(id),t=threat(Math.round(2+floor*1.4)),seed=(p.world?.seed??7)^0x70e7,bossFloor=floor%5===0;
+ const hazard=has('hazard')?hazardRing[Math.floor(roll(seed,floor,3)*hazardRing.length)]:undefined,m:Mods={...(has('fragile')?{maxHp:.7}:{}),...(has('swift')?{foeRate:1.2}:{}),...(has('no_potion')?{noPotion:true}:{})};
+ const affix=(i:number)=>has('elite')?affixRing[Math.floor(roll(seed,floor,10+i)*affixRing.length)]:undefined;
+ if(bossFloor){const id=[...minis,...big][Math.floor(floor/5-1)%7];return solo(p,{id,hp:t.bossHp*.9,atk:t.bossAtk,def:t.def,affix:affix(0),title:`Страж ${floor}-го этажа`},`Башня · этаж ${floor}`,'Страж этажа. Вызовы увеличивают награду.','Башня испытаний',{hazard,mods:m,ultimates:floor%10===0?['Приговор Башни','Обвал этажа']:undefined})}
+ const pack=[...towerPacks[Math.floor(roll(seed,floor,1)*towerPacks.length)]];if(has('swarm'))pack.push([S,M,H][Math.floor(roll(seed,floor,2)*3)]);
+ return {units:pack.map((id,i)=>({id,hp:t.hp*1.15*(pack.length===3?.75:1),atk:t.atk*1.3*(pack.length===3?.85:1),def:t.def,affix:affix(i)})),boss:false,finale:false,timer:0,title:`Башня · этаж ${floor}`,hint:mods.length?mods.map(id=>challenges.find(c=>c.id===id)!.name).join(' · '):'Выберите вызовы перед боем, чтобы увеличить награду.',role:'Башня испытаний',hazard,mods:m,region:regions[Math.floor(roll(seed,floor,4)*6)]};
+}
+export function towerReward(p:Player):Reward{const floor=towerFloor(p),first=floor>(towerBox(p).best??0),mult=1+towerBonus(p);return {gold:Math.round(stageGold(Math.round(2+floor*1.4),false)*3*mult),chaosite:Math.round(3*mult),...(first?{gems:floor%5===0?25:8}:{}),...(floor%5===0?{horn:2}:{})}}
+export function winTower(p:Player):Reward{const reward=towerReward(p),box=boxOf<TowerBox>(p,'tower',()=>({})),floor=towerFloor(p);grant(p,reward);box.best=Math.max(box.best??0,floor);box.floor=floor+1;bumpCount(p,'tower');return reward}
+// ───────────── Sea expeditions ─────────────
+export type NodeKind='fight'|'storm'|'cache'|'caravan'|'ambush'|'mini'|'boss';
+export interface SeaNode {kind:NodeKind;done?:boolean}
+export interface Route {id:string;name:string;text:string;long:boolean;risk:number;nodes:SeaNode[];level:number}
+export interface Voyage {route:Route;pos:number;hull:number;maxHull:number;hold:Reward;rolls:number;state:'sailing'|'fight'|'choice'|'done';log:string[]}
+interface SeaBox {voyage?:Voyage;day?:string;ship?:number;pity?:number}
+export const seaBox=(p:Player)=>peekBox<SeaBox>(p,'sea')??{};
+export const shipLevel=(p:Player)=>Math.max(1,Math.min(20,seaBox(p).ship??1));
+export const shipHull=(level:number)=>80+level*20;
+export const shipCost=(level:number)=>({gold:400*level*level,pearls:2+level*2});
+export const SEA_ENTRY_CHAOSITE=5;
+const routeNames:[string,string][]=[['Тихая бухта','Короткий рейд вдоль берега'],['Туманные шхеры','Узкие проливы и тайники контрабандистов'],['Штормовой путь','Открытое море, караваны и пиратский флагман'],['Путь китобоев','Дальний поход к ледяным островам'],['Янтарный берег','Торговый маршрут под охраной пиратов']];
+const nodeNames:Record<NodeKind,string>={fight:'Пиратский дозор',storm:'Шторм',cache:'Тайник на островке',caravan:'Караван в беде',ambush:'Засада',mini:'Капитан рейдеров',boss:'Флагман'};
+export const nodeName=(k:NodeKind)=>nodeNames[k];
+/** Three routes per day: two short (5–10 minutes) and one long (20–30). Deterministic, so a reload shows the same harbour board. */
+export function routesOf(p:Player,day:string):Route[]{
+ const seed=[...day].reduce((h,c)=>Math.imul(h^c.charCodeAt(0),0x45d9f3b),p.world?.seed??7),level=Math.max(2,p.stage);
+ return [0,1,2].map(i=>{const long=i===2,name=routeNames[Math.floor(roll(seed,i,1)*routeNames.length)],kinds:NodeKind[]=long?['fight','cache','storm','caravan','ambush','mini','boss']:roll(seed,i,2)<.5?['fight','storm','cache','ambush']:['cache','fight','caravan','mini'];
+  if(roll(seed,i,3)<.5){const a=1,b=2;[kinds[a],kinds[b]]=[kinds[b],kinds[a]]}
+  return {id:`${day}:${i}`,name:name[0]+(long?' · дальний поход':''),text:name[1],long,risk:long?3:1+Math.floor(roll(seed,i,4)*2),nodes:kinds.map(kind=>({kind})),level:level+(long?2:0)}});
+}
+export const voyageOf=(p:Player)=>seaBox(p).voyage;
+export function startVoyage(p:Player,routeId:string,day:string):string|null{
+ const box=boxOf<SeaBox>(p,'sea',()=>({}));if(box.voyage&&box.voyage.state!=='done')return 'Корабль уже в походе';const route=routesOf(p,day).find(r=>r.id===routeId);if(!route)return 'Маршрут недоступен';if(p.chaosite<SEA_ENTRY_CHAOSITE)return `Нужно ${SEA_ENTRY_CHAOSITE} Хаосита на припасы`;
+ p.chaosite-=SEA_ENTRY_CHAOSITE;const hull=shipHull(shipLevel(p));box.voyage={route:structuredClone(route),pos:0,hull,maxHull:hull,hold:{},rolls:0,state:'sailing',log:[`Отплытие: ${route.name}`]};return null;
+}
+const add=(hold:Reward,r:Reward)=>{for(const k of ['gold','gems','horn','chaosite'] as const)if(r[k])hold[k]=(hold[k]??0)+r[k]!;for(const [id,n] of Object.entries(r.mats??{})){hold.mats??={};hold.mats[id]=(hold.mats[id]??0)+n}};
+const nodeLoot=(p:Player,v:Voyage,kind:NodeKind):Reward=>{const gold=stageGold(v.route.level,false),ship=1+shipLevel(p)*.05;return kind==='cache'?{gold:Math.round(gold*3*ship),mats:{pearl:2}}:kind==='caravan'?{gold:Math.round(gold*4*ship),gems:6,mats:{pearl:2}}:kind==='ambush'?{gold:Math.round(gold*3*ship),mats:{pearl:3}}:kind==='mini'?{gold:Math.round(gold*5*ship),gems:8,mats:{pearl:4}}:kind==='boss'?{gold:Math.round(gold*9*ship),gems:20,horn:3,mats:{pearl:8}}:kind==='storm'?{mats:{pearl:3}}:{gold:Math.round(gold*2*ship),mats:{pearl:1}}};
+export const currentNode=(v:Voyage)=>v.route.nodes[v.pos];
+const fightKinds:NodeKind[]=['fight','caravan','ambush','mini','boss'];
+export const needsFight=(v:Voyage)=>v.state==='sailing'&&fightKinds.includes(currentNode(v)?.kind);
+export function seaPlan(p:Player):EncounterPlan|null{
+ const v=voyageOf(p);if(!v||v.state==='done')return null;const node=currentNode(v);if(!node)return null;const t=threat(v.route.level),harbor=regions[1];
+ if(node.kind==='boss')return solo(p,{id:'capybara_bruiser',hp:t.bossHp*1.1,atk:t.bossAtk,def:t.def,affix:'frenzy',title:'Капитан флагмана'},'Флагман пиратов','Финал похода. Победа — вся добыча трюма и шанс на Компас морехода.','Экспедиция',{hazard:'storm',region:harbor,ultimates:['Бортовой залп','Девятый вал']});
+ if(node.kind==='mini')return solo(p,{id:'senior_driller',hp:t.bossHp*.75,atk:t.bossAtk*.95,def:t.def,title:'Капитан рейдеров'},'Капитан рейдеров','Мини-босс маршрута.','Экспедиция',{region:harbor,hazard:v.route.risk>=2?'storm':undefined});
+ const packs:Record<string,string[]>={fight:[P,P],caravan:[P,C],ambush:[P,B]},pack=packs[node.kind]??[P,H],elite=node.kind==='ambush';
+ return {units:pack.map((id,i)=>({id,hp:t.hp*(elite?1.4:1.1),atk:t.atk*(elite?1.5:1.25),def:t.def,affix:elite&&i===0?'frenzy' as AffixId:undefined})),boss:false,finale:false,timer:0,title:nodeNames[node.kind],hint:node.kind==='caravan'?'Отбейте караван — купцы щедро заплатят.':elite?'Засада: враги бьют первыми и сильнее.':'Пиратский дозор на пути корабля.',role:'Экспедиция',hazard:v.route.risk>=2?'storm':undefined,region:harbor};
+}
+/** Resolves a non-combat node. `bold` = take the risk. Outcome is seeded by route and position: no save-scumming. */
+export function resolveNode(p:Player,bold:boolean):string|null{
+ const box=boxOf<SeaBox>(p,'sea',()=>({})),v=box.voyage;if(!v||v.state!=='sailing')return null;const node=currentNode(v);if(!node||fightKinds.includes(node.kind))return null;const r=roll((p.world?.seed??7)^0x5ea,v.pos,v.route.id.length,v.route.level);let line='';
+ if(node.kind==='cache'){add(v.hold,nodeLoot(p,v,'cache'));v.rolls++;line='Тайник поднят на борт'}
+ else if(bold){if(r<.6){add(v.hold,nodeLoot(p,v,'storm'));line='Шторм пройден под парусом: жемчуг со дна в трюме'}else{const hit=Math.round(v.maxHull*.35);v.hull=Math.max(0,v.hull-hit);line=`Шторм потрепал корабль: −${hit} прочности`}}
+ else line='Корабль переждал шторм в бухте';
+ return advance(p,v,line);
+}
+function advance(p:Player,v:Voyage,line:string){
+ v.log.push(line);if(v.log.length>8)v.log.shift();
+ if(v.hull<=0){v.log.push('Корабль едва дошёл до гавани: половина трюма потеряна');finish(p,v,.5);return line}
+ v.route.nodes[v.pos].done=true;v.pos++;if(v.pos>=v.route.nodes.length){finish(p,v,1);return line}
+ v.state='choice';return line;
+}
+/** After every node: bank the hold and go home, or sail on and risk half of it. */
+export function decideVoyage(p:Player,onward:boolean){const v=boxOf<SeaBox>(p,'sea',()=>({})).voyage;if(!v||v.state!=='choice')return false;if(onward)v.state='sailing';else finish(p,v,1);return true}
+export let lastVoyageItem:Item|undefined;
+function finish(p:Player,v:Voyage,share:number){
+ const hold:Reward={gold:Math.round((v.hold.gold??0)*share),gems:Math.round((v.hold.gems??0)*share),horn:Math.round((v.hold.horn??0)*share),chaosite:Math.round((v.hold.chaosite??0)*share),mats:Object.fromEntries(Object.entries(v.hold.mats??{}).map(([k,n])=>[k,Math.round(n*share)]))};
+ grant(p,hold);v.hold=hold;v.state='done';if(share===1&&v.pos>=v.route.nodes.length)bumpCount(p,'expedition');bumpCount(p,'voyage');
+}
+export function winSea(p:Player,tools:Tools):Item|undefined{
+ const box=boxOf<SeaBox>(p,'sea',()=>({})),v=box.voyage;if(!v||v.state!=='sailing')return undefined;const node=currentNode(v);if(!node)return undefined;add(v.hold,nodeLoot(p,v,node.kind));v.rolls++;let item:Item|undefined;
+ if(node.kind==='boss'){const pity=(box.pity??0)+1;if(!hasFlag(p,'perk:compass')&&(Math.random()<.2||pity>=5)){box.pity=0;setFlag(p,'perk:compass');item=tools.makePerkItem('compass',p.level+1,'Трофей флагмана')}else{box.pity=pity;item=tools.asSetItem(tools.makeItem('weapon',p.level+1,4),'storm');item.origin='Трофей флагмана'}}
+ else if(node.kind==='mini'||Math.random()<.35){item=tools.rollItem(p);item.origin='Морская экспедиция'}
+ advance(p,v,`${nodeNames[node.kind]}: победа`);return item;
+}
+export function loseSea(p:Player){const v=boxOf<SeaBox>(p,'sea',()=>({})).voyage;if(!v||v.state!=='sailing')return;v.log.push('Команда отступила: половина трюма потеряна');finish(p,v,.5)}
+export function upgradeShip(p:Player){const box=boxOf<SeaBox>(p,'sea',()=>({})),level=shipLevel(p),cost=shipCost(level);if(level>=20||p.gold<cost.gold||count(p,matKey('pearl'))<cost.pearls)return false;p.gold-=cost.gold;sagaOf(p).n[matKey('pearl')]=count(p,matKey('pearl'))-cost.pearls;box.ship=level+1;return true}
