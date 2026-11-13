@@ -94,7 +94,12 @@ export const useGame=create<Store>((set,get)=>({p:loadedPlayer,panel:null,select
    const itemIds=new Set(items.map(i=>i.id));
    const gold=items.reduce((sum,i)=>sum+Math.round(itemPower(i)/3),0);
    const experience=items.reduce((sum,i)=>sum+10+i.level*2,0);
+   // Keep a recovery snapshot before any destructive inventory mutation.
+   try{localStorage.setItem(SAVE_KEY+':before-bulk-salvage',exportSave())}
+   catch{g.notice('Не удалось сохранить резервную копию · разбор отменён');return 0}
+   const before=g.p;
    g.mutate(p=>{p.inventory=p.inventory.filter(i=>!itemIds.has(i.id));p.gold+=gold;xp(p,experience)});
+   if(get().storageError){set({p:before});g.notice('Не удалось сохранить изменения · предметы возвращены');return 0}
    g.notice(`Распылено ${items.length} вещей · +${gold} золота и +${experience} опыта`);
    return items.length;
   },
