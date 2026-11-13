@@ -1,0 +1,43 @@
+/* Owner reference: cream parchment, chocolate header, thick outlines and gold save.
+   Rendered in a portal outside the 864px scaled battle so 320px phones keep real touch targets. */
+.autobattle-shade{position:fixed;inset:0;z-index:220;display:flex;align-items:center;justify-content:center;padding:max(12px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));background:#090809d9;box-sizing:border-box;font-family:'Roboto Condensed',Arial,sans-serif;color:#22150e}
+.autobattle-dialog{display:flex;flex-direction:column;width:min(720px,100%);max-height:100%;overflow:hidden;border:5px solid #110d0c;border-radius:22px;background:#eee2bc;box-shadow:0 0 0 3px #674536,0 22px 65px #000a;animation:autobattle-enter .18s ease-out}
+.autobattle-heading{flex:0 0 auto;display:flex;justify-content:center;align-items:center;position:relative;min-height:80px;padding:10px 72px;background:linear-gradient(#52322d 0,#3f2220 80%,#301a19);border-bottom:6px solid #130c0d;box-shadow:inset 0 8px 0 #6b433f,inset 0 -2px #8f6251}
+.autobattle-heading h2{margin:0;color:#ffe1a0;font-size:clamp(26px,5.5vw,43px);font-weight:900;line-height:1.1;text-align:center;text-shadow:2px 3px 0 #000,0 0 3px #190d0a}
+.autobattle-close{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:60px;height:60px;display:grid;place-items:center;background:radial-gradient(circle at 36% 22%,#ff748d,#f63468 65%,#b80744);color:#95183d;font-size:37px;font-weight:900;line-height:1;border:4px solid #160e0e;border-radius:50%;box-shadow:inset 0 0 0 4px #f7a6af,0 3px #0008;text-shadow:1px 1px #f9b2c1;cursor:pointer}
+.autobattle-body{padding:24px 24px 18px;overflow-y:auto;overscroll-behavior:contain;min-height:0;display:flex;flex-direction:column;align-items:stretch;background:linear-gradient(145deg,#fff5d8,#e8dab1 83%)}
+.autobattle-options{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:20px;padding:22px 20px;border:3px solid #b48b54;border-radius:17px;background:linear-gradient(145deg,#f9dfb4,#f1cc95);box-shadow:inset 0 0 0 2px #f9e8c2}
+.autobattle-settings{min-width:0;display:flex;flex-direction:column;gap:16px}
+.autobattle-speed{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#251911;font-size:23px;font-weight:900;line-height:1.1}
+.autobattle-speed>span{flex:1}
+.autobattle-speed select{border:3px solid #392015;box-shadow:0 3px #a0704a,inset 0 2px #fff7de;flex:0 0 102px;height:54px;border-radius:12px;padding:0 15px;background:#fff1d4;color:#20130d;font:900 28px 'Roboto Condensed',Arial,sans-serif;cursor:pointer}
+.autobattle-check{display:flex;align-items:center;gap:12px;position:relative;min-height:40px;font-size:21px;font-weight:900;line-height:1.1;cursor:pointer;color:#251911}
+.autobattle-check input{position:absolute;width:40px;height:40px;top:0;left:0;opacity:0;cursor:pointer;margin:0}
+.autobattle-square{flex:0 0 40px;width:40px;height:40px;border:3px solid #2d2017;border-radius:10px;background:#68432d;box-shadow:inset 0 1px #9d6743,0 2px #93683e;color:#b0ee13;font:900 36px/33px Arial,sans-serif;text-align:center;text-shadow:0 1px #1d3305}
+.autobattle-check input:focus-visible+.autobattle-square{outline:3px solid #156cb5;outline-offset:3px}
+.autobattle-rules{min-width:0;color:#332018;font-weight:800;font-size:19px;line-height:1.25}
+.autobattle-rules strong{display:block;margin:0 0 8px;font-size:25px;text-shadow:0 1px #fff6d5}
+.autobattle-rules p{margin:10px 0}
+.autobattle-rules b{color:#5a2877}
+.autobattle-save{align-self:center;min-width:min(340px,100%);max-width:100%;margin:28px 0 12px;padding:14px 24px 16px;min-height:76px;border-radius:17px;border:4px solid #24100d;background:linear-gradient(#fff48e 0,#ffdd36 53%,#ffc331);box-shadow:inset 0 3px #ffffc3,0 5px #b75d2d;color:#fffaf4;font:900 clamp(29px,6vw,41px) 'Roboto Condensed',Arial,sans-serif;text-shadow:2px 3px #190b06,-1px -1px #190b06,1px -1px #190b06,-1px 1px #190b06;cursor:pointer}
+.autobattle-save:active{transform:translateY(2px);box-shadow:inset 0 2px #fff8b2,0 2px #b75d2d}
+.autobattle-save:focus-visible,.autobattle-close:focus-visible,.autobattle-speed select:focus-visible{outline:3px solid #246ea1;outline-offset:3px}
+.autobattle-footer-note{margin:8px 0 0;text-align:center;color:#947e59;font-size:17px;font-weight:800;line-height:1.25}
+@keyframes autobattle-enter{from{opacity:.6;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:580px){
+ .autobattle-dialog{border-width:4px;border-radius:17px}
+ .autobattle-heading{min-height:65px;padding:8px 58px}
+ .autobattle-close{width:50px;height:50px;font-size:31px;right:8px}
+ .autobattle-body{padding:16px 12px 14px}
+ .autobattle-options{grid-template-columns:1fr;gap:12px;padding:17px 14px}
+ .autobattle-settings{gap:14px}
+ .autobattle-speed{font-size:21px}
+ .autobattle-speed select{height:49px;flex-basis:94px;font-size:25px}
+ .autobattle-check{font-size:19px}
+ .autobattle-rules{border-top:2px solid #c69b69;padding-top:9px;font-size:16px}
+ .autobattle-rules strong{font-size:20px}
+ .autobattle-rules p{margin:6px 0}
+ .autobattle-save{margin:18px 0 7px;min-height:62px;padding:8px 20px}
+ .autobattle-footer-note{font-size:14px}
+}
+@media(prefers-reduced-motion:reduce){.autobattle-dialog{animation:none}}
