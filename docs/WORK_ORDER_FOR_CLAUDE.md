@@ -8,7 +8,7 @@
 
 1. Прочти [единый brief](../PROJECT_BRIEF.md), [CLAUDE.md](../CLAUDE.md), [решения/расхождения](DECISIONS_AND_GAPS.md) и [полный этапный план](IMPLEMENTATION_PLAN.md).
 2. **Открой настоящую картинку** [assets/references/main-screen-100-percent.png](../assets/references/main-screen-100-percent.png) (864×1536) и визуально проанализируй; [описание](SCREEN_100_PERCENT.md) и [карта](SCREEN_PIXEL_MAP_100_PERCENT_864x1536_RU.md) служат дополнением. Не считать отсутствующим то, что уже загружено.
-3. **21 персонаж распакован** в [папку арта](../assets/characters/v2-source/TERRITORY_ART_PACK_2026-11-11_v2/) с [манифестом](CHARACTER_MANIFEST.md) и [проверкой SHA](../assets/characters/v2-source/EXTRACTION_REPORT.json). Три ZIP — архив происхождения; повторно не импортировать.
+3. **21 персонаж распакован** в [папку арта](../assets/characters/v2-source/TERRITORY_ART_PACK_2026-11-11_v2/) с [манифестом](CHARACTER_MANIFEST.md) и [проверкой SHA](../assets/characters/v2-source/EXTRACTION_REPORT.json). Три транспортных ZIP удалены из текущего дерева по решению владельца. Все импортированные изображения и отчёт проверки сохранены; повторно импортировать не нужно.
 4. Прочти полный [GDD](GDD_OWNER_CONSOLIDATED_RU.md), [утверждённое расширение](LOOTBORN_FULL_SYSTEMS_APPROVED_20261112_RU.md), [201 проверку](LOOTBORN_FEATURE_CHECKLIST_20261112_RU.md), затем нужные [исследования](LOOTBORN_DEEP_AUDIT_20261112_RU.md). Новые находки, цены и точные ограничения конкретной китайской версии не превращать в неподтверждённые глобальные значения.
 
 ## Этап 0 — **первый конкретный результат**
