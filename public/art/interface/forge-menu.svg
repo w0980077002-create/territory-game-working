@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 96 96" role="img" aria-label="Меню">
+<defs>
+<linearGradient id="bronze" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe6a4"/><stop offset=".25" stop-color="#cda05b"/><stop offset=".5" stop-color="#68432a"/><stop offset=".7" stop-color="#e5bf79"/><stop offset="1" stop-color="#573723"/></linearGradient>
+<linearGradient id="paper" x1=".1" y1=".1" x2=".9" y2="1"><stop stop-color="#f4dcaa"/><stop offset=".48" stop-color="#d9b67a"/><stop offset="1" stop-color="#9e7044"/></linearGradient>
+<linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#6d482d"/><stop offset=".45" stop-color="#292322"/><stop offset="1" stop-color="#121d21"/></linearGradient>
+<filter id="shadow" x="-35%" y="-35%" width="180%" height="180%"><feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#080d11" flood-opacity=".8"/></filter>
+</defs>
+<g filter="url(#shadow)">
+<path d="M48 2 85 17 94 49 78 84 48 95 16 83 2 49 12 17Z" fill="#111a1f" stroke="#0a1015" stroke-width="3"/>
+<path d="M48 5 81 20 90 49 76 80 48 91 19 80 6 49 16 20Z" fill="url(#bronze)" stroke="#f6d89c" stroke-width="1"/>
+<path d="M48 11 77 23 84 49 72 75 48 84 23 75 12 49 20 23Z" fill="url(#wood)" stroke="#281f1c" stroke-width="2"/>
+<path d="M29 23 67 23 73 31 73 68 65 75 31 75 23 68 23 31Z" fill="url(#paper)" stroke="#5f3e2b" stroke-width="2"/>
+<path d="M28 29 68 29 M27 69 69 69" stroke="#f5dfac" stroke-width="1.5" opacity=".8"/>
+<path d="M29 35 37 35 41 39 37 43 29 43 25 39Z" fill="#985337" stroke="#573b2e"/>
+<path d="M45 36h22v6H45Z" fill="#6c452d" stroke="#e6c484" stroke-width="1"/>
+<path d="M29 47 37 47 41 51 37 55 29 55 25 51Z" fill="#985337" stroke="#573b2e"/>
+<path d="M45 48h22v6H45Z" fill="#6c452d" stroke="#e6c484" stroke-width="1"/>
+<path d="M29 59 37 59 41 63 37 67 29 67 25 63Z" fill="#985337" stroke="#573b2e"/>
+<path d="M45 60h22v6H45Z" fill="#6c452d" stroke="#e6c484" stroke-width="1"/>
+<g fill="#f3d89f"><path d="M32 36l3 3-3 3-3-3Zm0 12 3 3-3 3-3-3Zm0 12 3 3-3 3-3-3Z"/></g>
+<g fill="#e5bf7f" stroke="#593c24" stroke-width=".8"><circle cx="48" cy="12" r="2.5"/><circle cx="16" cy="49" r="2.5"/><circle cx="80" cy="49" r="2.5"/><circle cx="48" cy="83" r="2.5"/></g>
+</g>
+</svg>
