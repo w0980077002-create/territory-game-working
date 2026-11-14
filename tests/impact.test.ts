@@ -49,7 +49,8 @@ test('enemy arrows and magic use the same registered trajectory without changing
   assert.ok(Math.abs(path.head.y-after.end.y)<.001,kind+' impact y');
   assert.ok(Math.abs(path.tail.x-path.head.x)+Math.abs(path.tail.y-path.head.y)>0,kind+' visible trail');
   shot.t=0;
-  b.stepProjectiles(shot.duration+.01);
+  const random=Math.random;
+  try{Math.random=()=>.99;b.stepProjectiles(shot.duration+.01)}finally{Math.random=random}
   assert.ok(b.hp<initialHp,kind+' still deals one hit');
   assert.equal(b.projectiles.length,0);
   b.destroy();
