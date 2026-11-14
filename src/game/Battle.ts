@@ -60,7 +60,7 @@ export class Battle implements TeamHost {
  }
  /** Resume only a previously started free encounter. No paid mode, active menu or corrupt save can auto-start. */
  resume(){const g=useGame.getState();if(this.running||this.phase==='defeat'||this.pendingMode||g.panel||g.recoveryRequired)return;if(g.p.rewardOffer&&!g.p.rewardOffer.resolved){if(this.mode==='campaign')g.keepReward();else return}this.running=true;this.publish();this.checkpoint()}
- continueAfterLoot(){const g=useGame.getState();if(this.phase==='victory'&&g.p.rewardOffer?.resolved&&!g.panel&&!this.running)this.resume()}
+ continueAfterLoot(){const g=useGame.getState();if(g.continueOnVictory&&this.phase==='victory'&&g.p.rewardOffer?.resolved&&!g.panel&&!this.running)this.resume()}
  pause(){if(this.running){this.running=false;this.publish()}this.flushTally();this.checkpoint();this.audioFrame()}
  /** Quest and mastery counters are buffered during the fight and written in one save. */
  note(key:string,by=1){this.tally[key]=(this.tally[key]??0)+by}

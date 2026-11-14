@@ -20,3 +20,47 @@ test('Auto OFF still allows baseline attack but never casts skills',()=>{const b
 test('auto combat clears four waves and a boss, preserving loot',()=>{const b=scene();useGame.setState({auto:true});for(let i=0;i<3000&&useGame.getState().p.stage===1;i++){b.update(.05);if(b.director.state==='decide')b.director.choose('pass')}assert.equal(useGame.getState().p.stage,2);assert.equal(useGame.getState().p.bosses,1);assert.ok(useGame.getState().p.inventory.length>=1);b.destroy()});
 test('each enemy/boss has a telegraphed ability; bosses change phases before impact',()=>{for(const id of [...enemyIds,...miniIds,...bossIds]){useGame.setState({p:freshPlayer()});const b=scene();b.phase='fight';const u=b.units[0];u.id=id;u.cd=0;b.boss=bossIds.includes(id)||miniIds.includes(id);b.enemyStep(u,.05);assert.ok(u.windup>0);assert.ok(u.ability.length>0);const hp=b.hp;b.enemyStep(u,.1);assert.equal(b.hp,hp);u.hp=u.max*.3;b.enemyStep(u,.1);if(b.boss)assert.equal(u.bossPhase,3);b.destroy()}});
 test('a lethal projectile stops the simulation before any later projectile can award victory',()=>{const b=scene();b.phase='fight';b.hp=1;b.units=b.units.slice(0,1);b.shoot('enemy','orb',0,100000);b.shoot('hero','ice',0,100000);b.projectiles.forEach(p=>{p.duration=.001});b.update(.05);assert.equal(b.phase,'defeat');assert.equal(b.running,false);assert.equal(useGame.getState().p.kills,0);assert.ok(b.units[0].hp>0);b.destroy()});
+
+
+test('boss trophy respects manual stop and only axes resume the next wave',()=>{
+ useGame.setState({p:freshPlayer(),panel:null,selected:null,continueOnVictory:false});
+ const b=scene();
+ useGame.getState().mutate(p=>{p.wave=5});
+ b.spawn();
+ b.phase='fight';
+ b.units.forEach(u=>{u.hp=0});
+ b.victory();
+ assert.equal(useGame.getState().p.stage,2);
+ assert.equal(useGame.getState().p.bosses,1);
+ assert.equal(b.running,false,'manual stop applies even when a trophy is waiting');
+ assert.equal(useGame.getState().p.rewardOffer?.resolved,false);
+ useGame.getState().keepReward();
+ b.continueAfterLoot();
+ assert.equal(b.running,false,'closing trophy must not silently override the stop setting');
+ b.update(3);
+ assert.equal(b.phase,'victory');
+ b.toggle();
+ assert.equal(b.running,true,'the player can explicitly restart using the axes');
+ b.update(2);
+ assert.equal(b.phase,'walk');
+ assert.equal(useGame.getState().p.bosses,1,'the boss reward cannot be claimed again');
+ b.destroy();
+});
+
+test('boss trophy still resumes automatically if auto-transition is enabled',()=>{
+ useGame.setState({p:freshPlayer(),panel:null,selected:null,continueOnVictory:true});
+ const b=scene();
+ useGame.getState().mutate(p=>{p.wave=5});
+ b.spawn();
+ b.phase='fight';
+ b.units.forEach(u=>{u.hp=0});
+ b.victory();
+ b.pause(); // The trophy dialog pauses an otherwise auto-continuing fight.
+ useGame.getState().keepReward();
+ b.continueAfterLoot();
+ assert.equal(b.running,true,'accepting the trophy resumes only when the player allows it');
+ b.update(2);
+ assert.equal(b.phase,'walk');
+ assert.equal(useGame.getState().p.bosses,1);
+ b.destroy();
+});
