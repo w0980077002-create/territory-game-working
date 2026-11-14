@@ -1,5 +1,5 @@
 import {test,beforeEach} from 'node:test';import assert from 'node:assert/strict';
-import {Battle} from '../src/game/Battle';import {freshPlayer,useGame,parseSave,SAVE_KEY} from '../src/core/store';import {validEncounter} from '../src/game/snapshot';import {layoutLabels,feedbackBands} from '../src/game/CombatLabels';import {swordTip,reactionOffset} from '../src/game/Impact';import {intersects,clips} from '../src/game/actorGeometry';import {enemyIds,miniIds,bossIds} from '../src/data/catalog';
+import {Battle} from '../src/game/Battle';import {freshPlayer,useGame,parseSave,SAVE_KEY} from '../src/core/store';import {validEncounter} from '../src/game/snapshot';import {layoutLabels,feedbackBands} from '../src/game/CombatLabels';import {swordTip,reactionOffset,projectileVisualPath} from '../src/game/Impact';import {intersects,clips} from '../src/game/actorGeometry';import {enemyIds,miniIds,bossIds} from '../src/data/catalog';
 Object.defineProperty(globalThis,'Image',{value:class{src='';complete=false;naturalWidth=0}});Object.defineProperty(globalThis,'requestAnimationFrame',{value:()=>1});Object.defineProperty(globalThis,'cancelAnimationFrame',{value:()=>{}});const saves=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{value:{getItem:(k:string)=>saves.get(k)??null,setItem:(k:string,v:string)=>saves.set(k,v)}});
 beforeEach(()=>useGame.setState({p:freshPlayer(),panel:null,auto:false,speed:1}));
 const scene=()=>{const b=new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement);b.toggle();b.phase='fight';b.intro=0;b.hp=b.maxHp/2;b.heroAttack=.42;for(const u of b.units){u.worldX=b.journey.cameraX+720;u.hp=u.max=1000;u.guard=0;u.cd=10}return b};
@@ -12,3 +12,57 @@ test('full-size damage, ability and status labels avoid bodies, HP, comic and on
 test('feedback masks cover every live foe pose without changing formations or actor scale',()=>{for(const id of [...enemyIds,...miniIds,...bossIds])for(const f of clips[id].frames.slice(0,7))for(const b of f.bands){const masks=feedbackBands(id);const mid=(b[1]+b[3])/2;assert.ok(masks.some(m=>m[1]<=mid&&m[3]>=mid&&m[0]<=b[0]&&m[2]>=b[2]),id)}});
 test('a distant counter interrupts only its bound target on contact, including its rune effect',()=>{const b=scene(),u=b.units[0],other=b.units[1];u.windup=other.windup=.6;u.actionTime=other.actionTime=0;b.skill(0);assert.equal(u.windup,.6);assert.equal(u.exposed??0,0);assert.equal(b.burn,0);assert.equal(u.hp,1000);b.stepProjectiles(1);assert.equal(u.windup,0);assert.equal(other.windup,.6);assert.ok(u.exposed!>0);assert.ok(b.burn>0);assert.ok(u.hp<1000);b.destroy()});
 test('x1 and x2 deliver the same single damage; camera projection carries the real launch point',()=>{for(const speed of [1,2]){useGame.setState({p:freshPlayer(),speed});const b=scene(),u=b.units[0];b.autoCd=10;b.compCd=[10,10];b.swordStrike(u,100,false);const shot=b.projectiles[0],ends=b.projectileEnds(shot);b.journey.cameraX+=80;b.heroX-=80;const moved=b.projectileEnds(shot);assert.ok(Math.abs(moved.start.x-(ends.start.x-80))<.001);assert.ok(Math.abs(moved.end.x-(ends.end.x-80))<.001);assert.equal(shot.t,0);let hits=0,last=u.hp;for(let n=0;n<30;n++){b.update(.02*speed);if(u.hp!==last){hits++;last=u.hp}}assert.equal(hits,1);assert.equal(u.hp,900);b.destroy()}});
+
+
+test('all hero and companion projectiles visually land on the registered enemy body after camera motion',()=>{
+ for(const [source,kind] of [['hero','arrow'],['hero','ice'],['goose','feather']] as const){
+  const b=scene(),u=b.units[0];
+  b.shoot(source,kind,0,90);
+  const shot=b.projectiles.at(-1)!;
+  const before=b.projectileEnds(shot);
+  b.journey.cameraX+=65;
+  b.heroX-=65;
+  const after=b.projectileEnds(shot);
+  assert.ok(Math.abs(after.start.x-(before.start.x-65))<.001,kind+' camera-correct origin');
+  shot.t=shot.duration;
+  const path=projectileVisualPath(shot,after.start,after.end),body=b.targetBody(u);
+  assert.ok(Math.abs(path.head.x-body.x)<.001,kind+' visible contact x');
+  assert.ok(Math.abs(path.head.y-body.y)<.001,kind+' visible contact y');
+  assert.ok(Number.isFinite(path.tail.x)&&Number.isFinite(path.tail.y));
+  assert.ok(Number.isFinite(path.angle));
+  b.destroy();
+ }
+});
+
+test('enemy arrows and magic use the same registered trajectory without changing damage or timing',()=>{
+ for(const kind of ['arrow','orb','web','fire','spore']){
+  const b=scene(),u=b.units[0];
+  b.shoot('enemy',kind,0,40);
+  const shot=b.projectiles.at(-1)!,initialHp=b.hp;
+  const before=b.projectileEnds(shot);
+  b.journey.cameraX+=50;
+  const after=b.projectileEnds(shot);
+  assert.ok(Math.abs(after.start.x-(before.start.x-50))<.001,kind+' tracks the moving camera');
+  shot.t=shot.duration;
+  const path=projectileVisualPath(shot,after.start,after.end);
+  assert.ok(Math.abs(path.head.x-after.end.x)<.001,kind+' impact x');
+  assert.ok(Math.abs(path.head.y-after.end.y)<.001,kind+' impact y');
+  assert.ok(Math.abs(path.tail.x-path.head.x)+Math.abs(path.tail.y-path.head.y)>0,kind+' visible trail');
+  shot.t=0;
+  b.stepProjectiles(shot.duration+.01);
+  assert.ok(b.hp<initialHp,kind+' still deals one hit');
+  assert.equal(b.projectiles.length,0);
+  b.destroy();
+ }
+});
+
+test('projectile visual path is frozen by pause and consistent with saved in-flight shot',()=>{
+ const b=scene();b.shoot('hero','arrow',0,75);
+ b.projectiles[0].t=.14;b.pause();
+ const shot=structuredClone(b.projectiles[0]),bounds=b.projectileEnds(shot),path=projectileVisualPath(shot,bounds.start,bounds.end);
+ b.update(2);
+ assert.deepEqual(b.projectiles[0],shot,'paused projectile stays in flight');
+ const still=b.projectileEnds(b.projectiles[0]),after=projectileVisualPath(b.projectiles[0],still.start,still.end);
+ assert.deepEqual(after,path);
+ b.destroy();
+});
