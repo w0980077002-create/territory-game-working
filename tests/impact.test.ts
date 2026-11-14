@@ -36,7 +36,7 @@ test('all hero and companion projectiles visually land on the registered enemy b
 
 test('enemy arrows and magic use the same registered trajectory without changing damage or timing',()=>{
  for(const kind of ['arrow','orb','web','fire','spore']){
-  const b=scene(),u=b.units[0];
+  const b=scene();
   b.shoot('enemy',kind,0,40);
   const shot=b.projectiles.at(-1)!,initialHp=b.hp;
   const before=b.projectileEnds(shot);
