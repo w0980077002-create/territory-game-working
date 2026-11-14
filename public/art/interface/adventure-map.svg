@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="200" viewBox="0 0 110 100">
+<defs>
+ <linearGradient id="paper" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#fff1c1"/><stop offset=".35" stop-color="#e5c38b"/><stop offset=".7" stop-color="#c39355"/><stop offset="1" stop-color="#f0d49a"/></linearGradient>
+ <linearGradient id="fold"><stop stop-color="#5b3829"/><stop offset=".35" stop-color="#dbb275"/><stop offset=".55" stop-color="#f9dfa3"/><stop offset="1" stop-color="#9b663b"/></linearGradient>
+ <linearGradient id="roll" x2="0" y2="1"><stop stop-color="#fff0bb"/><stop offset=".45" stop-color="#ca995d"/><stop offset=".7" stop-color="#845333"/><stop offset="1" stop-color="#e6bf7e"/></linearGradient>
+ <filter id="s"><feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#071016" flood-opacity=".9"/></filter>
+</defs>
+<g transform="rotate(-9 55 50)" filter="url(#s)" stroke-linejoin="round">
+ <path d="m15 14 28 4 24-6 26 7-4 65-25-5-24 7-28-8Z" fill="url(#paper)" stroke="#553c2c" stroke-width="2.4"/>
+ <path d="m40 20-2 63 6-1 2-63Zm24-5-2 62 5 1 4-64Z" fill="url(#fold)" opacity=".65"/>
+ <path d="m20 22 19 3 25-5 20 5-3 50-17-3-24 7-21-5Z" fill="none" stroke="#986a3b" stroke-width=".8"/>
+ <!-- Mountain ridge, waterways, two citadels and a red expedition route. -->
+ <path d="M21 45 29 29 38 47 44 37 51 51" fill="#827c60" stroke="#61543e" stroke-width="1.5"/>
+ <path d="m25 36 4-7 4 8-4-2ZM40 43l4-6 3 7-3-2Z" fill="#f9e5b4"/>
+ <path d="M56 22q-8 13 3 22t-3 22q-5 5-4 12" fill="none" stroke="#597b7b" stroke-width="3" opacity=".8"/>
+ <path d="M20 65q11-16 22-7t16 1 13-17" fill="none" stroke="#963e2f" stroke-width="2.4" stroke-dasharray="3.3 3"/>
+ <g fill="#605842" stroke="#51412e" stroke-width="1"><path d="M68 42V30h4v4h5v-4h4v12Zm3 0v-8h7v8Z"/><path d="M25 72V60h4v4h5v-4h4v12Z"/></g>
+ <path d="M73 42v-6h3v6M30 72v-5h3v5" fill="#e5bf7e"/>
+ <path d="M76 29V20l7 3-7 3" fill="#9b3e2d" stroke="#67432a" stroke-width="1"/>
+ <g fill="#697052"><path d="m47 31 3-5 3 5h-2l3 4h-8l3-4ZM19 53l3-5 3 5h-2l3 4h-8l3-4ZM74 62l3-5 3 5h-2l3 4h-8l3-4Z"/></g>
+ <g transform="translate(75 70)" stroke="#725133"><circle r="9" fill="#e6c48c" stroke-width="1"/><path d="M0-8 2-2 8 0 2 2 0 8-2 2-8 0-2-2Z" fill="#7d3d2b" stroke-width=".6"/><path d="M0-8V8M-8 0H8" stroke="#fae0a8" stroke-width=".7"/></g>
+ <path d="m16 14 2 62q-7-3-9 1l3-59q0-6 4-4ZM93 19l-3 63q-5 6-9 0l3-61q4 5 9-2Z" fill="url(#roll)" stroke="#775033" stroke-width="1.4"/>
+ <path d="M12 79q4-7 7-1l21 7 24-7 17 4q3 8 9 0l-1 6q-3 6-10 1l-15-4-24 7-23-8q-5 1-5-5Z" fill="url(#roll)" stroke="#67442e" stroke-width="1.5"/>
+ <path d="m22 25 4 1m49 25 5 1M48 73l-4 2" stroke="#fff1bf" opacity=".7"/>
+</g>
+</svg>

@@ -157,3 +157,16 @@
 .saga-modal .quest-board .tabs button{position:relative;min-width:0;font-size:11px!important;white-space:normal;padding:9px 3px!important}
 .saga-modal .quest-board .tabs button em{margin-left:3px;font-size:9px;padding:0 4px}
 @media(max-width:409px){.saga-modal .quest-board .tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.saga-modal .quest-board .tabs button{font-size:12px!important}}
+
+/* Two bespoke navigation artworks; the existing HUD geometry stays intact. */
+.game .bottom>.central{isolation:isolate;filter:drop-shadow(0 7px 2px #071016);transition:filter 160ms ease;touch-action:manipulation}
+.central::before{content:"";position:absolute;inset:14px 9px 7px;background:radial-gradient(ellipse,#e1ac502b,transparent 70%);box-shadow:0 0 17px #d8ac5333;clip-path:polygon(50% 0,100% 23%,100% 76%,50% 100%,0 76%,0 23%);pointer-events:none;transition:opacity 160ms ease}
+.central .forged-axes-art{display:block;width:150px;height:170px;position:absolute;inset:0;pointer-events:none;user-select:none;transform-origin:50% 65%;transition:transform 140ms cubic-bezier(.2,.8,.3,1),filter 160ms ease}
+.game .bottom>.central[aria-pressed="true"]{filter:drop-shadow(0 7px 2px #071016) drop-shadow(0 0 5px #c3984c66)}
+.game .bottom>.central:active{filter:drop-shadow(0 2px 1px #071016)}
+.central:active .forged-axes-art{transform:translateY(5px) scale(.96);filter:brightness(1.12)}
+.central:active::before{opacity:.45}
+.bottom>button .adventure-map-art{object-fit:contain;filter:drop-shadow(0 4px 2px #071016aa);transition:transform 140ms ease;pointer-events:none}
+.bottom>button:active .adventure-map-art{transform:translateY(3px) scale(.96)}
+@media (prefers-reduced-motion:reduce){.central .forged-axes-art,.game .bottom>.central,.central::before,.bottom>button .adventure-map-art{transition:none}}
+[data-motion="reduced"] .forged-axes-art,[data-motion="reduced"] .adventure-map-art,[data-motion="reduced"] .bottom>.central,[data-motion="reduced"] .central::before{transition:none}
