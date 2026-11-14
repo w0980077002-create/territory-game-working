@@ -52,7 +52,7 @@ export function rollItem(p:Player,forcedSlot?:Slot,setBase:number=dropRules.setC
 export function shouldAutoSalvage(p:Player,item:Item){
  if(!p.preferences?.autoSalvageWeaker||!p.equipment[item.slot]||item.slot==='wings')return false;
  // Extra mechanics may increase future value even when CP is lower.
- if(item.locked||item.rarity>=3||item.uniqueId||uniqueOf(item)||item.set||item.perk||item.engrave||item.percent)return false;
+ if(item.locked||item.rarity>=3||item.upgrade>0||item.uniqueId||uniqueOf(item)||item.set||item.perk||item.engrave||item.percent)return false;
  if(item.origin&&/босс|трофей|награда|покупка/i.test(item.origin))return false;
  return compareItem(item,p)<0;
 }
