@@ -28,6 +28,9 @@ The inventory retains capacity 80, separate storage, mass selection, protection 
 
 ## Coverage and evidence
 
+> **Архивные свидетельства:** PNG/JSON-отчёты перечисленных ниже прогонов удалены из актуальной ветки в ходе очистки 14.11.2026. Ссылки ниже закреплены за историческим коммитом GitHub; скрипты воспроизведения остаются действующими.
+
+
 - **Production build, Chromium touch emulation:** 320×568, 360×780, 390×844, 430×932 CSS px.
 - **156 window checks:** 39 routes/states × four sizes. Inventory, hero, equipment, all 13 gear slots including percentage wings, new loot/comparison, forge, skills/runes, talents, companions, quests, rewards, shop, port, adventure, arena, events, collection, menu/settings, combat controls, battle summary, trophy horn, wings acquisition, blessing, relic, friends and invitation.
 - **Additional profiles:** early stage 1 with empty inventory/equipment/storage and late stage 60 with 80 inventory + 41 stored items, 56 checks each at 320/390. These sweeps used the original 28-window list; the final 156-check sweep includes every gear slot.
@@ -40,7 +43,7 @@ The inventory retains capacity 80, separate storage, mass selection, protection 
 
 Geometry checks fail on page overflow, inner clipped content, narrow set blocks, more than one content scroller, a dialog outside the viewport or header/footer buttons below 44 CSS px/outside the viewport. Closing is exercised with real taps after scrolling to the end. Reload compares actual inventory, equipment, stored loot, level and currencies.
 
-Evidence: [geometry](perfect-game-ui/geometry.json), [interactions](perfect-game-ui/actions.json), [expanded states](perfect-game-ui/subpanels.json), [recovery](perfect-game-ui/recovery.json), [battle](perfect-game-ui/battle.json).
+Evidence: [geometry](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/geometry.json), [interactions](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/actions.json), [expanded states](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/subpanels.json), [recovery](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/recovery.json), [battle](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/battle.json).
 
 ## Visual iteration and independent criticism
 
@@ -48,14 +51,14 @@ Real screenshots caught issues that builds/tests did not: inflated perk text aft
 
 | Evidence | Image |
 |---|---|
-| Before: plain chest | [390px](perfect-game-ui/before-inventory-390.png) |
-| Before: new item starts below the fold | [320px](perfect-game-ui/before-loot-320.png) |
-| Chest after repair | [390px](perfect-game-ui/inventory-390.png), [320px](perfect-game-ui/inventory-320.png) |
-| Full-width set, 2/4/6 and engraving | [320px](perfect-game-ui/loot-set-320.png) |
-| Compact game filter | [320px](perfect-game-ui/filter-320.png) |
-| Forge CTA / autobattle | [Forge](perfect-game-ui/forge-320.png), [Autobattle](perfect-game-ui/autobattle-320.png) |
-| Hero / valuable-item confirmation | [Hero](perfect-game-ui/hero-390.png), [Confirmation](perfect-game-ui/confirmation-320.png) |
-| Corrupt-save recovery | [320px](perfect-game-ui/recovery-320.png) |
+| Before: plain chest | [390px](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/before-inventory-390.png) |
+| Before: new item starts below the fold | [320px](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/before-loot-320.png) |
+| Chest after repair | [390px](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/inventory-390.png), [320px](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/inventory-320.png) |
+| Full-width set, 2/4/6 and engraving | [320px](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/loot-set-320.png) |
+| Compact game filter | [320px](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/filter-320.png) |
+| Forge CTA / autobattle | [Forge](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/forge-320.png), [Autobattle](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/autobattle-320.png) |
+| Hero / valuable-item confirmation | [Hero](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/hero-390.png), [Confirmation](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/confirmation-320.png) |
+| Corrupt-save recovery | [320px](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/qa/perfect-game-ui/recovery-320.png) |
 
 ## Reproduction
 

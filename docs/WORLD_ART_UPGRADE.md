@@ -10,7 +10,10 @@ The audit also replaced schematic standards, garlands/rigging, perched/flying ra
 
 ## Visual evidence
 
-[Before](art-review/before.png) · [After](art-review/after.png).
+> Архивные изображения и JSON-результаты перенесены из текущего дерева в историю Git; ссылки ниже открывают их на неизменённом историческом коммите.
+
+
+[Before](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/art-review/before.png) · [After](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/art-review/after.png).
 
 Both screenshots use the same camera X=3920, clock=10, party placement and district 3. The before image substitutes the original `fc50aab` decorative renderer into the same scene. These are isolated visual fixtures, not modifications to a player's save. Full screenshots for widths 320, 360, 390, 430 and three magnified in-scene object captures were also inspected during browser verification.
 
@@ -25,6 +28,6 @@ Both screenshots use the same camera X=3920, clock=10, party placement and distr
 - Extra art costs 528,804 bytes. No new unbounded particle systems. Desktop Chromium scenery benchmark (180 draws): p95 ~0.2 ms; this is not an Android performance measurement.
 - Read-only critic review found no critical gameplay/save regressions; the three visual state issues it identified were corrected.
 
-[Mobile/cycle results](art-review/browser-verification.json) · [Animation check](art-review/motion-verification.json).
+[Mobile/cycle results](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/art-review/browser-verification.json) · [Animation check](https://github.com/w0980077002-create/territory-game-working/blob/921c3411f35b4309ff3ff6f64d099a1aeb626c6b/docs/art-review/motion-verification.json).
 
 Physical Android and Telegram WebView were **not available for testing**. Browser emulation does not establish performance or acceptance on budget Android hardware.
