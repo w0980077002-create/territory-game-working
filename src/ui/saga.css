@@ -170,3 +170,68 @@
 .bottom>button:active .adventure-map-art{transform:translateY(3px) scale(.96)}
 @media (prefers-reduced-motion:reduce){.central .forged-axes-art,.game .bottom>.central,.central::before,.bottom>button .adventure-map-art{transition:none}}
 [data-motion="reduced"] .forged-axes-art,[data-motion="reduced"] .adventure-map-art,[data-motion="reduced"] .bottom>.central,[data-motion="reduced"] .central::before{transition:none}
+
+
+/* HUD forged-control family · owner's real Android art review 2026-11-14. */
+/* One depth, lighting and metal treatment for every small battle action; game geometry is unchanged. */
+.game .quick-buttons button {
+  isolation:isolate;
+  overflow:hidden;
+  border:3px solid #34281d;
+  border-radius:12px;
+  background:radial-gradient(ellipse at 28% 8%,#ffe4aa3b,transparent 48%),linear-gradient(145deg,#61513e80,#0a1215aa),var(--saga-iron);
+  box-shadow:inset 0 0 0 1px #edcb899c,inset 0 0 0 5px #10191c,inset 0 5px 4px #f6db8930,0 4px 0 #111a1e,0 7px 7px #0710159c;
+  color:#f5e4be;
+  text-shadow:0 2px 2px #071015,0 0 9px #efbd6970;
+  transition:transform 110ms ease,filter 110ms ease,box-shadow 110ms ease;
+}
+.game .quick-buttons button::before {
+  content:"";position:absolute;inset:7px;pointer-events:none;border:1px solid #b495608c;border-radius:7px;
+  background:linear-gradient(125deg,#f5e0b01c,transparent 44%,#080e1460 90%);
+}
+.game .quick-buttons button::after {
+  content:"";position:absolute;left:8px;top:8px;width:4px;height:4px;pointer-events:none;border-radius:50%;
+  background:#e3bf7e;box-shadow:52px 0 #e3bf7e,0 52px #e3bf7e,52px 52px #e3bf7e,0 1px 2px #000;
+}
+.game .quick-buttons button .icon {position:relative;z-index:1;width:54px;height:54px;filter:drop-shadow(0 3px 2px #050d10) drop-shadow(0 0 3px #d7a45755)}
+.game .quick-buttons button.quick-speed {font:900 41px/1 Georgia,serif;letter-spacing:-3px;color:#ffe9ab}
+.game .quick-buttons button.quick-speed::first-letter {color:#edd8ad}
+.game .quick-buttons button.quick-cry .icon {filter:drop-shadow(0 3px 2px #050d10) drop-shadow(0 0 5px #e6a83e7a)}
+.game .quick-buttons button.quick-thor .icon {filter:drop-shadow(0 3px 2px #050d10) drop-shadow(0 0 6px #f6db6caa)}
+.game .quick-buttons button.quick-auto .icon {filter:drop-shadow(0 3px 2px #050d10) drop-shadow(0 0 5px #9dd4d299)}
+.game .quick-buttons button.active {
+  border-color:#d3b170;
+  background:radial-gradient(ellipse at 36% 22%,#eed19c65,transparent 55%),linear-gradient(145deg,#6d5836,#1a282a 75%),var(--saga-iron);
+  box-shadow:inset 0 0 0 2px #e2bf78,inset 0 0 0 5px #181c1a,0 0 12px #d5b26b6c,0 4px 0 #121a1c;
+}
+.game .quick-buttons button:active {transform:translateY(3px) scale(.96);filter:brightness(1.15);box-shadow:inset 0 0 0 2px #f4d595,0 1px 1px #060b10}
+.game .quick-buttons button>span {z-index:2;right:0;bottom:0;min-width:27px;border-radius:7px 0 7px 0;background:#3e2020ea;color:#ffe8b3}
+/* The menu becomes an illustrated scroll-control instead of four browser-like white squares. */
+.game .side-menu .side-medal {width:82px;height:82px;margin:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.game .side-menu .forge-menu-art {display:block;width:82px;height:82px;margin:0;object-fit:contain;filter:drop-shadow(0 4px 3px #061016aa)}
+.game .side-menu:active .forge-menu-art {transform:translateY(2px) scale(.97);filter:brightness(1.1) drop-shadow(0 2px 2px #061016)}
+/* Illustrated lower navigation sits on matching recessed walnut plaques. */
+.game .bottom {background:linear-gradient(#0002,#060d13ad),var(--saga-oak);border-top-color:#312b23;box-shadow:0 -3px #d0aa68,inset 0 5px #050c10ad}
+.game .bottom>button:not(.central) {isolation:isolate;transition:transform 110ms ease}
+.game .bottom>button:not(.central)::before {
+  content:"";position:absolute;z-index:-1;left:6px;right:6px;top:4px;height:100px;
+  background:radial-gradient(ellipse at 50% 8%,#dab77d28,transparent 72%),linear-gradient(145deg,#4f3a2f4f,#081219a6),var(--saga-oak);
+  border:2px solid #705a3cb9;border-radius:16px 16px 9px 9px;
+  box-shadow:inset 0 0 0 2px #0e171a,inset 0 1px #e4bd6a4b,0 4px 6px #070d11ac;
+  pointer-events:none;
+}
+.game .bottom>button:not(.central) .icon {position:relative;z-index:1;filter:drop-shadow(0 5px 3px #03080b95);transition:transform 110ms ease}
+.game .bottom>button:not(.central)>span {position:relative;z-index:1;color:#ffe8c1;text-shadow:0 2px 3px #000,0 0 6px #000}
+.game .bottom>button:not(.central):active {transform:translateY(3px)}
+.game .bottom>button:not(.central):active .icon {transform:scale(.95)}
+/* Centerpiece: raise axe contrast within the same unchanged 150×170 touch area. */
+.game .bottom>.central {filter:drop-shadow(0 5px 3px #050c11) drop-shadow(0 0 5px #e0b4667a)}
+.game .bottom>.central .forged-axes-art {filter:drop-shadow(0 0 4px #e8be7288)}
+.game .bottom>.central[aria-pressed="true"] .forged-axes-art {filter:drop-shadow(0 0 9px #f5c266aa) brightness(1.10)}
+.game .bottom>.central:active .forged-axes-art {transform:translateY(5px) scale(.96);filter:brightness(1.25)}
+/* Small utility controls should look crafted, without adding taps or changing sizes. */
+.game .currency>span {border:2px solid #463725;border-radius:7px;background:linear-gradient(160deg,#f8dc97,#a47a46 58%,#4c3826);box-shadow:inset 0 1px #ffebb4,0 2px 3px #0008;color:#fff0c2}
+.game .chart {background:linear-gradient(135deg,#cfac6d,#2f3a3c 45%,#121b20 88%);border-color:#352b21;box-shadow:inset 0 0 0 2px #d6b37d,0 2px 4px #000a}
+.game .build-label {display:none}
+@media(prefers-reduced-motion:reduce) {.game .quick-buttons button,.game .bottom>button:not(.central),.game .bottom>button:not(.central) .icon {transition:none}}
+[data-motion="reduced"] .quick-buttons button,[data-motion="reduced"] .bottom>button:not(.central),[data-motion="reduced"] .bottom>button:not(.central) .icon {transition:none}
