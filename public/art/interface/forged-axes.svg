@@ -1,37 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="300" height="340" viewBox="0 0 150 170">
+<svg xmlns="http://www.w3.org/2000/svg" width="450" height="510" viewBox="0 0 150 170">
 <defs>
- <linearGradient id="rim" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#f2dfaa"/><stop offset=".22" stop-color="#ad8c53"/><stop offset=".45" stop-color="#493c2c"/><stop offset=".65" stop-color="#bda472"/><stop offset="1" stop-color="#59442c"/></linearGradient>
- <linearGradient id="iron" x2=".8" y2="1"><stop stop-color="#65777b"/><stop offset=".38" stop-color="#293940"/><stop offset=".7" stop-color="#101c23"/><stop offset="1" stop-color="#536269"/></linearGradient>
- <linearGradient id="steel" x1="0" y1="0" x2="1" y2=".9"><stop stop-color="#f5f4df"/><stop offset=".25" stop-color="#b5cbd0"/><stop offset=".47" stop-color="#5e7c87"/><stop offset=".56" stop-color="#9cb3b8"/><stop offset="1" stop-color="#293d49"/></linearGradient>
- <linearGradient id="edge" x2="1" y2=".2"><stop stop-color="#8ea9b2"/><stop offset=".5" stop-color="#fff9e5"/><stop offset="1" stop-color="#a8c4ca"/></linearGradient>
- <linearGradient id="haft"><stop stop-color="#251b18"/><stop offset=".4" stop-color="#a47b4d"/><stop offset=".6" stop-color="#674328"/><stop offset="1" stop-color="#241c18"/></linearGradient>
- <radialGradient id="wood"><stop stop-color="#775535"/><stop offset=".6" stop-color="#3b2b23"/><stop offset="1" stop-color="#161b1c"/></radialGradient>
- <pattern id="grain" width="29" height="90" patternUnits="userSpaceOnUse"><path d="M4-5Q-3 20 6 40T3 95M12-5Q24 30 15 60T21 95M25-5Q14 24 24 43T26 95" fill="none" stroke="#c8a16a" stroke-opacity=".15"/><path d="M7-5Q0 21 9 41T6 95M16-5Q28 30 19 60T25 95" fill="none" stroke="#080f12" stroke-opacity=".65" stroke-width="2"/></pattern>
- <filter id="shadow" x="-.3" y="-.3" width="1.6" height="1.7"><feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#050d13" flood-opacity=".95"/></filter>
- <g id="axe">
-  <path d="M70 43H79V134L74.5 139 70 134Z" fill="url(#haft)" stroke="#0d191e" stroke-width="2"/>
-  <path d="M71 90H78V128H71Z" fill="#38292a"/>
-  <path d="m71 92 7 4m-7 2 7 4m-7 2 7 4m-7 2 7 4m-7 2 7 4m-7 2 7 4" stroke="#aa8760" stroke-width="1.7"/>
-  <path d="M69 128H80V133H69ZM69 83H80V89H69Z" fill="url(#rim)" stroke="#362d27"/>
-  <path d="M70 40Q57 44 44 31Q38 42 40 55Q42 69 55 74Q55 62 72 59L82 58 84 43 78 39Z" fill="url(#steel)" stroke="#101d25" stroke-width="2.2"/>
-  <path d="M44 31Q37 46 43 61Q47 70 55 74L54 67Q44 61 44 49Q43 39 47 35Z" fill="url(#edge)"/>
-  <path d="M48 39Q58 49 70 47L70 54Q55 55 51 63Q45 53 48 39Z" fill="#253d48" stroke="#d4c89e" stroke-width=".7"/>
-  <path d="m50 44 7 5-5 3 8 3m-1-8 6 3-5 3M49 57l3 2" fill="none" stroke="#b7aa7e" stroke-width="1"/>
-  <path d="M70 40H79V61H70Z" fill="url(#rim)" stroke="#263137" stroke-width="1.2"/>
-  <path d="M73 42V58M76 42V58" stroke="#f2d399" stroke-width=".7"/>
-  <circle cx="74.5" cy="49" r="2.1" fill="#263e49" stroke="#f0d393" stroke-width=".8"/>
-  <path d="m58 42 4 2m-18 7 1 6m18-1 4-1m-16 7 2-2" stroke="#f2f5df" stroke-opacity=".55" stroke-width=".7"/>
- </g>
+<linearGradient id="brass" x1="0" y1="0" x2=".95" y2="1"><stop stop-color="#fff2c2"/><stop offset=".22" stop-color="#d9a966"/><stop offset=".43" stop-color="#6d462c"/><stop offset=".68" stop-color="#f0d087"/><stop offset="1" stop-color="#593a26"/></linearGradient>
+<linearGradient id="steel" x1="0" y1="0" x2="1" y2=".87"><stop stop-color="#ffffff"/><stop offset=".18" stop-color="#c5e1e8"/><stop offset=".4" stop-color="#738e9b"/><stop offset=".54" stop-color="#e2f5f1"/><stop offset=".78" stop-color="#728f9e"/><stop offset="1" stop-color="#344e59"/></linearGradient>
+<linearGradient id="blade" x1="0" y1="0" x2=".85" y2="1"><stop stop-color="#fffaf0"/><stop offset=".34" stop-color="#e3f3f3"/><stop offset=".7" stop-color="#afcbd4"/><stop offset="1" stop-color="#6b92a6"/></linearGradient>
+<linearGradient id="wood" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#281a15"/><stop offset=".18" stop-color="#815736"/><stop offset=".39" stop-color="#cf9b59"/><stop offset=".65" stop-color="#714d31"/><stop offset="1" stop-color="#291b15"/></linearGradient>
+<radialGradient id="shield"><stop stop-color="#62472d"/><stop offset=".56" stop-color="#342a24"/><stop offset="1" stop-color="#0b161b"/></radialGradient>
+<filter id="shadow" x="-35%" y="-35%" width="170%" height="180%"><feDropShadow dx="0" dy="3" stdDeviation="1.8" flood-color="#03090d" flood-opacity=".94"/></filter>
 </defs>
-<!-- A recessed walnut shield with forged, bevelled metal and brass inlay. -->
-<path d="M75 4 141 40V125L75 166 9 125V40Z" fill="#080f15" stroke="#0b151b" stroke-width="5"/>
-<path d="M75 3 142 40V123L75 165 8 123V40Z" fill="url(#rim)" stroke="#c4aa74" stroke-width="1"/>
-<path d="M75 10 135 44V119L75 156 15 119V44Z" fill="url(#iron)" stroke="#141d20" stroke-width="2"/>
-<path d="M75 19 126 48V114L75 146 24 114V48Z" fill="url(#wood)" stroke="#ba965a" stroke-width="2"/>
-<path d="M75 21 124 49V113L75 144 26 113V49Z" fill="url(#grain)" stroke="#090f12" stroke-width="3"/>
-<path d="m29 51 46-26 46 26M29 112l46 28 46-28" fill="none" stroke="#e2bd74" stroke-opacity=".35"/>
-<g fill="none" stroke="#b79862" stroke-width="1.2"><path d="m18 54 8 6-8 6 8 7-8 6m114-25-8 6 8 6-8 7 8 6M40 133l8-2 2 8 8-2m52-4-8-2-2 8-8-2"/></g>
-<g fill="url(#rim)" stroke="#101a1e"><circle cx="75" cy="14" r="3"/><circle cx="18" cy="46" r="3"/><circle cx="132" cy="46" r="3"/><circle cx="18" cy="117" r="3"/><circle cx="132" cy="117" r="3"/><circle cx="75" cy="153" r="3"/></g>
-<g filter="url(#shadow)"><use href="#axe" transform="rotate(-41 75 86)"/><use href="#axe" transform="translate(150 0) scale(-1 1) rotate(-41 75 86)"/></g>
-<path d="m75 119 5 7-5 8-5-8Z" fill="url(#rim)" stroke="#332c24"/><path d="m75 122 2 4-2 4-2-4Z" fill="#ddd0a0"/>
+<path d="M75 2 143 40V123L75 169 7 123V40Z" fill="#0b1419" stroke="#051016" stroke-width="4"/>
+<path d="M75 4 141 42V121L75 165 9 121V42Z" fill="url(#brass)" stroke="#f8df9e" stroke-width="1.2"/>
+<path d="M75 11 134 46V116L75 157 16 116V46Z" fill="#111d22" stroke="#483529" stroke-width="2.4"/>
+<path d="M75 18 127 49V112L75 150 23 112V49Z" fill="url(#shield)" stroke="#d4a865" stroke-width="1.8"/>
+<path d="m26 52 49-29 49 29M26 109l49 36 49-36" fill="none" stroke="#f0c887" stroke-opacity=".34" stroke-width="1.4"/>
+<path d="M31 49Q47 40 53 45M95 43q12-3 23 7M35 105q10 14 17 17m52-1 13-16" fill="none" stroke="#a47748" stroke-opacity=".35" stroke-width="1.3"/>
+<g fill="#e6c789" stroke="#593c28" stroke-width=".8"><circle cx="75" cy="12" r="3.5"/><circle cx="18" cy="47" r="3.5"/><circle cx="132" cy="47" r="3.5"/><circle cx="18" cy="116" r="3.5"/><circle cx="132" cy="116" r="3.5"/><circle cx="75" cy="157" r="3.5"/></g>
+<g filter="url(#shadow)">
+<path d="M107 48 114 54 55 136 47 132Z" fill="url(#wood)" stroke="#1a191a" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="m58 116-9 17 7 3 10-16m-5-3 9 4-3 5-9-5m-3 9 8 4" fill="none" stroke="#ddad6d" stroke-width="2.5"/>
+<path d="m102 53 12 1-3 8-11-2Z" fill="url(#brass)" stroke="#3a342b" stroke-width="1.2"/>
+<path d="M109 44Q122 31 139 32L138 46Q141 62 132 74Q120 65 109 69L102 61 103 49Z" fill="url(#steel)" stroke="#152630" stroke-width="2.8"/>
+<path d="M139 32Q127 43 133 52Q138 62 132 74L126 70Q135 53 130 39Z" fill="url(#blade)" stroke="#eefbff" stroke-width="1.2"/>
+<path d="M113 47Q123 45 130 43L127 61Q117 58 110 65L107 59Z" fill="#3c606c" stroke="#dcc18a" stroke-width="1"/>
+<path d="m114 49 7 4-5 4 8 2m-8-11 5 5" fill="none" stroke="#fce4b1" stroke-width="1.2"/>
+<path d="m101 52 9 4-4 13-9-5Z" fill="url(#brass)" stroke="#312e2c" stroke-width="1.5"/>
+<circle cx="104" cy="59" r="2" fill="#314952" stroke="#fce3a3" stroke-width=".9"/>
+<path d="m42 47-8 7 62 81 8-5Z" fill="url(#wood)" stroke="#191a1a" stroke-width="2.7" stroke-linejoin="round"/>
+<path d="m83 114 10 16m-6-12 11-6m-8 10 11-6m-8 10 11-6m-9 12 9-6" fill="none" stroke="#dba769" stroke-width="2.6"/>
+<path d="m91 126 10 4-4 8-9-5Z" fill="url(#brass)" stroke="#3b3028" stroke-width="1.2"/>
+<path d="M40 42Q29 30 12 32L13 46Q8 63 19 75Q30 65 42 69L49 61 48 48Z" fill="url(#steel)" stroke="#13272f" stroke-width="2.8"/>
+<path d="M12 32Q23 41 17 51Q13 64 19 75L25 70Q17 53 22 39Z" fill="url(#blade)" stroke="#f8ffff" stroke-width="1.2"/>
+<path d="M36 47Q26 44 21 42L24 61Q34 58 42 65L45 59Z" fill="#3a6071" stroke="#e3c68f" stroke-width="1"/>
+<path d="m35 49-7 4 5 4-8 2m8-11-5 5" fill="none" stroke="#ffe7b5" stroke-width="1.2"/>
+<path d="M39 47 49 53 44 66 34 60Z" fill="url(#brass)" stroke="#37312b" stroke-width="1.5"/>
+<circle cx="42" cy="57" r="2" fill="#304957" stroke="#ffe9b2" stroke-width=".9"/>
+</g>
+<path d="M75 87 83 97 75 107 67 97Z" fill="url(#brass)" stroke="#1d2224" stroke-width="2"/>
+<path d="M75 92 79 97 75 102 71 97Z" fill="#bce9e4" stroke="#fff4c9" stroke-width=".8"/>
+<path d="m75 27 2 6-2 5-2-5Zm-43 57-5 5 3 5 5-6Zm86 0 5 5-3 5-5-6Z" fill="#ffe8a5" opacity=".85"/>
 </svg>
