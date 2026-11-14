@@ -22,3 +22,29 @@ test('invalid cloud banks and throwing clients resolve safely',async()=>{
  window.Telegram!.WebApp!.CloudStorage!.getItem=()=>{throw Error('unavailable')};
  assert.equal(await cloudLoad(),null);
 });
+
+
+test('cloud save coalesces edits made mid-upload and restores the newest state',async()=>{
+ const data=new Map<string,string>();
+ const pending:{key:string;value:string;done:(e:unknown)=>void}[]=[];
+ Object.defineProperty(globalThis,'window',{value:{Telegram:{WebApp:{initData:'test',CloudStorage:{
+  getItem:(key:string,cb:(e:unknown,v:string)=>void)=>cb(null,data.get(key)??''),
+  setItem:(key:string,value:string,done:(e:unknown)=>void)=>pending.push({key,value,done})
+ }}}},configurable:true});
+ const first=JSON.stringify({chapter:1,notes:'🛡️'.repeat(1500)});
+ cloudSave(first);
+ const oldChunks=pending.length;
+ assert.ok(oldChunks>1,'the initial upload must be in progress');
+ cloudSave(JSON.stringify({chapter:2}));
+ const latest=JSON.stringify({chapter:3,loot:'Крылья 🪽'});
+ cloudSave(latest);
+ assert.equal(pending.length,oldChunks,'new writes must wait for the old bank');
+ for(const row of pending.splice(0)){data.set(row.key,row.value);row.done(null)}
+ assert.equal(pending.length,1,'the old bank must publish its metadata before the queued upload');
+ const oldMeta=pending.shift()!;
+ assert.equal(oldMeta.key,'save_meta');
+ data.set(oldMeta.key,oldMeta.value);oldMeta.done(null);
+ assert.ok(pending.some(row=>row.key.startsWith('save_')),'the newest pending upload starts automatically');
+ while(pending.length){const row=pending.shift()!;data.set(row.key,row.value);row.done(null)}
+ assert.equal(await cloudLoad(),latest);
+});

@@ -5,21 +5,32 @@ export function setupTelegram(){const t=tg();t?.ready();t?.expand();if(t?.isVers
 export function haptic(success=false){const t=tg();if(t?.isVersionAtLeast?.('6.1'))try{if(success)t.HapticFeedback?.notificationOccurred('success');else t.HapticFeedback?.selectionChanged()}catch{ /* unsupported client */ }}
 let cloudBank=0;
 let cloudWriting=false;
+let queuedCloud:string|null=null;
 // Finish every chunk before releasing the bank, including after a failed write.
 // Otherwise callbacks from an older upload can overwrite a newer generation.
 export function cloudSave(raw:string){
- const t=tg();if(!t?.initData||!t.CloudStorage||cloudWriting)return;
+ const t=tg();if(!t?.initData||!t.CloudStorage)return;
+ if(cloudWriting){queuedCloud=raw;return}
  const cloud=t.CloudStorage,generation=String(1-cloudBank),chunks:string[]=[];
  let chunk='',bytes=0;const encoder=new TextEncoder();
  for(const c of raw){const length=encoder.encode(c).length;if(bytes+length>3500){chunks.push(chunk);chunk='';bytes=0}chunk+=c;bytes+=length}
  if(chunk)chunks.push(chunk);if(!chunks.length||chunks.length>40)return;
- cloudWriting=true;let left=chunks.length,failed=false;
+ cloudWriting=true;let left=chunks.length,failed=false,finished=false;
+ const finish=(success:boolean)=>{
+  if(finished)return;finished=true;
+  if(success)cloudBank=Number(generation);
+  cloudWriting=false;
+  const next=queuedCloud;queuedCloud=null;
+  // Save the newest state once the previous bank is fully committed or abandoned.
+  // A failed upload may be retried even when the queued payload is identical.
+  if(next!==null&&(!success||next!==raw))cloudSave(next);
+ };
  chunks.forEach((value,i)=>{
   let completed=false;
   const done=(err:unknown)=>{if(completed)return;completed=true;failed ||= !!err;
    if(--left!==0)return;
-   if(failed){cloudWriting=false;return}
-   try{cloud.setItem('save_meta',JSON.stringify({generation,count:chunks.length}),error=>{if(!error)cloudBank=Number(generation);cloudWriting=false})}catch{cloudWriting=false}
+   if(failed){finish(false);return}
+   try{cloud.setItem('save_meta',JSON.stringify({generation,count:chunks.length}),error=>finish(!error))}catch{finish(false)}
   };
   try{cloud.setItem(`save_${generation}_${i}`,value,done)}catch(error){done(error)}
  });
