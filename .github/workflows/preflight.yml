@@ -2,8 +2,11 @@ name: Shared-game assets and docs integrity
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex-build]
     paths:
+      - 'AGENTS.md'
+      - 'DEVELOPMENT_WORKFLOW.md'
+      - '.codex/agents/critic.toml'
       - 'PROJECT_BRIEF.md'
       - 'README.md'
       - 'CLAUDE.md'
@@ -15,6 +18,9 @@ on:
       - '.github/workflows/preflight.yml'
   pull_request:
     paths:
+      - 'AGENTS.md'
+      - 'DEVELOPMENT_WORKFLOW.md'
+      - '.codex/agents/critic.toml'
       - 'PROJECT_BRIEF.md'
       - 'README.md'
       - 'CLAUDE.md'
