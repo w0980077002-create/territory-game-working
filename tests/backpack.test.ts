@@ -33,3 +33,71 @@ test('selection/navigation does not change saved items and old profiles restore 
  const before=saved.get(SAVE_KEY);useGame.getState().open('inventory');useGame.getState().select(p.inventory[0].id);useGame.getState().open(null);useGame.getState().open('inventory');
  assert.equal(saved.get(SAVE_KEY),before);assert.equal(parseSave(before??null)?.inventory[0].id,p.inventory[0].id);assert.equal(parseSave(before??null)?.pendingLoot?.[0].id,p.pendingLoot[0].id);
 });
+
+
+test('equipping a stored boss trophy with a full backpack preserves the replaced gear and survives reload',()=>{
+ const p=freshPlayer();
+ const old=p.equipment.weapon!;
+ const trophy=makeItem('weapon',20,4);
+ trophy.origin='Босс основной главы';
+ p.inventory=Array.from({length:80},()=>makeItem('helmet',1,0));
+ p.pendingLoot=[trophy];
+ p.rewardOffer={encounterId:'boss-stash-reload',itemId:trophy.id,resolved:false};
+ const all=[...p.inventory,old,trophy].map(i=>i.id).sort();
+ useGame.setState({p});
+ useGame.getState().equip(trophy.id);
+ const result=useGame.getState().p;
+ assert.equal(result.equipment.weapon?.id,trophy.id);
+ assert.equal(result.inventory.length,80,'equipping from storage does not overfill the backpack');
+ assert.deepEqual(result.pendingLoot?.map(i=>i.id),[old.id],'old equipped gear moves to storage, not discarded');
+ assert.equal(result.rewardOffer?.resolved,true);
+ assert.deepEqual([...result.inventory,...result.pendingLoot!,...Object.values(result.equipment).filter((i):i is NonNullable<typeof i>=>!!i)].map(i=>i.id).sort(),[...all,...Object.values(p.equipment).filter((i):i is NonNullable<typeof i>=>!!i&&i.id!==old.id).map(i=>i.id)].sort());
+ const restored=parseSave(saved.get(SAVE_KEY)??null,true);
+ assert.ok(restored,'the full inventory and pending boss trophy must remain a valid save');
+ assert.equal(restored.equipment.weapon?.id,trophy.id);
+ assert.ok(restored.pendingLoot?.some(i=>i.id===old.id));
+ assert.equal(restored.rewardOffer?.resolved,true);
+});
+
+test('failed persistence cancels gear swap, keeps the trophy, and never claims success',()=>{
+ const p=freshPlayer(),trophy=makeItem('weapon',12,4);
+ p.inventory=[trophy];
+ useGame.setState({p,panel:'item',selected:trophy.id,recoveryRequired:false,storageError:false,toast:''});
+ failKey=SAVE_KEY;
+ useGame.getState().equip(trophy.id);
+ assert.deepEqual(useGame.getState().p,p,'failure must leave every item and resource unchanged');
+ assert.equal(useGame.getState().selected,trophy.id,'the item comparison remains open');
+ assert.equal(useGame.getState().storageError,true);
+ assert.match(useGame.getState().toast,/Не удалось сохранить экипировку/);
+ failKey='';
+ useGame.getState().equip(trophy.id);
+ assert.equal(useGame.getState().p.equipment.weapon?.id,trophy.id);
+ assert.ok(parseSave(saved.get(SAVE_KEY)??null));
+});
+
+test('failed persistence cancels single-item salvage without losing gold, XP or the item',()=>{
+ const p=freshPlayer(),item=makeItem('helmet',2,0);
+ p.inventory=[item];
+ useGame.setState({p,panel:'item',selected:item.id,recoveryRequired:false,storageError:false,toast:''});
+ failKey=SAVE_KEY;
+ useGame.getState().salvage(item.id);
+ assert.deepEqual(useGame.getState().p,p,'failure must not spend the saved item or grant unsaved resources');
+ assert.equal(useGame.getState().selected,item.id);
+ assert.equal(useGame.getState().storageError,true);
+ assert.match(useGame.getState().toast,/Не удалось сохранить распыление/);
+ failKey='';
+ useGame.getState().salvage(item.id);
+ assert.equal(useGame.getState().p.inventory.length,0);
+ assert.ok(useGame.getState().p.gold>p.gold);
+ assert.ok(parseSave(saved.get(SAVE_KEY)??null));
+});
+
+test('inventory actions are blocked while an unreadable save is being recovered',()=>{
+ const p=freshPlayer(),item=makeItem('weapon',5,2);
+ p.inventory=[item];
+ useGame.setState({p,recoveryRequired:true,storageError:false,toast:''});
+ useGame.getState().equip(item.id);
+ useGame.getState().salvage(item.id);
+ assert.deepEqual(useGame.getState().p,p);
+ assert.ok(p.inventory.some(i=>i.id===item.id));
+});

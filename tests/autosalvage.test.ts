@@ -47,6 +47,7 @@ test('valuable items, equipped items and old gear returned during replacement re
  buyOn();const p=useGame.getState().p;const weak=drop();
  const protectedItems:Item[]=[
   {...weak,id:'rare',rarity:3},
+  {...weak,id:'upgraded',upgrade:2},
   {...weak,id:'locked',locked:true},
   {...weak,id:'set',set:'frost'},
   {...weak,id:'perk',perk:'crown'},
