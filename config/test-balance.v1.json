@@ -135,7 +135,7 @@
     "test_packs": [
       {
         "id": "test_special_pack_1",
-        "display_name": "Тестовый набор 1",
+        "display_name": "Набор припасов 1",
         "test_token_price": 10,
         "grant": {
           "gold": 200,
@@ -148,7 +148,7 @@
       },
       {
         "id": "test_special_pack_2",
-        "display_name": "Тестовый набор 2",
+        "display_name": "Набор припасов 2",
         "test_token_price": 20,
         "grant": {
           "gold": 800,
@@ -161,7 +161,7 @@
       },
       {
         "id": "test_special_pack_3",
-        "display_name": "Тестовый набор 3",
+        "display_name": "Набор припасов 3",
         "test_token_price": 40,
         "grant": {
           "gold": 1800,
@@ -174,7 +174,7 @@
       },
       {
         "id": "test_special_pack_4",
-        "display_name": "Тестовый набор 4",
+        "display_name": "Набор припасов 4",
         "test_token_price": 60,
         "grant": {
           "gold": 3200,
@@ -187,7 +187,7 @@
       },
       {
         "id": "test_special_pack_5",
-        "display_name": "Тестовый набор 5",
+        "display_name": "Набор припасов 5",
         "test_token_price": 120,
         "grant": {
           "gold": 5000,
@@ -200,7 +200,7 @@
       },
       {
         "id": "test_special_pack_6",
-        "display_name": "Тестовый набор 6",
+        "display_name": "Набор припасов 6",
         "test_token_price": 180,
         "grant": {
           "gold": 7200,
@@ -213,7 +213,7 @@
       },
       {
         "id": "test_special_pack_7",
-        "display_name": "Тестовый набор 7",
+        "display_name": "Набор припасов 7",
         "test_token_price": 230,
         "grant": {
           "gold": 9800,
@@ -226,7 +226,7 @@
       },
       {
         "id": "test_special_pack_8",
-        "display_name": "Тестовый набор 8",
+        "display_name": "Набор припасов 8",
         "test_token_price": 350,
         "grant": {
           "gold": 12800,
@@ -239,7 +239,7 @@
       },
       {
         "id": "test_special_pack_9",
-        "display_name": "Тестовый набор 9",
+        "display_name": "Набор припасов 9",
         "test_token_price": 600,
         "grant": {
           "gold": 16200,
@@ -252,7 +252,7 @@
       },
       {
         "id": "test_special_pack_10",
-        "display_name": "Тестовый набор 10",
+        "display_name": "Набор припасов 10",
         "test_token_price": 1200,
         "grant": {
           "gold": 20000,
