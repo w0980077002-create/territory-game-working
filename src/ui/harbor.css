@@ -1,0 +1,26 @@
+/* Original painted vector harbor; respects reduced motion and 320px screens. */
+.saga-modal .harbor-scene{position:relative;isolation:isolate;overflow:hidden;width:100%;aspect-ratio:9/5;min-height:210px;max-height:315px;margin:0 0 13px;border:2px solid #b18c5b;border-radius:10px;box-shadow:0 7px 18px #0009,inset 0 0 0 3px #34251e;background:#38647c}
+.saga-modal .harbor-art{width:100%;height:100%;position:absolute;inset:0}
+.saga-modal .harbor-scene:after{content:'';pointer-events:none;position:absolute;inset:0;background:linear-gradient(0deg,#0b26327a,transparent 30%,transparent 74%,#0b263250)}
+.saga-modal .harbor-title{pointer-events:none;z-index:2;position:absolute;top:9px;left:12px;display:flex;flex-direction:column;text-shadow:0 2px 5px #07151d}
+.saga-modal .harbor-title small{font-size:9px;letter-spacing:5px;color:#e4cd96}
+.saga-modal .harbor-title strong{font:bold 19px/1.15 Georgia,serif;color:#fff1c9}
+.saga-modal .harbor-links button{z-index:3;position:absolute;min-height:44px;min-width:86px;padding:8px 9px;border:2px solid #dfc88b;border-radius:8px;box-shadow:0 3px 7px #071923d9,inset 0 1px #fff5bc72;background:linear-gradient(#866345f5,#27343df1);color:#ffe7ae;font:bold 12px Arial,sans-serif;text-shadow:0 1px #000;touch-action:manipulation}
+.saga-modal .harbor-forge-link{left:4%;top:52%}.saga-modal .harbor-yard-link{right:5%;top:62%}.saga-modal .harbor-pack-link{right:5%;top:29%}
+.saga-modal .harbor-boat-pick,.saga-modal .harbor-empty{position:absolute;top:74%;transform:translateX(-50%);min-width:72px;min-height:45px;z-index:3;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;white-space:nowrap;padding:5px 7px;border:2px solid #ae9873;border-radius:8px;background:linear-gradient(#29414ce8,#14262deb);color:#ffecbd;font:bold 11px Arial,sans-serif;box-shadow:0 3px 7px #0009;touch-action:manipulation}
+.saga-modal .harbor-boat-pick b{color:#ffd478}.saga-modal .harbor-boat-pick.selected{border-color:#ffda83;box-shadow:0 0 0 2px #ffda8350,0 3px 7px #0009;background:linear-gradient(#76583ee6,#1c3138)}
+.saga-modal .harbor-empty{pointer-events:none;opacity:.65;border-style:dashed}
+.saga-modal .harbor-economy{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center;padding:10px;border:1px solid #907a50;border-radius:7px;background:#152e32;color:#c9dbe0;margin-bottom:10px}
+.saga-modal .harbor-economy strong{font-size:14px;color:#ffe099}.saga-modal .harbor-economy span{font-size:12px}
+.saga-modal .harbor-quicklinks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:9px 0 15px}
+.saga-modal .harbor-quicklinks button{display:flex;align-items:center;gap:8px;min-height:48px;padding:8px;background:linear-gradient(#37505c,#192a31);border:1px solid #978362;border-radius:7px;color:#ead8b5;font:bold 13px Arial,sans-serif;text-align:left;touch-action:manipulation}
+.saga-modal .harbor-quicklinks .icon{width:28px;height:28px}
+.saga-modal .harbor-boat-pick:focus-visible,.saga-modal .harbor-links button:focus-visible,.saga-modal .harbor-quicklinks button:focus-visible{outline:3px solid #ffeb9d;outline-offset:2px}
+.saga-modal .harbor-bob{animation:harbor-bob 4s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 72%}
+.saga-modal .harbor-waves{animation:harbor-water 6s ease-in-out infinite alternate}
+.saga-modal .harbor-cloud{animation:harbor-cloud 20s ease-in-out infinite alternate}
+@keyframes harbor-bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(4px) rotate(1deg)}}
+@keyframes harbor-water{from{opacity:.42;transform:translateX(-3px)}to{opacity:.75;transform:translateX(4px)}}
+@keyframes harbor-cloud{from{transform:translateX(-5px)}to{transform:translateX(16px)}}
+@media(max-width:420px){.saga-modal .harbor-scene{min-height:200px}.saga-modal .harbor-links button{min-width:80px;font-size:11px}.saga-modal .harbor-boat-pick,.saga-modal .harbor-empty{min-width:65px;font-size:10px}}
+@media(prefers-reduced-motion:reduce){.saga-modal .harbor-bob,.saga-modal .harbor-waves,.saga-modal .harbor-cloud{animation:none!important}}
