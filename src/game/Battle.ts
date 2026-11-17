@@ -19,6 +19,7 @@ import {poseFrame,enemyLunge,type Rect} from './actorGeometry';
 import {swordTip,swordCanReach,reactionOffset,projectilePoint,projectileVisualPath,drawSwordWave} from './Impact';
 import {layoutLabels,feedbackBands,type CombatLabel,type PlacedLabel} from './CombatLabels';
 import {WorldRenderer} from './WorldRenderer';
+import {RealmWorld,realmSceneIdentity,realmEffectsQuality,type RealmView} from '../dark/RealmWorld';
 import {WorldDirector} from './WorldDirector';
 import {CompanionBrain,type TeamHost} from './CompanionBrain';
 import {think,interrupted,onWindup,strikeMultiplier,absorb,breakCovers,died,type TacticEvent} from './EnemyTactics';
@@ -49,7 +50,7 @@ export class Battle implements TeamHost {
  /** Dark gear, relic and companion effects of the current hero; refreshed on every spawn and resume. */
  aura=combatAura(useGame.getState().p);squad=squadCombat(useGame.getState().p);
  comics=new ComicFeedback();systemReduced=typeof window!=='undefined'&&!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
- journey=newJourney();scenery=new WorldRenderer();
+ journey=newJourney();scenery=new WorldRenderer();realmScenery=new RealmWorld();
  // Living World extension points (see WorldDirector / CompanionBrain / EnemyTactics).
  brain=new CompanionBrain();director=new WorldDirector(this);worldEvent:WorldEventSnapshot|undefined;team:TeamSnapshot|undefined;walked=0;coverNote=0;
  heroX=285;hp=1;maxHp=1;heroAttack=0;heroHurt=0;heroPending=0;cooldowns=[0,0,0];timer=rules.boss_timer_seconds as number;phase:BattleView['phase']='walk';mode='campaign';delay=0;clock=0;last=0;raf=0;autoCd=0;compCd=[1,3];buff=0;shield=0;burn=0;burnTick=0;stun=0;shake=0;stopped=false;lastPublish=0;lastSave=0;enemyLevel=1;boss=false;running=false;id=newId();stage=1;wave=1;rewarded=false;pressure=0;defensePressure=0;poison=0;poisonTick=0;slow=0;quality=1;gooseAttack=0;dogCast=0;unbind:()=>void=()=>{};
@@ -115,7 +116,7 @@ export class Battle implements TeamHost {
   const add=(id:string,x:number,y:number,height:number,pose:number,flip=false)=>{for(const band of feedbackBands(id,pose===7)){const b=flip?[-band[2],band[1],-band[0],band[3]]:band;blocked.push([x+b[0]*height,y+b[1]*height,x+b[2]*height+8,y+b[3]*height])}};
   const p=useGame.getState().p;add(heroArt[p.heroClass],this.heroX,this.journey.worldY,legacyBodyHeight(heroArt[p.heroClass],214),poseFrame({attack:this.heroAttack,hurt:this.heroHurt}));
   add(this.squad.striker.id,this.strikerPos().x,this.strikerPos().y,legacyBodyHeight(this.squad.striker.id,156),poseFrame({attack:this.gooseAttack}));
-  add(this.squad.guardian.id,projectX(this.journey.dog.worldX,this.journey.cameraX),this.journey.dog.worldY,legacyBodyHeight(this.squad.guardian.id,156),poseFrame({attack:this.dogCast}));
+  add(this.squad.guardian.id,this.guardianX(),this.journey.dog.worldY,legacyBodyHeight(this.squad.guardian.id,156),poseFrame({attack:this.dogCast}));
   for(const u of this.units){if(u.dead>1.1)continue;const v=this.visual(u);add(u.id,v.x,v.y,v.height,poseFrame({attack:u.attack,hurt:u.hurt,death:u.dead,windup:u.windup}),v.flip);if(u.hp>0)blocked.push([v.barX-(this.boss?94:48),v.barY-42,v.barX+(this.boss?94:48),v.barY+12]);}
   return blocked;
  }
@@ -127,17 +128,19 @@ export class Battle implements TeamHost {
  auraHit(u:Unit){const a=this.aura;return 1+(u.hp<u.max*.3?a.execute30:0)+(u.hp<u.max*.35?a.execute35:0)+(this.boss?a.boss:0)}
  /** Fight opening: «Пелена» shield, «Рог Вальхаллы» rally and «Тень Гиннунгагап» on the enemies. */
  openFight(){const a=this.aura;if(a.veil>0)this.shield=Math.round(this.maxHp*a.veil);if(a.rally>0)this.perk.horn=8;if(a.foeHpCut>0)for(const u of this.units)u.hp=Math.max(1,Math.round(u.hp*(1-a.foeHpCut)))}
- strikerPos(){const j=this.journey,x=projectX(j.goose.worldX,j.cameraX);return this.squad.striker.fly?{x,y:j.goose.worldY}:{x:x+40,y:j.dog.worldY+14}}
+ strikerPos(){const j=this.journey,x=projectX(j.goose.worldX,j.cameraX);return this.squad.striker.fly?{x:x-40,y:j.goose.worldY-25}:{x:x-25,y:j.dog.worldY+14}}
+ guardianX(){return projectX(this.journey.dog.worldX,this.journey.cameraX)-48-(this.squad.striker.fly?0:48)}
  guardianAid(){const id=this.squad.guardian.id;if(id==='capybara_bruiser')this.shield=Math.max(this.shield,Math.round(this.maxHp*.06));if(id==='moss_eater'){this.poison=0;this.slow=0}if(this.squad.guardian.awake){this.perk.howl=3;this.effect(this.heroX+30,560,'БОЕВОЙ ДУХ','#ffe08a',22)}}
  /** Starts or continues the paid Dark Realm run chosen in its window. The entry was charged by the action. */
  enterRealm(){const g=useGame.getState();if(g.recoveryRequired||!realmRun(g.p))return;g.open(null);this.pause();unlockAudio(g.p.sound);this.pendingMode=undefined;this.mode='darkness';this.hp=stats(g.p).hp;this.maxHp=this.hp;this.spawn(true);this.entryPaid=true;this.running=true;this.publish();this.checkpoint();haptic()}
- /** Dark Realm atmosphere: violet dusk over the scene and rising embers. Cheap, and still under reduced motion. */
- paintRealm(c:CanvasRenderingContext2D){
-  c.save();const g=c.createLinearGradient(0,110,0,940);g.addColorStop(0,'#1b0b3acc');g.addColorStop(.38,'#3a1a7a40');g.addColorStop(.75,'#2a0f5a55');g.addColorStop(1,'#0c0420d9');c.fillStyle=g;c.fillRect(0,0,864,940);
-  const still=this.reducedMotion(),n=Math.round(22*this.quality);c.globalCompositeOperation='lighter';
-  for(let i=0;i<n;i++){const t=still?i*.37:this.clock*(.05+(i%5)*.012)+i*.37,x=(i*173+Math.sin(t*3+i)*40+864)%864,y=930-(t%1)*640,a=Math.sin((t%1)*Math.PI);c.globalAlpha=.55*a;c.fillStyle=i%3?'#b98cff':'#ff8ad8';c.beginPath();c.arc(x,y,1.6+(i%4),0,Math.PI*2);c.fill()}
-  c.restore();
+ /** Read the encounter's own identity: room rewards already advance the persisted run. */
+ realmView():RealmView{
+  const p=useGame.getState().p,run=realmRun(p),last=realmLast(p);let identity=realmSceneIdentity(this.plan.title??'',this.plan.role??'',p.darkFloor);
+  if(this.phase==='victory')identity=run?{floor:run.f,room:Math.max(1,run.r-1)}:last?{floor:last.f,room:3}:identity;
+  if(this.phase==='defeat'&&last)identity={floor:last.f,room:Math.min(3,last.rooms+1)};
+  return {...identity,phase:this.phase,clock:this.clock,combatTime:this.combatTime,delay:this.delay,impact:this.shake,quality:realmEffectsQuality(this.quality),reduced:this.reducedMotion()};
  }
+
  leaveRealm(){if(this.mode!=='darkness')return;this.pause();this.mode='campaign';this.hp=this.maxHp;this.spawn(false);this.publish();this.checkpoint()}
  ultimate(u:Unit){return !this.chapterBoss()&&!!this.plan.ultimates?.includes(u.ability)}
  counterSkill(index:number,target?:Unit){
@@ -275,7 +278,7 @@ export class Battle implements TeamHost {
   this.canvas.width=Math.ceil(864*ratio);this.canvas.height=Math.ceil(940*ratio);
   this.ctx.setTransform(ratio,0,0,ratio,0,0);
  }
- draw(){this.syncCanvasResolution();const c=this.ctx,labels:CombatLabel[]=[];c.clearRect(0,0,864,940);this.scenery.draw(c,this.journey,this.clock,this.world,this.chapterBoss()&&this.phase==='fight'?.08+(this.units[0].bossPhase-1)*.06:0,this.quality,sky=>this.director.life.sky(sky,this.director.env()));paintBiomeBack(c,this.plan.region,this.clock,this.journey.cameraX,this.quality,this.reducedMotion());this.director.back(c);
+ draw(){this.syncCanvasResolution();const c=this.ctx,labels:CombatLabel[]=[];c.clearRect(0,0,864,940);const dark=this.mode==='darkness';if(dark)this.realmScenery.drawBack(c,this.journey,this.realmView());else{this.scenery.draw(c,this.journey,this.clock,this.world,this.chapterBoss()&&this.phase==='fight'?.08+(this.units[0].bossPhase-1)*.06:0,this.quality,sky=>this.director.life.sky(sky,this.director.env()));paintBiomeBack(c,this.plan.region,this.clock,this.journey.cameraX,this.quality,this.reducedMotion());this.director.back(c);}
  // Environmental light and fog are independent of combat actors and UI.
  c.save();if(this.running&&!this.reducedMotion()){const [sx,sy]=this.comics.offset(false,this.quality);c.translate(Math.max(-4,Math.min(4,sx+(Math.random()-.5)*this.shake)),Math.max(-4,Math.min(4,sy+(Math.random()-.5)*this.shake)));}const p=useGame.getState().p,walking=this.phase==='walk'&&this.journey.velocity>3,attackLunge=this.heroAttack>.2&&p.heroClass==='berserker'?Math.sin(this.heroAttack*5)*20:0;
  if(this.phase==='walk'&&!this.director.hidesResident()){
@@ -283,10 +286,10 @@ export class Battle implements TeamHost {
   if(residentX>235&&residentX<765){c.save();c.globalAlpha*=Math.min(1,(residentX-235)/35,(765-residentX)/25);this.character('cappuccina_approved',residentX,710,98,Math.sin(this.clock*2)>.65?.25:0,0,Math.abs(Math.cos(this.clock*.45))>.5,0,0,false,false,false,this.clock*.4);if(residentX>480&&residentX<690){c.save();c.font='800 20px system-ui';c.textAlign='center';c.lineWidth=5;c.strokeStyle='#183247';c.fillStyle='#f6e8bb';c.strokeText('Берегись паутины!',residentX,580);c.fillText('Берегись паутины!',residentX,580);c.restore()}c.restore()}
  }
  const actors:Array<{y:number;paint:()=>void}>=[];
- const gooseX=projectX(this.journey.goose.worldX,this.journey.cameraX),dogX0=projectX(this.journey.dog.worldX,this.journey.cameraX);
+ const gooseX=projectX(this.journey.goose.worldX,this.journey.cameraX)-40;
 
- const dogX=dogX0-(this.squad.striker.fly?0:48);
- const dive=this.brain.goose?.kind==='dive'?this.targetBody(this.brain.goose.target):undefined,gp=this.brain.goosePose(this.clock,{x:gooseX,y:this.journey.goose.worldY},dive),dp=this.brain.dogPose(this.clock,{x:dogX},this.heroX);
+ const dogX=this.guardianX();
+ const dive=this.brain.goose?.kind==='dive'?this.targetBody(this.brain.goose.target):undefined,gp=this.brain.goosePose(this.clock,{x:gooseX,y:this.journey.goose.worldY-25},dive),dp=this.brain.dogPose(this.clock,{x:dogX},this.heroX);
  actors.push(...this.director.actors());
  const sp=this.strikerPos(),fly=this.squad.striker.fly,glow=(x:number,y:number)=>{c.save();c.globalAlpha=.35+.15*Math.sin(this.clock*3);c.fillStyle='#ffd86b';c.beginPath();c.ellipse(x,y+2,52,13,0,0,Math.PI*2);c.fill();c.restore()};
  actors.push({y:sp.y,paint:()=>{if(this.squad.striker.awake)glow(sp.x+gp.dx,fly?sp.y+gp.dy-70:sp.y);this.character(this.squad.striker.id,sp.x+gp.dx,sp.y+gp.dy*(fly?1:.12),fly?156:136,Math.max(this.gooseAttack,gp.attack),0,this.phase==='walk'&&(this.journey.goose.speed??0)>3,0,0,false,!fly,this.squad.striker.id!=='goose_aviator',fly?this.clock:this.journey.distance/160)}});
@@ -333,11 +336,11 @@ export class Battle implements TeamHost {
  for(const [i,f] of this.fx.entries())if(f.text)labels.push({key:f.tag??f.labelKey??f.text+':'+Math.round(f.max*100)+':'+i,text:f.text,x:f.x,y:f.y,size:f.size,color:f.color,alpha:Math.min(1,f.life*3),priority:f.tag?3:2});
  this.lastLabels=layoutLabels(labels,blocked,(text,size)=>{c.font=`900 ${size}px system-ui`;return c.measureText(text).width},this.labelPositions);this.labelPositions=new Map(this.lastLabels.map(f=>[f.key,f.rect]));
  for(const f of this.lastLabels){c.save();c.globalAlpha=f.alpha;c.font=`900 ${f.size}px system-ui`;c.textAlign='center';c.textBaseline='middle';c.lineJoin='round';c.lineWidth=5;c.strokeStyle='#26354c';c.fillStyle=f.color;for(const [n,line] of f.lines.entries()){const y=f.y+(n-(f.lines.length-1)/2)*f.size*1.12;c.strokeText(line,f.x,y);c.fillText(line,f.x,y)}c.restore()}this.comics.draw(c,this.reducedMotion(),this.quality);
- if(this.mode==='darkness')this.paintRealm(c);
- this.director.front(c);paintBiomeFront(c,this.plan.region,this.clock,this.journey.cameraX,this.quality,this.reducedMotion());this.brain.drawEmotes(c,who=>who==='goose'?{x:gooseX+gp.dx+60,y:this.journey.goose.worldY+gp.dy-132}:who==='dog'?{x:dogX+dp.dx+64,y:this.journey.dog.worldY+dp.dy-128}:{x:this.heroX+70,y:560});
+ if(dark)this.realmScenery.drawFront(c,this.journey,this.realmView());
+ if(!dark){this.director.front(c);paintBiomeFront(c,this.plan.region,this.clock,this.journey.cameraX,this.quality,this.reducedMotion());}this.brain.drawEmotes(c,who=>who==='goose'?{x:gooseX+gp.dx+60,y:this.journey.goose.worldY+gp.dy-132}:who==='dog'?{x:dogX+dp.dx+64,y:this.journey.dog.worldY+dp.dy-128}:{x:this.heroX+70,y:560});
 
- c.fillStyle='#fff';if(this.plan.region.look.particles==='snow')for(let i=0;i<Math.round(32*this.quality);i++){const x=((i*137+this.clock*(8+i%4)-this.journey.cameraX*(.12+(i%3)*.08))%864+864)%864,y=(i*97+this.clock*(16+i%7))%900;c.globalAlpha=.2+(i%3)*.13;c.beginPath();c.arc(x,y,1.3+i%3,0,Math.PI*2);c.fill()}c.globalAlpha=1}
- frame=(time:number)=>{if(this.stopped)return;const delta=(time-this.last)/1000||.016,dt=Math.min(.05,delta);this.last=time;if(!document.hidden){if(delta>.04)this.quality=Math.max(.45,this.quality-.005);else this.quality=Math.min(1,this.quality+.001);this.syncStats();this.update(dt*useGame.getState().speed,delta);this.draw();this.audioFrame();if(time-this.lastPublish>120){this.publish();this.lastPublish=time}if(this.running&&time-this.lastSave>1000){this.checkpoint();this.lastSave=time}}this.raf=requestAnimationFrame(this.frame)}
+ c.fillStyle='#fff';if(!dark&&this.plan.region.look.particles==='snow')for(let i=0;i<Math.round(32*this.quality);i++){const x=((i*137+this.clock*(8+i%4)-this.journey.cameraX*(.12+(i%3)*.08))%864+864)%864,y=(i*97+this.clock*(16+i%7))%900;c.globalAlpha=.2+(i%3)*.13;c.beginPath();c.arc(x,y,1.3+i%3,0,Math.PI*2);c.fill()}c.globalAlpha=1}
+ frame=(time:number)=>{if(this.stopped)return;const delta=(time-this.last)/1000||.016,dt=Math.min(.05,delta);this.last=time;if(!document.hidden){if(this.mode!=='darkness'||this.running){if(delta>.04)this.quality=Math.max(.45,this.quality-.005);else this.quality=Math.min(1,this.quality+.001);}this.syncStats();this.update(dt*useGame.getState().speed,delta);this.draw();this.audioFrame();if(time-this.lastPublish>120){this.publish();this.lastPublish=time}if(this.running&&time-this.lastSave>1000){this.checkpoint();this.lastSave=time}}this.raf=requestAnimationFrame(this.frame)}
 }
 export let battle:Battle|null=null;
 export function mountBattle(canvas:HTMLCanvasElement){battle=new Battle(canvas);return()=>{battle?.destroy();battle=null}}
