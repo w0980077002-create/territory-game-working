@@ -8,7 +8,7 @@ import {Icon,gearIcon} from './Icon';
 import {sound,unlockAudio} from '../game/Sound';
 
 export type Material='chest'|'forge'|'rune'|'sea'|'roman'|'moon'|'gold';
-const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',companions:'moon',shop:'chest',rewards:'gold',events:'gold',collection:'moon'};
+const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',realm:'rune',darkgear:'moon',gems:'chest',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',companions:'moon',shop:'chest',rewards:'gold',events:'gold',collection:'moon'};
 const atmospheres:Record<Material,[string,string,string]>={chest:['СОКРОВИЩА СЕВЕРА','Сталь помнит удары. Дуб помнит века.','chest'],forge:['СЕРДЦЕ ОГНЯ','Из жара рождается сила.','axe'],rune:['ПРОБУЖДЕНИЕ ЗНАКА','Лёд хранит древние имена.','rune'],sea:['СЕВЕРНАЯ ГАВАНЬ','Каждая дорога становится сагой.','ship'],roman:['НАСЛЕДИЕ ИМПЕРИИ','Доблесть оставляет след на бронзе.','shield'],moon:['ПОД СЕВЕРНОЙ ЗВЕЗДОЙ','У каждой легенды есть имя.','wings'],gold:['ДАРЫ ДРЕВНЕГО МИРА','Каждая находка имеет историю.','crown']};
 export function panelMaterial(panel:string):Material{return panel.startsWith('gear:')?'forge':themes[panel]??'sea'}
 export function Atmosphere({kind}:{kind:Material}){return <div className={`ambient ambient-${kind}`} aria-hidden="true">{Array.from({length:5},(_,i)=><i key={i} style={{'--n':i} as React.CSSProperties}/>)}</div>}
