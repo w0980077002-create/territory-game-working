@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "test": "tsx --test tests/*.test.ts",
-    "lint": "eslint src/ui/App.tsx src/ui/DarkPanels.tsx src/ui/SagaUI.tsx src/ui/HarborScene.tsx",
+    "lint": "eslint src/ui/App.tsx src/ui/DarkPanels.tsx src/ui/SagaUI.tsx src/ui/HarborScene.tsx src/core/store.ts tests/notices.test.ts",
     "test:windows": "node scripts/qa/windows.cjs"
   },
   "dependencies": {

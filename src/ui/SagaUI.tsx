@@ -75,10 +75,11 @@ export function LevelUpFeedback(){
 }
 
 /** Native top layer keeps the catalog mounted, locks its input and restores focus on close. */
-export function CardDialog({title,onClose,children,actions}:{title:string;onClose:()=>void;children:React.ReactNode;actions?:React.ReactNode}){
+export function CardDialog({title,onClose,children,actions,className=''}:{title:string;onClose:()=>void;children:React.ReactNode;actions?:React.ReactNode;className?:string}){
+ const openingToastId=useRef(useGame.getState().toastId);
  const ref=useRef<HTMLDialogElement>(null),id=useId(),toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError);
- useEffect(()=>{const dialog=ref.current!;dialog.showModal();return()=>dialog.close()},[]);
- return <dialog ref={ref} className="context-card" aria-labelledby={id} onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose()}}}>
+ useEffect(()=>{useGame.getState().dismissNotice(openingToastId.current);const dialog=ref.current!;dialog.showModal();return()=>dialog.close()},[]);
+ return <dialog ref={ref} className={`context-card ${className}`} aria-labelledby={id} onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose()}}}>
   <header className="context-header"><h3 id={id}>{title}</h3><button autoFocus className="context-close" aria-label="Закрыть карточку" onClick={onClose}>×</button></header>
   <div className="context-body">{children}</div>
   <div className="context-status" role={storageError?'alert':'status'}>{storageError?'Не удалось сохранить. Освободите место в браузере.':toast}</div>
