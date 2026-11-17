@@ -139,3 +139,20 @@ test('auras really change the fight: blessing, veil, aegis, gap, thorns, reducti
  give(p=>{const q=R.squadBox(p);q.own.senior_driller.lv=3;q.act[0]='senior_driller'});b.tuneTeam();const def=b.foeDef(b.units[0]);b.hit(b.units[0],5,false,'#fff','goose');assert.ok(b.foeDef(b.units[0])<def,'the driller wears armour down');
  give(p=>{const q=R.squadBox(p);q.own.capybara_bruiser.lv=2;q.act[1]='capybara_bruiser'});b.tuneTeam();b.shield=0;b.guardianAid();assert.equal(b.shield,Math.round(b.maxHp*.06));
 });
+
+test('one-click dark energy upgrade spends exactly the displayed total and persists all equipped increases',()=>{
+ give(p=>{const box=R.darkBox(p);box.eq[0]=item({id:'bulk-a',s:0,r:0,u:0});box.eq[1]=item({id:'bulk-b',s:1,r:2,u:2});box.inv.push(item({id:'storage-only',s:2,r:0}));R.addRes(p,'ess',1000);p.gold=10000});
+ const preview=A.darkEquippedUpgradePlan(P()),before=stats(P()),ess=R.resCount(P(),'ess'),gold=P().gold;
+ assert.deepEqual(preview.ids,['bulk-a','bulk-b']);assert.equal(preview.count,2);assert.equal(preview.dusk,0);
+ assert.ok(A.darkUpgradeEquipped());assert.equal(R.resCount(P(),'ess'),ess-preview.ess);assert.equal(P().gold,gold-preview.gold);
+ assert.equal(R.darkState(P()).eq[0]!.u,1);assert.equal(R.darkState(P()).eq[1]!.u,3);
+ assert.equal(R.darkState(P()).inv[0].u,0,'the stash is not bulk-upgraded');
+ assert.ok(stats(P()).attack>before.attack);const saved=R.darkState(reload());assert.equal(saved.eq[0]!.u,1);assert.equal(saved.eq[1]!.u,3);
+});
+test('one-click dark energy upgrade never overspends, skips unaffordable items and respects upgrade caps',()=>{
+ give(p=>{const box=R.darkBox(p);box.eq[0]=item({id:'maxed',s:0,r:0,u:R.darkMaxUpgrade(0)});box.eq[1]=item({id:'expensive',s:1,r:5,u:8});box.eq[2]=item({id:'cheap',s:2,r:0,u:0});R.addRes(p,'ess',6);p.gold=150});
+ const preview=A.darkEquippedUpgradePlan(P());assert.deepEqual(preview.ids,['cheap']);assert.equal(preview.gold,150);
+ assert.ok(A.darkUpgradeEquipped());assert.equal(P().gold,0);assert.equal(R.resCount(P(),'ess'),0);
+ assert.equal(R.darkState(P()).eq[0]!.u,R.darkMaxUpgrade(0));assert.equal(R.darkState(P()).eq[1]!.u,8);assert.equal(R.darkState(P()).eq[2]!.u,1);
+ assert.equal(A.darkUpgradeEquipped(),false,'no second charge when no upgrade is affordable');assert.equal(P().gold,0);
+});
