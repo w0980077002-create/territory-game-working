@@ -1,0 +1,37 @@
+name: RPG windows · mobile layout and gameplay
+on:
+  pull_request:
+    branches: [codex-build]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Start isolated local game
+        run: |
+          npm run dev > /tmp/vite.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:5173/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/vite.log
+          exit 1
+      - run: npm run test:windows
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-window-screenshots
+          path: .tmp/window-qa/

@@ -1,0 +1,73 @@
+/* Window geometry uses the WebView viewport; battle artwork retains its own scale. */
+.saga-shade{height:100dvh;max-height:var(--tg-viewport-stable-height,100dvh)}
+.saga-modal[data-layout="workspace"]{height:min(860px,100%)}
+.saga-modal[data-layout="workspace"] .modal-header{min-height:58px;padding:7px 60px 7px 12px;gap:8px}
+.saga-modal[data-layout="workspace"] .modal-header h2{font-size:21px}
+.saga-modal[data-layout="workspace"] .header-seal{width:32px;height:36px;margin-left:0!important}
+.saga-modal[data-layout="workspace"] .header-seal .icon{width:25px;height:25px}
+.saga-modal[data-layout="workspace"] .modal-header small{font-size:7px;margin-bottom:3px;letter-spacing:.7px}
+.saga-modal[data-layout="workspace"] .close{top:7px}
+.saga-modal[data-layout="workspace"] .modal-body{display:flex;overflow:hidden;padding:10px;min-height:0}
+.saga-modal[data-layout="workspace"] .panel-content{display:flex;flex:1;min-height:0;flex-direction:column}
+.saga-modal[data-layout="workspace"] .panel-content>div{min-width:0;min-height:0;flex:1;display:flex;flex-direction:column;gap:8px}
+.saga-modal[data-layout="workspace"] .panel-content>div>*{flex-shrink:0}
+.saga-modal .local-scroll{min-height:0!important;flex:1 1 0!important;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#796b52 #151c20;scroll-padding:6px;padding:4px}
+.saga-modal .workspace-toolbar{display:flex;align-items:center;gap:6px;justify-content:space-between;margin:0;font-size:12px;min-width:0}
+.saga-modal .workspace-toolbar button,.saga-modal .workspace-toolbar select{border:1px solid #756647;border-radius:6px;background:#15242d;color:#ead8b5;min-height:40px;padding:6px 8px;font-size:12px;min-width:0}
+.workspace-toolbar select{flex:1;width:0;max-width:170px}.workspace-toolbar b{white-space:nowrap;font-size:12px}
+.saga-modal .workspace-actions{margin-top:auto;flex-shrink:0;border-top:1px solid #8a78574d;padding-top:8px;background:#101821}
+.saga-modal .workspace-actions .action{margin:0}.workspace-actions .action+.action{margin-top:6px}
+.saga-modal[data-layout="workspace"] .dark-wallet{margin:0;gap:5px}
+.saga-modal[data-layout="workspace"] .dark-wallet span{min-width:0;padding:4px 6px}
+.saga-modal[data-layout="workspace"] .dark-wallet small{font-size:10px}
+.saga-modal[data-layout="workspace"] h3{font-size:15px;margin:0}
+.saga-modal[data-layout="workspace"] p.hint{margin:0;font-size:11px!important;line-height:1.35}
+.realm-resource{display:flex;align-items:center;gap:5px;color:#dbc1ff;font-weight:bold}.realm-resource .icon{width:24px;height:24px}
+.saga-modal .realm-banner{margin:0;min-height:70px;justify-content:center;padding:10px 12px 10px 70px}
+.realm-banner::before{content:'ᛟ';position:absolute;left:14px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:44px;height:58px;border:2px solid #bd9bf2;border-radius:50% 50% 35% 35%;background:radial-gradient(ellipse,#a278ff99,#2c1457);box-shadow:0 0 18px #a164ff55,inset 0 0 10px #d2b6ff66;color:#e7cfff;font:30px Georgia}
+.saga-modal .realm-banner strong{font-size:18px}.saga-modal .realm-banner small{font-size:10px;letter-spacing:.7px}
+.saga-modal .floor-strip{margin:0;gap:4px}.saga-modal .floor-strip button{min-height:44px;font-size:17px}.saga-modal .floor-strip button:first-child,.saga-modal .floor-strip button:last-child{flex-basis:30px}
+.saga-modal .room-track{margin:0;gap:5px}.saga-modal .room-track>div{padding:5px 3px}.saga-modal .room-track .room-art{height:clamp(40px,9dvh,82px)}.saga-modal .room-track img{max-height:100%}
+.saga-modal .room-track b{font-size:11px}.saga-modal .room-track small{font-size:10px}
+.saga-modal .bless-grid button{padding:6px 3px;gap:3px;min-height:83px}.saga-modal .bless-grid .icon{width:24px;height:24px}.saga-modal .bless-grid strong{font-size:12px}.saga-modal .bless-grid small{font-size:10px;line-height:1.2}
+/* An oval composition preserves twelve 44px targets without consuming the catalog. */
+.saga-modal .dark-ring{width:min(100%,350px);height:clamp(202px,34dvh,280px);aspect-ratio:auto;margin:0 auto;border-radius:45%}
+.saga-modal .dark-slot{width:44px;min-width:44px;height:44px;aspect-ratio:1;border-radius:9px}
+.saga-modal .dark-core{inset:24% 32%;border-radius:40%}.saga-modal .dark-core span{bottom:-6px}
+.saga-modal .dark-store-head{margin:0}.saga-modal .storage-scroll{border-top:1px solid #68577966;background:#0d101b66;border-radius:6px}
+.saga-modal .dark-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;padding:2px}.saga-modal .dark-grid button{min-height:44px}
+.saga-modal .relic-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:2px}.saga-modal .relic-grid .icon{width:42px;height:42px}.saga-modal .relic-grid strong{font-size:11px;min-height:28px}.saga-modal .relic-grid small{font-size:10px}
+.saga-modal .relic-progress{margin:0}.saga-modal .squad-active{gap:8px}.saga-modal .squad-active button{display:grid;grid-template-columns:50px minmax(0,1fr);column-gap:5px;text-align:left;justify-items:start;padding:5px}
+.saga-modal .squad-active img{height:68px;width:50px;grid-row:1/4;align-self:center}.saga-modal .squad-active strong{font-size:12px;overflow-wrap:anywhere}.saga-modal .squad-active small{font-size:9px;letter-spacing:1px}.saga-modal .squad-active span{font-size:10px}
+.saga-modal .squad-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:2px}.saga-modal .squad-grid button{aspect-ratio:.88;min-height:64px}.saga-modal .squad-grid small{font-size:11px}
+/* A native modal is independent of the catalog's layout and scroll offset. */
+.context-card{box-sizing:border-box;position:fixed;inset:0;margin:auto;width:min(510px,calc(100% - 24px));max-width:none;max-height:calc(100dvh - max(24px,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px)) - max(24px,env(safe-area-inset-bottom),var(--tg-safe-area-inset-bottom,0px),var(--tg-content-safe-area-inset-bottom,0px)));padding:0;border:1px solid #b29866;border-radius:12px;background:#131c25;color:#ecdfc7;box-shadow:0 18px 70px #000b;overflow:hidden;font:14px/1.4 Arial,sans-serif}
+.context-card[open]{display:flex;flex-direction:column}.context-card::backdrop{background:#03070cce}
+.context-header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;padding:8px 10px 8px 14px;background:linear-gradient(110deg,#383026,#121b22);border-bottom:1px solid #7e6b4b}
+.saga-modal .context-header h3{font:700 19px/1.2 Georgia,serif;margin:0;overflow-wrap:anywhere;color:#f2dfbc}
+.context-close{min-width:44px;width:44px;height:44px;flex-shrink:0;font-size:26px;border:1px solid #99825a;border-radius:5px;background:#14202a;color:#ebd9b5}
+.context-body{padding:12px;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin}
+.context-actions{padding:8px 12px;flex-shrink:0;border-top:1px solid #796442;background:#101821}.saga-modal .context-actions .action{margin:0 0 6px;min-height:44px;padding:8px;font-size:12px}.saga-modal .context-actions .dark-actions{gap:6px}
+.context-status:empty{display:none}.context-status{padding:5px 12px;font-size:11px;color:#e8d4a6;flex-shrink:0}.context-status[role="alert"]{color:#ffc0b1}
+.saga-modal .context-card .relic-detail,.saga-modal .context-card .pet-card{margin:0;padding:8px}
+.dark-compare{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.dark-compare h4{margin:4px 0 6px;color:#c8b790;font-size:12px}
+.dark-compare .dark-card{grid-template-columns:1fr;justify-items:center;align-items:start}.dark-compare .dark-card>div{min-width:0;overflow-wrap:anywhere}.saga-modal .compare-tabs{display:none}
+.saga-modal .growth-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:10px 0}.saga-modal .growth-tabs button{font-size:10px;min-width:0;padding:6px 2px;overflow-wrap:anywhere}
+.saga-modal .pet-head{grid-template-columns:68px minmax(0,1fr);gap:8px}.saga-modal .pet-portrait{height:75px}.saga-modal .pet-portrait img{max-height:74px;max-width:68px}.saga-modal .pet-head h3{font-size:16px}.saga-modal .pet-head p{font-size:11px!important}
+.saga-modal .dialog-status{flex-shrink:0}.saga-modal .dialog-status:not(:empty){max-height:62px;overflow:auto}.saga-modal:has(dialog[open])>.dialog-status{display:none}
+.saga-modal[data-panel="port"] .harbor-scene{min-height:175px;height:clamp(175px,30dvh,260px);max-height:260px;aspect-ratio:auto;margin:0}
+.saga-modal[data-panel="port"] .harbor-quicklinks{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0}
+.saga-modal[data-panel="port"] .harbor-quicklinks button{font-size:11px;min-height:51px;padding:5px;gap:4px;flex-direction:column;text-align:center}.saga-modal[data-panel="port"] .harbor-quicklinks .icon{width:24px;height:24px}
+.saga-modal .mine-summary{font-size:12px;color:#cbb88f;margin:0 0 6px}.saga-modal .workshop-back{margin:0 0 8px;text-align:left;width:auto;font-size:12px;min-height:40px}
+@media(max-width:374px){.saga-modal .dark-ring{height:202px}.dark-compare{display:block}.saga-modal .compare-tabs{display:flex;margin:6px 0}.dark-compare[data-compare="new"] .compare-worn,.dark-compare[data-compare="worn"] .compare-new{display:none}.dark-compare .dark-card{grid-template-columns:44px minmax(0,1fr);justify-items:stretch}.saga-modal .modal-header h2{overflow-wrap:anywhere}.saga-modal .context-header h3{font-size:17px}}
+@media(max-height:690px){.saga-modal .dark-ring{height:202px}.saga-modal .realm-banner{min-height:55px;padding-top:6px;padding-bottom:6px}.saga-modal .realm-banner::before{height:44px}.saga-modal .realm-banner span{display:none}.saga-modal .room-track .room-art{height:40px}.saga-modal .bless-grid button{min-height:75px}.saga-modal .bless-grid .icon{width:20px;height:20px}.saga-modal[data-layout="workspace"] .panel-content>div{gap:6px}.saga-modal .squad-passive{font-size:10px!important}}
+.saga-modal .room-track .room-art{overflow:hidden}.saga-modal .room-track img{height:100%;width:100%;max-height:100%;object-fit:contain}
+.saga-modal .realm:not(:has(.live)) .realm-banner{flex:1 1 90px;max-height:170px}
+.saga-modal .squad-bonus{font-size:11px;line-height:1.3;padding:6px 8px;border:1px solid #665239;border-radius:6px;color:#e3cb9a;background:#1d1b22}
+.context-card{top:max(12px,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px));bottom:max(12px,env(safe-area-inset-bottom),var(--tg-safe-area-inset-bottom,0px),var(--tg-content-safe-area-inset-bottom,0px));max-height:calc(100dvh - max(24px,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px)) - max(24px,env(safe-area-inset-bottom),var(--tg-safe-area-inset-bottom,0px),var(--tg-content-safe-area-inset-bottom,0px)))}
+.saga-modal .context-actions .awaken-list{margin-top:0}.saga-modal .context-actions .awaken-list b{display:none}.saga-modal .context-actions .action:last-child{margin-bottom:0}
+@media(max-height:690px){.saga-modal .realm:not(:has(.live)) .realm-banner{max-height:90px}}
+.saga-modal .dark-ring::before{pointer-events:none}.saga-modal .dark-slot{z-index:1}.saga-modal .dark-slot:active:not(:disabled){transform:translate(-50%,-50%) translateY(1px)}
+/* Transaction feedback floats over content so a successful action never moves a catalog. */
+.saga-modal[data-layout="workspace"]>.dialog-status{position:absolute;z-index:5;left:10px;right:10px;bottom:68px;pointer-events:none}
+@media(max-width:374px){.saga-modal .growth-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.saga-modal .growth-tabs button{font-size:11px;min-height:38px;overflow-wrap:normal}}
