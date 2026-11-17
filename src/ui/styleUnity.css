@@ -1,13 +1,15 @@
 /* Style unity · inner windows share the bright cartoon-fantasy tone of the PvE battle screen.
    Visual only: no layout, control, text or game-state change. The Dark Realm keeps its own purple atmosphere. */
 :root{--unity-harbor:url('../../public/art/windows/harbor.webp');--unity-city:url('../../public/art/world-city.webp');--unity-sky:url('../../public/art/world-mountains.webp')}
-.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]){--saga-cloth:linear-gradient(#25425ccf,#25425ccf),url('../../public/art/saga/velvet.webp');--saga-iron:linear-gradient(#1c2b38b3,#1c2b38b3),url('../../public/art/saga/forged.webp');background:var(--saga-cloth),#24405a;background-size:384px 256px;box-shadow:0 0 0 3px #1d2a33,0 0 0 4px #8a7550,0 25px 100px #0008,inset 0 0 0 5px #142636}
-.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .modal-body{background:radial-gradient(ellipse 90% 220px at 50% 0,#a9dcff2e,transparent),linear-gradient(transparent 55%,#14263a40)}
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]){--saga-cloth:linear-gradient(#25425ccf,#25425ccf),url('../../public/art/saga/velvet.webp');--saga-iron:linear-gradient(#1c2b38b3,#1c2b38b3),url('../../public/art/saga/forged.webp')}
+/* The backpack keeps its approved walnut chest frame; only its item lining is lifted. */
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]){background:var(--saga-cloth),#24405a;background-size:384px 256px;box-shadow:0 0 0 3px #1d2a33,0 0 0 4px #8a7550,0 25px 100px #0008,inset 0 0 0 5px #142636}
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]) .modal-body{background:radial-gradient(ellipse 90% 220px at 50% 0,#a9dcff2e,transparent),linear-gradient(transparent 55%,#14263a40)}
 /* Warm, lighter carved wood like the battle HUD tray instead of near-black planks. */
-.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .modal-header{background:linear-gradient(100deg,#ffd9a01f,#0002),var(--saga-oak);background-size:auto,540px 270px;border-bottom-color:#2a1c12}
-.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .modal-footer{background:linear-gradient(#ffd9a01a,#0003),var(--saga-oak);background-size:auto,540px 270px;border-top-color:#2a1c12}
-.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .modal-footer button{background:#1e3346e6}
-.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .dialog-status{background:#1b3043}
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]) .modal-header{background:linear-gradient(100deg,#ffd9a01f,#0002),var(--saga-oak);background-size:auto,540px 270px;border-bottom-color:#2a1c12}
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]) .modal-footer{background:linear-gradient(#ffd9a01a,#0003),var(--saga-oak);background-size:auto,540px 270px;border-top-color:#2a1c12}
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]) .modal-footer button{background:#1e3346e6}
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]) .dialog-status{background:#1b3043}
 /* Scene banners: the game's own stylized paintings instead of the realistic night atlas. */
 .saga-modal .saga-scene.scene-chest{background:var(--unity-harbor) 100% 39%/200% auto no-repeat,#9cc3e0}
 .saga-modal .saga-scene.scene-moon,.saga-modal .saga-scene.scene-gold{background:var(--unity-city) 22% 74%/auto 215% no-repeat,var(--unity-sky) 40% 30%/auto 175% no-repeat,#5aa7e6}
