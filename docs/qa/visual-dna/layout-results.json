@@ -1,0 +1,278 @@
+[
+  {
+    "width": 320,
+    "height": 640,
+    "panel": "realm",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 71,
+      "bottom": 630
+    },
+    "local": null
+  },
+  {
+    "width": 320,
+    "height": 640,
+    "panel": "darkgear",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 71,
+      "bottom": 630
+    },
+    "local": {
+      "height": 143,
+      "scroll": 664
+    }
+  },
+  {
+    "width": 320,
+    "height": 640,
+    "panel": "companions",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 71,
+      "bottom": 630
+    },
+    "local": {
+      "height": 215,
+      "scroll": 215
+    }
+  },
+  {
+    "width": 320,
+    "height": 640,
+    "panel": "relic",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 71,
+      "bottom": 630
+    },
+    "local": {
+      "height": 350,
+      "scroll": 436
+    }
+  },
+  {
+    "width": 320,
+    "height": 640,
+    "panel": "port",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 84.03125,
+      "bottom": 630
+    },
+    "local": null
+  },
+  {
+    "width": 360,
+    "height": 740,
+    "panel": "realm",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 71,
+      "bottom": 730
+    },
+    "local": null
+  },
+  {
+    "width": 360,
+    "height": 740,
+    "panel": "darkgear",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 71,
+      "bottom": 730
+    },
+    "local": {
+      "height": 211,
+      "scroll": 760
+    }
+  },
+  {
+    "width": 360,
+    "height": 740,
+    "panel": "companions",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 71,
+      "bottom": 730
+    },
+    "local": {
+      "height": 272,
+      "scroll": 272
+    }
+  },
+  {
+    "width": 360,
+    "height": 740,
+    "panel": "relic",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 71,
+      "bottom": 730
+    },
+    "local": {
+      "height": 450,
+      "scroll": 450
+    }
+  },
+  {
+    "width": 360,
+    "height": 740,
+    "panel": "port",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 68,
+      "bottom": 730
+    },
+    "local": null
+  },
+  {
+    "width": 390,
+    "height": 780,
+    "panel": "realm",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 74,
+      "bottom": 767
+    },
+    "local": null
+  },
+  {
+    "width": 390,
+    "height": 780,
+    "panel": "darkgear",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 74,
+      "bottom": 767
+    },
+    "local": {
+      "height": 231,
+      "scroll": 817
+    }
+  },
+  {
+    "width": 390,
+    "height": 780,
+    "panel": "companions",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 74,
+      "bottom": 767
+    },
+    "local": {
+      "height": 311,
+      "scroll": 311
+    }
+  },
+  {
+    "width": 390,
+    "height": 780,
+    "panel": "relic",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 74,
+      "bottom": 767
+    },
+    "local": {
+      "height": 484,
+      "scroll": 484
+    }
+  },
+  {
+    "width": 390,
+    "height": 780,
+    "panel": "port",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 71,
+      "bottom": 767
+    },
+    "local": null
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "panel": "realm",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 98,
+      "bottom": 895
+    },
+    "local": null
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "panel": "darkgear",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 98,
+      "bottom": 895
+    },
+    "local": {
+      "height": 316,
+      "scroll": 913
+    }
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "panel": "companions",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 98,
+      "bottom": 895
+    },
+    "local": {
+      "height": 398,
+      "scroll": 398
+    }
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "panel": "relic",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 98,
+      "bottom": 895
+    },
+    "local": {
+      "height": 588,
+      "scroll": 588
+    }
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "panel": "port",
+    "outerOverflow": 0,
+    "horizontal": 0,
+    "body": {
+      "top": 95,
+      "bottom": 895
+    },
+    "local": null
+  }
+]

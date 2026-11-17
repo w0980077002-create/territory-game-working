@@ -32,6 +32,7 @@ export function DialogShell({panel,title,children,footer,rarity,dismissible=true
  },[]);
  useEffect(()=>{ref.current?.focus({preventScroll:true});if(body.current)body.current.scrollTop=0},[panel]);
  const keyDown=(e:React.KeyboardEvent)=>{
+  if((e.target as HTMLElement).closest('dialog'))return;
   if(dismissible&&e.key==='Escape'&&!document.querySelector(':popover-open')){e.stopPropagation();close(null)}
   if(e.key!=='Tab')return;
   const controls=Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),select,input:not(:disabled):not([hidden]),textarea,a[href],summary,[tabindex="0"]')??[]).filter(el=>el.getClientRects().length);
@@ -40,13 +41,15 @@ export function DialogShell({panel,title,children,footer,rarity,dismissible=true
   if(e.shiftKey&&(active===first||active===ref.current||!ref.current?.contains(active))){e.preventDefault();last?.focus()}
   else if(!e.shiftKey&&(active===last||active===ref.current||!ref.current?.contains(active))){e.preventDefault();first.focus()}
  };
- const showScene=!['inventory','item','autobattle','menu','controls','battle','equipment','hero'].includes(panel)&&!panel.startsWith('gear:');
+ const harborBack=['shipyard','forge','blessing','talents','realm','darkgear','gems','relic','companions'].includes(panel);
+ const workspace=['realm','darkgear','companions','relic','port'].includes(panel);
+ const showScene=['shop','collection','events'].includes(panel);
  return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClick={e=>{if(dismissible&&e.target===e.currentTarget)close(null)}} onKeyDown={keyDown}>
-  <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
-   <header className="modal-header"><div className="header-seal"><Icon name={atmospheres[kind][2]}/></div><div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&<button className="close" onClick={()=>close(null)} aria-label="Закрыть">×</button>}</header>
+  <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} data-layout={workspace?'workspace':undefined} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
+   <header className="modal-header">{harborBack?<button className="harbor-back" aria-label="‹ В гавань" title="В гавань" onClick={()=>close('port')}>‹</button>:<div className="header-seal"><Icon name={atmospheres[kind][2]}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&<button className="close" onClick={()=>close(null)} aria-label="Закрыть">×</button>}</header>
    <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status">{toast}</div>}</div>
    <div className="modal-body" ref={body} key={panel}>{showScene&&<Scene kind={kind} panel={panel}/>}<div className="panel-content">{children}</div></div>
-   {footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/>
+   {!workspace&&footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/>
   </section>
  </div>,document.body);
 }
@@ -69,4 +72,17 @@ export function LevelUpFeedback(){
  useEffect(()=>{if(level>previous.current)setAward({level,points:level-previous.current});previous.current=level},[level]);
  useEffect(()=>{if(award===null)return;const timer=setTimeout(()=>setAward(null),2600);return()=>clearTimeout(timer)},[award]);
  return award===null?null:createPortal(<div className="level-award" data-motion={reduced?'reduced':undefined} role="status" key={award.level}><span aria-hidden="true">✦</span><div><small>ЛЕГЕНДА РАСТЁТ</small><strong>Уровень {award.level}</strong><p>Характеристики выросли · +{award.points} к талантам</p></div><span aria-hidden="true">✦</span></div>,document.body);
+}
+
+/** Native top layer keeps the catalog mounted, locks its input and restores focus on close. */
+export function CardDialog({title,onClose,children,actions,className=''}:{title:string;onClose:()=>void;children:React.ReactNode;actions?:React.ReactNode;className?:string}){
+ const openingToastId=useRef(useGame.getState().toastId);
+ const ref=useRef<HTMLDialogElement>(null),id=useId(),toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError);
+ useEffect(()=>{useGame.getState().dismissNotice(openingToastId.current);const dialog=ref.current!;dialog.showModal();return()=>dialog.close()},[]);
+ return <dialog ref={ref} className={`context-card ${className}`} aria-labelledby={id} onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose()}}}>
+  <header className="context-header"><h3 id={id}>{title}</h3><button autoFocus className="context-close" aria-label="Закрыть карточку" onClick={onClose}>×</button></header>
+  <div className="context-body">{children}</div>
+  <div className="context-status" role={storageError?'alert':'status'}>{storageError?'Не удалось сохранить. Освободите место в браузере.':toast}</div>
+  {actions&&<footer className="context-actions">{actions}</footer>}
+ </dialog>;
 }

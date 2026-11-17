@@ -1,7 +1,7 @@
 import type {CSSProperties} from 'react';
 import './harbor.css';
 type Ship={id:string;level:number};
-type Destination='shipyard'|'forge'|'inventory';
+type Destination='shipyard'|'forge'|'inventory'|'blessing'|'companions'|'talents'|'relic'|'realm'|'darkgear'|'gems';
 type Props={view:'port'|'shipyard';ships:readonly Ship[];selectedShipId?:string;onNavigate?:(id:Destination)=>void;onChooseShip?:(id:string)=>void};
 const berths=[{x:205,y:371,left:'23%'},{x:452,y:373,left:'50%'},{x:698,y:370,left:'77%'}] as const;
 function Drakkar({x,y,level,index}:{x:number;y:number;level:number;index:number}){
@@ -28,7 +28,7 @@ function Drakkar({x,y,level,index}:{x:number;y:number;level:number;index:number}
 export function HarborScene({view,ships,selectedShipId,onNavigate,onChooseShip}:Props){
  const yard=view==='shipyard';
  return <section className={'harbor-scene harbor-'+view} aria-label={yard?'Верфь драккаров':'Северная гавань'}>
-  <svg className="harbor-art" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  {yard&&<svg className="harbor-art" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
    <defs>
     <linearGradient id="harborSky" x2="0" y2="1"><stop stopColor="#203e64"/><stop offset=".58" stopColor="#83a3af"/><stop offset="1" stopColor="#d4ab76"/></linearGradient>
     <linearGradient id="harborSea" x2="0" y2="1"><stop stopColor="#69a5b5"/><stop offset=".54" stopColor="#36738a"/><stop offset="1" stopColor="#11384c"/></linearGradient>
@@ -56,16 +56,15 @@ export function HarborScene({view,ships,selectedShipId,onNavigate,onChooseShip}:
    <g fill="#ffda83"><circle cx="104" cy="372" r="11"/><circle cx="664" cy="379" r="11"/></g>
    {berths.map((b,i)=>ships[i]?<Drakkar key={ships[i].id} x={b.x} y={b.y} level={ships[i].level} index={i}/>:yard?<path key={'berth'+i} d={'M'+(b.x-73)+' '+(b.y+20)+'q73 19 146 0'} fill="none" stroke="#d7b37a" strokeWidth="7" strokeDasharray="14 10" opacity=".65"/>:null)}
    <path d="m40 165 32 12-32 12Zm830 17 25 9-25 10Z" fill="#b74742" stroke="#51372e" strokeWidth="3"/>
-  </svg>
+  </svg>}
+  {!yard&&<><div className="harbor-aurora" aria-hidden="true"/><div className="harbor-smoke" aria-hidden="true"/><div className="harbor-reflections" aria-hidden="true"/><svg className="harbor-live-fleet" viewBox="0 0 900 500" aria-hidden="true">{berths.map((b,i)=>ships[i]?<Drakkar key={ships[i].id} x={b.x} y={b.y} level={ships[i].level} index={i}/>:null)}</svg></>}
   <div className="harbor-title"><small>ᚠ ᚢ ᚦ</small><strong>{yard?'Верфь драккаров':'Северная гавань'}</strong></div>
   {yard?<div className="harbor-boat-buttons">
    {berths.map((b,i)=>ships[i]?<button key={ships[i].id} style={{left:b.left} as CSSProperties} type="button" className={'harbor-boat-pick'+(selectedShipId===ships[i].id?' selected':'')} onClick={()=>onChooseShip?.(ships[i].id)} aria-pressed={selectedShipId===ships[i].id} aria-label={'Выбрать драккар '+(i+1)+', уровень '+ships[i].level}>
      Драккар {i+1}<b>ур. {ships[i].level}</b>
    </button>:<span key={'free'+i} className="harbor-empty" style={{left:b.left} as CSSProperties}>Причал {i+1}</span>)}
   </div>:<nav className="harbor-links" aria-label="Постройки гавани">
-   <button className="harbor-forge-link" type="button" onClick={()=>onNavigate?.('forge')}>⚒ Кузница</button>
-   <button className="harbor-yard-link" type="button" onClick={()=>onNavigate?.('shipyard')}>⚓ Верфь</button>
-   <button className="harbor-pack-link" type="button" onClick={()=>onNavigate?.('inventory')}>▣ Рюкзак</button>
+   {([['blessing','Благословение',22,15],['talents','Таланты',50,23],['companions','Спутники',49,34],['forge','⚒ Кузница',22,46],['inventory','▣ Рюкзак',78,46],['relic','Реликвии',20,62],['shipyard','⚓ Верфь',77,64],['realm','Царство тьмы',22,85],['darkgear','Тёмная энергия',75,85],['gems','Самоцветы',78,15]] as const).map(([id,label,x,y])=><button key={id} className={'harbor-building harbor-building-'+id} style={{left:x+'%',top:y+'%'}} type="button" onClick={()=>onNavigate?.(id)}>{label}</button>)}
   </nav>}
  </section>;
 }
