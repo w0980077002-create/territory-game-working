@@ -17,7 +17,7 @@ import {resources,resCount,duskCount,type ResId,bonusLines,statNames,statText,
  relics,relicIds,relicLevel,relicRarity,relicColors,relicUnlockCost,relicUpgradeCost,relicCollection,RELIC_MAX,type RelicId,
  squadBonus,companions,companionIds,companionRarity,companionColors,squadState,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,talentDefs,talentPoints,talentSpent,TALENT_MAX,summonTable,SUMMON,powerParts} from '../dark/rules';
 import {blessings,blessingIds,realmRun,realmLast,realmSelected,roomReward,floorName,lordFloor,floorBoss,floorKeeper,roomTitles,REALM_COST,ROOMS,type BlessingId,type RealmTotals} from '../dark/realm';
-import {realmSelect,realmStart,realmResume,realmAbandon,darkEquip,darkUnequip,darkUpgrade,darkLock,darkSalvage,darkSalvageMany,darkBulkList,
+import {realmSelect,realmStart,realmResume,realmAbandon,darkEquip,darkUnequip,darkUpgrade,darkEquippedUpgradePlan,darkUpgradeEquipped,darkLock,darkSalvage,darkSalvageMany,darkBulkList,
  gemInsert,gemRemove,gemSynth,gemSynthAll,gemBuy,relicUnlock,relicUpgrade,summon,petLevel,petLevelCost,petStar,petAwaken,petTalent,petTalentReset,petActivate,type SummonResult} from '../dark/actions';
 import './dark.css';
 const fmt=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
@@ -76,6 +76,7 @@ function DarkCard({item,against,preview=false}:{item:DarkItem;against?:DarkItem|
 export function DarkGearPanel({p}:{p:Player}){
  const state=darkState(p),[slot,setSlot]=useState<number|null>(null),[picked,setPicked]=useState<string|null>(null),[confirm,setConfirm]=useState<string|null>(null),[bulk,setBulk]=useState(1),[filterSlot,setFilterSlot]=useState<number|null>(null),[detail,setDetail]=useState(false),[utility,setUtility]=useState<'bulk'|'power'|null>(null),[compare,setCompare]=useState('new');
  const equipped=slot!==null?state.eq[slot]:null,list=state.inv.filter(i=>filterSlot===null||i.s===filterSlot).sort((a,b)=>darkScore(b)-darkScore(a)),item=state.inv.find(i=>i.id===picked),count=state.eq.filter(Boolean).length,bonus=darkBonus(p),effects=darkEffectTotals(p),heroId={berserker:'winged_helmet_warrior',ranger:'strongman_boulder',runologist:'whitebeard_mage'}[p.heroClass];
+ const oneClick=darkEquippedUpgradePlan(p);
  const upgradePreview=(i:DarkItem)=><div className="bonus-card"><span>{statNames[darkSlots[i.s].stat]}: {statText(darkSlots[i.s].stat,darkValue(i))}{i.u<darkMaxUpgrade(i.r)&&<> → <b className="positive">{statText(darkSlots[i.s].stat,darkValue({...i,u:i.u+1}))}</b> после усиления</>}</span></div>;
  const upgradeRow=(i:DarkItem)=>{const c=darkUpgradeCost(i),maxed=i.u>=darkMaxUpgrade(i.r);return <Btn disabled={maxed||resCount(p,'ess')<c.ess||p.gold<c.gold||duskCount(p)<c.dusk} onClick={()=>darkUpgrade(i.id)}>{maxed?'Предел усиления':`Усилить до +${i.u+1} · ${c.ess} эссенции · ${fmt(c.gold)} золота${c.dusk?' · 1 Камень Сумрака':''}`}</Btn>};
  const salvage=(i:DarkItem)=>{if((i.r>=3||i.u>0)&&confirm!==i.id){setConfirm(i.id);return}if(darkSalvage(i.id)){setPicked(null);setConfirm(null);setDetail(false)}};
@@ -85,6 +86,7 @@ export function DarkGearPanel({p}:{p:Player}){
    {darkSlots.map((def,s)=>{const it=state.eq[s],pos=[[27,10],[50,8],[73,10],[12,30],[88,30],[8,52],[92,52],[12,75],[88,75],[28,91],[50,93],[72,91]][s];return <button key={s} className={`dark-slot ${slot===s?'selected':''} ${it?'':'empty'}`} style={{left:`${pos[0]}%`,top:`${pos[1]}%`,'--rarity':it?darkColors[it.r]:'#4b4763'} as React.CSSProperties} aria-label={`${def.name}${it?` · ${darkRarity[it.r]} +${it.u}`:' · пусто'}`} aria-pressed={slot===s} onClick={()=>{setSlot(s);setPicked(null);setConfirm(null);setDetail(true);setCompare('new')}}><Icon name={def.icon}/>{it&&<small>+{it.u}</small>}{!it&&state.inv.some(i=>i.s===s)&&<i>!</i>}</button>})}
   </div>
   <div className="altar-divider" aria-hidden="true"><span>ᚠ</span><i/><b>ТЁМНАЯ ЭНЕРГИЯ</b><i/><span>ᚦ</span></div>
+  <div className="dark-one-click"><button className="action" disabled={!oneClick.count} onClick={()=>darkUpgradeEquipped()}>Усилить в один клик</button><small>{oneClick.count?`${oneClick.count}/12 · ${fmt(oneClick.ess)} эссенции · ${fmt(oneClick.gold)} золота${oneClick.dusk?` · ${oneClick.dusk} кам.`:''}`:'Нет доступных улучшений'}</small></div>
   {detail&&(item||slot!==null)&&<CardDialog className={item?'parchment-comparison':undefined} title={item?'Сравнение экипировки':darkSlots[slot!].name} onClose={()=>{setDetail(false);setConfirm(null)}} actions={item?<>
    <Btn onClick={()=>{if(darkEquip(item.id)){setDetail(false);setPicked(null)}}}>Надеть</Btn>{upgradeRow(item)}
    {confirm===item.id&&<p className="dark-confirm" role="alert">Разобрать «{darkName(item)}»? Предмет исчезнет · +{darkSalvageValue(item)} эссенции.</p>}
