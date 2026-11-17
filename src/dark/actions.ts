@@ -42,6 +42,34 @@ export function darkUpgrade(id:string){
  return tx(p=>{const i=findDark(p,id),c=cost(p);return !i||!c?'Предмет не найден':i.u>=darkMaxUpgrade(i.r)?'Достигнут предел усиления':resCount(p,'ess')<c.ess?`Нужно ${c.ess} Тёмной эссенции`:p.gold<c.gold?'Недостаточно золота':duskCount(p)<c.dusk?'Нужен Камень Сумрака':null},
   p=>{const box=darkBox(p),item=box.inv.find(i=>i.id===id)??box.eq.find(i=>i?.id===id)!,c=darkUpgradeCost(item);addRes(p,'ess',-c.ess);p.gold-=c.gold;if(c.dusk)addDusk(p,-c.dusk);item.u++;bumpCount(p,'dark:upgrade')},'Усиление успешно!');
 }
+/** Affordable one-level upgrades across the 12 worn Dark Energy slots, in slot order.
+ * Preview and transaction use the same plan; missing resources simply leave later slots unchanged.
+ */
+export function darkEquippedUpgradePlan(p:Player){
+ let essence=resCount(p,'ess'),gold=p.gold,dusk=duskCount(p);
+ const ids:string[]=[];let spentEss=0,spentGold=0,spentDusk=0;
+ for(const i of darkState(p).eq){
+  if(!i||i.u>=darkMaxUpgrade(i.r))continue;
+  const c=darkUpgradeCost(i);
+  if(essence<c.ess||gold<c.gold||dusk<c.dusk)continue;
+  ids.push(i.id);essence-=c.ess;gold-=c.gold;dusk-=c.dusk;
+  spentEss+=c.ess;spentGold+=c.gold;spentDusk+=c.dusk;
+ }
+ return {ids,count:ids.length,ess:spentEss,gold:spentGold,dusk:spentDusk};
+}
+/** One press = at most one level per equipped item and one persisted wallet transaction. */
+export function darkUpgradeEquipped(){
+ let upgraded=0;
+ const ok=tx(p=>darkEquippedUpgradePlan(p).count?null:'Нет доступных усилений: проверьте материалы и уровни предметов',
+  p=>{
+   const plan=darkEquippedUpgradePlan(p),box=darkBox(p),chosen=new Set(plan.ids);
+   for(const i of box.eq)if(i&&chosen.has(i.id))i.u++;
+   addRes(p,'ess',-plan.ess);p.gold-=plan.gold;if(plan.dusk)addDusk(p,-plan.dusk);
+   upgraded=plan.count;bumpCount(p,'dark:upgrade',upgraded);
+  });
+ if(ok)G().notice(`Усилено предметов Тёмной энергии: ${upgraded}`);
+ return ok;
+}
 export function darkLock(id:string){return tx(p=>findDark(p,id)?null:'Предмет не найден',p=>{const box=darkBox(p),item=box.inv.find(i=>i.id===id)??box.eq.find(i=>i?.id===id)!;item.k=!item.k})}
 export function darkSalvage(id:string){
  let gain=0;return tx(p=>{const i=darkState(p).inv.find(x=>x.id===id);return !i?'Разобрать можно только предмет со склада':i.k?'Предмет защищён · сначала снимите замок':null},
