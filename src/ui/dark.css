@@ -110,3 +110,9 @@
 .dark-hub .icon{width:28px;height:28px}.dark-hub strong{font-size:10px;line-height:1.1;text-align:center}.dark-hub small{font-size:9px;color:#a9a3c4;line-height:1.1;text-align:center}
 [data-motion="reduced"] .realm-banner::after,[data-motion="reduced"] .dark-ring::before,[data-motion="reduced"] .pet-portrait.awake{animation:none}
 @media (prefers-reduced-motion:reduce){.realm-banner::after,.dark-ring::before,.pet-portrait.awake,.realm-result,.summon-results span{animation:none}}
+
+/* Compact, actually paid one-click Dark Energy upgrade, outside the battle HUD. */
+.dark-one-click{display:flex;align-items:center;gap:9px;justify-content:center;margin:1px 0 5px;padding:3px 7px;border-radius:8px;background:#151322a8;border:1px solid #65519366}
+.dark-one-click>.action{min-height:36px;flex:0 0 auto;padding:6px 10px;font-size:12px;white-space:nowrap}
+.dark-one-click>small{font-size:11px;line-height:1.25;color:#e6d6a5;flex:1;min-width:0}
+@media(max-width:355px){.dark-one-click{gap:5px;padding:3px}.dark-one-click>.action{padding:5px 7px;font-size:11px}.dark-one-click>small{font-size:10px}}
