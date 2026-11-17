@@ -139,3 +139,12 @@ test('auras really change the fight: blessing, veil, aegis, gap, thorns, reducti
  give(p=>{const q=R.squadBox(p);q.own.senior_driller.lv=3;q.act[0]='senior_driller'});b.tuneTeam();const def=b.foeDef(b.units[0]);b.hit(b.units[0],5,false,'#fff','goose');assert.ok(b.foeDef(b.units[0])<def,'the driller wears armour down');
  give(p=>{const q=R.squadBox(p);q.own.capybara_bruiser.lv=2;q.act[1]='capybara_bruiser'});b.tuneTeam();b.shield=0;b.guardianAid();assert.equal(b.shield,Math.round(b.maxHp*.06));
 });
+
+test('dark realm result acknowledgement survives panel remount and reload',()=>{
+ give(p=>{realm.realmBox(p).last={...realm.emptyTotals(),f:1,win:true,rooms:3,first:true}});
+ assert.equal(realm.realmLast(P())!.ack,false,'old saves without an ack remain readable');
+ assert.equal(A.realmAcknowledge(),true);
+ assert.equal(realm.realmLast(reload())!.ack,true,'dismissed result remains dismissed after reload');
+ assert.equal(A.realmAcknowledge(),false,'double tap cannot acknowledge twice');
+ assert.equal(realm.realmLast(P())!.win,true,'historical result stays available for recovery');
+});

@@ -8,7 +8,7 @@ import {battle} from '../game/Battle';
 import {haptic} from '../core/telegram';
 import {matKey,matCount,materials} from '../saga/gear';
 import {bumpCount} from '../saga/save';
-import {realmRun,realmBox,realmDefeat,blessingIds,REALM_COST,emptyTotals,type BlessingId} from './realm';
+import {realmRun,realmLast,realmBox,realmDefeat,blessingIds,REALM_COST,emptyTotals,type BlessingId} from './realm';
 import {resCount,addRes,duskCount,addDusk,darkState,darkBox,darkUpgradeCost,darkMaxUpgrade,darkSalvageValue,darkName,DARK_STORAGE,
  gemState,gemBox,parseGem,gemCode,gemSynthGold,gemSlots,socketOpen,rollGem,gemLabel,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicLevel,relicUnlockCost,relicUpgradeCost,RELIC_MAX,type RelicId,
@@ -33,6 +33,12 @@ export function realmStart(floor:number,blessing:BlessingId){
 /** Returns to a run that was interrupted by another mode. Free: the entry was paid at the start. */
 export function realmResume(){const p=G().p;if(!battle||!realmRun(p))return false;const wait=trophyWaiting(p);if(wait)return fail(wait);battle.enterRealm();return true}
 export function realmAbandon(){if(battle?.mode==='darkness')battle.leaveRealm();return tx(p=>realmRun(p)?null:'Поход уже завершён',p=>{realmDefeat(p)},'Поход завершён · добытое сохранено')}
+/** Persist result acknowledgement: closing the realm panel must never replay an old victory. */
+export function realmAcknowledge(){
+ const last=realmLast(G().p);if(!last||last.ack)return false;let changed=false;
+ const saved=G().mutate(p=>{const box=realmBox(p);if(!box.last||box.last.ack)return;box.last.ack=true;changed=true});
+ return !!saved&&changed;
+}
 // ── Dark Energy ──
 const findDark=(p:Player,id:string)=>{const s=darkState(p);return s.inv.find(i=>i.id===id)??s.eq.find(i=>i?.id===id)??undefined};
 export function darkEquip(id:string){return tx(p=>darkState(p).inv.some(i=>i.id===id)?null:'Предмет не найден на складе',p=>{const box=darkBox(p),at=box.inv.findIndex(i=>i.id===id),[item]=box.inv.splice(at,1),old=box.eq[item.s];box.eq[item.s]=item;if(old)box.inv.push(old)},'Надето · характеристики обновлены')}

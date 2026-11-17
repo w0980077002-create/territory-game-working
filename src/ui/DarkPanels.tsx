@@ -17,7 +17,7 @@ import {resources,resCount,duskCount,type ResId,bonusLines,statNames,statText,
  relics,relicIds,relicLevel,relicRarity,relicColors,relicUnlockCost,relicUpgradeCost,relicCollection,RELIC_MAX,type RelicId,
  squadBonus,companions,companionIds,companionRarity,companionColors,squadState,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,talentDefs,talentPoints,talentSpent,TALENT_MAX,summonTable,SUMMON,powerParts} from '../dark/rules';
 import {blessings,blessingIds,realmRun,realmLast,realmSelected,roomReward,floorName,lordFloor,floorBoss,floorKeeper,roomTitles,REALM_COST,ROOMS,type BlessingId,type RealmTotals} from '../dark/realm';
-import {realmSelect,realmStart,realmResume,realmAbandon,darkEquip,darkUnequip,darkUpgrade,darkLock,darkSalvage,darkSalvageMany,darkBulkList,
+import {realmSelect,realmStart,realmResume,realmAbandon,realmAcknowledge,darkEquip,darkUnequip,darkUpgrade,darkLock,darkSalvage,darkSalvageMany,darkBulkList,
  gemInsert,gemRemove,gemSynth,gemSynthAll,gemBuy,relicUnlock,relicUpgrade,summon,petLevel,petLevelCost,petStar,petAwaken,petTalent,petTalentReset,petActivate,type SummonResult} from '../dark/actions';
 import './dark.css';
 const fmt=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
@@ -31,7 +31,7 @@ const rewardRows=(t:RealmTotals)=>[[t.ess,'Тёмная эссенция'],[t.go
 
 // ───────────────────────── Dark Realm ─────────────────────────
 export function RealmPanel({p}:{p:Player}){
- const g=useGame(),run=realmRun(p),last=realmLast(p),floor=realmSelected(p),[bless,setBless]=useState<BlessingId>('fury'),[seen,setSeen]=useState(false),[info,setInfo]=useState(false);
+ const g=useGame(),run=realmRun(p),last=realmLast(p),floor=realmSelected(p),[bless,setBless]=useState<BlessingId>('fury'),[info,setInfo]=useState(false);
  const first=floor===p.darkFloor,max=p.darkFloor,from=Math.max(1,Math.min(floor-2,max-4)),strip=Array.from({length:Math.min(5,max)},(_,i)=>from+i).filter(f=>f<=max);
  if(run)return <div className="realm">
   <div className="workspace-toolbar"><span className="realm-resource"><Icon name="rune"/> {fmt(p.chaosite)} Хаосита</span><button onClick={()=>setInfo(true)}>Награды и правила</button></div>
@@ -44,10 +44,10 @@ export function RealmPanel({p}:{p:Player}){
  </div>;
  return <div className="realm">
   <div className="workspace-toolbar"><span className="realm-resource"><Icon name="rune"/> {fmt(p.chaosite)} Хаосита</span><button onClick={()=>setInfo(true)}>Награды и правила</button></div>
-  {last&&!seen&&<CardDialog title={last.win?'Итоги победы':'Итоги похода'} onClose={()=>setSeen(true)}><div className={`realm-result ${last.win?'win':'lose'}`}><small>{last.win?'ПОБЕДА':'ПОХОД ПРЕРВАН'}</small><strong>{last.win?`Этаж ${last.f} пройден${last.first?' впервые':''}!`:`Этаж ${last.f} · пройдено комнат: ${last.rooms} из ${ROOMS}`}</strong>
+  {last&&!last.ack&&<CardDialog title={last.win?'Итоги победы':'Итоги похода'} onClose={()=>realmAcknowledge()}><div className={`realm-result ${last.win?'win':'lose'}`}><small>{last.win?'ПОБЕДА':'ПОХОД ПРЕРВАН'}</small><strong>{last.win?`Этаж ${last.f} пройден${last.first?' впервые':''}!`:`Этаж ${last.f} · пройдено комнат: ${last.rooms} из ${ROOMS}`}</strong>
    <RewardList t={last}/>
    {!last.win&&<p>Герой пал, но всё добытое в пройденных комнатах сохранено. Усильте Тёмную энергию, вставьте камни или развивайте спутников — и возвращайтесь.</p>}
-   <div className="realm-result-actions">{last.win?<Btn onClick={()=>{setSeen(true)}}>{last.first?'К следующему этажу':'Продолжить'}</Btn>:<Btn onClick={()=>{realmSelect(last.f);setSeen(true)}}>Повторить этаж</Btn>}<Btn kind="secondary" onClick={()=>g.open(last.win?'darkgear':'companions')}>{last.win?'Тёмная энергия':'Усилить спутников'}</Btn></div></div></CardDialog>}
+   <div className="realm-result-actions">{last.win?<Btn onClick={()=>realmAcknowledge()}>{last.first?'К следующему этажу':'Продолжить'}</Btn>:<Btn onClick={()=>{realmSelect(last.f);realmAcknowledge()}}>Повторить этаж</Btn>}<Btn kind="secondary" onClick={()=>g.open(last.win?'darkgear':'companions')}>{last.win?'Тёмная энергия':'Усилить спутников'}</Btn></div></div></CardDialog>}
   <div className="realm-entry">
    <div className={`realm-banner realm-portal ${lordFloor(floor)?'lord':''}`}><div className="portal-light" aria-hidden="true"/><div className="portal-caption"><small>{first?'НОВЫЙ ЭТАЖ':'ПРОЙДЕН · ПОВТОР'}{lordFloor(floor)?' · ЭТАЖ ВЛАДЫКИ':''}</small><strong>Этаж {floor} · {floorName(floor)}</strong></div></div>
    <div className="floor-route"><button className="floor-prev" aria-label="Предыдущий этаж" disabled={floor<=1} onClick={()=>realmSelect(floor-1)}>‹</button><div className="floor-strip" aria-label="Доступные этажи">{strip.map(f=><button key={f} data-near={Math.abs(f-floor)<=1||max<=2?'true':'false'} className={`${f===floor?'selected':''} ${f<max?'cleared':''} ${lordFloor(f)?'lord':''}`} aria-pressed={f===floor} onClick={()=>realmSelect(f)}><span>Этаж {f}</span><small>{f<max?'Пройден ✓':'Новый'}</small></button>)}</div><button className="floor-next" aria-label="Следующий этаж" disabled={floor>=max} onClick={()=>realmSelect(floor+1)}>›</button></div>

@@ -39,13 +39,13 @@ export function realmPlan(floor:number,room:number):EncounterPlan{
 }
 export interface RealmTotals {ess:number;gold:number;xp:number;shard:number;dusk:number;seal:number;gems:number;loot:string[]}
 export interface RealmRun {f:number;r:number;b:BlessingId;acc:RealmTotals}
-export interface RealmLast extends RealmTotals {f:number;win:boolean;rooms:number;first:boolean}
+export interface RealmLast extends RealmTotals {f:number;win:boolean;rooms:number;first:boolean;ack?:boolean}
 interface RealmBox {run?:unknown;last?:unknown;sel?:unknown}
 const totals=(v:unknown):RealmTotals=>{const t=(v&&typeof v==='object'?v:{}) as Partial<RealmTotals>,n=(x:unknown)=>typeof x==='number'&&Number.isFinite(x)&&x>0?Math.round(x):0;return {ess:n(t.ess),gold:n(t.gold),xp:n(t.xp),shard:n(t.shard),dusk:n(t.dusk),seal:n(t.seal),gems:n(t.gems),loot:Array.isArray(t.loot)?t.loot.filter((x):x is string=>typeof x==='string').slice(0,12):[]}};
 export const emptyTotals=():RealmTotals=>totals(undefined);
 /** The active run, or undefined. A run on a floor the hero has not unlocked is ignored. */
 export function realmRun(p:Player):RealmRun|undefined{const r=peekBox<RealmBox>(p,'realm')?.run as Partial<RealmRun>|undefined;if(!r||typeof r!=='object'||!Number.isInteger(r.f)||r.f!<1||r.f!>p.darkFloor||!Number.isInteger(r.r)||r.r!<1||r.r!>ROOMS)return undefined;return {f:r.f!,r:r.r!,b:blessingIds.includes(r.b as BlessingId)?r.b as BlessingId:'fury',acc:totals(r.acc)}}
-export function realmLast(p:Player):RealmLast|undefined{const l=peekBox<RealmBox>(p,'realm')?.last as Partial<RealmLast>|undefined;if(!l||typeof l!=='object'||!Number.isInteger(l.f)||l.f!<1)return undefined;return {...totals(l),f:l.f!,win:l.win===true,rooms:Number.isInteger(l.rooms)?Math.max(0,Math.min(ROOMS,l.rooms!)):0,first:l.first===true}}
+export function realmLast(p:Player):RealmLast|undefined{const l=peekBox<RealmBox>(p,'realm')?.last as Partial<RealmLast>|undefined;if(!l||typeof l!=='object'||!Number.isInteger(l.f)||l.f!<1)return undefined;return {...totals(l),f:l.f!,win:l.win===true,rooms:Number.isInteger(l.rooms)?Math.max(0,Math.min(ROOMS,l.rooms!)):0,first:l.first===true,ack:l.ack===true}}
 export const realmSelected=(p:Player)=>{const v=peekBox<RealmBox>(p,'realm')?.sel;return typeof v==='number'&&Number.isInteger(v)&&v>=1&&v<=p.darkFloor?v:p.darkFloor};
 export const realmBox=(p:Player)=>boxOf<{run?:RealmRun;last?:RealmLast;sel?:number}>(p,'realm',()=>({}));
 /** What a room can give. Shown to the player before the challenge and used by the reward itself. */
