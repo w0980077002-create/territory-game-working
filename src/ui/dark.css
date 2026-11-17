@@ -90,7 +90,7 @@
 .squad-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
 .squad-grid button{position:relative;min-width:0;aspect-ratio:.82;padding:2px;border-radius:9px;border:2px solid var(--rarity);background:linear-gradient(color-mix(in srgb,var(--rarity) 26%,#14161c),#0e1014);display:grid;align-content:end;justify-items:center}
 .squad-grid img{position:absolute;inset:3px 3px 14px;width:calc(100% - 6px);height:calc(100% - 17px);object-fit:contain}.squad-grid small{position:relative;font:700 10px system-ui;color:#fff;text-shadow:0 1px 2px #000}
-.squad-grid em{position:absolute;top:1px;left:2px;font-style:normal;font-size:8px;color:#ffe08a}.squad-grid i{position:absolute;top:-6px;right:-3px;padding:0 4px;border-radius:7px;background:#2f7d47;color:#fff;font:700 8.5px/13px system-ui;font-style:normal}
+.squad-grid em{position:absolute;top:1px;left:2px;font-style:normal;font-size:8px;color:#ffe08a}.squad-grid i{position:absolute;top:-6px;right:-4px;width:15px;padding:0;text-align:center;border-radius:50%;background:#2f7d47;color:#fff;font:700 8.5px/13px system-ui;font-style:normal}
 .squad-grid button.locked img{filter:grayscale(1) brightness(.45)}.squad-grid button.locked{border-style:dashed}
 .pet-card{margin:10px 0;padding:10px;border-radius:12px;border:1px solid var(--rarity);background:radial-gradient(100% 60% at 0 0,color-mix(in srgb,var(--rarity) 20%,transparent),transparent 60%),#13161b}
 .pet-head{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center}.pet-head h3{margin:1px 0 2px!important;font-size:17px!important}.pet-head small{color:var(--rarity);font-size:11px;letter-spacing:.6px;text-transform:uppercase}.pet-head p{margin:3px 0 0!important;font-size:12px!important}
