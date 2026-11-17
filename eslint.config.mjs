@@ -2,7 +2,7 @@ import tseslint from 'typescript-eslint';
 import hooks from 'eslint-plugin-react-hooks';
 // The window refactor is linted independently of unrelated legacy code.
 export default tseslint.config({
- files: ['src/ui/{App,DarkPanels,SagaUI}.tsx'],
+ files: ['src/ui/{App,DarkPanels,SagaUI,HarborScene}.tsx'],
  languageOptions: {parser: tseslint.parser, parserOptions: {ecmaFeatures: {jsx: true}}},
  plugins: {'@typescript-eslint':tseslint.plugin,'react-hooks':hooks},
  rules: {

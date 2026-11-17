@@ -4,6 +4,7 @@ import './ui/style.css';
 import './ui/saga.css';
 import './ui/filter.css';
 import './ui/windows.css';
+import './ui/visualDNA.css';
 import {useGame,isolatedProfile} from './core/store';
 import {battle} from './game/Battle';
 // Test hook for isolated ?hero= profiles only: lets automated checks jump to late chapters.
