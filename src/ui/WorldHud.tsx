@@ -35,6 +35,6 @@ export function Chronicle(){
   <h3>Достижения пути · {world?.feats.length??0}/{feats.length}</h3>
   <ul>{feats.map(f=>{const done=!!world?.feats.includes(f.id),n=Math.min(f.goal,world?.counts[f.count]??0);return <li key={f.id} className={done?'done':''}><b>{done?'✓':'○'} {f.title}</b><span>{f.detail}</span><i>{done?'получено':`${n}/${f.goal}`} · {f.gold?`${f.gold} золота`:''}{f.gold&&f.gems?' + ':''}{f.gems?`${f.gems} самоцв.`:''}</i></li>})}</ul>
   {!!world?.log.length&&<><h3>Летопись</h3><ol>{[...world.log].reverse().map((line,n)=><li key={n}>{line}</li>)}</ol></>}
-  <p className="hint">События дороги: {Object.values(eventNames).join(', ').toLowerCase()}. Награды тестовые (TEST_ONLY) и выдаются один раз.</p>
+  <p className="hint">События дороги: {Object.values(eventNames).join(', ').toLowerCase()}. Награды выдаются один раз и сохраняются.</p>
  </div>;
 }
