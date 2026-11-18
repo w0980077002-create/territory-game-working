@@ -55,9 +55,7 @@
 .saga-modal .spec-lines{margin:6px 0 0;padding-left:16px;font-size:12px;line-height:1.35;color:#d8dbd2}
 .saga-modal .spec-panel .hint{margin:4px 0 0!important}
 .saga-modal .saga-disclosure .saga-section>h3:first-child{display:none}
-.saga-modal .hero-sheet .saga-portrait .portrait-hero{height:104px}
+.saga-modal .hero-sheet .saga-portrait .portrait-hero{width:100%;height:104px}
 .saga-modal .hero-sheet .saga-portrait .portrait-wings{height:84px;top:8px}
 .saga-modal[data-panel="hero"] .saga-disclosure{margin:6px 0}
 .saga-modal[data-panel="hero"] .saga-disclosure summary{padding:10px 12px}
-.saga-modal .hero-sheet .saga-portrait .portrait-hero,.saga-modal .hero-sheet .saga-portrait .portrait-wings{max-width:100%;object-fit:contain}
-.saga-modal .hero-sheet .saga-portrait .portrait-halo{max-width:100%}

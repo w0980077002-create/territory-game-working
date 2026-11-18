@@ -8,9 +8,8 @@ import {AutobattleDialog} from './AutobattleDialog';
 import {InventoryGrid} from './InventoryGrid';
 import {sound,unlockAudio} from '../game/Sound';
 import {ItemDetails,EffectComparison,UpgradePlan,BuildGuide,HuntGoals,StatDelta,QuickSwap} from './GearDetails';
-import {uniqueOf} from '../core/gear';
 import {useEffect,useRef,useState} from 'react';
-import {useGame,compareItem,bestUpgrade,bestUpgrades,refill,backupCloud,acknowledgeCloud,isKnownCloud,parseSave,SAVE_KEY,hornPurchase,isolatedProfile,exportSave,unreadableSave} from '../core/store';
+import {useGame,compareItem,bestUpgrade,bestUpgrades,refill,backupCloud,acknowledgeCloud,isKnownCloud,parseSave,SAVE_KEY,hornPurchase,isolatedProfile,exportSave,unreadableSave,requiresSalvageConfirmation} from '../core/store';
 import {SHIP_RULES,starterShipyard,previewShips,shipRate,shipCapacity,shipBuyCost,shipUpgradeCost} from '../core/shipyard';
 import {TreasureShop} from './TreasureShop';
 import {HarborScene} from './HarborScene';
@@ -78,14 +77,49 @@ function ResourceSources({kind,returnTo}:{kind:string;returnTo?:string}){const g
   {(Object.hasOwn(resources,kind)||kind==='dusk')&&<><Row icon="portal" title="Царство тьмы" detail={kind==='dusk'?'Победа над владыкой этажа.':resources[kind as ResId].source}>{go('realm')}</Row>{kind==='seal'&&<><Row icon="arena" title="Победить на Арене">{go('arena')}</Row><Row icon="ship" title="Верфь драккаров" detail={`Обмен ${SHIP_RULES.sealPrice} красных алмазов → 1 печать`}>{go('shipyard')}</Row></>}{kind!=='dusk'&&shop}</>}
   {materials[kind]&&kind!=='dusk'&&<><Row icon="axes" title={regions[materialIds.indexOf(kind)]?.name??'Основная глава'} detail="Материал за победы в регионе. В кузнице также доступен обмен 3 → 1."/>{quests}{shop}</>}
  </>}
-/** Stable ref: brings a just-opened confirmation into view once, not on every re-render. */
-const revealOnMount=(el:HTMLElement|null)=>{el?.scrollIntoView({block:'nearest'})};
-/** One place for «ask before salvaging this one item». Mirrors the core protection rules (#51); replace with the core predicate once exported. Old saves may still carry locked:true. */
-const needsSalvageConfirm=(p:Player,i:Item)=>!!(i.locked||i.rarity>=3||uniqueOf(i)||i.uniqueId||i.set||i.perk||i.engrave||i.percent||i.upgrade>0||i.slot==='wings'||(i.origin&&/босс|трофей|награда|покупка|boss|trophy|reward|shop/i.test(i.origin))||p.rewardOffer?.itemId===i.id);
+function ItemDecisions({item,p,isTrophy,onRewardResolved}:{item:Item;p:Player;isTrophy:boolean;onRewardResolved:()=>void}){
+ const [confirming,setConfirming]=useState(false);
+ const armedAt=useRef(0);
+ const gold=Math.round(itemPower(item)/3);
+ const salvage=()=>{
+  const g=useGame.getState();
+  if(confirming){
+   if(performance.now()-armedAt.current<TAP_GUARD_MS)return;
+   g.salvage(item.id,true);
+  }else if(requiresSalvageConfirmation(g.p,item)){
+   armedAt.current=performance.now();
+   setConfirming(true);
+   return;
+  }else{
+   g.salvage(item.id);
+  }
+  if(isTrophy)onRewardResolved();
+ };
+ const keep=()=>{
+  const g=useGame.getState();
+  if(isTrophy){g.keepReward();onRewardResolved()}
+  else if(g.back)g.leaveItem();
+  else g.open('inventory');
+ };
+ return <>
+  {confirming&&<div className="item-confirm" role="alert">
+   <strong>Распылить «{item.name}»?</strong>
+   <span>Предмет исчезнет · +{gold} золота и опыт</span>
+   <button type="button" onClick={()=>setConfirming(false)}>Отмена</button>
+  </div>}
+  <div className="item-decisions">
+   <Action onClick={()=>{useGame.getState().equip(item.id);if(isTrophy)onRewardResolved()}}>Надеть</Action>
+   <Action kind="secondary" onClick={keep}>{p.pendingLoot?.some(i=>i.id===item.id)?'На хранение':'В рюкзак'}</Action>
+   <Action kind="secondary" onClick={salvage}>{confirming?'Подтвердить распыление':`Распылить +${gold}`}</Action>
+  </div>
+ </>;
+}
 /** Extra heroes made with «Новый герой» stay in their own local save; list them so none is lost behind a URL. */
 function SavedHeroes({onOpen}:{onOpen:(id:string)=>void}){const current=new URLSearchParams(location.search).get('hero');const heroes:{id:string;p:Player}[]=[];try{for(let i=0;i<localStorage.length;i++){const m=/^lootborn-codex-v1:test:(hero-[a-z0-9]{1,26})$/.exec(localStorage.key(i)??'');if(!m||m[1]===current)continue;const saved=parseSave(localStorage.getItem(m[0]));if(saved)heroes.push({id:m[1],p:saved})}}catch{return null}
  if(!heroes.length)return null;heroes.sort((a,b)=>b.p.savedAt-a.p.savedAt);
  return <><h3>Мои герои</h3>{heroes.map(h=><Row key={h.id} icon="people" title={`${classNames[h.p.heroClass]} · ур.${h.p.level}`} detail={`Этап ${stageLabel(h.p.stage)} · сохранён ${new Date(h.p.savedAt).toLocaleDateString('ru')}`}><Action kind="secondary" onClick={()=>onOpen(h.id)}>Открыть</Action></Row>)}</>}
+/** Stable ref: brings a just-opened confirmation into view once, not on every re-render. */
+const revealOnMount=(el:HTMLElement|null)=>{el?.scrollIntoView({block:'nearest'})};
 export default function App(){
  const g=useGame(useShallow(({p,battle,panel,auto,speed,open,equipBest,select,configure,toast,recoveryRequired,storageError})=>
   ({p,battle,panel,auto,speed,open,equipBest,select,configure,toast,recoveryRequired,storageError})));
@@ -215,7 +249,7 @@ function ArenaPanel(){
   {onArena&&<Action kind="secondary" onClick={()=>battle?.startMode('campaign')}>Вернуться к главе</Action>}
  </>;
 }
-function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestTab)=>void}){const g=useGame(),p=g.p,panel=g.panel!,s=stats(p);const chapterReward=<><Row icon="scroll" title={`Победить босса ${stageLabel(p.mission+1)}`} detail={`Пройдено боссов: ${p.bosses} · награда 200 золота и 15 самоцветов`}/><Action disabled={p.bosses<=p.mission} onClick={()=>g.claim('mission')}>Получить награду</Action></>;const [shipClock,setShipClock]=useState(Date.now());useEffect(()=>{if(panel!=='shipyard')return;setShipClock(Date.now());const timer=window.setInterval(()=>setShipClock(Date.now()),30000);return()=>window.clearInterval(timer)},[panel]);const fleet=previewShips(p.shipyard??starterShipyard(shipClock),shipClock),buildCost=shipBuyCost(fleet.ships.length),claimable=Math.floor(fleet.stored+1e-9);const [selectedShipId,setSelectedShipId]=useState('drakkar-1');const currentShip=fleet.ships.find(s=>s.id===selectedShipId)??fleet.ships[0];const [forgeTab,setForgeTab]=useState('forge');const [harborHelp,setHarborHelp]=useState(false);const [classOpen,setClassOpen]=useState(false);const [storage,setStorage]=useState(false);const [filter,setFilter]=useState<LootFilter>('all');const [order,setOrder]=useState('power');const [importCandidate,setImportCandidate]=useState<Player|null>(null);const [cloudCandidate,setCloudCandidate]=useState<string|null>(null);const [shareAddress,setShareAddress]=useState('');const [backupText,setBackupText]=useState<string|null>(null),[pasteOpen,setPasteOpen]=useState(false),pasteInput=useRef<HTMLTextAreaElement>(null);const importRequest=useRef(0);const [confirmRare,setConfirmRare]=useState<string|null>(null);const [confirmHero,setConfirmHero]=useState(false);const fileInput=useRef<HTMLInputElement>(null);const newHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Сначала сохраните текущего героя · проверьте место в браузере');return}const id='hero-'+Date.now().toString(36);const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const openHero=(id:string)=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const mainHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';location.assign(url.href)};const purchase=hornPurchase(p);const slot=panel.startsWith('gear:')?panel.split(':')[1] as Slot:undefined;const item=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.id===g.selected);const old=slot?p.equipment[slot]:item?p.equipment[item.slot]:undefined;const isTrophy=!!item&&p.rewardOffer?.itemId===item.id&&!p.rewardOffer.resolved;const finish=()=>{if(useGame.getState().p.rewardOffer?.resolved){g.open(null);battle?.continueAfterLoot()}};const salvage=(i:Item)=>{if(needsSalvageConfirm(p,i)&&confirmRare!==i.id){setConfirmRare(i.id);return}g.salvage(i.id,true);setConfirmRare(null);if(isTrophy)finish()};
+function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestTab)=>void}){const g=useGame(),p=g.p,panel=g.panel!,s=stats(p);const chapterReward=<><Row icon="scroll" title={`Победить босса ${stageLabel(p.mission+1)}`} detail={`Пройдено боссов: ${p.bosses} · награда 200 золота и 15 самоцветов`}/><Action disabled={p.bosses<=p.mission} onClick={()=>g.claim('mission')}>Получить награду</Action></>;const [shipClock,setShipClock]=useState(Date.now());useEffect(()=>{if(panel!=='shipyard')return;setShipClock(Date.now());const timer=window.setInterval(()=>setShipClock(Date.now()),30000);return()=>window.clearInterval(timer)},[panel]);const fleet=previewShips(p.shipyard??starterShipyard(shipClock),shipClock),buildCost=shipBuyCost(fleet.ships.length),claimable=Math.floor(fleet.stored+1e-9);const [selectedShipId,setSelectedShipId]=useState('drakkar-1');const currentShip=fleet.ships.find(s=>s.id===selectedShipId)??fleet.ships[0];const [forgeTab,setForgeTab]=useState('forge');const [harborHelp,setHarborHelp]=useState(false);const [classOpen,setClassOpen]=useState(false);const [storage,setStorage]=useState(false);const [filter,setFilter]=useState<LootFilter>('all');const [order,setOrder]=useState('power');const [importCandidate,setImportCandidate]=useState<Player|null>(null);const [cloudCandidate,setCloudCandidate]=useState<string|null>(null);const [shareAddress,setShareAddress]=useState('');const [backupText,setBackupText]=useState<string|null>(null),[pasteOpen,setPasteOpen]=useState(false),pasteInput=useRef<HTMLTextAreaElement>(null);const importRequest=useRef(0);const [confirmHero,setConfirmHero]=useState(false);const fileInput=useRef<HTMLInputElement>(null);const newHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Сначала сохраните текущего героя · проверьте место в браузере');return}const id='hero-'+Date.now().toString(36);const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const openHero=(id:string)=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const mainHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';location.assign(url.href)};const purchase=hornPurchase(p);const slot=panel.startsWith('gear:')?panel.split(':')[1] as Slot:undefined;const item=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.id===g.selected);const old=slot?p.equipment[slot]:item?p.equipment[item.slot]:undefined;const isTrophy=!!item&&p.rewardOffer?.itemId===item.id&&!p.rewardOffer.resolved;const finish=()=>{if(useGame.getState().p.rewardOffer?.resolved){g.open(null);battle?.continueAfterLoot()}};
  const [questDestination,setQuestDestination]=useState<string|null>(null);
  const sourceBack=panel.startsWith('source:')?panel.split(':')[2]:undefined;
  const returnToQuest=panel===questDestination;
@@ -223,7 +257,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   if(route==='campaign'||route==='dungeon'){battle?.startMode(route);return}
   setQuestDestination(route);g.open(route);
  };
- useEffect(()=>{setConfirmRare(null);setConfirmHero(false)},[g.selected,panel]);
+ useEffect(()=>{setConfirmHero(false)},[g.selected,panel]);
  const download=()=>{const url=URL.createObjectURL(new Blob([g.recoveryRequired?unreadableSave():exportSave()],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='viking-vs-rome-save.json';a.click();URL.revokeObjectURL(url)};
  const previewCloud=async()=>{
   const request=++importRequest.current;
@@ -267,7 +301,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   }catch{setShareAddress(INVITE_URL)}
  };
  if(panel==='inventory')return <Backpack storage={storage} setStorage={setStorage}/>;
- return <DialogShell panel={panel} onBack={sourceBack?()=>g.open(sourceBack):returnToQuest?()=>{setQuestDestination(null);g.open('quests')}:undefined} backLabel={sourceBack?'Назад':returnToQuest?'К заданию':undefined} title={slot?slotNames[slot]:titles[panel]??(panel.startsWith('source:')?sourceTitle(panel.split(':')[1]):panel)} rarity={item?.rarity} footer={<footer className={`modal-footer ${panel==='item'&&item?'item-footer':''}`}>{panel==='item'&&item&&confirmRare===item.id&&<div className="item-confirm" role="alert"><strong>Распылить «{item.name}»?</strong><span>Предмет исчезнет · +{Math.round(itemPower(item)/3)} золота и опыт</span><button onClick={()=>setConfirmRare(null)}>Отмена</button></div>}{panel==='item'&&item&&<div className="item-decisions"><Action onClick={()=>{g.equip(item.id);if(isTrophy)finish()}}>Надеть</Action><Action kind="secondary" onClick={()=>{if(isTrophy){g.keepReward();finish()}else if(g.back)g.leaveItem();else g.open('inventory')}}>{p.pendingLoot?.some(i=>i.id===item.id)?'На хранение':'В рюкзак'}</Action><Action kind="secondary" onClick={()=>salvage(item)}>{confirmRare===item.id?'Подтвердить распыление':`Распылить +${Math.round(itemPower(item)/3)}`}</Action></div>}<div className="footer-wallet"><span><Icon name="coins"/>{fmt(p.gold)}</span><span><Icon name="gem"/>{fmt(p.gems)}</span><button onClick={()=>g.open(null)}>К бою</button></div></footer>}><ForgeEcho/>
+ return <DialogShell panel={panel} onBack={sourceBack?()=>g.open(sourceBack):returnToQuest?()=>{setQuestDestination(null);g.open('quests')}:undefined} backLabel={sourceBack?'Назад':returnToQuest?'К заданию':undefined} title={slot?slotNames[slot]:titles[panel]??(panel.startsWith('source:')?sourceTitle(panel.split(':')[1]):panel)} rarity={item?.rarity} footer={<footer className={`modal-footer ${panel==='item'&&item?'item-footer':''}`}>{panel==='item'&&item&&<ItemDecisions key={item.id} item={item} p={p} isTrophy={isTrophy} onRewardResolved={finish}/>}<div className="footer-wallet"><span><Icon name="coins"/>{fmt(p.gold)}</span><span><Icon name="gem"/>{fmt(p.gems)}</span><button onClick={()=>g.open(null)}>К бою</button></div></footer>}><ForgeEcho/>
  {panel==='controls'&&<><p>Нажмите топоры для запуска путешествия. По умолчанию герой сам идёт после победы и ждёт топоры после смерти. Скорость, навыки и условия остановки настраиваются через кнопку автобоя. Меню временно ставит активный бой на паузу.</p><Action onClick={()=>{battle?.toggle();g.open(null)}}>{g.battle.running?'Остановить':'Продолжить'} бой</Action><Action onClick={()=>g.configure({auto:!g.auto})}>Auto навыков: {g.auto?'ВКЛ':'ВЫКЛ'}</Action><Action onClick={()=>g.configure({speed:g.speed===1?2:1})}>Скорость: x{g.speed}</Action><Action onClick={()=>g.open('autobattle')}>Настройки автобоя</Action>{skillData.map((skill,i)=><Action key={skill.name} disabled={!g.battle.running||g.battle.cooldowns[i]>0} onClick={()=>battle?.skill(i)}>{skill.name} {g.battle.cooldowns[i]>0?Math.ceil(g.battle.cooldowns[i])+' сек':''}</Action>)}</>}
  {panel==='equipment'&&<><HeroPortrait p={p} compact/>{(()=>{const plan=bestUpgrades(p);return plan.length?<><Action onClick={()=>g.equipBest()}>Надеть лучшее · {plan.length} {plan.length===1?'вещь':plan.length<5?'вещи':'вещей'}</Action><p className="hint">Берёт из рюкзака самые сильные вещи. Старые возвращаются в рюкзак; именные трофеи не заменяются.</p></>:<p className="hint">Сила героя {fmt(s.cp)} · в рюкзаке нет вещей сильнее надетых.</p>})()}<div className="equipment-ledger">{slots.map(slot=>{const worn=p.equipment[slot],better=bestUpgrade(p,slot);return <Row key={slot} icon={gearIcon(slot)} title={slotNames[slot]} detail={worn?`${rarityNames[worn.rarity]} · ур.${worn.level} · +${worn.upgrade}${better?` · ↑ в рюкзаке +${better.gain} силы`:''}`:better?`Не надето · ↑ в рюкзаке +${better.gain} силы`:'Не надето'}><Action kind={better?'':'secondary'} onClick={()=>g.open(slot==='wings'&&!p.equipment.wings&&!better?'wings':`gear:${slot}`)}>{better?'Заменить':'Открыть'}</Action></Row>})}</div></>}
  {panel==='hero'&&(()=>{const goal=xpNeeded(p.level),points=p.level-1-p.talents.reduce((a,b)=>a+b,0);return <>

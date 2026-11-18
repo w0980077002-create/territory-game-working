@@ -13,7 +13,13 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   // Ten plainly weaker drops (two of them boots) and one weaker but locked item: only the ten may be bulk-salvaged.
   const worn=Object.values(p.equipment).filter(i=>i.slot!=='wings'&&i.slot!=='boots');
   for(let n=0;n<10;n++){const g=n<2?p.equipment.boots:worn[n%worn.length];p.inventory[70+n]={...g,id:'weak-'+n,level:Math.max(1,g.level-20),attack:1,hp:1,defense:1,rarity:n%3,upgrade:0,set:undefined,perk:undefined,engrave:undefined,uniqueId:undefined,percent:undefined,locked:false,origin:'Встреча основной главы',name:'Слабая вещь '+n}}
-  p.inventory[69]={...p.inventory[70],id:'weak-locked',locked:true,name:'Слабая под замком'};
+  p.inventory[69]={...p.inventory[70],id:'weak-locked',locked:true,name:'Старая слабая вещь'};
+  const plain={...p.inventory[70],locked:undefined};
+  p.pendingLoot.push(
+   {...plain,id:'qa-ordinary',name:'Обычная вещь со склада'},
+   {...plain,id:'qa-percent',name:'Вещь с процентным бонусом',percent:{hp:1,attack:0,defense:0}},
+   {...plain,id:'qa-wings',name:'Крылья со склада',slot:'wings'}
+  );
   const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true});
   await context.addInitScript(([k,p])=>{if(!localStorage.getItem(k))localStorage.setItem(k,JSON.stringify(p))},[key,p]);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -64,7 +70,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await clean.tap();const confirm=page.locator('.bulk-confirm');await confirm.waitFor();
   assert.equal(await page.locator('.bulk-gear.chosen').count(),10);
   assert.ok(await page.locator('.bulk-reason').count()>0,'protected items show their reason');
-  assert.match(await page.locator('[aria-label*="Слабая под замком"]').getAttribute('aria-label'),/только вручную/);
+  assert.match(await page.locator('[aria-label*="Старая слабая вещь"]').getAttribute('aria-label'),/Только вручную/i);
   assert.equal((await page.getByRole('dialog').innerText()).includes('🔒'),false,'no lock symbols in the backpack');
   await page.getByRole('dialog').screenshot({path:`${out}/${width}-clean-confirm.png`});
   // Narrow to boots: the eight hidden picks must not be destroyed.
@@ -82,20 +88,33 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await btn('Слабых нет').waitFor();
   // Storage tab: counts visible, items still selectable.
   await page.getByRole('group',{name:'Место хранения'}).getByRole('button',{name:/^Хранение/}).tap();await page.getByRole('group',{name:'Предметы на хранении'}).waitFor();
-  // Manual salvage straight from storage (P1 salvage(id)): one confirmed tap pays exactly once, the item leaves storage only.
+  const storageItems=page.getByRole('group',{name:'Предметы на хранении'});
+  const salvage=page.getByRole('button',{name:/^Распылить \+\d+$/});
+  const confirmBtn=btn('Подтвердить распыление');
+  const reward=async()=>Number((await salvage.innerText()).match(/\d+$/)[0]);
   const stored0=await state();
-  await page.getByRole('group',{name:'Предметы на хранении'}).getByRole('button').first().tap();await page.getByRole('dialog',{name:/./}).waitFor();
-  const target={id:await page.evaluate(()=>window.__lootborn.useGame.getState().selected)};assert.ok(stored0.pendingLoot.some(i=>i.id===target.id),'tapped a stored item');
-  const salv=page.getByRole('button',{name:/^Распылить \+\d+$/});await salv.tap();
-  const confirmBtn=btn('Подтвердить распыление');if(await confirmBtn.count())await confirmBtn.dblclick();
-  await page.waitForTimeout(400);const stored1=await state();
-  assert.equal(stored1.pendingLoot.length,stored0.pendingLoot.length-1,'one item left storage');
-  assert.ok(!stored1.pendingLoot.some(i=>i.id===target.id));assert.equal(stored1.inventory.length,stored0.inventory.length,'backpack untouched');
-  assert.ok(stored1.gold>stored0.gold);
-  const paid=stored1.gold-stored0.gold;
-  await page.waitForTimeout(400);assert.equal((await state()).gold-stored0.gold,paid,'paid once');
-  if(await page.getByRole('dialog',{name:'Рюкзак'}).count()===0){await page.evaluate(()=>window.__lootborn.useGame.getState().open('inventory'))}
-  await page.getByRole('dialog',{name:'Рюкзак'}).waitFor();
+  await storageItems.getByRole('button',{name:/^Обычная вещь со склада/}).tap();
+  const ordinaryGold=await reward();
+  await salvage.tap();
+  const stored1=await state();
+  assert.equal(stored1.pendingLoot.length,stored0.pendingLoot.length-1);
+  assert.ok(!stored1.pendingLoot.some(i=>i.id==='qa-ordinary'));
+  assert.equal(stored1.gold,stored0.gold+ordinaryGold);
+  assert.equal(await confirmBtn.count(),0,'ordinary gear needs no separate confirmation');
+
+  for(const [name,id] of [['Вещь с процентным бонусом','qa-percent'],['Крылья со склада','qa-wings']]){
+   await storageItems.getByRole('button',{name:new RegExp('^'+name)}).tap();
+   const before=await state(),gold=await reward();
+   await salvage.tap();
+   await confirmBtn.waitFor();
+   assert.deepEqual((await state()).pendingLoot,before.pendingLoot);
+   await page.waitForTimeout(400);
+   await confirmBtn.dblclick();
+   const after=await state();
+   assert.deepEqual(after.inventory,before.inventory);
+   assert.deepEqual(after.pendingLoot,before.pendingLoot.filter(i=>i.id!==id));
+   assert.equal(after.gold,before.gold+gold,'only the confirmed salvage pays');
+  }
   await noOverflow('backpack');await close();
 
   // 4) Reload keeps everything.
@@ -110,11 +129,55 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
    await page.locator('.harbor-guide button',{hasText:label}).tap();await page.getByRole('dialog',{name:dialog}).waitFor();
    if(dialog==='Драгоценные камни')await page.locator('.panel-lead').waitFor();await close();
   }
-  // 6) Old save with locked:true: no lock UI, the card asks for confirmation instead of refusing.
+  // 6) An item marked in a legacy save remains safe after reload and can be salvaged explicitly.
   await page.evaluate(()=>window.__lootborn.useGame.getState().select('weak-locked'));await page.getByRole('dialog').waitFor();
   const card=await page.getByRole('dialog').innerText();assert.doesNotMatch(card,/Защитить|Защищено|🔒|Снять защиту/,'no lock controls on the item card');
-  await page.getByRole('button',{name:/^Распылить \+\d+$/}).tap();await btn('Подтвердить распыление').waitFor();
-  await page.getByRole('button',{name:'Отмена',exact:true}).tap();await close();
+  const oldItem=await state(),oldGold=await reward();
+  await salvage.dblclick();
+  await confirmBtn.waitFor();
+  assert.equal((await state()).gold,oldItem.gold,'a double tap cannot confirm an item');
+  assert.deepEqual((await state()).inventory,oldItem.inventory);
+  await btn('Отмена').tap();
+  await close();
+  await page.evaluate(()=>window.__lootborn.useGame.getState().select('weak-locked'));
+  await salvage.tap();
+  await confirmBtn.waitFor();
+  await page.waitForTimeout(400);
+  if(width===390){
+   await page.evaluate(key=>{
+    const setItem=Storage.prototype.setItem;
+    Storage.prototype.setItem=function(k,v){
+     if(k===key)throw new DOMException('QA write failure','QuotaExceededError');
+     return setItem.call(this,k,v);
+    };
+    window.qaRestoreStorage=()=>{Storage.prototype.setItem=setItem};
+   },key);
+   try{
+    await confirmBtn.tap();
+    const failed=await state();
+    assert.deepEqual(failed.inventory,oldItem.inventory);
+    assert.equal(failed.gold,oldItem.gold);
+    assert.equal(await confirmBtn.count(),1,'failed write keeps the item card open');
+   }finally{await page.evaluate(()=>window.qaRestoreStorage())}
+  }
+  await confirmBtn.dblclick();
+  const removed=await state();
+  assert.deepEqual(removed.inventory,oldItem.inventory.filter(i=>i.id!=='weak-locked'));
+  assert.equal(removed.gold,oldItem.gold+oldGold);
+
+  // Even an otherwise ordinary item needs confirmation while its reward offer is active.
+  await page.evaluate(ordinary=>{
+   const g=window.__lootborn.useGame.getState();
+   g.mutate(p=>{p.inventory.push({...ordinary,id:'qa-active-reward',rarity:0});
+    p.rewardOffer={itemId:'qa-active-reward',encounterId:'qa-reward',resolved:false}});
+   g.select('qa-active-reward');
+  },plain);
+  const active=await state();
+  await salvage.tap();
+  await confirmBtn.waitFor();
+  assert.deepEqual((await state()).rewardOffer,active.rewardOffer);
+  await btn('Отмена').tap();
+  await close();
   await noOverflow('main');
   assert.deepEqual(errors,[]);
   row.ok=true;results.push(row);await context.close();

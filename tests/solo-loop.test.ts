@@ -61,7 +61,7 @@ test('a full backpack keeps the boss trophy in storage instead of losing it',()=
 
 test('not enough gold changes nothing and says so',()=>{
  G().mutate(p=>{p.gold=0;p.level=3});const before=P();
- G().train('hero');assert.deepEqual(P(),before);assert.match(G().toast,/Недостаточно золота/);
+ G().train('forge');assert.deepEqual(P(),before);assert.match(G().toast,/Недостаточно золота/);
  G().upgrade('weapon');assert.deepEqual(P(),before);assert.match(G().toast,/Недостаточно золота/);
  assert.equal(xpNeeded(3)>0,true);
 });
