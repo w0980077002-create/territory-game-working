@@ -1,0 +1,19 @@
+/* Hero window: visible character switch at the top, three existing classes. */
+.class-picker{display:grid;gap:8px;margin:0 0 10px}
+.class-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:6px 12px 6px 6px;border:2px solid #d9a647;border-radius:10px;background:linear-gradient(#e0a43833,#7a3f1040),var(--saga-iron,#1b2023);color:#ffe9b0;text-align:left;box-shadow:inset 0 0 0 1px #fff0a633,0 2px 4px #000a}
+.class-toggle img{width:44px;height:44px;object-fit:contain;flex:none;border-radius:8px;background:#0006}
+.class-toggle span{display:grid;flex:1;min-width:0;gap:1px}
+.class-toggle small{font-size:11px;color:#d7c094;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.class-toggle strong{font-size:16px;line-height:1.2}
+.class-toggle b{font-size:16px;color:#e8c070}
+.class-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.class-card{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;padding:6px 4px 7px;border:2px solid #5d6a6f;border-radius:10px;background:var(--saga-iron,#1b2023);color:#e8dcc0;text-align:center;box-shadow:0 2px 3px #000a}
+.class-card.current{border-color:#ffd56d;background:linear-gradient(#e7ae3e3a,#00000020),var(--saga-iron,#1b2023);box-shadow:inset 0 0 0 1px #fff2b455,0 0 9px #e4ad4355}
+.class-card img{width:100%;max-width:84px;aspect-ratio:1;object-fit:contain;filter:drop-shadow(0 3px 3px #000b)}
+.class-card strong{font-size:14px;color:#fff0c5}
+.class-card small{font-size:11px;line-height:1.2;color:#cbbd9e}
+.class-card em{font-style:normal;font-size:11px;line-height:1.2;color:#a9ed98;min-height:2.4em}
+.class-card i{font-style:normal;font-size:12px;font-weight:700;margin-top:2px;padding:4px 8px;border-radius:6px;background:#0006;color:#e8c070}
+.class-card.current i{color:#1c1405;background:#f0c35a}
+.class-note{margin:0;font-size:12px;line-height:1.35;color:#d7c9a8}
+@media(max-width:360px){.class-card{padding:5px 2px 6px}.class-card strong{font-size:13px}.class-card small,.class-card em{font-size:10px}}

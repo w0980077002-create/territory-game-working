@@ -73,7 +73,7 @@ async function scenario(browser,{width,height,mode,platform}){
   await page.locator('.gear-armor').tap();
   await page.locator('[data-panel="gear:armor"]').waitFor();
   await page.getByRole('button',{name:'Закрыть',exact:true}).tap();
-  await page.getByRole('button',{name:'Лавка',exact:true}).tap();
+  await page.getByRole('button',{name:'Магазин',exact:true}).tap();
   const dialog=page.getByRole('dialog',{name:'Лавка сокровищ'});
   await dialog.waitFor();
   assert.ok((await dialog.boundingBox()).y>=44);

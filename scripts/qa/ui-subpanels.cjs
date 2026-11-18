@@ -24,7 +24,7 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await open('rewards');const gold=await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold);await page.getByRole('button',{name:'Забрать подарок',exact:true}).tap();assert.equal(await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold),gold+200);await check('daily-claimed');
   const read=()=>page.evaluate(()=>window.__lootborn.useGame.getState().p);
   await page.getByRole('button',{name:'Закрыть',exact:true}).tap();
-  await page.getByRole('button',{name:'Лавка',exact:true}).tap();
+  await page.getByRole('button',{name:'Магазин',exact:true}).tap();
   const visibleTiles=await page.locator('.shop-offer').evaluateAll(tiles=>{
    const body=tiles[0].closest('.modal-body').getBoundingClientRect();
    return tiles.map(tile=>tile.getBoundingClientRect()).filter(rect=>rect.top>=body.top&&rect.bottom<=body.bottom+1);
@@ -82,7 +82,7 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await page.getByRole('button',{name:'Закрыть карточку',exact:true}).tap();
   assert.equal(await offer('relic-shards').count(),1,'return to the same shop category');
   await page.reload();await page.waitForFunction(()=>window.__lootborn);
-  await page.getByRole('button',{name:'Лавка',exact:true}).tap();
+  await page.getByRole('button',{name:'Магазин',exact:true}).tap();
   await offer('travel-stipend').getByText('Сегодня куплено').waitFor();
   await category('Наборы припасов');
   await offer('test_special_pack_1').getByText('Куплено',{exact:true}).waitFor();

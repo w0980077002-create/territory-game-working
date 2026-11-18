@@ -12,3 +12,9 @@
 .saga-modal .bulk-confirm button{min-width:0;min-height:44px;font-size:13px;padding:7px;border:1px solid #a58a5c;border-radius:5px;background:var(--saga-iron);color:#ebd7ae}
 .saga-modal[data-panel="inventory"] .bulk-toolbar,.saga-modal[data-panel="inventory"] .bulk-action{margin:0}
 @media(max-height:650px){.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-auto,.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-capacity{display:none}}
+.saga-modal .bulk-toolbar .bulk-clean{flex:1.4;font-weight:700;border-color:#e4ad43;color:#ffe9a6;background:linear-gradient(#b0592438,#0003),var(--saga-oak)}
+.saga-modal .bulk-toolbar .bulk-clean:disabled{border-color:#6d5a3d;color:#a3967c;background:var(--saga-iron)}
+.saga-modal .bulk-rules{flex:none;margin:0;font-size:11px;line-height:1.35;color:#d9c79f}
+.saga-modal .bulk-rules b{color:#ffcf9a}
+.saga-modal .bulk-hidden{flex-basis:100%;font-size:11px;color:#c6b48c}
+.saga-modal .inventory-grid small.bulk-reason{font-size:10px;color:#ffcf9a}
