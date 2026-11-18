@@ -40,6 +40,11 @@ function split(packed:{z:boolean;data:string}){
  for(const c of packed.data){const cp=c.codePointAt(0)!;const length=cp<0x80?1:cp<0x800?2:cp<0x10000?3:4;if(bytes+length>CLOUD_CHUNK_BYTES){chunks.push(chunk);chunk='';bytes=0}chunk+=c;bytes+=length}
  if(chunk)chunks.push(chunk);return chunks;
 }
+export async function measureCloudSave(raw:string){
+ const packed=await pack(raw);
+ const bytes=packed.z?packed.data.length:new TextEncoder().encode(packed.data).byteLength;
+ return {bytes,chunks:packed.z?Math.ceil(bytes/CLOUD_CHUNK_BYTES):split(packed).length,compressed:packed.z};
+}
 // Finish every chunk before releasing the bank, including after a failed write.
 // Otherwise callbacks from an older upload can overwrite a newer generation.
 // The metadata key is written last, so an interrupted upload leaves the previous complete copy in place.

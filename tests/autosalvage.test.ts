@@ -71,3 +71,57 @@ test('protected rare item is kept when auto-dismantle is active',()=>{
  useGame.getState().mutate(p=>addLoot(p,rare,true));
  assert.equal(useGame.getState().p.inventory.some(i=>i.id===rare.id),true);
 });
+
+test('at 80/80, a weak Horn roll is salvaged once and a rare roll is saved on the shelf',t=>{
+ const p=freshPlayer(),old=drop();
+ p.inventory=[old,...Array.from({length:79},()=>drop('helmet'))];
+ p.equipment.weapon=drop('weapon',3,15);
+ useGame.setState({p});
+ buyOn();
+ useGame.getState().open('loot');
+ let time=1000;
+ t.mock.method(performance,'now',()=>time);
+ const random=t.mock.method(Math,'random',()=>0);
+ const before=useGame.getState().p;
+ useGame.getState().hornLoot();
+ const salvaged=useGame.getState(),calls=random.mock.callCount();
+ assert.equal(salvaged.p.horn,before.horn-1);
+ assert.deepEqual(salvaged.p.inventory,before.inventory);
+ assert.equal(salvaged.p.pendingLoot,undefined);
+ assert.ok(salvaged.p.gold>before.gold);
+ assert.match(salvaged.toast,/автоматически разобрана/);
+ useGame.getState().hornLoot();
+ assert.equal(useGame.getState().p,salvaged.p);
+ assert.equal(random.mock.callCount(),calls,'a double tap never rolls the second item');
+
+ time+=500;
+ let draws=0;
+ random.mock.mockImplementation(()=>++draws===3?0:0.99);
+ useGame.getState().hornLoot();
+ const kept=useGame.getState(),stored=kept.p.pendingLoot?.[0];
+ assert.ok(stored&&stored.rarity>=3);
+ assert.equal(kept.p.horn,before.horn-2);
+ assert.equal(kept.p.gold,salvaged.p.gold);
+ assert.equal(kept.selected,stored.id);
+ assert.match(kept.toast,/сохранена на складе.*авторазбор пропущен.*редкая/);
+ assert.deepEqual(parseSave(exportSave())?.pendingLoot,[stored]);
+});
+
+test('ordinary campaign loot is salvaged at 80/80 without touching stored or replaced gear',t=>{
+ const p=freshPlayer();
+ p.inventory=Array.from({length:80},()=>drop('helmet'));
+ p.pendingLoot=[drop('weapon')];
+ p.equipment.weapon=drop('weapon',3,15);
+ useGame.setState({p});
+ buyOn();
+ t.mock.method(Math,'random',()=>0);
+ const g=useGame.getState();
+ assert.equal(g.win('campaign','weak-wave'),true);
+ const after=useGame.getState();
+ assert.equal(after.p.wave,g.p.wave+1);
+ assert.deepEqual(after.p.inventory,g.p.inventory);
+ assert.deepEqual(after.p.pendingLoot,g.p.pendingLoot);
+ assert.match(after.toast,/автоматически разобрана/);
+ assert.equal(after.win('campaign','weak-wave'),false);
+ assert.equal(useGame.getState().p,after.p);
+});

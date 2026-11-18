@@ -13,7 +13,16 @@ test('save roundtrip retains gear, currencies, runes, class and progress',()=>{c
 test('horn regen is capped and backward clock cannot create charges',()=>{const p=freshPlayer();p.hornAt=1000000;p.horn=49;refill(p,1240000);assert.equal(p.horn,50);refill(p,1);assert.equal(p.horn,50)});
 test('comparison uses actual CP; low funds cannot upgrade or buy',()=>{const g=()=>useGame.getState();const item=makeItem('weapon',20,5);assert.ok(compareItem(item,g().p)>0);g().mutate(p=>{p.gold=0;p.gems=0;p.tokens=0});const snapshot=JSON.stringify(g().p);g().train('hero');g().upgrade('weapon');g().buy('horn');g().buy('test_special_pack_1');assert.equal(JSON.stringify(g().p),snapshot)});
 test('damage obeys mitigation, crit multiplier and ignores zero defense',()=>{assert.equal(damage(100,0,1),100);assert.equal(damage(100,115,1),50);assert.equal(damage(100,0,1,2.2,true,1.5),330)});
-test('inventory capacity retains rare items and horn cannot overfill',()=>{const g=()=>useGame.getState();g().mutate(p=>{p.inventory=Array.from({length:80},()=>makeItem('weapon',3,5))});const before=JSON.stringify(g().p);g().hornLoot();assert.equal(JSON.stringify(g().p),before)});
+test('a full backpack retains existing items and sends a new Horn drop to storage',()=>{
+ const g=()=>useGame.getState();
+ g().mutate(p=>{p.inventory=Array.from({length:80},()=>makeItem('weapon',3,5))});
+ const before=g().p;
+ g().hornLoot();
+ assert.deepEqual(g().p.inventory,before.inventory);
+ assert.equal(g().p.horn,before.horn-1);
+ assert.equal(g().p.pendingLoot?.length,1);
+ assert.equal(g().selected,g().p.pendingLoot?.[0].id);
+});
 test('invalid nested saves cannot poison combat statistics',()=>{for(const mutate of [(p:ReturnType<typeof freshPlayer>)=>{p.talents=[]},(p:ReturnType<typeof freshPlayer>)=>{p.companions=[1]},(p:ReturnType<typeof freshPlayer>)=>{p.equipment.weapon!.hp=NaN},(p:ReturnType<typeof freshPlayer>)=>{p.runes=[0,1,10]},(p:ReturnType<typeof freshPlayer>)=>{p.inventory=[p.equipment.weapon!]}]){const p=freshPlayer();mutate(p);assert.equal(parseSave(JSON.stringify(p)),null)}});
 test('dungeon victories and darkness callbacks without a paid itinerary cannot advance the dark floor',()=>{useGame.getState().win('dungeon');assert.equal(useGame.getState().p.darkFloor,1);const gold=useGame.getState().p.gold;assert.equal(useGame.getState().win('darkness'),false);assert.equal(useGame.getState().p.darkFloor,1);assert.equal(useGame.getState().p.gold,gold)});
 test('free wings preserve old equipped wings exactly once and reject full backpack safely',()=>{const g=()=>useGame.getState();const old=makeItem('wings',9,7);g().mutate(p=>{p.equipment.wings=old});g().claim('wings');assert.ok(g().p.inventory.some(i=>i.id===old.id));const count=g().p.inventory.length;g().claim('wings');assert.equal(g().p.inventory.length,count);useGame.setState({p:freshPlayer()});g().mutate(p=>{p.equipment.wings=old;p.inventory=Array.from({length:80},()=>makeItem('armor',1,3))});g().claim('wings');assert.equal(g().p.equipment.wings?.id,old.id);assert.ok(!g().p.claimed.includes('wings'))});

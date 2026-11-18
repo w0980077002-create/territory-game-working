@@ -3,7 +3,7 @@
  * mutation (re-validated inside), so a double tap, a reload or two tabs can never pay or grant twice.
  */
 import {realmSessionWritable} from './session';
-import {useGame,claimRealmReward} from '../core/store';
+import {useGame,claimRealmReward,mayStartLoot} from '../core/store';
 import type {Player,Slot} from '../core/types';
 import {battle} from '../game/Battle';
 import {haptic} from '../core/telegram';
@@ -28,7 +28,7 @@ export function realmSelect(floor:number){if(!Number.isInteger(floor)||floor<1||
 const trophyWaiting=(p:Player)=>p.rewardOffer&&!p.rewardOffer.resolved?'Сначала разберите трофей босса':null;
 export function realmStart(floor:number,blessing:BlessingId){
  if(!realmSessionWritable())return fail('Поход открыт в другой вкладке · продолжите там');
- if(!battle)return false;
+ if(!battle||!mayStartLoot())return false;
  const ok=tx(p=>trophyWaiting(p)??(realmLast(p)&&!realmLast(p)!.ack?'Сначала заберите итог похода':realmRun(p)?'Поход во Тьму уже идёт':!Number.isInteger(floor)||floor<1||floor>p.darkFloor?'Этот этаж ещё закрыт':!blessingIds.includes(blessing)?'Выберите благословение':p.chaosite<REALM_COST?`Нужно ${REALM_COST} Хаосита`:null),
   p=>{p.chaosite-=REALM_COST;const box=realmBox(p);box.run=newRealmRun(floor,blessing);box.sel=floor;delete box.last;bumpCount(p,'realm:run')});
  if(ok)battle.enterRealm();return ok;
