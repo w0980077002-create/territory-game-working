@@ -32,6 +32,7 @@ import {rewardText} from '../saga/rewards';
 import {PORTALS} from '../dark/portals';
 import {realmRun,floorName} from '../dark/realm';
 import {RealmPanel,DarkGearPanel,GemsPanel,RelicsPanel,SquadPanel,DarkHub,PowerSources} from './DarkPanels';
+const INVITE_URL='https://t.me/VikingRomeGame';
 const currencyNames:Record<string,string>={gold:'Золото',gems:'Самоцветы',chaosite:'Хаосит',tokens:'Жетоны Арены',horn:'Заряды Рога Трофеев',ess:'Тёмная эссенция',shard:'Осколки реликвий',seal:'Печати призыва',dusk:'Камни Сумрака'};
 const sourceTitle=(kind:string)=>`Где получить · ${currencyNames[kind]??materials[kind]?.name??kind}`;
 const modeNames:Record<string,string>={campaign:'Глава',farm:'Фарм',dungeon:'Логово',darkness:'Тьма',arena:'Арена'};
@@ -217,15 +218,12 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   ++importRequest.current;setCloudCandidate(null);const saved=parseSave(text,true);
   if(saved){setImportCandidate(saved);setPasteOpen(false)}else g.notice('Некорректное сохранение');
  };
- const copy=async()=>{
-  const url=new URL(location.href);
-  url.search='';
-  url.hash='';
+ const copyInvite=async()=>{
   try{
-   await navigator.clipboard.writeText(url.href);
+   await navigator.clipboard.writeText(INVITE_URL);
    setShareAddress('');
    g.notice('Ссылка на игру скопирована');
-  }catch{setShareAddress(url.href)}
+  }catch{setShareAddress(INVITE_URL)}
  };
  if(panel==='inventory')return <Backpack storage={storage} setStorage={setStorage}/>;
  return <DialogShell panel={panel} onBack={sourceBack?()=>g.open(sourceBack):returnToQuest?()=>{setQuestDestination(null);g.open('quests')}:undefined} backLabel={sourceBack?'Назад':returnToQuest?'К заданию':undefined} title={slot?slotNames[slot]:titles[panel]??(panel.startsWith('source:')?sourceTitle(panel.split(':')[1]):panel)} rarity={item?.rarity} footer={<footer className={`modal-footer ${panel==='item'&&item?'item-footer':''}`}>{panel==='item'&&item&&confirmRare===item.id&&<div className="item-confirm" role="alert"><strong>Распылить «{item.name}»?</strong><span>Предмет исчезнет · +{Math.round(itemPower(item)/3)} золота и опыт</span><button onClick={()=>setConfirmRare(null)}>Отмена</button></div>}{panel==='item'&&item&&<div className="item-decisions"><Action onClick={()=>{g.equip(item.id);if(isTrophy)finish()}}>Надеть</Action><Action kind="secondary" onClick={()=>{if(isTrophy){g.keepReward();finish()}else if(g.back)g.leaveItem();else g.open('inventory')}}>{p.pendingLoot?.some(i=>i.id===item.id)?'На хранение':'В рюкзак'}</Action><Action kind="secondary" disabled={!!item.locked||!p.inventory.some(i=>i.id===item.id)} onClick={()=>salvage(item)}>{confirmRare===item.id?'Подтвердить распыление':item.locked?'🔒 Защищено':!p.inventory.some(i=>i.id===item.id)?'Сначала в рюкзак':`Распылить +${Math.round(itemPower(item)/3)}`}</Action></div>}<div className="footer-wallet"><span><Icon name="coins"/>{fmt(p.gold)}</span><span><Icon name="gem"/>{fmt(p.gems)}</span><button onClick={()=>g.open(null)}>К бою</button></div></footer>}><ForgeEcho/>
@@ -250,7 +248,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  {panel==='quests'&&<>{p.bosses>p.mission&&<div className="chapter-reward-ready">{chapterReward}</div>}<QuestBoard p={p} tab={questTab} setTab={setQuestTab} onGo={goFromQuest}/><details className="saga-disclosure"><summary>Цели охоты и источники добычи</summary><HuntGoals p={p}/></details><details className="saga-disclosure"><summary>Именные трофеи саги</summary><GearGuide p={p}/></details>{p.bosses<=p.mission&&chapterReward}<Row icon="axes" title="Продолжить главу" detail={`Текущий этап ${stageLabel(p.stage)}, волна ${p.wave}/5`}/><Action onClick={()=>{battle?.challenge();g.open(null)}}>В бой</Action><Action kind="secondary" onClick={()=>g.open('loot')}>Рог Трофеев · {p.horn}</Action><Chronicle/></>}
  {panel==='rewards'&&<DailyRewards p={p}/>}
  {panel==='events'&&<SeasonRewards p={p}/>}
- {(panel==='friends'||panel==='invite')&&<><div className="feature-art"><Icon name="people"/></div><h3>Пригласите друзей в Северный поход</h3><p>Отправьте ссылку другу, чтобы он начал свой поход.</p><Action onClick={copy}>Скопировать ссылку на игру</Action>{shareAddress&&<label>Адрес для копирования <input type="url" readOnly value={shareAddress} onFocus={event=>event.currentTarget.select()}/></label>}</>}
+ {(panel==='friends'||panel==='invite')&&<><div className="feature-art"><Icon name="people"/></div><h3>Пригласите друзей в Северный поход</h3><p>Отправьте ссылку другу, чтобы он открыл игру в Telegram.</p><Action onClick={copyInvite}>Скопировать ссылку на игру</Action>{shareAddress&&<label>Адрес для копирования <input type="url" readOnly value={shareAddress} onFocus={event=>event.currentTarget.select()}/></label>}</>}
  {panel==='collection'&&<Album p={p}/>}
  {panel==='port'&&<div className="harbor-workspace">
   <HarborScene view="port" ships={fleet.ships} onNavigate={destination=>g.open(destination)}/>

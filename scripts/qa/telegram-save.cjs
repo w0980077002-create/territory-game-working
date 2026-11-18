@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const base = process.env.BASE_URL || 'http://localhost:4173/';
 const browserKey = 'lootborn-codex-v1';
 const telegramKey = browserKey + ':telegram:1234567';
+const inviteUrl = 'https://t.me/VikingRomeGame';
 
 (async () => {
  const browser = await chromium.launch({
@@ -120,21 +121,35 @@ const telegramKey = browserKey + ':telegram:1234567';
   assert.equal(await page.evaluate(() => window.mockCloud.writes), 0, 'a timeout cannot authorize an upload');
   assert.equal((await read(telegramKey)).gold, other.gold);
   await tap('Закрыть');
-  await page.evaluate(() => {
-   history.replaceState(null, '', location.pathname + '#tgWebAppData=synthetic');
-   Object.defineProperty(navigator, 'clipboard', {
-    configurable: true,
-    value: { writeText: value => { window.copiedGameLink = value; return Promise.resolve(); } }
+  const verifyInvite = async () => {
+   await page.evaluate(() => {
+    history.replaceState(null, '', location.pathname + location.search + '#tgWebAppData=synthetic');
+    Object.defineProperty(navigator, 'clipboard', {
+     configurable: true,
+     value: { writeText: value => { window.copiedGameLink = value; return Promise.resolve(); } }
+    });
    });
-  });
+   await tap('Скопировать ссылку на игру');
+   assert.equal(await page.evaluate(() => window.copiedGameLink), inviteUrl);
+   await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error('Denied')); });
+   await tap('Скопировать ссылку на игру');
+   assert.equal(await page.getByRole('textbox', {name:'Адрес для копирования'}).inputValue(), inviteUrl);
+  };
+
+  const beforeInvite = await read(telegramKey);
   await tap('Приглашение');
-  await tap('Скопировать ссылку на игру');
-  assert.equal(await page.evaluate(() => window.copiedGameLink), base, 'game links omit the Telegram launch fragment');
-  await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error('Denied')); });
-  await tap('Скопировать ссылку на игру');
-  assert.equal(await page.getByRole('textbox', {name:'Адрес для копирования'}).inputValue(), base);
+  await verifyInvite();
+  const afterInvite = await read(telegramKey);
+  for (const field of ['inventory','pendingLoot','gold','gems','stage','equipment','claimed','bought'])
+   assert.deepEqual(afterInvite[field], beforeInvite[field], 'sharing preserves ' + field);
+
+  await page.goto(base + '?hero=invite-alias-qa');
+  await page.waitForFunction(() => window.__lootborn?.battle);
+  await page.evaluate(() => window.__lootborn.useGame.getState().open('friends'));
+  await page.getByRole('dialog', {name:'Поделиться игрой'}).waitFor();
+  await verifyInvite();
   assert.deepEqual(errors, []);
-  console.log('Telegram bridge: restore, backup, reload, isolated Chrome progress, conflict and offline protection');
+  console.log('Telegram bridge: restore, backup, reload, isolated Chrome progress, conflict and offline protection; both invitation routes');
  } finally {
   await browser.close();
  }
