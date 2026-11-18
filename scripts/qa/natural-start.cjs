@@ -88,7 +88,7 @@ const heights={320:568,360:740,390:844,430:932};
    await until(s=>!s.offer||s.offer.resolved,20000,'boss trophy kept before the realm');// the realm honestly waits for an open trophy
    if((await st()).running){await page.locator('button.central').tap();await page.waitForTimeout(400)}
    const realm=()=>page.evaluate(()=>{const p=window.__lootborn.useGame.getState().p,b=p.saga?.box?.realm;return {floor:p.darkFloor,chaosite:p.chaosite,gold:p.gold,run:b?.run&&{stage:b.run.stage},last:b?.last&&{win:b.last.win,ack:b.last.ack}}});
-   await tap('приключение');await page.getByRole('button',{name:/^Царство тьмы Этаж/}).first().tap();await page.waitForTimeout(500);
+   await tap('Приключения');await page.getByRole('button',{name:/^Царство тьмы Этаж/}).first().tap();await page.waitForTimeout(500);
    const r0=await realm();await page.getByRole('button',{name:/Вызов/}).first().dblclick();await page.waitForTimeout(600);
    let r=await realm();assert.equal(r.chaosite,r0.chaosite-5,'entry paid once · '+(await st()).toast);assert.equal(r.run.stage,'INTRO_7');
    const picks=new Set();

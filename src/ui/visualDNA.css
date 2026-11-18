@@ -79,6 +79,6 @@
 .relic-art-leaf{background-position:50% 0}.relic-art-ravens{background-position:100% 0}
 .saga-modal .relic-art-mjolnir>.icon,.saga-modal .relic-art-leaf>.icon,.saga-modal .relic-art-ravens>.icon{visibility:hidden}
 .relic-art-mjolnir::before,.relic-art-leaf::before,.relic-art-ravens::before{display:none}
-.saga-modal .harbor-back{flex:0 0 36px;min-width:36px;width:36px;height:44px;padding:0;border:1px solid #998469;border-radius:5px;color:#efdab4;background:linear-gradient(#464252,#1a2030);font:30px/1 Georgia,serif;box-shadow:inset 0 0 0 2px #131b2b}
+.saga-modal .harbor-back{flex:0 0 44px;min-width:44px;width:44px;height:44px;padding:0;border:1px solid #998469;border-radius:5px;color:#efdab4;background:linear-gradient(#464252,#1a2030);font:30px/1 Georgia,serif;box-shadow:inset 0 0 0 2px #131b2b}
 .saga-modal .realm .bless-explainer{height:24px;min-height:24px;margin:0;padding:0 5px;text-align:center;font:10px/12px Arial,sans-serif;color:#ccbda6;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 @media(max-height:600px){.saga-modal .realm .bless-explainer{height:22px;min-height:22px;font-size:9px;line-height:11px}}

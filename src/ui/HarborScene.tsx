@@ -15,16 +15,18 @@ const buildings = [
   {id:'darkgear',label:'Тёмная энергия',icon:'essence',x:16,y:82,color:'violet'},
   {id:'gems',label:'Камни',icon:'gem',x:85,y:56,color:'teal'},
 ] as const;
-type Destination = typeof buildings[number]['id'];
+export type Destination = typeof buildings[number]['id'];
 type Props = {
   view: 'port' | 'shipyard';
   ships: readonly Ship[];
   selectedShipId?: string;
   onNavigate?: (id: Destination) => void;
   onChooseShip?: (id: string) => void;
+  /** Small counter on a building sign, e.g. red diamonds ready at the shipyard. */
+  badges?: Partial<Record<Destination, string>>;
 };
 
-export function HarborScene({view,ships,selectedShipId,onNavigate,onChooseShip}: Props) {
+export function HarborScene({view,ships,selectedShipId,onNavigate,onChooseShip,badges}: Props) {
   const yard = view === 'shipyard';
   return <section className={'harbor-scene harbor-' + view} aria-label={yard ? 'Верфь драккаров' : 'Карта Северной гавани'}>
     <div className="harbor-reflections" aria-hidden="true"/>
@@ -49,8 +51,9 @@ export function HarborScene({view,ships,selectedShipId,onNavigate,onChooseShip}:
       <nav className="harbor-links" aria-label="Постройки гавани">
         {buildings.map(({id,label,icon,x,y,color}) => <button key={id} type="button"
           className={'harbor-building sign-' + color} style={{left:x+'%',top:y+'%'} as CSSProperties}
+          aria-label={badges?.[id] ? label + ' · ' + badges[id] : undefined}
           onClick={() => onNavigate?.(id)}>
-          <span><Icon name={icon}/>{label}</span>
+          <span><Icon name={icon}/>{label}{badges?.[id] && <b className="harbor-badge">{badges[id]}</b>}</span>
         </button>)}
       </nav>
     </>}

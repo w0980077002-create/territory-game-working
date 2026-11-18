@@ -15,7 +15,7 @@
   flex: none;
   aspect-ratio: 3 / 4;
   max-height: calc(var(--game-viewport-height,var(--tg-viewport-stable-height,100dvh))
-    - var(--game-safe-top,0px) - var(--game-safe-bottom,0px) - 142px);
+    - var(--game-safe-top,0px) - var(--game-safe-bottom,0px) - 262px);
   background: url('../../public/art/windows/harbor.webp') center / 100% 100% no-repeat;
 }
 .harbor-links { position: absolute; inset: 0; }
@@ -161,4 +161,30 @@
 [data-motion="reduced"] :is(.harbor-bob,.harbor-forge-light,.harbor-smoke i,.harbor-aurora,.harbor-reflections) { animation:none; }
 @media (prefers-reduced-motion: reduce) {
   :is(.harbor-bob,.harbor-forge-light,.harbor-smoke i,.harbor-aurora,.harbor-reflections) { animation: none; }
+}
+
+/* Solo 1.1: what each confusing harbour building is, plus ready red diamonds on the shipyard sign. */
+.harbor-building .harbor-badge { margin-left: 3px; padding: 0 4px; border-radius: 6px; background: #c8263a; color: #fff; font-size: 10px; line-height: 14px; box-shadow: 0 0 0 1px #fff8; }
+.saga-modal .harbor-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 6px 0; padding: 0; list-style: none; }
+.saga-modal .harbor-guide button { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; height: 100%; min-height: 44px; padding: 4px 3px; border: 1px solid #8a78574d; border-radius: 7px; background: #0b141bcc; color: #cbb88f; text-align: center; font-size: 10px; line-height: 1.2; font-weight: 500; }
+.saga-modal .harbor-guide .icon { width: 22px; height: 22px; }
+.saga-modal .harbor-guide b { display: block; color: #ffe5a8; font-size: 11px; white-space: nowrap; }
+.saga-modal .panel-lead { margin: 0 0 8px !important; font-size: 12px !important; line-height: 1.35 !important; color: #d7c9a8 !important; }
+
+.saga-modal .harbor-guide small { display: block; font-size: 10px; }
+/* Short WebView: the 10 map signs need the full map height (Рюкзак/Камни are 12% apart), so the guide
+   opens over the map from a compact «?» instead of taking height. */
+.saga-modal .harbor-map { position: relative; }
+.saga-modal .harbor-help { display: none; }
+@media (max-height: 700px) {
+  .saga-modal[data-panel="port"] .harbor-port { max-height: calc(var(--game-viewport-height,var(--tg-viewport-stable-height,100dvh)) - var(--game-safe-top,0px) - var(--game-safe-bottom,0px) - 142px); }
+  .saga-modal .harbor-help { display: grid; place-items: center; position: absolute; right: 6px; bottom: 6px; z-index: 3; width: 40px; height: 40px; border: 2px solid #e4ad43; border-radius: 50%; background: #1b2023e8; color: #ffe9a6; font: 700 20px/1 Georgia, serif; box-shadow: 0 2px 6px #000b; }
+  .saga-modal .harbor-guide { display: none; }
+  .saga-modal .guide-open .harbor-guide { display: grid; position: absolute; left: 6px; right: 52px; bottom: 6px; z-index: 3; margin: 0; }
+  .saga-modal .guide-open .harbor-guide button { background: #0b141bf2; border-color: #e4ad4399; }
+}
+/* 320–374 px: the longest sign («Тёмная энергия») fits its 36% lane without clipping. */
+@media (max-width: 374px) {
+  .harbor-building > span { padding: 0 2px; gap: 1px; letter-spacing: -.2px; }
+  .harbor-building .icon { width: 12px; height: 12px; }
 }
