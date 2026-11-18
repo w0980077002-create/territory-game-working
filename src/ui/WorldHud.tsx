@@ -24,7 +24,7 @@ export function WorldHud(){
  </>;
 }
 /** Suffix for Codex's status pill so an active blessing is always visible without a new HUD element. */
-export function useRoadStatus(){const w=useWorld();return (w.boon?` · ${w.boon.name}`:'')+(w.gift?' · Зелье торговки':'')}
+export function useRoadStatus(){return useWorld(w=>(w.boon?` · ${w.boon.name}`:'')+(w.gift?' · Зелье торговки':''))}
 const rumours:Record<string,string>={cache:'пёс тянет носом к обочине',caravan:'на дороге слышен скрип саней и крики',ambush:'птицы над дорогой неспокойны',altar:'в воздухе звенят руны',omen:'у цитадели дурные приметы'};
 /** Compact rows inside the existing «Путь героя» panel: next lead, achievements, last chronicle lines. */
 export function Chronicle(){

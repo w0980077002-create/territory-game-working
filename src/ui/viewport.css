@@ -1,0 +1,26 @@
+:root {
+  --game-safe-top: max(env(safe-area-inset-top,0px),calc(var(--game-system-top,var(--tg-safe-area-inset-top,0px)) + var(--game-content-top,var(--tg-content-safe-area-inset-top,0px))));
+  --game-safe-right: max(env(safe-area-inset-right,0px),calc(var(--game-system-right,var(--tg-safe-area-inset-right,0px)) + var(--game-content-right,var(--tg-content-safe-area-inset-right,0px))));
+  --game-safe-bottom: max(env(safe-area-inset-bottom,0px),calc(var(--game-system-bottom,var(--tg-safe-area-inset-bottom,0px)) + var(--game-content-bottom,var(--tg-content-safe-area-inset-bottom,0px))));
+  --game-safe-left: max(env(safe-area-inset-left,0px),calc(var(--game-system-left,var(--tg-safe-area-inset-left,0px)) + var(--game-content-left,var(--tg-content-safe-area-inset-left,0px))));
+}
+.viewport, .saga-shade {
+  bottom: auto;
+  height: var(--game-viewport-height,var(--tg-viewport-stable-height,100dvh));
+}
+.viewport { padding: var(--game-safe-top) var(--game-safe-right) var(--game-safe-bottom) var(--game-safe-left); }
+.saga-shade {
+  max-height: none;
+  padding: max(var(--dialog-gutter),var(--game-safe-top))
+    max(var(--dialog-gutter),var(--game-safe-right))
+    max(var(--dialog-gutter),var(--game-safe-bottom))
+    max(var(--dialog-gutter),var(--game-safe-left));
+}
+.context-card {
+  top: max(12px,var(--game-safe-top));
+  bottom: calc(100dvh - var(--game-viewport-height,var(--tg-viewport-stable-height,100dvh)) + max(12px,var(--game-safe-bottom)));
+  left: max(12px,var(--game-safe-left));
+  right: max(12px,var(--game-safe-right));
+  width: min(510px,calc(100% - max(12px,var(--game-safe-left)) - max(12px,var(--game-safe-right))));
+  max-height: calc(var(--game-viewport-height,var(--tg-viewport-stable-height,100dvh)) - max(24px,var(--game-safe-top)) - max(24px,var(--game-safe-bottom)));
+}

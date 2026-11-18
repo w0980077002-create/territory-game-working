@@ -54,6 +54,12 @@ interface QuestBox {day?:Board;week?:Board}
 const fresh=(p:Player,id:string,pool:QuestDef[],count:number):Board=>{const picks=pick(pool,count,hashText(id)^(p.world?.seed??7)),base:Record<string,number>={};for(const q of pool)if(picks.includes(q.id))for(const k of q.keys)base[k]=counter(p,k);return {id,picks,base,claimed:[]}};
 /** Boards saved before a goal left the pool (it had no way to progress) get an honest replacement for the rest of the period. */
 function repair(p:Player,board:Board,pool:QuestDef[]){const used=new Set(board.picks);let changed=false;board.picks=board.picks.map(id=>{if(pool.some(q=>q.id===id))return id;const next=pool.find(q=>!used.has(q.id));if(!next)return id;used.add(next.id);for(const k of next.keys)board.base[k]??=counter(p,k);changed=true;return next.id});return changed}
+export function questRefreshDue(p:Player,now=Date.now()){
+ const box=peekBox<QuestBox>(p,'quests');
+ return box?.day?.id!==dayOf(now)||box?.week?.id!==weekOf(now)
+  ||box.day.picks.some(id=>!dailyPool.some(q=>q.id===id))
+  ||box.week.picks.some(id=>!weeklyPool.some(q=>q.id===id));
+}
 /** Starts today's/this week's board if needed. Call inside a mutation; cheap and idempotent. */
 export function ensureQuests(p:Player,now=Date.now()){const box=boxOf<QuestBox>(p,'quests',()=>({})),day=dayOf(now),week=weekOf(now);let changed=false;if(box.day?.id!==day){box.day=fresh(p,day,dailyPool,DAILY_COUNT);changed=true}if(box.week?.id!==week){box.week=fresh(p,week,weeklyPool,WEEKLY_COUNT);changed=true}if(box.day&&repair(p,box.day,dailyPool))changed=true;if(box.week&&repair(p,box.week,weeklyPool))changed=true;return changed}
 export interface QuestView {def:QuestDef;progress:number;done:boolean;claimed:boolean;reward:Reward}
