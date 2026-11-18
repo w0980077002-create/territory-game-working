@@ -8,6 +8,7 @@ import {stats} from '../src/core/formulas';
 import type {Player,Slot} from '../src/core/types';
 import {setCounts,setTier,sets,perks,setIds,matKey,matCount,type SetId,type PerkId} from '../src/saga/gear';
 import {specs,specId} from '../src/saga/specs';
+import {freshSaga} from "../src/saga/save";
 import {branchOf,evoTier,evoPower} from '../src/saga/companions';
 import {reforge,reforgePlan,engrave,craftSet,trade,pickSpec,pickBranch,saveBuild,applyBuild,buildsOf} from '../src/saga/actions';
 import {ensureQuests,dailyView,weeklyView,claimBoard,storyQuests,claimStory,masteryView,claimMastery,goals,DAILY_COUNT,WEEKLY_COUNT,dailyPool} from '../src/saga/quests';
@@ -85,4 +86,24 @@ test('saga items and fight state survive a save roundtrip and a reload mid-fight
  const b=fight(p=>{wear(p,'ember',2);give(p,'heart');p.equipment.weapon!.engrave='edge'});b.perk.strikes=7;b.perk.revived=1;b.units[0].frozen=1.2;b.units[0].dusk=3;b.checkpoint();const snap=b.snapshot();b.destroy();
  const loaded=parseSave(JSON.stringify(G().p),true);assert.ok(loaded);assert.equal(loaded!.equipment.amulet!.perk,'heart');assert.equal(loaded!.equipment.weapon!.engrave,'edge');useGame.setState({p:loaded!});
  const c=new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement);assert.deepEqual(c.snapshot(),snap);assert.equal(c.perk.revived,1);c.rawDamage(c.maxHp*5);assert.equal(c.phase,'defeat');c.destroy();
+});
+
+test('failed storage writes keep forge resources, horn charges and saved builds intact',()=>{
+ const originalSetItem=localStorage.setItem;
+ const g=G();
+ g.mutate(p=>{p.gold=1000;p.horn=5;p.saga=freshSaga();p.saga.n[matKey('ice')]=20});
+ const before=G().p;
+ localStorage.setItem=()=>{throw new Error('Quota exceeded')};
+ try{
+  assert.equal(craftSet('frost','weapon'),false);
+  assert.equal(saveBuild(0),false);
+  assert.equal(G().selected,null);
+  G().hornLoot();
+  assert.deepEqual(G().p,before);
+  assert.match(G().toast,/Не удалось сохранить/);
+ }finally{
+  localStorage.setItem=originalSetItem;
+ }
+ assert.equal(saveBuild(0),true);
+ assert.equal(buildsOf(G().p)[0]?.gear.weapon,before.equipment.weapon?.id);
 });
