@@ -1,4 +1,4 @@
-interface TG {ready:()=>void;expand:()=>void;isVersionAtLeast?:(v:string)=>boolean;disableVerticalSwipes?:()=>void;enableClosingConfirmation?:()=>void;initData?:string;CloudStorage?:{getItem:(k:string,cb:(err:unknown,v:string)=>void)=>void;setItem:(k:string,v:string,cb?:(err:unknown,stored?:boolean)=>void)=>void};HapticFeedback?:{impactOccurred:(s:string)=>void;selectionChanged:()=>void;notificationOccurred:(s:string)=>void}}
+interface TG {ready:()=>void;expand:()=>void;isVersionAtLeast?:(v:string)=>boolean;disableVerticalSwipes?:()=>void;enableClosingConfirmation?:()=>void;initData?:string;CloudStorage?:{getItem:(k:string,cb:(err:unknown,v?:string)=>void)=>void;setItem:(k:string,v:string,cb?:(err:unknown,stored?:boolean)=>void)=>void};HapticFeedback?:{impactOccurred:(s:string)=>void;selectionChanged:()=>void;notificationOccurred:(s:string)=>void}}
 declare global {interface Window {Telegram?:{WebApp?:TG}}}
 export const tg=()=>typeof window==='undefined'?undefined:window.Telegram?.WebApp;
 export function telegramAccountId(){
@@ -53,7 +53,7 @@ export function readCloud():Promise<CloudRead>{return new Promise(resolve=>{
  const timer=setTimeout(()=>finish({status:'unavailable'}),2500);
  try{cloud.getItem('save_meta',(err,raw)=>{
   if(finished)return;if(err){finish({status:'unavailable'});return}
-  if(raw===''){finish({status:'empty'});return}
+  if(raw===''||raw===undefined){finish({status:'empty'});return}
   if(typeof raw!=='string'){finish({status:'unavailable'});return}
   try{const {generation,count}=JSON.parse(raw);
    if(!['0','1'].includes(generation)||!Number.isInteger(count)||count<1||count>40)throw Error();
