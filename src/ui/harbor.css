@@ -14,7 +14,10 @@
 .saga-modal[data-panel="port"] .harbor-port {
   flex: none;
   aspect-ratio: 3 / 4;
-  max-height: calc(min(100dvh,var(--tg-viewport-stable-height,100dvh)) - 142px - var(--tg-content-safe-area-inset-top,0px) - var(--tg-safe-area-inset-bottom,0px));
+  max-height: calc(min(
+    100dvh - var(--tg-content-safe-area-inset-top,0px) - var(--tg-safe-area-inset-bottom,0px),
+    var(--tg-viewport-stable-height,100dvh)
+  ) - 142px);
   background: url('../../public/art/windows/harbor.webp') center / 100% 100% no-repeat;
 }
 .harbor-links { position: absolute; inset: 0; }
@@ -158,6 +161,6 @@
 @keyframes harbor-smoke-rise { from {opacity:0;transform:translateY(3px) scale(.35)} 35% {opacity:.7} to {opacity:0;transform:translate(12px,-45px) scale(1.65)} }
 @keyframes harbor-fire { 0%,65% {opacity:.74} 26%,92% {opacity:.38} 100% {opacity:.87} }
 [data-motion="reduced"] :is(.harbor-bob,.harbor-forge-light,.harbor-smoke i,.harbor-aurora,.harbor-reflections) { animation:none; }
-@media (max-height: 600px) {
-  .saga-modal .harbor-building { min-height: 40px; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.harbor-bob,.harbor-forge-light,.harbor-smoke i,.harbor-aurora,.harbor-reflections) { animation: none; }
 }
