@@ -31,7 +31,9 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
 
   // 2) Hero: visible «Сменить персонажа» at the top, three classes, only heroClass changes.
   await btn('Герой').tap();const toggle=page.locator('.class-toggle');await toggle.waitFor();
-  const dlg=await page.getByRole('dialog').boundingBox(),tb=await toggle.boundingBox();assert.ok(tb.y<dlg.y+dlg.height*0.3,'class switch is near the top');
+  const dlg=await page.getByRole('dialog').boundingBox(),tb=await toggle.boundingBox();assert.ok(tb.y<dlg.y+dlg.height*0.45,'class switch is near the top');
+  assert.equal(await page.getByRole('button',{name:/Повысить уровень/}).count(),0,'no paid level-up in the hero window');
+  assert.equal(await page.locator('.spec-card').count(),0,'specs are not two huge open cards');
   await toggle.tap();assert.equal(await page.locator('.class-card').count(),3);
   await page.getByRole('dialog').screenshot({path:`${out}/${width}-hero-classes.png`});
   const before=await state();
@@ -39,6 +41,14 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   const after=await state();assert.equal(after.heroClass,'ranger');
   for(const k of ['level','xp','gold','gems','inventory','equipment','talents','skills','runes','stage'])assert.deepEqual(after[k],before[k],'class switch kept '+k);
   assert.equal(await page.locator('.class-card.current strong').textContent(),'Следопыт');
+  // Spec: one compact line, opens on request, same pickSpec; nothing else changes.
+  const spec0=await state(),specToggle=page.locator('.spec-toggle');await specToggle.scrollIntoViewIfNeeded();
+  const name0=await specToggle.locator('strong').textContent();await specToggle.tap();
+  const other=page.locator('.spec-options button:not(.selected)');await other.tap();await page.waitForTimeout(200);
+  assert.notEqual(await specToggle.locator('strong').textContent(),name0,'spec switched');
+  const spec1=await state();for(const k of ['level','xp','gold','inventory','equipment','heroClass'])assert.deepEqual(spec1[k],spec0[k],'spec switch kept '+k);
+  // Reach the end of the hero window.
+  await page.locator('.hero-links').scrollIntoViewIfNeeded();await page.getByRole('dialog').screenshot({path:`${out}/${width}-hero-end.png`});
   await close();
 
   // 3) Backpack 80/80: clean weak → confirmation with preview → exactly the weak unlocked items go once.
@@ -46,6 +56,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await page.screenshot({path:`${out}/${width}-harbor.png`});
   await page.locator('.harbor-building',{hasText:'Рюкзак'}).tap();await page.getByRole('dialog',{name:'Рюкзак'}).waitFor();
   assert.match(await page.locator('.pack-capacity').innerText(),/80 \/ 80[\s\S]*Полон/);
+  await page.getByRole('button',{name:/^Фильтр качества:/}).tap();assert.equal(await page.getByRole('option',{name:/замк/i}).count(),0,'no lock filter');await page.keyboard.press('Escape');await page.waitForTimeout(200);
   await btn('Ранги').tap();const shown=(await page.locator('.pack-ranks li').allInnerTexts()).map(s=>s.trim());assert.deepEqual(shown,ranks);await btn('Ранги').tap();
   await btn('Как работает авторазбор').tap();assert.match(await page.locator('.pack-explain').innerText(),/новую/);await btn('Как работает авторазбор').tap();
   const clean=page.getByRole('button',{name:/^Очистить слабые · \d+$/});await clean.waitFor();
@@ -53,7 +64,8 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await clean.tap();const confirm=page.locator('.bulk-confirm');await confirm.waitFor();
   assert.equal(await page.locator('.bulk-gear.chosen').count(),10);
   assert.ok(await page.locator('.bulk-reason').count()>0,'protected items show their reason');
-  assert.match(await page.locator('[aria-label*="Слабая под замком"]').getAttribute('aria-label'),/замком/);
+  assert.match(await page.locator('[aria-label*="Слабая под замком"]').getAttribute('aria-label'),/только вручную/);
+  assert.equal((await page.getByRole('dialog').innerText()).includes('🔒'),false,'no lock symbols in the backpack');
   await page.getByRole('dialog').screenshot({path:`${out}/${width}-clean-confirm.png`});
   // Narrow to boots: the eight hidden picks must not be destroyed.
   await page.getByRole('button',{name:/^Тип предмета:/}).tap();await page.getByRole('option',{name:'Сапоги',exact:true}).tap();
@@ -98,6 +110,11 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
    await page.locator('.harbor-guide button',{hasText:label}).tap();await page.getByRole('dialog',{name:dialog}).waitFor();
    if(dialog==='Драгоценные камни')await page.locator('.panel-lead').waitFor();await close();
   }
+  // 6) Old save with locked:true: no lock UI, the card asks for confirmation instead of refusing.
+  await page.evaluate(()=>window.__lootborn.useGame.getState().select('weak-locked'));await page.getByRole('dialog').waitFor();
+  const card=await page.getByRole('dialog').innerText();assert.doesNotMatch(card,/Защитить|Защищено|🔒|Снять защиту/,'no lock controls on the item card');
+  await page.getByRole('button',{name:/^Распылить \+\d+$/}).tap();await btn('Подтвердить распыление').waitFor();
+  await page.getByRole('button',{name:'Отмена',exact:true}).tap();await close();
   await noOverflow('main');
   assert.deepEqual(errors,[]);
   row.ok=true;results.push(row);await context.close();

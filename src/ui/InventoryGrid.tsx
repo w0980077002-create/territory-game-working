@@ -25,7 +25,8 @@ interface Props {
 
 /** Display only: why canBulkSalvage() refused. The decision itself always stays with canBulkSalvage(). */
 export function protectionReason(p:Player,i:Item):{short:string;long:string}{
- if(i.locked)return {short:'🔒 замок',long:'защищено замком'};
+ // Saves from before Solo 1.1 may still carry locked:true. No lock exists any more: such an item is simply handled one by one.
+ if(i.locked)return {short:'Только вручную',long:'только вручную, по одной вещи с подтверждением'};
  if(Object.values(p.equipment).some(x=>x?.id===i.id))return {short:'надето',long:'надето на героя'};
  if(p.rewardOffer?.itemId===i.id)return {short:'трофей',long:'трофей босса ждёт выбора'};
  if(i.slot==='wings')return {short:'крылья',long:'крылья не разбираются массово'};
@@ -79,7 +80,7 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
    {storage&&!multi&&<button className="bulk-secondary" disabled={!p.pendingLoot?.length||p.inventory.length>=capacity} onClick={()=>onClaim?.()}>Забрать доступные</button>}
    <button type="button" className={multi?'bulk-mode active':'bulk-mode'} onClick={()=>{if(multi){if(!guarded())cancel()}else{setMulti(true);modeAt.current=performance.now()}}} aria-pressed={multi}>{multi?'Готово':'☑ Выбрать'}</button>
   </div>
-  {multi&&!storage&&<p className="bulk-rules">Отмечаются только простые вещи. <b>Не попадают</b>: замок, от «Редкого» и выше, усиленные, именные, сеты, свойства, награды и надетое — их можно распылить по одной в карточке.</p>}
+  {multi&&!storage&&<p className="bulk-rules">Отмечаются только простые вещи. <b>Не попадают</b>: от «Редкого» и выше, усиленные, именные, сеты, свойства, награды, крылья и надетое — их можно распылить по одной в карточке.</p>}
   <div className="inventory-grid" role="group" aria-label={storage?"Предметы на хранении":"Предметы в рюкзаке"}>
    {visible.map(i=>{
     const allowed=storage||canBulkSalvage(p,i);
@@ -93,7 +94,7 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
       aria-pressed={multi?checked:undefined}
       aria-label={`${i.name} · ${rarityNames[i.rarity]}${multi?(allowed?checked?' · выбрано':' · отметить':' · '+reason!.long):''}`}
       style={{'--rarity':rarityColors[i.rarity]} as CSSProperties}>
-      {(multi||i.locked)&&<span className="bulk-tick" aria-hidden="true">{multi&&checked?'✓':i.locked?'🔒':allowed?'□':'🔒'}</span>}
+      {multi&&allowed&&<span className="bulk-tick" aria-hidden="true">{checked?'✓':'□'}</span>}
       <Icon name={gearIcon(i.slot)}/>
       <strong>{i.uniqueId||i.perk?'✦ ':i.set?'◆ ':''}{slotNames[i.slot]}</strong>
       {reason?<small className="bulk-reason">{reason.short}</small>:<small>Ур. {i.level}{i.upgrade>0&&<em> +{i.upgrade}</em>}</small>}
