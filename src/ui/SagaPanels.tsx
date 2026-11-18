@@ -78,7 +78,7 @@ export function ForgeBench({slot,p}:{slot:Slot;p:Player}){
   <div className="engrave-grid">{(Object.keys(engravings) as EngraveId[]).map(id=><button key={id} className={item.engrave===id?'selected':''} disabled={item.engrave===id||p.gold<eng.gold||matCount(p,eng.material)<eng.mats} onClick={()=>engrave(slot,id)}><b>{engravings[id].sign}</b><span>{engravings[id].name}</span><small>{engravings[id].text}</small></button>)}</div>
  </div>;
 }
-export function Materials({p}:{p:Player}){return <div className="material-row">{[...materialIds,'pearl','dusk'].map(id=><span key={id} style={{'--tone':materials[id].color} as React.CSSProperties} title={materials[id].name}><i/>{matCount(p,id)}<small>{materials[id].name}</small></span>)}</div>}
+export function Materials({p}:{p:Player}){return <div className="material-row">{[...materialIds,'dusk'].map(id=><span key={id} style={{'--tone':materials[id].color} as React.CSSProperties} title={materials[id].name}><i/>{matCount(p,id)}<small>{materials[id].name}</small></span>)}</div>}
 /** Set recipes and material exchange inside the Forge. */
 export function Recipes({p}:{p:Player}){
  const openSource=useGame(s=>s.open),[set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost'),[slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice'),plan=craftPlan(set,p),open=setUnlocked(p,set),n=setCounts(p)[set];
