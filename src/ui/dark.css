@@ -120,3 +120,16 @@
 /* Long Russian labels remain readable in the existing five compact navigation targets. */
 .dark-hub strong,.dark-hub small{min-width:0;max-width:100%;overflow-wrap:anywhere}
 .squad-grid i{top:1px;right:1px}
+
+.dark-wallet > span { position: relative; }
+.dark-wallet > span:has(.resource-source) { padding-right: 22px; }
+.dark-wallet .resource-source {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: right;
+}
