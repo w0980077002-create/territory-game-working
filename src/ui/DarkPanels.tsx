@@ -187,6 +187,6 @@ export function PowerSources({p}:{p:Player}){
 /** Entry tiles to the five systems. */
 export function DarkHub({p}:{p:Player}){
  const open=useGame(s=>s.open),s=squadState(p),d=darkState(p),run=realmRun(p);
- const tiles=[['realm','portal','Царство тьмы',run?`Поход идёт · этаж ${run.f}`:`Этаж ${p.darkFloor}`],['darkgear','essence','Тёмная энергия',`${d.eq.filter(Boolean).length}/12 · склад ${d.inv.length}`],['gems','gem','Драгоценные камни',`${Object.values(gemState(p).sock).flat().filter(Boolean).length} вставлено`],['relic','amulet','Реликвии',`${relicCollection(p).owned}/${relicIds.length} открыто`],['companions','companion','Спутники',`${s.owned.length}/${companionIds.length} в дружине`]] as const;
+ const tiles=[['realm','portal','Царство тьмы',run?`Поход идёт · этаж ${run.f}`:`Этаж ${p.darkFloor}`],['darkgear','essence','Тёмная энергия',`${d.eq.filter(Boolean).length}/12 · склад ${d.inv.length}`],['gems','gem','Камни',`${Object.values(gemState(p).sock).flat().filter(Boolean).length} вставлено`],['relic','amulet','Реликвии',`${relicCollection(p).owned}/${relicIds.length} открыто`],['companions','companion','Спутники',`${s.owned.length}/${companionIds.length} в дружине`]] as const;
  return <div className="dark-hub">{tiles.map(([id,icon,name,detail])=><button key={id} onClick={()=>open(id)}><Icon name={icon}/><strong>{name}</strong><small>{detail}</small></button>)}</div>;
 }

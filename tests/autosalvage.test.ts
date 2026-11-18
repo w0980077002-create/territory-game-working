@@ -44,8 +44,14 @@ test('only new strictly weaker same-slot drops yield gold and XP exactly once',(
 });
 
 test('valuable items, equipped items and old gear returned during replacement remain untouched',()=>{
- buyOn();const p=useGame.getState().p;const weak=drop();
+ buyOn();const weak=drop();
+ const offered={...weak,id:'active-reward'};
+ const p={...useGame.getState().p,rewardOffer:{encounterId:'boss',itemId:offered.id,resolved:false}};
  const protectedItems:Item[]=[
+  offered,
+  {...weak,id:'percent',percent:{hp:1,attack:0,defense:0}},
+  {...weak,id:'shop',origin:'Покупка'},
+  {...weak,id:'trophy',origin:'Трофей Логова'},
   {...weak,id:'rare',rarity:3},
   {...weak,id:'upgraded',upgrade:2},
   {...weak,id:'locked',locked:true},

@@ -3,9 +3,8 @@ import balance from '../../config/test-balance.v1.json';
 const capacity=balance.loot_test_settings.starter_inventory_capacity;
 import type {CSSProperties,ReactNode} from 'react';
 import type {Item,Player,Slot} from '../core/types';
-import {canBulkSalvage,compareItem} from '../core/store';
+import {canBulkSalvage,compareItem,salvageProtection} from '../core/store';
 import {itemPower} from '../core/formulas';
-import {uniqueOf} from '../core/gear';
 import {inventoryItems,type LootFilter} from '../core/loot';
 import {slotNames,rarityNames,rarityColors} from '../data/catalog';
 import {Icon,gearIcon} from './Icon';
@@ -21,21 +20,6 @@ interface Props {
  onClaim?:(ids?:string[])=>number;
  onSelect:(id:string)=>void;
  onBulkSalvage:(ids:string[])=>number;
-}
-
-/** Display only: why canBulkSalvage() refused. The decision itself always stays with canBulkSalvage(). */
-export function protectionReason(p:Player,i:Item):{short:string;long:string}{
- if(i.locked)return {short:'🔒 замок',long:'защищено замком'};
- if(Object.values(p.equipment).some(x=>x?.id===i.id))return {short:'надето',long:'надето на героя'};
- if(p.rewardOffer?.itemId===i.id)return {short:'трофей',long:'трофей босса ждёт выбора'};
- if(i.slot==='wings')return {short:'крылья',long:'крылья не разбираются массово'};
- if(i.rarity>=3)return {short:rarityNames[i.rarity],long:`${rarityNames[i.rarity]}: от «Редкого» и выше — только вручную`};
- if(i.upgrade>0)return {short:`усил. +${i.upgrade}`,long:`усилено до +${i.upgrade}`};
- if(i.uniqueId||uniqueOf(i))return {short:'именной',long:'именной трофей'};
- if(i.set)return {short:'сет',long:'часть комплекта'};
- if(i.perk||i.engrave||i.percent)return {short:'свойство',long:'есть особое свойство или гравировка'};
- if(i.origin&&/босс|трофей|награда|покупка|boss|trophy|reward|shop/i.test(i.origin))return {short:'награда',long:'награда, трофей или покупка'};
- return {short:'защищено',long:'защищено от массового разбора'};
 }
 
 const keyOf=(items:Item[])=>items.map(i=>`${i.id}:${itemPower(i)}:${i.level}`).join('|');
@@ -79,24 +63,24 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
    {storage&&!multi&&<button className="bulk-secondary" disabled={!p.pendingLoot?.length||p.inventory.length>=capacity} onClick={()=>onClaim?.()}>Забрать доступные</button>}
    <button type="button" className={multi?'bulk-mode active':'bulk-mode'} onClick={()=>{if(multi){if(!guarded())cancel()}else{setMulti(true);modeAt.current=performance.now()}}} aria-pressed={multi}>{multi?'Готово':'☑ Выбрать'}</button>
   </div>
-  {multi&&!storage&&<p className="bulk-rules">Отмечаются только простые вещи. <b>Не попадают</b>: замок, от «Редкого» и выше, усиленные, именные, сеты, свойства, награды и надетое — их можно распылить по одной в карточке.</p>}
+  {multi&&!storage&&<p className="bulk-rules">Отмечаются только простые вещи. <b>Не попадают</b>: от «Редкого» и выше, усиленные, именные, сеты, свойства, награды, крылья и надетое — их можно распылить по одной в карточке.</p>}
   <div className="inventory-grid" role="group" aria-label={storage?"Предметы на хранении":"Предметы в рюкзаке"}>
    {visible.map(i=>{
     const allowed=storage||canBulkSalvage(p,i);
     const checked=chosenIds.has(i.id);
     const cp=compareItem(i,p);
-    const reason=multi&&!allowed?protectionReason(p,i):undefined;
+    const reason=multi&&!allowed?salvageProtection(p,i)??'Защищено от массового разбора':undefined;
     return <button key={i.id} type="button"
       className={multi?(checked?'bulk-gear chosen':allowed?'bulk-gear':'bulk-gear protected'):''}
       onClick={()=>multi?allowed&&toggle(i.id):onSelect(i.id)}
       disabled={multi&&!allowed}
       aria-pressed={multi?checked:undefined}
-      aria-label={`${i.name} · ${rarityNames[i.rarity]}${multi?(allowed?checked?' · выбрано':' · отметить':' · '+reason!.long):''}`}
+      aria-label={`${i.name} · ${rarityNames[i.rarity]}${multi?(allowed?checked?' · выбрано':' · отметить':' · '+reason):''}`}
       style={{'--rarity':rarityColors[i.rarity]} as CSSProperties}>
-      {(multi||i.locked)&&<span className="bulk-tick" aria-hidden="true">{multi&&checked?'✓':i.locked?'🔒':allowed?'□':'🔒'}</span>}
+      {multi&&allowed&&<span className="bulk-tick" aria-hidden="true">{checked?'✓':'□'}</span>}
       <Icon name={gearIcon(i.slot)}/>
       <strong>{i.uniqueId||i.perk?'✦ ':i.set?'◆ ':''}{slotNames[i.slot]}</strong>
-      {reason?<small className="bulk-reason">{reason.short}</small>:<small>Ур. {i.level}{i.upgrade>0&&<em> +{i.upgrade}</em>}</small>}
+      {reason?<small className="bulk-reason">{reason}</small>:<small>Ур. {i.level}{i.upgrade>0&&<em> +{i.upgrade}</em>}</small>}
       {!multi&&cp>0&&<b className="pack-better" aria-label={`Сильнее на ${cp} CP`}>↑</b>}
      </button>
    })}

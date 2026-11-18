@@ -55,7 +55,7 @@ test('companion branches open at level 5 and tune the team; evolutions strengthe
  const b=fight();assert.equal(b.brain.rescueMax,2);assert.equal(b.brain.diveScale,.7);b.destroy();
 });
 test('a region lord always yields his named trophy on the first victory',()=>{
- G().mutate(p=>{p.stage=20;p.wave=5;p.level=30});G().win('campaign','enc-test');const p=G().p;assert.equal(p.stage,21);const trophy=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.perk==='cutlass');assert.ok(trophy&&trophy.locked);assert.equal(trophy!.name,perks.cutlass.name);assert.ok(matCount(p,'harbor')>=8);
+ G().mutate(p=>{p.stage=20;p.wave=5;p.level=30});G().win('campaign','enc-test');const p=G().p;assert.equal(p.stage,21);const trophy=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.perk==='cutlass');assert.ok(trophy);assert.equal(trophy.locked,undefined);assert.equal(trophy!.name,perks.cutlass.name);assert.ok(matCount(p,'harbor')>=8);
  assert.ok(parseSave(JSON.stringify(p)));
 });
 test('forge depth: reforge keeps identity and upgrades, engraving and recipes spend materials once',()=>{

@@ -56,10 +56,13 @@ const slotNames={weapon:'Оружие',armor:'Доспех',helmet:'Шлем',sh
   // 4) «Новый герой» needs confirmation; cancel keeps the same hero and URL
   const url=page.url(),saved=await state();
   await page.getByRole('button',{name:'Меню',exact:true}).tap();await dialog('Меню').waitFor();
-  await page.getByRole('button',{name:'Новый герой · первый поход'}).tap();
+  await page.waitForTimeout(400); // The next taps are intentional actions after the window transition.
+  const heroes=page.locator('summary',{hasText:'Другие герои на этом устройстве'});
+  await heroes.tap();await page.getByRole('button',{name:'Новый герой · первый поход'}).tap();
   await page.getByText('Начать нового героя?').waitFor();assert.equal(page.url(),url);
   await page.screenshot({path:`${out}/${width}x${height}-new-hero-confirm.png`});
   await page.getByRole('button',{name:'Отмена',exact:true}).tap();assert.equal(await page.getByText('Начать нового героя?').count(),0);
+  if(!await page.getByRole('button',{name:'Новый герой · первый поход'}).isVisible())await heroes.tap();
   await page.getByRole('button',{name:'Новый герой · первый поход'}).tap();await page.getByRole('button',{name:'Начать нового героя'}).tap();
   await page.waitForURL(/hero=hero-/);await page.waitForFunction(()=>window.__lootborn?.battle);
   const fresh=await state();assert.equal(fresh.level,1);

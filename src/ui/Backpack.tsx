@@ -33,7 +33,7 @@ export function Backpack({storage,setStorage}:{storage:boolean;setStorage:(value
   </div>
   <div className="pack-filters">
    <CompactFilter label="Тип предмета" value={slot??''} onChange={value=>setSlot(value as Slot||undefined)} options={[{value:'',label:'Все типы'},...slots.map(s=>({value:s,label:slotNames[s]}))]}/>
-   <CompactFilter label="Фильтр качества" value={filter} onChange={value=>setFilter(value as LootFilter)} options={[{value:'all',label:'Качество'},{value:'better',label:'Сильнее'},{value:'rare',label:'Редкие'},{value:'unique',label:'Именные / сеты'},{value:'locked',label:'С замком'}]}/>
+   <CompactFilter label="Фильтр качества" value={filter} onChange={value=>setFilter(value as LootFilter)} options={[{value:'all',label:'Качество'},{value:'better',label:'Сильнее'},{value:'rare',label:'Редкие'},{value:'unique',label:'Именные / сеты'}]}/>
    <CompactFilter label="Сортировка" value={order} onChange={setOrder} options={[{value:'newest',label:'Новые ↓',shortLabel:'Новые'},{value:'power',label:'Сила ↓',shortLabel:'Сила'},{value:'rarity',label:'Редкость ↓',shortLabel:'Редкость'}]}/>
   </div>
   <div className="pack-help-row">
