@@ -77,7 +77,7 @@ const out=process.env.OUT||'.tmp/ui-actions',base=process.env.BASE_URL||'http://
   await page.getByRole('dialog').screenshot({path:`${out}/${width}-valuable-confirmation.png`});
   await page.getByRole('button',{name:'Отмена',exact:true}).tap();
   const equippedBefore=(await state()).equipment.ring1.id;await page.getByRole('button',{name:'Надеть',exact:true}).tap();assert.equal((await state()).equipment.ring1.id,'qa-variant');assert.ok((await state()).inventory.some(i=>i.id===equippedBefore));
-  await open('forge');
+  await open('forge');await page.getByRole('button',{name:'Создание',exact:true}).tap();
   const filter=page.getByRole('button',{name:/^Слот для ковки:/});await filter.scrollIntoViewIfNeeded();await filter.tap();
   await page.locator('.modal-body').evaluate(el=>el.scrollTop+=30);await page.waitForTimeout(30);assert.equal(await page.locator(':popover-open').count(),0,'scrolling parent closes filter');
   // Emulate Telegram's insets. This verifies CSS, not physical Android/Telegram.
