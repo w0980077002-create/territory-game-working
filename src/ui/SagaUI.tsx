@@ -15,11 +15,6 @@ const panelIcons:Record<string,string>={
  quests:'scroll',rewards:'gift',shop:'market',skills:'skill',wings:'wings',
 };
 const materialIcons:Record<Material,string>={chest:'chest',forge:'hammer',rune:'rune',sea:'ship',roman:'shield',moon:'wings',gold:'gift'};
-const sectionScenes:Record<string,string>={
- shop:'Припасы для похода и развития героя',
- events:'Испытания и награды Северного сезона',
- collection:'Герои, спутники и противники',
-};
 
 function Atmosphere({kind}:{kind:Material}){
  return <div className={`ambient ambient-${kind}`} aria-hidden="true">{Array.from({length:5},(_,i)=><i key={i} style={{'--n':i} as React.CSSProperties}/>)}</div>;
@@ -48,12 +43,11 @@ export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel
  };
  const harborBack=['shipyard','forge','blessing','talents','realm','darkgear','gems','relic','companions'].includes(panel);
  const workspace=['realm','darkgear','companions','relic','port'].includes(panel);
- const scene=sectionScenes[panel];
  return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClick={e=>{if(dismissible&&e.target===e.currentTarget)close(null)}} onKeyDown={keyDown}>
   <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} data-layout={workspace?'workspace':undefined} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
    <header className="modal-header">{(onBack||harborBack)?<button className="harbor-back" aria-label={backLabel??'‹ В гавань'} title={backLabel??'В гавань'} onClick={onBack??(()=>close('port'))}>‹</button>:<div className="header-seal"><Icon name={panelIcon(panel,kind)}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&<button className="close" onClick={()=>close(null)} aria-label="Закрыть">×</button>}</header>
    <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status">{toast}</div>}</div>
-   <div className="modal-body" ref={body} key={panel}>{scene&&<div className="saga-scene section-scene"><p>{scene}</p><Icon name={panelIcon(panel,kind)}/></div>}<div className="panel-content">{children}</div></div>
+   <div className="modal-body" ref={body} key={panel}><div className="panel-content">{children}</div></div>
    {!workspace&&footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/>
   </section>
  </div>,document.body);

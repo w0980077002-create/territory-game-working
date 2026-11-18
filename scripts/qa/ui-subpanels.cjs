@@ -9,7 +9,7 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'?testProfile=ui-subpanels');await page.waitForFunction(()=>window.__lootborn);
   const open=async panel=>{await page.evaluate(panel=>{window.__lootborn.useGame.getState().open(panel);window.__lootborn.useGame.setState({toast:''})},panel);await page.getByRole('dialog').waitFor()};
   const check=async name=>{
-   const bad=await page.getByRole('dialog').evaluate(el=>[...el.querySelectorAll('*')].filter(x=>!(x instanceof SVGElement)&&x.clientWidth>0&&x.scrollWidth>x.clientWidth+2&&getComputedStyle(x).textOverflow!=='ellipsis'&&!x.matches('.saga-scene,.saga-scenery,.ambient')).map(x=>x.className||x.getAttribute("aria-label")||x.tagName));assert.deepEqual(bad,[],name+' clipped content');
+   const bad=await page.getByRole('dialog').evaluate(el=>[...el.querySelectorAll('*')].filter(x=>!(x instanceof SVGElement)&&x.clientWidth>0&&x.scrollWidth>x.clientWidth+2&&getComputedStyle(x).textOverflow!=='ellipsis'&&!x.matches('.saga-scene,.saga-scenery,.ambient')).map(x=>[x.className||x.tagName,x.getAttribute("aria-label")||x.textContent.trim().slice(0,50),x.clientWidth,x.scrollWidth]));assert.deepEqual(bad,[],name+' clipped content');
    await page.getByRole('dialog').screenshot({path:`${out}/${width}-${name}.png`});results.push({width,height,state:name,clipped:bad});
   };
   await open('hero');await page.locator('summary').filter({hasText:/^Сохранённые сборки$/}).tap();
@@ -25,9 +25,18 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   const read=()=>page.evaluate(()=>window.__lootborn.useGame.getState().p);
   await page.getByRole('button',{name:'Закрыть',exact:true}).tap();
   await page.getByRole('button',{name:'Лавка',exact:true}).tap();
+  const visibleTiles=await page.locator('.shop-offer').evaluateAll(tiles=>{
+   const body=tiles[0].closest('.modal-body').getBoundingClientRect();
+   return tiles.map(tile=>tile.getBoundingClientRect()).filter(rect=>rect.top>=body.top&&rect.bottom<=body.bottom+1);
+  });
+  assert.ok(visibleTiles.length>=6,width+' first screen shows at least six complete offers');
+  assert.equal(new Set(visibleTiles.map(tile=>tile.left)).size,3,width+' offers use three columns');
   const offer=id=>page.locator(`[data-offer="${id}"]`);
   const purchase=id=>offer(id).getByRole('button',{name:/^Купить/});
   const category=name=>page.locator('.shop-tabs').getByRole('button',{name,exact:true}).tap();
+  await offer('expedition-kit').getByRole('button',{name:/Подробнее/}).tap();
+  assert.equal(await page.locator('dialog .reward-piece').count(),2,'bundle preview illustrates all contents');
+  await page.getByRole('button',{name:'Закрыть карточку',exact:true}).tap();
   const prior=await read();
   await purchase('travel-stipend').evaluate(button=>{button.click();button.click()});
   const afterDaily=await read();
@@ -67,7 +76,8 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await category('Развитие');
   await page.evaluate(()=>window.__lootborn.useGame.getState().mutate(p=>{p.gems=0}));
   await purchase('relic-shards').isDisabled().then(disabled=>assert.equal(disabled,true));
-  await offer('relic-shards').getByRole('button',{name:'Где получить',exact:true}).tap();
+  await offer('relic-shards').getByRole('button',{name:/Подробнее/}).tap();
+  await page.getByRole('button',{name:'Где получить',exact:true}).tap();
   await page.getByRole('dialog',{name:/Где получить · Самоцветы/}).waitFor();
   await page.getByRole('button',{name:'Закрыть карточку',exact:true}).tap();
   assert.equal(await offer('relic-shards').count(),1,'return to the same shop category');
@@ -80,7 +90,9 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await offer('summon-seal').getByText('Сегодня куплено').waitFor();
   await category('Материалы');
   await offer('forge-parcel').getByText('Сегодня куплено').waitFor();
-  await open('events');await check('event-rewards-ready');await page.locator('.row .action').first().tap();await check('event-reward-claimed');
+  await open('events');await check('event-rewards-ready');await page.getByRole('button',{name:'Забрать награду',exact:true}).tap();await check('event-reward-claimed');
+  await page.getByRole('button',{name:/Этап 10/}).tap();
+  await page.getByText('Финальная награда',{exact:true}).waitFor();
   await page.evaluate(()=>window.__lootborn.useGame.getState().mutate(p=>{p.inventory.pop()}));
   await open('loot');const items=await page.evaluate(()=>{const p=window.__lootborn.useGame.getState().p;return p.inventory.length+(p.pendingLoot?.length??0)});await page.getByRole('button',{name:/^Протрубить/}).tap();
   assert.equal(await page.evaluate(()=>{const p=window.__lootborn.useGame.getState().p;return p.inventory.length+(p.pendingLoot?.length??0)}),items+1);await check('actual-new-loot');

@@ -28,7 +28,7 @@ export function ChapterMap({p}:{p:Player}){
 /** The album remembers every character really met in a fight (saved in saga.seen), not just the current encounter. */
 export function Album({p}:{p:Player}){
  const squad=squadState(p),seen=new Set([...(p.saga?.seen??[]),...(p.encounter?.units.map(u=>u.id)??[]),heroArt[p.heroClass],...squad.owned]),total=characters.length,met=characters.filter(c=>seen.has(c.id)).length;
- return <><p>Встречено {met} из {total}. Альбом хранит всех, с кем герой действительно сражался или путешествовал.</p>
+ return <><div className="album-summary"><Icon name="book"/><div><strong>Встречено {met} из {total}</strong><progress value={met} max={total} aria-label="Встреченные персонажи"/></div></div>
   {Object.keys(categoryNames).map(cat=>{const list=characters.filter(c=>c.category===cat);if(!list.length)return null;return <section key={cat}><h3>{categoryNames[cat]} · {list.filter(c=>seen.has(c.id)).length}/{list.length}</h3>
    <div className="collection-grid">{list.map(c=>{const known=seen.has(c.id)||cat==='heroes'||cat==='special',kills=count(p,'kill:'+c.id);return <div key={c.id} className={`${known?'recorded':'unrecorded'} category-${c.category}`}><small className="album-status">{cat==='heroes'?(heroArt[p.heroClass]===c.id?'Ваш герой':'Класс'):cat==='companions'?(squad.act.includes(c.id)?'В отряде':squad.owned.includes(c.id)?'В коллекции':'Осколки из призыва'):known?(kills?`Побед: ${kills}`:'Встречен'):(albumSources[cat]??'Не встречен')}</small><img loading="lazy" decoding="async" src={art(c.id)} alt={known?c.name.split(',')[0]:'Неизвестный'} style={known?undefined:{filter:'brightness(0) opacity(.55)'}}/><small>{known?c.name.split(',')[0]:'???'}</small></div>})}</div></section>})}
  </>;
@@ -45,6 +45,7 @@ import {dailyView,weeklyView,storyQuests,activeStory,masteryView,masteryTiers,ma
 import {actualReward} from '../saga/events';
 import {rewardText,type Reward} from '../saga/rewards';
 import {Icon,gearIcon} from './Icon';
+import {materialIcon,RewardArt} from './RewardArt';
 const short=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
 const Btn=({children,onClick,disabled=false,kind=''}:{children:React.ReactNode;onClick:()=>void;disabled?:boolean;kind?:string})=><button className={`action ${kind}`} onClick={onClick} disabled={disabled}>{children}</button>;
 /** Set membership, perk and engraving of one item — shown inside every item card. */
@@ -78,7 +79,7 @@ export function ForgeBench({slot,p}:{slot:Slot;p:Player}){
   <div className="engrave-grid">{(Object.keys(engravings) as EngraveId[]).map(id=><button key={id} className={item.engrave===id?'selected':''} disabled={item.engrave===id||p.gold<eng.gold||matCount(p,eng.material)<eng.mats} onClick={()=>engrave(slot,id)}><b>{engravings[id].sign}</b><span>{engravings[id].name}</span><small>{engravings[id].text}</small></button>)}</div>
  </div>;
 }
-export function Materials({p}:{p:Player}){return <div className="material-row">{[...materialIds,'dusk'].map(id=><span key={id} style={{'--tone':materials[id].color} as React.CSSProperties} title={materials[id].name}><i/>{matCount(p,id)}<small>{materials[id].name}</small></span>)}</div>}
+export function Materials({p}:{p:Player}){return <div className="material-row">{[...materialIds,'dusk'].map(id=><span key={id} style={{'--tone':materials[id].color} as React.CSSProperties} title={materials[id].name}><Icon name={materialIcon(id)}/><b>{matCount(p,id)}</b><small>{materials[id].name}</small></span>)}</div>}
 /** Set recipes and material exchange inside the Forge. */
 export function Recipes({p}:{p:Player}){
  const openSource=useGame(s=>s.open),[set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost'),[slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice'),plan=craftPlan(set,p),open=setUnlocked(p,set),n=setCounts(p)[set];
@@ -121,7 +122,7 @@ function questActivity(keys:readonly string[]) {
 
 function QuestRow({q,onClaim,onGo}:{q:{text:string;progress:number;goal:number;done:boolean;claimed:boolean;reward:Reward};onClaim:()=>void;onGo:()=>void}){
  return <div className={`quest-row ${q.claimed?'claimed':q.done?'ready':''}`}><div><strong>{q.text}</strong>
-  <small>{rewardText(q.reward)}</small><small className="quest-progress">{short(Math.min(q.progress,q.goal))}/{short(q.goal)}</small>
+  <div className="quest-prizes"><RewardArt reward={q.reward}/></div><small className="quest-progress">{short(Math.min(q.progress,q.goal))}/{short(q.goal)}</small>
   <i><b style={{width:`${Math.min(100,q.progress/q.goal*100)}%`}}/></i></div>
   <button className="action" disabled={q.claimed} onClick={q.done?onClaim:onGo}>{q.claimed?'Получено':q.done?'Забрать':'Перейти'}</button>
  </div>;

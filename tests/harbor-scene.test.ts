@@ -11,12 +11,12 @@ test('port routes to the existing game panels',()=>{
 });
 test('shipyard displays only saved ships, offers selection and keeps the real transactions',()=>{
  assert.match(app,/ships=\{fleet\.ships\}/);
- assert.match(art,/ships\[i\]/);
- assert.match(art,/onChooseShip\?\.\(ships\[i\]\.id\)/);
+ assert.match(art,/const ship = ships\[index\]/);
+ assert.match(art,/onChooseShip\?\.\(ship\.id\)/);
  for(const action of ['claim','buy','upgrade'])assert.ok(app.includes("shipAction('"+action+"'"));
 });
 test('painted mobile harbor has accessible controls and reduced motion',()=>{
  assert.match(art,/aria-pressed=/);
- assert.match(css,/min-height:44px/);
- assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
+ assert.match(css,/min-height:\s*44px/);
+ assert.match(css,/@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });

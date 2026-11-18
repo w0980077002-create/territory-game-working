@@ -1,30 +1,150 @@
-.shop-wallet, .shop-tabs {
+.treasure-shop {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: .35rem;
+  gap: 6px;
+  color: #ffe9bd;
 }
-.shop-wallet button {
-  display: grid;
-  justify-items: center;
-  align-content: center;
+.saga-modal[data-panel="shop"] .modal-body {padding: 7px;}
+.shop-counter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: clamp(83px, 14dvh, 125px);
+  padding: 8px 10px;
+  background: linear-gradient(90deg, transparent 33%, #1a120c30 56%, #1a120c98),
+    url('../../public/art/windows/merchant.webp') left 42% / auto 134% no-repeat, #211812;
+  border: 1px solid #aa7543;
+  border-radius: 8px 8px 3px 3px;
+  box-shadow: inset 0 -5px 9px #22160580;
+}
+.shop-counter > div { text-align: right; text-shadow: 0 2px 3px #130d06; }
+.shop-counter strong { display: block; font: 700 clamp(17px,5vw,24px)/1.05 Georgia,serif; color: #ffe2a5; }
+.shop-counter span { display: block; margin-top: 5px; color: #ffeaca; font-size: 10px; }
+.shop-wallet, .shop-tabs { display: flex; gap: 4px; min-width: 0; }
+.shop-wallet > button, .shop-tabs > button {
+  border: 1px solid #785739;
+  border-radius: 4px;
+  background: linear-gradient(#4f3329,#272026);
+  color: #ffe1ae;
+}
+.shop-wallet > button {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   min-width: 0;
-  min-height: 44px;
-  padding: .3rem .15rem;
-  gap: .15rem;
-  border: 1px solid #8f764b;
-  border-radius: 5px;
-  background: #192b35;
-  color: #f5e5c3;
-  text-align: center;
+  min-height: 30px;
+  padding: 1px 3px;
+  font-size: 12px;
 }
-.shop-wallet span { min-width: 0; overflow-wrap: anywhere; }
-.shop-wallet strong, .shop-offer small, .shop-offer b {
-  display: block;
+.shop-wallet > button strong { min-width: 0; overflow-wrap: anywhere; }
+.shop-wallet .icon, .shop-price .icon { flex-shrink: 0; width: 19px; height: 19px; }
+.shop-tabs {
+  display: grid;
+  grid-template-columns: repeat(24,minmax(0,1fr));
+  padding: 2px 0;
+  border-bottom: 1px solid #89684470;
+}
+.shop-tabs > button {
+  grid-column: span 5;
+  min-width: 0;
+  min-height: 30px;
+  padding: 2px 0;
+  font: 700 10px/1.12 Arial,sans-serif;
   overflow-wrap: anywhere;
 }
-.shop-wallet .icon { width: 1.2em; height: 1.2em; flex: none; }
-.shop-tabs button { min-width: 0; min-height: 2.25rem; overflow-wrap: anywhere; }
-.shop-offer { align-items: flex-start; }
-.shop-offer .row-content { min-width: 0; }
-.saga-modal .shop-offer .action { max-width: 100%; margin-top: .35rem; white-space: normal; }
-.shop-source { margin-top: .3rem; }
+.shop-tabs > button:nth-child(2), .shop-tabs > button:nth-child(4) { grid-column: span 7; }
+.shop-tabs > button:nth-child(n+5) { grid-column: span 8; }
+.shop-tabs > button[aria-pressed=true] {
+  border-color: #e6b378;
+  background: linear-gradient(#9a633a,#65432c);
+  color: #fff3cc;
+  box-shadow: inset 0 1px #ffdd9260;
+}
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 5px;
+  padding: 1px 0 4px;
+}
+.shop-offer {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  padding: 3px;
+  border: 1px solid #9a7248;
+  border-radius: 6px;
+  background: linear-gradient(#5a3d30,#322528 65%,#272026), var(--saga-oak);
+  box-shadow: inset 0 0 0 1px #271918, 0 2px 3px #130a08a0;
+}
+.shop-item { display: grid; align-content: start; gap: 2px; width: 100%; padding: 0; background: none; color: #ffeacc; }
+.shop-item-picture {
+  position: relative;
+  height: 53px;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  border: 1px solid #ad845a50;
+  border-radius: 4px;
+  background: radial-gradient(ellipse at 50% 43%, #b27e4d7d,#3d2b29 68%,#292026);
+}
+.shop-item-picture > .icon { width: 51px; height: 49px; filter: drop-shadow(0 4px 3px #24190c); }
+.shop-item-picture > b {
+  position: absolute;
+  bottom: 0;
+  right: 2px;
+  padding: 0 2px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #ffefd2;
+  background: #251a16eb;
+}
+.shop-item > strong { display: grid; align-items: center; min-height: 26px; font: 700 11px/1.12 system-ui,sans-serif; }
+.shop-buy {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: center;
+  column-gap: 3px;
+  padding: 1px 2px;
+  border: 1px solid #e4b668;
+  border-radius: 4px;
+  background: linear-gradient(#ffda8e,#c28a43);
+  color: #35210f;
+  font-size: 12px;
+  box-shadow: inset 0 1px #fff1c5;
+}
+.shop-buy .icon { width: 16px; height: 16px; }
+.shop-buy:disabled { opacity: 1; background: #302931; color: #f4dbc4; border-color: #9b7e65; box-shadow: none; }
+.shop-buy span { flex-basis: 100%; font-size: 9px; line-height: 1.05; }
+.shop-offer.sold .shop-buy { background: #263831; border-color: #6a8c6f; color: #c7eaba; }
+.shop-offer.sold .shop-item-picture { filter: saturate(.65); }
+.shop-price { display: flex; align-items: center; gap: 5px; }
+.reward-art { display: flex; width: 100%; gap: 4px; justify-content: center; }
+.reward-piece {
+  position: relative;
+  display: grid;
+  align-items: start;
+  justify-items: center;
+  min-width: 0;
+  color: #ffedbe;
+}
+.reward-piece .icon { width: 39px; height: 39px; filter: drop-shadow(0 3px 3px #151019af); }
+.reward-piece strong { padding: 0 3px; font-size: 11px; line-height: 1.1; white-space: nowrap; text-shadow: 0 1px 2px #150d0d; }
+.reward-art.named .reward-piece { flex: 1 1 0; max-width: 90px; text-align: center; }
+.reward-art.named .reward-piece small { font-size: 10px; color: #eadac1; line-height: 1.16; }
+.shop-item-picture .reward-art { align-items: end; gap: 1px; }
+.shop-item-picture .reward-piece { flex: 1 1 0; max-width: 43px; }
+.shop-item-picture .reward-piece .icon { width: min(100%,34px); height: 33px; }
+.shop-item-picture .reward-piece strong { padding: 0; font-size: 9px; }
+@media (max-height: 650px) {
+  .saga-modal[data-panel="shop"] .modal-header { padding-block: 5px; min-height: 59px; }
+  .saga-modal[data-panel="shop"] .modal-footer { padding-block: 4px; min-height: 52px; }
+  .shop-tabs > button { min-height: 25px; }
+  .shop-item-picture { height: 46px; }
+  .shop-item-picture > .icon { height: 43px; }
+  .shop-buy { min-height: 28px; }
+}

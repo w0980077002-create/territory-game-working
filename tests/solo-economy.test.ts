@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import {installHeadless} from '../scripts/sim/bot';
 import {freshPlayer, parseSave, SAVE_KEY, useGame} from '../src/core/store';
 import {shopOffers, shopQuote, shopSold, shopStatus} from '../src/saga/shop';
-import {claimDailyGift, claimSeason, dailyGift, seasonBadge} from '../src/saga/events';
+import {claimDailyGift, claimSeason, dailyCalendar, dailyGift, seasonBadge} from '../src/saga/events';
 import {bumpCount} from '../src/saga/save';
 import {resCount} from '../src/dark/rules';
 
@@ -56,6 +56,25 @@ test('daily gifts preserve the original grant, rotate, and respect Horn capacity
   assert.ok(claimDailyGift(p,now+86_400_000));
 });
 
+test('the calendar remembers legacy and new receipts without granting an old gift', () => {
+  const monday = Date.UTC(2026,10,16), tuesday = Date.UTC(2026,10,17), wednesday = Date.UTC(2026,10,18);
+  const p = freshPlayer();
+  p.daily = dailyGift(tuesday).day;
+  const before = dailyCalendar(p,wednesday);
+  assert.equal(before.length,7);
+  assert.equal(before[0].day,dailyGift(monday).day);
+  assert.equal(before[0].claimed,false);
+  assert.equal(before[1].claimed,true);
+  assert.equal(before[2].current,true);
+  assert.equal(claimDailyGift(p,tuesday),null);
+  assert.ok(claimDailyGift(p,wednesday));
+  const restored = parseSave(JSON.stringify(p))!;
+  const after = dailyCalendar(restored,wednesday);
+  assert.deepEqual(after.slice(0,4).map(day=>day.claimed),[false,true,true,false]);
+  assert.equal(claimDailyGift(restored,wednesday),null);
+  assert.equal(claimDailyGift(restored,tuesday),null);
+});
+
 test('season respects old receipts and rewards only completed goals', () => {
   const p = freshPlayer(), now = Date.now();
   p.bosses = 1;
@@ -88,4 +107,22 @@ test('new stock respects progression, daily limits and Horn capacity', () => {
   assert.deepEqual(offer('previous-region').reward.mats,{ice:3});
   assert.deepEqual(offer('forge-parcel').reward.mats,{harbor:2});
   assert.equal(shopStatus(p,offer('horn-kit'),now),'Освободите место в Роге');
+});
+
+test('the expedition bundle grants both supplies and rejects a second purchase', t => {
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:Date.UTC(2026,10,18)});
+  const p = freshPlayer();
+  p.horn = 0;
+  p.hornAt = Date.now();
+  p.tokens = 30;
+  const before = p.chaosite;
+  useGame.setState({p,recoveryRequired:false,storageError:false});
+  const kit = shopOffers(p).find(offer=>offer.id==='expedition-kit')!;
+  assert.equal(game().buy(kit.id,shopQuote(kit)),true);
+  assert.equal(game().buy(kit.id,shopQuote(kit)),false);
+  const restored = parseSave(localStorage.getItem(SAVE_KEY))!;
+  assert.equal(restored.horn,3);
+  assert.equal(restored.chaosite,before+10);
+  assert.equal(restored.tokens,16);
+  assert.equal(shopSold(restored,kit,Date.now()),true);
 });
