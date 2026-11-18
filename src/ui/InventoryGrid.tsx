@@ -76,7 +76,7 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
    {!multi&&!storage&&<button type="button" className="bulk-clean" disabled={!weaker.length} onClick={cleanWeak}>{weaker.length?`Очистить слабые · ${weaker.length}`:'Слабых нет'}</button>}
    {multi&&!storage&&<button type="button" className="bulk-secondary" disabled={!weaker.length} onClick={selectWeaker}>Выбрать слабее</button>}
    {multi&&<button type="button" className="bulk-secondary" disabled={!ids.length} onClick={()=>{if(guarded())return;setIds([]);setConfirm(false)}}>Снять выбор</button>}
-   {storage&&!multi&&<button className="bulk-secondary" disabled={!p.pendingLoot?.length||p.inventory.length>=capacity} onClick={()=>onClaim?.()}>{p.inventory.length>=capacity&&p.pendingLoot?.length?'Рюкзак полон':'Забрать доступные'}</button>}
+   {storage&&!multi&&<button className="bulk-secondary" disabled={!p.pendingLoot?.length||p.inventory.length>=capacity} onClick={()=>onClaim?.()}>Забрать доступные</button>}
    <button type="button" className={multi?'bulk-mode active':'bulk-mode'} onClick={()=>{if(multi){if(!guarded())cancel()}else{setMulti(true);modeAt.current=performance.now()}}} aria-pressed={multi}>{multi?'Готово':'☑ Выбрать'}</button>
   </div>
   {multi&&!storage&&<p className="bulk-rules">Отмечаются только простые вещи. <b>Не попадают</b>: замок, от «Редкого» и выше, усиленные, именные, сеты, свойства, награды и надетое — их можно распылить по одной в карточке.</p>}

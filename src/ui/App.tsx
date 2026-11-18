@@ -290,9 +290,9 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  {panel==='port'&&<div className="harbor-workspace">
   <HarborScene view="port" ships={fleet.ships} badges={claimable>0?{shipyard:'+'+claimable}:undefined} onNavigate={destination=>g.open(destination)}/>
   <div className="workspace-actions"><ul className="harbor-guide">
-   <li><button type="button" onClick={()=>g.open('shipyard')}><Icon name="red-diamond"/><span><b>Верфь{claimable>0?` · +${claimable}`:''}</b>Красные алмазы · {SHIP_RULES.sealPrice} → 1 печать</span></button></li>
-   <li><button type="button" onClick={()=>g.open('darkgear')}><Icon name="essence"/><span><b>Тёмная энергия</b>Свои 12 слотов · из Царства тьмы</span></button></li>
-   <li><button type="button" onClick={()=>g.open('gems')}><Icon name="gem"/><span><b>Камни</b>В гнёзда 12 основных слотов</span></button></li>
+   <li><button type="button" onClick={()=>g.open('shipyard')}><Icon name="red-diamond"/><span><b>Верфь{claimable>0?` · +${claimable}`:''}</b><small>Красные алмазы · {SHIP_RULES.sealPrice} → 1 печать</small></span></button></li>
+   <li><button type="button" onClick={()=>g.open('darkgear')}><Icon name="essence"/><span><b>Тёмная энергия</b><small>Свои 12 слотов · из Царства тьмы</small></span></button></li>
+   <li><button type="button" onClick={()=>g.open('gems')}><Icon name="gem"/><span><b>Камни</b><small>В гнёзда 12 основных слотов</small></span></button></li>
   </ul><p className="mine-summary">Северная шахта · 2 золота/сек · 1 Хаосит/мин · до 12 часов</p><Action onClick={()=>g.claim('mine')}>Собрать добычу шахтёров</Action></div>
  </div>}
  {panel==='shipyard'&&<>

@@ -42,7 +42,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await close();
 
   // 3) Backpack 80/80: clean weak → confirmation with preview → exactly the weak unlocked items go once.
-  await btn('Карта').tap();await page.locator('.harbor-guide').waitFor();
+  await btn('Карта').tap();await page.locator('.harbor-scene').waitFor();
   await page.screenshot({path:`${out}/${width}-harbor.png`});
   await page.locator('.harbor-building',{hasText:'Рюкзак'}).tap();await page.getByRole('dialog',{name:'Рюкзак'}).waitFor();
   assert.match(await page.locator('.pack-capacity').innerText(),/80 \/ 80[\s\S]*Полон/);
@@ -79,6 +79,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
 
   // 5) Harbour guide routes to the three systems.
   for(const [label,dialog] of [['Тёмная энергия','Тёмная энергия'],['Камни','Драгоценные камни'],['Верфь','Верфь драккаров']]){
+   if(height<=700)break;// the guide is hidden on short screens; the map signs stay
    await btn('Карта').tap();await page.locator('.harbor-guide button',{hasText:label}).tap();await page.getByRole('dialog',{name:dialog}).waitFor();
    if(dialog==='Драгоценные камни')await page.locator('.panel-lead').waitFor();await close();
   }

@@ -170,3 +170,10 @@
 .saga-modal .harbor-guide .icon { width: 22px; height: 22px; }
 .saga-modal .harbor-guide b { display: block; color: #ffe5a8; font-size: 11px; white-space: nowrap; }
 .saga-modal .panel-lead { margin: 0 0 8px !important; font-size: 12px !important; line-height: 1.35 !important; color: #d7c9a8 !important; }
+
+.saga-modal .harbor-guide small { display: block; font-size: 10px; }
+/* Short WebView: the 10 map signs need the full map height (Рюкзак/Камни are 12% apart), so the guide steps aside. */
+@media (max-height: 700px) {
+  .saga-modal[data-panel="port"] .harbor-port { max-height: calc(var(--game-viewport-height,var(--tg-viewport-stable-height,100dvh)) - var(--game-safe-top,0px) - var(--game-safe-bottom,0px) - 142px); }
+  .saga-modal .harbor-guide { display: none; }
+}
