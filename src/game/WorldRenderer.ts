@@ -1,5 +1,5 @@
 import landmarkFrames from '../data/world-landmarks.json';
-import {art} from '../data/catalog';
+import {sceneImage,sceneImageReady} from './sceneImages';
 import {SITE_SPACING,FIRST_SITE,siteX,type JourneyState} from './Journey';
 export interface WorldObject {id:string;kind:number;worldX:number;worldY:number;width:number;height:number;depth:number;flip:boolean;lit:boolean}
 const seed=(n:number)=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v)};
@@ -19,22 +19,40 @@ export function worldObjectsAround(cameraX:number):WorldObject[]{
 }
 export class WorldRenderer {
  textures=new Map<string,HTMLImageElement>();
- constructor(){for(const id of ['mountains','city','landmarks','road']){const image=new Image();image.src=art('world-'+id);this.textures.set(id,image)}}
- private ready(id:string){const i=this.textures.get(id);return i?.complete&&i.naturalWidth?i:null}
+ constructor(){for(const id of ['mountains','city','landmarks','road']){this.textures.set(id,sceneImage('world-'+id))}}
+ private ready(id:string){const i=this.textures.get(id);return sceneImageReady(i)?i:null}
+ private objectRange='';
+ private nearby:WorldObject[]=[];
  private panorama(c:CanvasRenderingContext2D,img:HTMLImageElement,camera:number,depth:number,y:number,width:number,height:number,phase=0){
-  const shift=camera*depth+phase,index=Math.floor(shift/width);
-  for(let n=index;n<=index+1;n++){const x=n*width-shift;c.save();if(n%2){c.translate(x+width,y);c.scale(-1,1);c.drawImage(img,0,0,width+1,height)}else c.drawImage(img,x,y,width+1,height);c.restore()}
+  const shift=camera*depth+phase,index=Math.floor(shift/width),tileWidth=width+1,visibleHeight=Math.min(height,940-y);
+  for(let n=index;n<=index+1;n++){
+   const flip=!!(n%2),x=n*width-shift-Number(flip),left=Math.max(0,-x),right=Math.min(tileWidth,864-x);
+   if(right<=left)continue;
+   // Crop in source space before scaling. The projection and the mirrored seam
+   // stay identical; Canvas only samples the part that can reach the viewport.
+   const sourceX=(flip?tileWidth-right:left)*img.naturalWidth/tileWidth;
+   const sourceWidth=(right-left)*img.naturalWidth/tileWidth,sourceHeight=visibleHeight*img.naturalHeight/height;
+   if(flip){
+    c.save();c.translate(x+right,y);c.scale(-1,1);
+    c.drawImage(img,sourceX,0,sourceWidth,sourceHeight,0,0,right-left,visibleHeight);c.restore();
+   }else c.drawImage(img,sourceX,0,sourceWidth,sourceHeight,x+left,y,right-left,visibleHeight);
+  }
+ }
+ private objects(cameraX:number){
+  const key=[Math.floor((cameraX-FIRST_SITE-1800)/SITE_SPACING),Math.ceil((cameraX+2100-FIRST_SITE)/SITE_SPACING),cameraX<1200].join(':');
+  if(this.objectRange!==key){this.objectRange=key;this.nearby=worldObjectsAround(cameraX)}
+  return this.nearby;
  }
  draw(c:CanvasRenderingContext2D,j:JourneyState,time:number,fallback:HTMLImageElement,tension=0,quality=1,skyLayer?:(c:CanvasRenderingContext2D)=>void){
   const sky=this.ready('mountains'),city=this.ready('city'),atlas=this.ready('landmarks'),road=this.ready('road');
   c.fillStyle='#1286ed';c.fillRect(0,0,864,940);
   if(sky)this.panorama(c,sky,j.cameraX,.085,35,3900,1300,1700);
-  else if(fallback.complete&&fallback.naturalWidth)c.drawImage(fallback,0,0,864,1040);
+  else if(sceneImageReady(fallback))c.drawImage(fallback,0,0,864,1040);
   skyLayer?.(c);
   if(city)this.panorama(c,city,j.cameraX,.27,55,2050,683);
   if(atlas){
 
-   for(const o of worldObjectsAround(j.cameraX)){
+   for(const o of this.objects(j.cameraX)){
     const x=o.worldX-j.cameraX*o.depth;if(x+o.width/2<0||x-o.width/2>864)continue;
     c.save();c.translate(x,o.worldY);if(o.flip)c.scale(-1,1);
     const [sx,sy,sw,sh]=landmarkFrames[o.kind];c.drawImage(atlas,sx,sy,sw,sh,-o.width/2,-o.height,o.width,o.height);c.restore();
@@ -48,9 +66,9 @@ export class WorldRenderer {
   if(road){
    const width=1300,start=Math.floor(j.cameraX/width),snowY=road.naturalHeight*.38,snowH=road.naturalHeight*.10;
    c.fillStyle='#aedbf0';c.fillRect(0,710,864,134);
-   for(let n=start;n<=start+1;n++){const x=n*width-j.cameraX;c.save();if(n%2){c.translate(x+width,0);c.scale(-1,1);c.drawImage(road,0,snowY,road.naturalWidth,snowH,0,710,width+1,134)}else c.drawImage(road,0,snowY,road.naturalWidth,snowH,x,710,width+1,134);c.restore()}
+   for(let n=start;n<=start+1;n++){const x=n*width-j.cameraX;if(x>864||x+width+1<0)continue;c.save();if(n%2){c.translate(x+width,0);c.scale(-1,1);c.drawImage(road,0,snowY,road.naturalWidth,snowH,0,710,width+1,134)}else c.drawImage(road,0,snowY,road.naturalWidth,snowH,x,710,width+1,134);c.restore()}
    const near=j.cameraX*1.08,cliffStart=Math.floor(near/width);
-   for(let n=cliffStart;n<=cliffStart+1;n++){const x=n*width-near;c.save();if(n%2){c.translate(x+width,0);c.scale(-1,1);c.drawImage(road,0,road.naturalHeight*.48,road.naturalWidth,road.naturalHeight*.52,0,844,width+1,260)}else c.drawImage(road,0,road.naturalHeight*.48,road.naturalWidth,road.naturalHeight*.52,x,844,width+1,260);c.restore()}
+   for(let n=cliffStart;n<=cliffStart+1;n++){const x=n*width-near;if(x>864||x+width+1<0)continue;c.save();if(n%2){c.translate(x+width,0);c.scale(-1,1);c.drawImage(road,0,road.naturalHeight*.48,road.naturalWidth,road.naturalHeight*.52,0,844,width+1,260)}else c.drawImage(road,0,road.naturalHeight*.48,road.naturalWidth,road.naturalHeight*.52,x,844,width+1,260);c.restore()}
   }
   // Small trail impressions belong to world space, so the party visibly leaves them behind.
   c.save();c.fillStyle='#5089a52b';const from=Math.max(j.worldX-j.distance,j.cameraX-30),to=Math.min(j.worldX-60,j.cameraX+880);

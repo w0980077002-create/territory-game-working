@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {cloudLoad,cloudSave,readCloud} from '../src/core/telegram';
+import {cloudLoad,cloudSave,readCloud,CLOUD_WRITE_TIMEOUT_MS} from '../src/core/telegram';
 const tick=async()=>{for(let i=0;i<20;i++)await new Promise(r=>setTimeout(r,5))};
 /** Deterministic text that gzip cannot shrink much, so uploads still span several chunks. */
 const noise=(n:number,seed=7)=>{const abc=[...'АБВГДЕЖЗabcdefgh0123456789🪽'];let x=seed>>>0,out='';for(let i=0;i<n;i++){x=(Math.imul(x,1103515245)+12345)>>>0;out+=abc[(x>>>16)%abc.length]}return out};
@@ -62,4 +62,57 @@ test('a successful read without a metadata key is distinct from a transport fail
  assert.deepEqual(await readCloud(),{status:'empty'});
  window.Telegram!.WebApp!.CloudStorage!.getItem=(_key,done)=>done(new Error('Offline'));
  assert.deepEqual(await readCloud(),{status:'unavailable'});
+});
+
+
+test('a timed-out chunk cannot commit metadata or release its bank into a competing write',async t=>{
+ const data=new Map([['save_meta',JSON.stringify({generation:'0',count:1})],['save_0_0','previous']]);
+ const pending:{key:string;value:string;done:(e:unknown)=>void}[]=[];
+ let batchReads=0;
+ Object.defineProperty(globalThis,'window',{value:{Telegram:{WebApp:{initData:'test',CloudStorage:{
+  getItem:(key:string,cb:(err:unknown,value?:string)=>void)=>cb(null,data.get(key)),
+  getItems:(keys:string[],cb:(err:unknown,values:Record<string,string>)=>void)=>{
+   batchReads++;cb(null,Object.fromEntries(keys.map(key=>[key,data.get(key)??''])));
+  },
+  setItem:(key:string,value:string,done:(error:unknown)=>void)=>pending.push({key,value,done}),
+ }}}},configurable:true});
+ assert.equal(await cloudLoad(),'previous');assert.equal(batchReads,1);
+ t.mock.timers.enable({apis:['setTimeout']});
+ const results:boolean[]=[];
+ await cloudSave('incomplete',ok=>results.push(ok));
+ assert.equal(pending.length,1);
+ t.mock.timers.tick(CLOUD_WRITE_TIMEOUT_MS);
+ assert.deepEqual(results,[false]);
+ await cloudSave('must wait',ok=>results.push(ok));
+ assert.equal(pending.length,1);
+ assert.deepEqual(results,[false,false]);
+ assert.equal(await cloudLoad(),'previous');
+ const complete=()=>{
+  const row=pending.shift()!;
+  data.set(row.key,row.value);row.done(null);
+ };
+ complete();
+ assert.equal(pending.length,0,'expired chunks never authorize metadata');
+ assert.equal(await cloudLoad(),'previous');
+ await cloudSave('latest',ok=>results.push(ok));
+ complete();complete();
+ assert.deepEqual(results,[false,false,true]);
+ assert.equal(await cloudLoad(),'latest');
+});
+
+test('a delayed metadata receipt acknowledges the actual commit exactly once',async t=>{
+ const pending:{key:string;done:(err:unknown)=>void}[]=[];
+ Object.defineProperty(globalThis,'window',{value:{Telegram:{WebApp:{initData:'test',CloudStorage:{
+  setItem:(key:string,_value:string,done:(err:unknown)=>void)=>pending.push({key,done}),
+ }}}},configurable:true});
+ t.mock.timers.enable({apis:['setTimeout']});
+ const results:boolean[]=[];let late=0;
+ await cloudSave('metadata delay',ok=>results.push(ok),()=>late++);
+ pending.shift()!.done(null);
+ const meta=pending.shift()!;
+ assert.equal(meta.key,'save_meta');
+ t.mock.timers.tick(CLOUD_WRITE_TIMEOUT_MS);
+ assert.deepEqual(results,[false]);
+ meta.done(null);meta.done(null);
+ assert.deepEqual(results,[false]);assert.equal(late,1);
 });

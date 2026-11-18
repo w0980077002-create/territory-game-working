@@ -4,7 +4,7 @@
  * Low quality preserves all illustration layers and reduces only optional moving effects.
  */
 import type {JourneyState} from '../game/Journey';
-import {art} from '../data/catalog';
+import {sceneImage,sceneImageReady} from '../game/sceneImages';
 export interface RealmView {
  floor:number;room:number;phase:string;clock:number;combatTime:number;delay:number;
  impact:number;quality:number;reduced:boolean;
@@ -55,12 +55,12 @@ function rune(c:C,x:number,y:number,s:number,color:string,variant=0){
 export class RealmWorld {
  private chambers:HTMLImageElement;private props:HTMLImageElement;private road:HTMLImageElement;
  constructor(){
-  const load=(id:string)=>{const image=new Image();image.src=art('dark/'+id);return image};
+  const load=(id:string)=>sceneImage('dark/'+id);
   this.chambers=load('chambers');this.props=load('props');this.road=load('road');
  }
  ready(){return [this.chambers,this.props,this.road].every(i=>i.complete&&i.naturalWidth>0)}
  private prop(c:C,kind:Prop,x:number,y:number,height:number,flip=false,angle=0){
-  if(!this.props.complete||!this.props.naturalWidth)return;
+  if(!sceneImageReady(this.props))return;
   const [sx,sy,sw,sh]=frames[kind],width=height*sw/sh;
   if(x+width<0||x-width>864)return;
   c.save();c.translate(x,y);if(angle)c.rotate(angle);if(flip)c.scale(-1,1);
@@ -70,7 +70,7 @@ export class RealmWorld {
  drawBack(c:C,j:JourneyState,v:RealmView){
   const p=realmPalette(v.room),delta=j.targetX-375-j.cameraX,t=v.reduced?0:v.clock,power=realmLighting(j,v);
   c.fillStyle=p.stone;c.fillRect(0,0,864,940);
-  if(this.chambers.complete&&this.chambers.naturalWidth){
+  if(sceneImageReady(this.chambers)){
    // Separate authored rooms in a single texture, cropped clear of panel seams; preserve aspect.
    const h=this.chambers.naturalHeight/3,sw=this.chambers.naturalWidth,sh=h-4;
    c.drawImage(this.chambers,0,(v.room-1)*h+2,sw,sh,-300+Math.min(280,delta*.16),0,1320,1320*sh/sw);
@@ -91,7 +91,7 @@ export class RealmWorld {
    this.prop(c,'lantern',x,l.y,l.h,false,angle);
   }
   // One continuous road uses a mirrored stone strip. Authored scenery above never tiles.
-  if(this.road.complete&&this.road.naturalWidth){
+  if(sceneImageReady(this.road)){
    const width=1180,shift=j.cameraX,index=Math.floor(shift/width),scale=width/1774;
    for(let n=index;n<=index+1;n++){
     const x=n*width-shift;c.save();c.translate(x,735);if(n%2){c.translate(width,0);c.scale(-1,1)}

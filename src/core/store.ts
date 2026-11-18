@@ -55,6 +55,9 @@ let recoveryRequired=false;
 function read(){if(typeof localStorage==='undefined')return freshPlayer();try{const raw=localStorage.getItem(SAVE_KEY),saved=parseSave(raw,true);if(raw&&!saved){recoveryRequired=true;return freshPlayer()}return saved??freshPlayer()}catch{recoveryRequired=true;return freshPlayer()}}
 export function unreadableSave(){try{const raw=localStorage.getItem(SAVE_KEY);return raw&&!parseSave(raw,true)?raw:localStorage.getItem(SAVE_KEY+':unreadable-cloud')??raw??''}catch{return ''}}
 function xp(p:Player,amount:number){p.xp+=amount;while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++;}}
+export function hornRefillDue(p:Pick<Player,'horn'|'hornAt'>,now=Date.now()){
+ return p.horn<hornConfig.maximum_charges&&now-p.hornAt>=hornConfig.recharge_one_charge_every_seconds*1000;
+}
 export function refill(p:Player,now=Date.now()){const interval=hornConfig.recharge_one_charge_every_seconds*1000;const elapsed=Math.floor(Math.max(0,now-p.hornAt)/interval);if(elapsed>0){p.horn=Math.min(hornConfig.maximum_charges,p.horn+elapsed);p.hornAt+=elapsed*interval}if(p.horn>=hornConfig.maximum_charges)p.hornAt=Math.max(p.hornAt,now);}
 export function grantHorn(p:Player,count:number,now=Date.now()){refill(p,now);p.horn=Math.min(hornConfig.maximum_charges,p.horn+count);if(p.horn>=hornConfig.maximum_charges)p.hornAt=Math.max(p.hornAt,now);}
 export function rollItem(p:Player,forcedSlot?:Slot,setBase:number=dropRules.setChanceHorn){const r=Math.random()*100;let acc=0,rarity=0;for(const [i,x] of balance.loot_test_settings.rarities.entries()){acc+=x.weight_percent;if(r<acc){rarity=i;break}}rarity=Math.min(8,rarity+(Math.random()<p.blessing*.015?1:0));const item=makeItem(forcedSlot??slots[Math.floor(Math.random()*slots.length)],Math.max(1,p.level+Math.floor(p.forge/3)),rarity);
@@ -102,7 +105,7 @@ export const useGame=create<Store>((set,get)=>({p:loadedPlayer,panel:null,select
  dismissNotice:expectedId=>{if(get().toast&&get().toastId===expectedId&&activeNoticeId!==expectedId)set({toast:''})},
  select:selected=>{if(selected){if(!get().panel&&get().battle.running)resumeAfterPanel=true;encounterPause?.()}{const from=get().panel;set({selected,panel:selected?'item':null,back:selected?(from&&from!=='item'?from:get().back):null,...((from!==(selected?'item':null)||selected!==get().selected)&&activeNoticeId!==get().toastId?{toast:''}:{})})}if(!selected&&resumeAfterPanel){resumeAfterPanel=false;encounterResume?.()}},
  mutate:fn=>{if(get().recoveryRequired)return false;if(!realmSessionWritable()&&(get().p.saga?.box.realm||localStorage.getItem(SAVE_KEY)?.includes('\"realm\"'))){get().notice('Поход открыт в другой вкладке · продолжите там');return false;}const before=get().p,p=structuredClone(before);if(encounterProvider)p.encounter=encounterProvider();fn(p);p.savedAt=Date.now();set({p});get().persist();if(get().storageError){set({p:before});return false}return true},
- persist:()=>{if(get().recoveryRequired)return;if(!realmSessionWritable()&&(get().p.saga?.box.realm||localStorage.getItem(SAVE_KEY)?.includes('\"realm\"')))return;try{const p={...get().p,preferences:{auto:get().auto,speed:get().speed as 1|2,stopOnDeath:get().stopOnDeath,continueOnVictory:get().continueOnVictory,autoSalvageWeaker:get().autoSalvageWeaker},savedAt:Date.now(),...(encounterProvider?{encounter:encounterProvider()}:{})};const run=realmRun(p);if(run&&p.encounter?.mode==='darkness'&&run.lastCombatId!==p.encounter.id){p.saga=structuredClone(p.saga);realmBox(p).run={...run,checkpoint:p.encounter}}const raw=JSON.stringify(p);localStorage.setItem(SAVE_KEY,raw);set({p,storageError:false})}catch{set({storageError:true})}},
+ persist:()=>{if(get().recoveryRequired)return;if(!realmSessionWritable()&&(get().p.saga?.box.realm||localStorage.getItem(SAVE_KEY)?.includes('\"realm\"')))return;try{const p={...get().p,preferences:{auto:get().auto,speed:get().speed as 1|2,stopOnDeath:get().stopOnDeath,continueOnVictory:get().continueOnVictory,autoSalvageWeaker:get().autoSalvageWeaker},savedAt:Date.now(),...(encounterProvider?{encounter:encounterProvider()}:{})};const run=realmRun(p);if(run&&p.encounter?.mode==='darkness'&&run.lastCombatId!==p.encounter.id){const saga=p.saga!;p.saga={...saga,box:{...saga.box,realm:{...realmBox(get().p),run:{...run,checkpoint:p.encounter}}}}}const raw=JSON.stringify(p);localStorage.setItem(SAVE_KEY,raw);set({p,storageError:false})}catch{set({storageError:true})}},
  hornLoot:()=>{const g=get();if(g.panel==='item'&&g.selected)return;const current=structuredClone(g.p);refill(current);if(current.horn<hornConfig.chest_charge_cost){g.mutate(p=>refill(p));g.notice('Заряд Рога ещё восстанавливается');return}if(current.inventory.length>=balance.loot_test_settings.starter_inventory_capacity){g.notice('Рюкзак полон');g.open('inventory');return}let item:Item;if(!g.mutate(p=>{refill(p);p.horn-=hornConfig.chest_charge_cost;bumpCount(p,'horn');item=rollItem(p);item.origin='Рог Трофеев';addLoot(p,item,true)})){unsaved(get());return}haptic(true);if(!get().p.inventory.some(i=>i.id===item!.id)&&!get().p.pendingLoot?.some(i=>i.id===item!.id)){g.notice('Слабый предмет разобран автоматически · золото и опыт получены');return}g.select(item!.id)},
  unequip:slot=>{const g=get(),item=g.p.equipment[slot];if(!item)return;if(g.p.inventory.length>=balance.loot_test_settings.starter_inventory_capacity){g.notice('Рюкзак полон');return}if(!g.mutate(p=>{p.inventory.push(p.equipment[slot]!);delete p.equipment[slot]})){unsaved(get());return}g.notice('Предмет перемещён в рюкзак')},
  equip:id=>{const g=get();if(g.recoveryRequired)return;const i=[...g.p.inventory,...(g.p.pendingLoot??[])].find(x=>x.id===id);if(!i)return;const before=g.p;g.mutate(p=>{p.inventory=p.inventory.filter(x=>x.id!==id);if(p.pendingLoot)p.pendingLoot=p.pendingLoot.filter(x=>x.id!==id);const old=p.equipment[i.slot];delete p.equipment[i.slot];if(old)addLoot(p,old);p.equipment[i.slot]=i;if(p.rewardOffer?.itemId===id)p.rewardOffer.resolved=true});if(get().storageError){set({p:before});g.notice('Не удалось сохранить экипировку · предметы остались на месте');return}if(get().panel==='item')g.leaveItem();g.notice('Экипировано · характеристики обновлены')},
@@ -217,24 +220,30 @@ export async function backupCloud(){
  if(!telegramProfile||checkingCloud||!realmSessionWritable()||useGame.getState().recoveryRequired)return;
  checkingCloud=true;
  try{
+  const current=localStorage.getItem(SAVE_KEY);
+  if(!current||isKnownCloud(current))return;
   const latest=await readCloud();
   if(latest.status==='unavailable'||useGame.getState().recoveryRequired)return;
   const raw=localStorage.getItem(SAVE_KEY);
   if(!raw||!parseSave(raw,true))return;
   if(latest.status==='found'&&latest.raw!==raw&&!isKnownCloud(latest.raw))return;
   if(latest.status==='found'&&latest.raw===raw){acknowledgeCloud(raw);return}
+  const confirmed=()=>{
+   acknowledgeCloud(raw);
+   if(cloudWarned){cloudWarned=false;useGame.getState().notice('Копия Telegram снова обновлена')}
+  };
   await new Promise<void>(resolve=>void cloudSave(raw,(ok,reason)=>{
-   if(ok){acknowledgeCloud(raw);if(cloudWarned){cloudWarned=false;useGame.getState().notice('Копия Telegram снова обновлена')}}
+   if(ok)confirmed();
    else if(reason!=='superseded'&&!cloudWarned){cloudWarned=true;useGame.getState().notice(reason==='too-large'?'Копия Telegram не обновлена: сохранение слишком большое · прогресс сохранён на устройстве, прежняя копия цела':'Копия Telegram не обновлена · прогресс сохранён на устройстве, прежняя копия цела · повторим автоматически')}
    resolve();
-  }));
+  },confirmed));
  }catch{ /* No upload when local storage is unavailable. */ }finally{checkingCloud=false}
 }
 /** CP change if the item is worn. `stats` only reads, so a shallow copy is enough and stays cheap for 80 tiles. */
-export function compareItem(item:Item,p:Player){return stats({...p,equipment:{...p.equipment,[item.slot]:item}}).cp-stats(p).cp}
+export function compareItem(item:Item,p:Player,base=stats(p).cp){return stats({...p,equipment:{...p.equipment,[item.slot]:item}}).cp-base}
 /** Strongest backpack piece for a slot, if it beats what is worn. Equipped named items (effects outside CP) are left to the player. */
-export function bestUpgrade(p:Player,slot:Slot,keepNamed=false){const worn=p.equipment[slot];if(keepNamed&&worn&&(uniqueOf(worn)||worn.perk))return undefined;let item:Item|undefined,gain=0;for(const i of p.inventory){if(i.slot!==slot)continue;const d=compareItem(i,p);if(d>gain){gain=d;item=i}}return item?{slot,item,gain}:undefined}
-export function bestUpgrades(p:Player){return slots.flatMap(slot=>{const b=bestUpgrade(p,slot,true);return b?[b]:[]})}
+export function bestUpgrade(p:Player,slot:Slot,keepNamed=false,base=stats(p).cp){const worn=p.equipment[slot];if(keepNamed&&worn&&(uniqueOf(worn)||worn.perk))return undefined;let item:Item|undefined,gain=0;for(const i of p.inventory){if(i.slot!==slot)continue;const d=compareItem(i,p,base);if(d>gain){gain=d;item=i}}return item?{slot,item,gain}:undefined}
+export function bestUpgrades(p:Player){const base=stats(p).cp;return slots.flatMap(slot=>{const b=bestUpgrade(p,slot,true,base);return b?[b]:[]})}
 
 export function claimRealmReward(){let done=false;const ok=useGame.getState().mutate(p=>{done=realmClaim(p,{xp:n=>xp(p,n),trophies:(floor,first)=>{const out:string[]=[],named=namedDrop('darkness');if(named){const u=makeUnique(named,p.level,'Владыка Царства тьмы · этаж '+floor);addLoot(p,u);out.push(u.name)}for(const [at,perk] of [[10,'void'],[20,'duskwings']] as [number,PerkId][])if(first&&floor===at&&setFlag(p,'perk:'+perk)){const t=makePerkItem(perk,p.level+2,'Трофей Царства тьмы · этаж '+floor);addLoot(p,t);out.push(t.name)}return out}})});return ok&&done}
 
