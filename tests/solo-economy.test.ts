@@ -108,3 +108,21 @@ test('new stock respects progression, daily limits and Horn capacity', () => {
   assert.deepEqual(offer('forge-parcel').reward.mats,{harbor:2});
   assert.equal(shopStatus(p,offer('horn-kit'),now),'Освободите место в Роге');
 });
+
+test('the expedition bundle grants both supplies and rejects a second purchase', t => {
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:Date.UTC(2026,10,18)});
+  const p = freshPlayer();
+  p.horn = 0;
+  p.hornAt = Date.now();
+  p.tokens = 30;
+  const before = p.chaosite;
+  useGame.setState({p,recoveryRequired:false,storageError:false});
+  const kit = shopOffers(p).find(offer=>offer.id==='expedition-kit')!;
+  assert.equal(game().buy(kit.id,shopQuote(kit)),true);
+  assert.equal(game().buy(kit.id,shopQuote(kit)),false);
+  const restored = parseSave(localStorage.getItem(SAVE_KEY))!;
+  assert.equal(restored.horn,3);
+  assert.equal(restored.chaosite,before+10);
+  assert.equal(restored.tokens,16);
+  assert.equal(shopSold(restored,kit,Date.now()),true);
+});

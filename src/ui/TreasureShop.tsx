@@ -10,6 +10,7 @@ import './treasureShop.css';
 
 const categories = [['all','Витрина'], ...shopCategories] as const;
 const featured = ['travel-stipend','region-supplies','expedition-kit','mine-reserve','summon-seal','forge-parcel'];
+const compactCoins = new Intl.NumberFormat('ru', {notation:'compact',maximumFractionDigits:1});
 const priceText = (offer: ShopOffer) => `${offer.price.toLocaleString('ru')} ${shopCurrencies[offer.currency].unit}`;
 const limitText = (offer: ShopOffer) => offer.limit === 'daily' ? 'Одна покупка в сутки · обновление в 00:00 UTC'
   : offer.limit === 'once' ? 'Одна покупка на героя' : 'Количество зависит от свободного места в Роге';
@@ -41,10 +42,13 @@ export function TreasureShop({p, source, sources}: {
       <div><strong>Прилавок<br/>северного купца</strong><span>Новые товары в 00:00 UTC</span></div>
     </div>
     <div className="shop-wallet">
-      {Object.entries(shopCurrencies).map(([id, def]) =>
-        <button key={id} type="button" onClick={() => setGuide(id)} aria-label={`Где получить · ${def.name}`}>
-          <Icon name={def.icon}/><strong>{p[id as keyof typeof shopCurrencies].toLocaleString('ru')}</strong>
-        </button>)}
+      {Object.entries(shopCurrencies).map(([id, def]) => {
+        const amount = p[id as keyof typeof shopCurrencies];
+        return <button key={id} type="button" onClick={() => setGuide(id)} aria-label={`Где получить · ${def.name}`}
+          title={def.name + ' · ' + amount.toLocaleString('ru')}>
+          <Icon name={def.icon}/><strong>{amount >= 100_000 ? compactCoins.format(amount) : amount.toLocaleString('ru')}</strong>
+        </button>;
+      })}
     </div>
     <div className="shop-tabs" role="group" aria-label="Категории лавки">
       {categories.map(([id, label]) => <button key={id} type="button" aria-pressed={category === id}
@@ -68,7 +72,7 @@ export function TreasureShop({p, source, sources}: {
             aria-label={sold ? status : `Купить · ${priceText(offer)}${status ? ` · ${status}` : ''}`} title={status || priceText(offer)}
             onClick={() => requestPurchase(offer)}>
             {sold ? <span>{status}</span> : <><Icon name={shopCurrencies[offer.currency].icon}/>
-              <b>{offer.price.toLocaleString('ru')}</b>{status && <span>{status === 'Недостаточно средств' ? 'Не хватает' : 'Рог заполнен'}</span>}</>}
+              <b>{offer.price.toLocaleString('ru')}</b>{status && <span>{status === 'Недостаточно средств' ? 'Не хватает' : status === 'Рог заполнен' ? status : 'Мало места в Роге'}</span>}</>}
           </button>
         </article>;
       })}
