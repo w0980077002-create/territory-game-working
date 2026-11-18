@@ -11,9 +11,9 @@ import {evoPower} from '../saga/companions';
 // ───────────────────────── shared resources ─────────────────────────
 export type ResId='ess'|'shard'|'seal';
 export const resources:Record<ResId,{name:string;short:string;color:string;icon:string;source:string}>={
- ess:{name:'Тёмная эссенция',short:'Эссенция',color:'#b98cff',icon:'rune',source:'Царство тьмы и разбор тёмных предметов'},
- shard:{name:'Осколки реликвий',short:'Осколки',color:'#ffd27a',icon:'amulet',source:'Владыки Царства тьмы и Логово мини-босса'},
- seal:{name:'Печати призыва',short:'Печати',color:'#9ff3e0',icon:'people',source:'Первое прохождение этажей Тьмы, Логово и Арена'}
+ ess:{name:'Тёмная эссенция',short:'Эссенция',color:'#b98cff',icon:'essence',source:'Царство тьмы и разбор тёмных предметов'},
+ shard:{name:'Осколки реликвий',short:'Осколки',color:'#ffd27a',icon:'relic-shard',source:'Владыки Царства тьмы и Логово мини-босса'},
+ seal:{name:'Печати призыва',short:'Печати',color:'#9ff3e0',icon:'summon-seal',source:'Первое прохождение этажей Тьмы, Логово и Арена'}
 };
 export const resKey=(id:ResId)=>'res:'+id;
 export const resCount=(p:Player,id:ResId)=>p.saga?.n[resKey(id)]??0;
@@ -138,7 +138,7 @@ export const RELIC_MAX=10;
 const lairWins=(p:Player)=>p.saga?.n['win:dungeon']??0;
 const goal=(have:number,need:number,text:string)=>({ok:have>=need,text:`${text} · ${Math.min(have,need)}/${need}`});
 export const relics:Record<RelicId,RelicDef>={
- heart:{name:'Сердце ледника',rarity:0,icon:'amulet',material:'ice',lore:'Первая реликвия Севера. Растёт без предела.',ability:lv=>`+${lv*3}% атаки героя`,need:()=>({ok:true,text:'Получена в начале пути'})},
+ heart:{name:'Сердце ледника',rarity:0,icon:'gem',material:'ice',lore:'Первая реликвия Севера. Растёт без предела.',ability:lv=>`+${lv*3}% атаки героя`,need:()=>({ok:true,text:'Получена в начале пути'})},
  horn:{name:'Рог Вальхаллы',rarity:0,icon:'horn',material:'harbor',lore:'Его зов поднимает дружину в первый натиск.',ability:lv=>`Первые 8 секунд боя: +${10+2*lv}% урона героя`,passive:['atkPct',.005],need:p=>goal(p.bosses,3,'Победить боссов главы')},
  mjolnir:{name:'Осколок Мьёльнира',rarity:1,icon:'lightning',material:'forest',lore:'Искра молота, что помнит гром.',ability:lv=>`Каждый 6-й удар героя бьёт цель молнией на ${60+12*lv}% атаки`,passive:['crit',.003],need:p=>goal(p.stage-1,10,'Пройти этапов главы')},
  leaf:{name:'Лист Иггдрасиля',rarity:1,icon:'heart',material:'forest',lore:'Живой лист Мирового древа не вянет.',ability:lv=>`В бою герой восстанавливает ${(.3+.07*lv).toFixed(2).replace('.',',')}% здоровья в секунду`,passive:['hpPct',.01],need:p=>goal(p.darkFloor-1,2,'Пройти этажей Царства тьмы')},
@@ -146,8 +146,8 @@ export const relics:Record<RelicId,RelicDef>={
  aegis:{name:'Эгида Тюра',rarity:2,icon:'shield',material:'limes',lore:'Щит бога, не знавшего страха.',ability:lv=>`Первый удар врага в каждом бою не наносит урона; снижение урона +${(1+.5*lv).toFixed(1).replace('.',',')}%`,passive:['defPct',.01],need:p=>goal(p.arenaWins,3,'Победить на Арене')},
  ravens:{name:'Вороны Одина',rarity:2,icon:'people',material:'limes',lore:'Хугин и Мунин направляют верных спутников.',ability:lv=>`Активные спутники бьют и лечат на ${6+3*lv}% сильнее`,need:p=>goal(squadState(p).owned.length,3,'Собрать спутников')},
  draupnir:{name:'Кольцо Драупнир',rarity:2,icon:'ring',material:'peaks',lore:'Каждую девятую ночь оно рождает золото.',ability:lv=>`+${4+2*lv}% золота за победы и Тёмной эссенции в Царстве тьмы`,need:p=>goal(p.bosses,10,'Победить боссов главы')},
- gjallar:{name:'Гьяллархорн',rarity:3,icon:'crown',material:'ember',lore:'Рог, чей звук слышен во всех мирах.',ability:lv=>`Навыки перезаряжаются на ${2+lv}% быстрее`,passive:['skill',.01],need:p=>goal(p.darkFloor-1,5,'Пройти этажей Царства тьмы')},
- gap:{name:'Тень Гиннунгагап',rarity:3,icon:'rune',material:'ember',lore:'Пустота, что была до начала времён.',ability:lv=>`Враги начинают каждый бой без ${(3+.7*lv).toFixed(1).replace('.',',')}% здоровья`,passive:['critDamage',.02],need:p=>goal(p.darkFloor-1,10,'Пройти этажей Царства тьмы')}
+ gjallar:{name:'Гьяллархорн',rarity:3,icon:'horn',material:'ember',lore:'Рог, чей звук слышен во всех мирах.',ability:lv=>`Навыки перезаряжаются на ${2+lv}% быстрее`,passive:['skill',.01],need:p=>goal(p.darkFloor-1,5,'Пройти этажей Царства тьмы')},
+ gap:{name:'Тень Гиннунгагап',rarity:3,icon:'essence',material:'ember',lore:'Пустота, что была до начала времён.',ability:lv=>`Враги начинают каждый бой без ${(3+.7*lv).toFixed(1).replace('.',',')}% здоровья`,passive:['critDamage',.02],need:p=>goal(p.darkFloor-1,10,'Пройти этажей Царства тьмы')}
 };
 export const relicIds=Object.keys(relics) as RelicId[];
 export function relicLevel(p:Player,id:RelicId){if(id==='heart')return p.relic;const v=peekBox<{lv?:Record<string,unknown>}>(p,'relics')?.lv?.[id];return typeof v==='number'&&Number.isInteger(v)&&v>=1?Math.min(RELIC_MAX,v):0}

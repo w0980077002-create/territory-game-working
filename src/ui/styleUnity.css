@@ -1,6 +1,5 @@
 /* Style unity · inner windows share the bright cartoon-fantasy tone of the PvE battle screen.
    Visual only: no layout, control, text or game-state change. The Dark Realm keeps its own purple atmosphere. */
-:root{--unity-harbor:url('../../public/art/windows/harbor.webp');--unity-city:url('../../public/art/world-city.webp');--unity-sky:url('../../public/art/world-mountains.webp')}
 .saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]){--saga-cloth:linear-gradient(#25425ccf,#25425ccf),url('../../public/art/saga/velvet.webp');--saga-iron:linear-gradient(#1c2b38b3,#1c2b38b3),url('../../public/art/saga/forged.webp')}
 /* The backpack keeps its approved walnut chest frame; only its item lining is lifted. */
 .saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]){background:var(--saga-cloth),#24405a;background-size:384px 256px;box-shadow:0 0 0 3px #1d2a33,0 0 0 4px #8a7550,0 25px 100px #0008,inset 0 0 0 5px #142636}
@@ -10,13 +9,21 @@
 .saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]) .modal-footer{background:linear-gradient(#ffd9a01a,#0003),var(--saga-oak);background-size:auto,540px 270px;border-top-color:#2a1c12}
 .saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]) .modal-footer button{background:#1e3346e6}
 .saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]) .dialog-status{background:#1b3043}
-/* Scene banners: the game's own stylized paintings instead of the realistic night atlas. */
-.saga-modal .saga-scene.scene-chest{background:var(--unity-harbor) 100% 39%/200% auto no-repeat,#9cc3e0}
-.saga-modal .saga-scene.scene-moon,.saga-modal .saga-scene.scene-gold{background:var(--unity-city) 22% 74%/auto 215% no-repeat,var(--unity-sky) 40% 30%/auto 175% no-repeat,#5aa7e6}
-.saga-modal .saga-scene.scene-gold{background-position:78% 74%,70% 30%,0 0}
-.saga-modal .saga-scene:not(.scene-roman)::after{background:linear-gradient(90deg,#163a5be0,#1b46699c 40%,transparent 76%),linear-gradient(0deg,#1d3a54d9,transparent 38%)}
-.saga-modal .saga-scene{border-bottom:2px solid #c9a86a8c}
-.saga-modal .scene-caption small{color:#ffe2a0;text-shadow:0 1px 2px #0c1f31}.saga-modal .scene-caption span{color:#fff6e3;text-shadow:0 1px 3px #0c1f31e6}
+/* Each banner uses its own section artwork, on the existing window materials. */
+.saga-modal .section-scene {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 18px;
+  border-bottom: 2px solid #c9a86a8c;
+  background: linear-gradient(100deg,#192f43,#2b485e),var(--saga-cloth);
+}
+.saga-modal .section-scene::after { content: none; }
+.saga-modal .section-scene p { flex: 1; margin: 0; color: #fff1d3; font-size: 14px; line-height: 1.25; }
+.saga-modal .section-scene > .icon {
+  width: 28%; max-width: 92px; height: 100%; flex-shrink: 0;
+  object-fit: contain; filter: drop-shadow(0 4px 5px #05121a);
+}
 /* Treasure store: brighter title plaque and softly lit offer rows. */
 .saga-modal[data-panel="shop"] .test-banner{background:linear-gradient(#ffd9a026,#0002),var(--saga-oak);border-color:#d8b878;box-shadow:inset 0 1px #ffe6b366,0 2px 4px #0006;color:#fff0cf;text-shadow:0 1px 2px #0009}
 .saga-modal[data-panel="shop"] .row{padding:10px 8px;margin:6px 0;border:1px solid #c9ad7a40;border-radius:8px;background:linear-gradient(100deg,#ffe8bc1f,#ffffff08 60%);box-shadow:inset 0 1px #fff2d41a}
@@ -25,3 +32,10 @@
 .saga-modal .relics>.local-scroll{background:linear-gradient(#4b3d5c8c,#2f3d5ab3),var(--saga-oak);border-color:#b08a5c;box-shadow:inset 0 0 0 3px #1d2638,inset 0 8px 18px #ffe0a014}
 .saga-modal .relic-grid button{background:linear-gradient(130deg,color-mix(in srgb,var(--rarity) 22%,#5a4766),#2b2a45)}
 .saga-modal .relic-grid small{background:#26304acc}
+
+.saga-modal .content-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.saga-modal .content-with-icon > .icon { width: 24px; height: 24px; flex-shrink: 0; }

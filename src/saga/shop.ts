@@ -3,17 +3,18 @@ import economy from '../../config/solo-economy.v1.json';
 import type {Player} from '../core/types';
 import {resources} from '../dark/rules';
 import {grant, regionMaterial, type Reward} from './rewards';
-import {materials} from './gear';
+import {materials,materialIds} from './gear';
+import {regionIndex} from './regions';
 import {dayOf} from './quests';
 import {boxOf, peekBox} from './save';
 
 export const shopCategories = [
   ['daily', 'Ежедневные'],
-  ['supplies', 'Наборы припасов'],
   ['resources', 'Ресурсы'],
-  ['materials', 'Усиление'],
+  ['materials', 'Материалы'],
+  ['growth', 'Развитие'],
   ['horn', 'Рог Трофеев'],
-  ['growth', 'Спутники и реликвии'],
+  ['supplies', 'Наборы припасов'],
 ] as const;
 type Category = typeof shopCategories[number][0];
 
@@ -58,33 +59,57 @@ function hornOffer(p: Player, now: number): ShopOffer {
   };
 }
 
-const packs: ShopOffer[] = balance.test_store.test_packs.map((pack, index) => ({
+const packs: ShopOffer[] = balance.test_store.test_packs.map(pack => ({
   id:pack.id, category:'supplies', name:pack.display_name,
-  icon:['chest','gift','ship','crown','book','banner','helmet','boots','ring','cloak'][index] ?? 'chest',
+  icon:'chest',
   description:'Запас золота, самоцветов и зарядов для развития героя и новой добычи.',
   currency:'tokens', price:pack.test_token_price, limit:'once',
   reward:{gold:pack.grant.gold, gems:pack.grant.gems, horn:pack.grant.horn_charges},
 }));
 
+const stock = economy.shop;
+type StockId = keyof typeof stock;
+
+function dailyOffer(id: StockId, category: Category, name: string, icon: string, description: string,
+  currency: ShopCurrency, reward: Reward): ShopOffer {
+  return {id, category, name, icon, description, currency, reward, price:stock[id].price, limit:'daily'};
+}
+
 export function shopOffers(p: Player, now = Date.now()): ShopOffer[] {
   const material = regionMaterial(p);
-  const offer = (id: keyof typeof economy.shop, category: Category, name: string, icon: string,
-    description: string, currency: ShopCurrency, reward: (amount: number) => Reward): ShopOffer => {
-    const {price, amount} = economy.shop[id];
-    return {id, category, name, icon, description, currency, price, reward:reward(amount), limit:'daily'};
-  };
-  return [
-    offer('travel-stipend','daily','Кошель разведчика','coins','Золото на первые усиления и обучение навыкам.','tokens',gold=>({gold})),
-    offer('guard-stones','daily','Камни караула','shield','Хаосит для одного похода в Логово или Царство тьмы.','tokens',chaosite=>({chaosite})),
-    offer('blacksmith-coins','resources','Казна кузнеца','belt','Золото на экипировку, навыки и развитие спутников.','gems',gold=>({gold})),
-    offer('mine-reserve','resources','Запас шахтёров','axe','Хаосит для входа в Логово или Царство тьмы.','gold',chaosite=>({chaosite})),
-    offer('region-supplies','materials',materials[material].name,'armor','Материал текущего региона для создания и перековки экипировки.','gems',amount=>({mats:{[material]:amount}})),
-    offer('dark-essence','materials',resources.ess.name,resources.ess.icon,'Расходуется на усиление тёмной экипировки.','gems',ess=>({res:{ess}})),
-    offer('summon-seal','growth','Печать призыва',resources.seal.icon,'Один призыв за осколками спутников.','gems',seal=>({res:{seal}})),
-    offer('relic-shards','growth',resources.shard.name,resources.shard.icon,'Для открытия и усиления реликвий. Условия открытия смотрите в каталоге.','gems',shard=>({res:{shard}})),
+  const previousIndex = (materialIds.indexOf(material) + materialIds.length - 1) % materialIds.length;
+  const previous = materialIds[previousIndex];
+  const offers = [
+    dailyOffer('travel-stipend','daily','Кошель разведчика','coins','Золото на первые усиления и обучение навыкам.','tokens',{gold:stock['travel-stipend'].amount}),
+    dailyOffer('guard-stones','daily','Камни караула','rune','Хаосит для одного похода в Логово или Царство тьмы.','tokens',{chaosite:stock['guard-stones'].amount}),
+    dailyOffer('blacksmith-coins','resources','Казна кузнеца','coins','Золото на экипировку, навыки и развитие спутников.','gems',{gold:stock['blacksmith-coins'].amount}),
+    dailyOffer('mine-reserve','resources','Запас шахтёров','rune','Хаосит для входа в Логово или Царство тьмы.','gold',{chaosite:stock['mine-reserve'].amount}),
+    dailyOffer('arena-pay','resources','Жалованье дружины','coins','Обменяйте жетоны Арены на золото для развития героя.','tokens',stock['arena-pay'].reward),
+    dailyOffer('long-march','resources','Запас для дальнего похода','rune','Хаосит на три входа в Логово или Царство тьмы.','gold',stock['long-march'].reward),
+    dailyOffer('region-supplies','materials',materials[material].name,'hammer','Материал текущего региона для создания и перековки экипировки.','gems',{mats:{[material]:stock['region-supplies'].amount}}),
+    dailyOffer('forge-parcel','materials','Посылка кузнеца','hammer','Золото и материал текущего региона для изготовления и улучшения вещей.','gems',
+      {gold:stock['forge-parcel'].gold,mats:{[material]:stock['forge-parcel'].materials}}),
+    dailyOffer('dark-essence','materials',resources.ess.name,resources.ess.icon,'Расходуется на усиление тёмной экипировки.','gems',{res:{ess:stock['dark-essence'].amount}}),
+    dailyOffer('summon-seal','growth','Печать призыва',resources.seal.icon,'Один призыв за осколками спутников.','gems',{res:{seal:stock['summon-seal'].amount}}),
+    dailyOffer('squad-rations','growth','Жалованье призывателя','summon-seal','Печать на один призыв и золото на обучение спутников.','gems',stock['squad-rations'].reward),
+    dailyOffer('relic-shards','growth',resources.shard.name,resources.shard.icon,'Для открытия и усиления реликвий. Условия открытия смотрите в каталоге.','gems',{res:{shard:stock['relic-shards'].amount}}),
     hornOffer(p, now),
-    ...packs,
+    dailyOffer('horn-kit','horn','Припасы охотника','horn','Заряды для добычи и золото для её усиления.','tokens',stock['horn-kit'].reward),
+    dailyOffer('quartermaster','supplies','Дорожный паёк','chest','Золото на подготовку героя и Хаосит на один поход.','tokens',stock.quartermaster.reward),
   ];
+  if(regionIndex(p.stage)>0){
+    offers.push(dailyOffer('previous-region','materials',materials[previous].name,'hammer',
+      'Материал из предыдущего региона для старых рецептов и реликвий.','gems',{mats:{[previous]:stock['previous-region'].amount}}));
+  }
+  if(p.darkFloor>=2){
+    offers.push(dailyOffer('dark-stock','materials','Запас сумеречной кузни','essence',
+      'Эссенция и золото на усиление тёмной экипировки после первого этажа.','gems',stock['dark-stock'].reward));
+  }
+  if(p.bosses>=3||p.darkFloor>=2){
+    offers.push(dailyOffer('relic-workshop','growth','Запас хранителя реликвий','relic-shard',
+      'Осколки и золото на реликвии, доступные герою.','gems',stock['relic-workshop'].reward));
+  }
+  return [...offers, ...packs];
 }
 
 interface ShopDay {day?: string; bought?: string[]}

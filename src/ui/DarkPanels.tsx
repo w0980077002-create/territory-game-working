@@ -27,7 +27,7 @@ function Btn({children,onClick,disabled=false,kind=''}:{children:React.ReactNode
 export function DarkWallet({p,show=['ess','shard','seal'],from}:{p:Player;show?:ResId[];from?:string}){
  const open=useGame(s=>s.open);
  const guide=(id:string,name:string)=>from&&<button className="resource-source" type="button" aria-label={`Где получить · ${name}`} title="Где получить" onClick={()=>open(`source:${id}:${from}`)}>?</button>;
- return <div className="dark-wallet">{show.map(id=><span key={id} style={{'--tone':resources[id].color} as React.CSSProperties} title={resources[id].source}><Icon name={resources[id].icon}/><b>{fmt(resCount(p,id))}</b><small>{resources[id].short}</small>{guide(id,resources[id].name)}</span>)}<span style={{'--tone':materials.dusk.color} as React.CSSProperties}><Icon name="gem"/><b>{fmt(duskCount(p))}</b><small>Камни Сумрака</small>{guide('dusk','Камни Сумрака')}</span></div>;
+ return <div className="dark-wallet">{show.map(id=><span key={id} style={{'--tone':resources[id].color} as React.CSSProperties} title={resources[id].source}><Icon name={resources[id].icon}/><b>{fmt(resCount(p,id))}</b><small>{resources[id].short}</small>{guide(id,resources[id].name)}</span>)}<span style={{'--tone':materials.dusk.color} as React.CSSProperties}><Icon name="dusk-stone"/><b>{fmt(duskCount(p))}</b><small>Камни Сумрака</small>{guide('dusk','Камни Сумрака')}</span></div>;
 }
 const rewardRows=(t:RealmTotals)=>[[t.ess,'Тёмная эссенция'],[t.gold,'Золото'],[t.xp,'Опыт'],[t.shard,'Осколки реликвий'],[t.dusk,'Камни Сумрака'],[t.seal,'Печати призыва'],[t.gems,'Самоцветы']].filter(r=>(r[0] as number)>0) as [number,string][];
 
@@ -187,6 +187,6 @@ export function PowerSources({p}:{p:Player}){
 /** Entry tiles to the five systems. */
 export function DarkHub({p}:{p:Player}){
  const open=useGame(s=>s.open),s=squadState(p),d=darkState(p),run=realmRun(p);
- const tiles=[['realm','rune','Царство тьмы',run?`Поход идёт · этаж ${run.f}`:`Этаж ${p.darkFloor}`],['darkgear','shield','Тёмная энергия',`${d.eq.filter(Boolean).length}/12 · склад ${d.inv.length}`],['gems','gem','Драгоценные камни',`${Object.values(gemState(p).sock).flat().filter(Boolean).length} вставлено`],['relic','amulet','Реликвии',`${relicCollection(p).owned}/${relicIds.length} открыто`],['companions','people','Спутники',`${s.owned.length}/${companionIds.length} в дружине`]] as const;
+ const tiles=[['realm','portal','Царство тьмы',run?`Поход идёт · этаж ${run.f}`:`Этаж ${p.darkFloor}`],['darkgear','essence','Тёмная энергия',`${d.eq.filter(Boolean).length}/12 · склад ${d.inv.length}`],['gems','gem','Драгоценные камни',`${Object.values(gemState(p).sock).flat().filter(Boolean).length} вставлено`],['relic','amulet','Реликвии',`${relicCollection(p).owned}/${relicIds.length} открыто`],['companions','companion','Спутники',`${s.owned.length}/${companionIds.length} в дружине`]] as const;
  return <div className="dark-hub">{tiles.map(([id,icon,name,detail])=><button key={id} onClick={()=>open(id)}><Icon name={icon}/><strong>{name}</strong><small>{detail}</small></button>)}</div>;
 }
