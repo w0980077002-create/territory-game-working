@@ -110,3 +110,9 @@
 .dark-hub .icon{width:28px;height:28px}.dark-hub strong{font-size:10px;line-height:1.1;text-align:center}.dark-hub small{font-size:9px;color:#a9a3c4;line-height:1.1;text-align:center}
 [data-motion="reduced"] .realm-banner::after,[data-motion="reduced"] .dark-ring::before,[data-motion="reduced"] .pet-portrait.awake{animation:none}
 @media (prefers-reduced-motion:reduce){.realm-banner::after,.dark-ring::before,.pet-portrait.awake,.realm-result,.summon-results span{animation:none}}
+
+.realm-progress{position:absolute;top:325px;left:200px;right:160px;text-align:center;color:#ffe3a2;text-shadow:0 2px 4px #000;font-size:26px;pointer-events:none}
+.realm-world-hit{position:absolute;top:550px;width:200px;height:280px;background:transparent;border:0;border-radius:45%;z-index:2;touch-action:manipulation}
+.realm-world-hit:focus-visible{outline:4px solid #ffe3a2;outline-offset:-12px}
+.realm .room-track{grid-template-columns:repeat(6,minmax(0,1fr))}
+.realm .room-track .room-art{height:30px}.realm .room-track .room-art img{max-height:30px}.realm .room-track .icon{height:24px;width:24px}.realm .room-track small{display:none}

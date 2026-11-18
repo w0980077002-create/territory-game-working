@@ -24,7 +24,7 @@ export const realmPalette=(room:number)=>palettes[Math.max(0,Math.min(2,room-1))
 /** Rewards advance the persisted run before the victory animation finishes: use encounter identity. */
 export function realmSceneIdentity(title:string,role:string,fallbackFloor=1){
  const floor=Number(title.match(/^Тьма (\d+)/)?.[1])||fallbackFloor;
- const room=Number(role.match(/([123])\/3/)?.[1])||3;return {floor,room};
+ const section=Number(role.match(/([1-6])\/[36]/)?.[1])||3;const room=role.endsWith('/6')?1+(section-1)%3:section;return {floor,room};
 }
 export function realmLighting(j:JourneyState,v:RealmView){return .36+v.room*.13+(1-clamp((j.targetX-j.worldX)/675))*.22}
 /** World addresses, not repeated wallpaper. Each chamber has a different silhouette and approach. */

@@ -1,0 +1,46 @@
+[
+  {
+    "width": 320,
+    "height": 844,
+    "locale": "ru-RU",
+    "choices": 4,
+    "naturalCombat": true,
+    "reloadChoice": true,
+    "doubleTap": true,
+    "claim": true,
+    "errors": []
+  },
+  {
+    "width": 360,
+    "height": 844,
+    "locale": "en-US",
+    "choices": 4,
+    "naturalCombat": true,
+    "reloadChoice": true,
+    "doubleTap": true,
+    "claim": true,
+    "errors": []
+  },
+  {
+    "width": 430,
+    "height": 600,
+    "locale": "ru-RU",
+    "choices": 4,
+    "naturalCombat": true,
+    "reloadChoice": true,
+    "doubleTap": true,
+    "claim": true,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "locale": "ru-RU",
+    "choices": 4,
+    "naturalCombat": true,
+    "reloadChoice": true,
+    "doubleTap": true,
+    "claim": true,
+    "errors": []
+  }
+]

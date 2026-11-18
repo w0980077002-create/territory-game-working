@@ -4,6 +4,7 @@
  * Events live in world coordinates on the current leg; rewards are settled once through WorldEvents.settle.
  * Auto never chooses for the player, and an unanswered event simply times out and the party walks on.
  */
+import {bankRealmBonus} from '../dark/realm';
 import type {Battle} from './Battle';
 import type {WorldEventSnapshot} from '../core/types';
 import {useGame,rollItem,addLoot} from '../core/store';
@@ -160,7 +161,7 @@ export class WorldDirector {
   for(const [n,line] of ((out as Outcome|null)?.lines??[]).entries())b.effect(430,455+n*30,line,'#ffe08a',24);this.announce(out);this.publish(true);
  }
  /** Count a team/tactic achievement. Rare by design (cooldown-gated callers). */
- count(key:'dive'|'guard'|'rescue'|'interrupt'){const out:Outcome={lines:[],feats:[]};useGame.getState().mutate(p=>{out.feats=bump(p,key)});this.announce(out)}
+ count(key:'dive'|'guard'|'rescue'|'interrupt'){const out:Outcome={lines:[],feats:[]};useGame.getState().mutate(p=>{const gold=p.gold,gems=p.gems;out.feats=bump(p,key);if(this.b.mode==='darkness')bankRealmBonus(p,p.gold-gold,p.gems-gems,out.feats.map(f=>f.title))});if(this.b.mode!=='darkness')this.announce(out)}
  impact(x:number,crit:boolean){if(crit||Math.random()<.2)this.life.shake(x,crit?1.6:.4,this.b.journey.cameraX)}
  // Boon multipliers read by Battle. 1 means "no change".
  private boon(){const b=this.b;return activeBoon(useGame.getState().p,b.stage,b.wave,b.mode)}

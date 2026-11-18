@@ -16,8 +16,8 @@ import {resources,resCount,duskCount,type ResId,bonusLines,statNames,statText,
  gemTypes,gemSlots,gemState,parseGem,gemLabel,gemText,gemBonus,gemSynthGold,socketOpen,socketRules,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicIds,relicLevel,relicRarity,relicColors,relicUnlockCost,relicUpgradeCost,relicCollection,RELIC_MAX,type RelicId,
  squadBonus,companions,companionIds,companionRarity,companionColors,squadState,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,talentDefs,talentPoints,talentSpent,TALENT_MAX,summonTable,SUMMON,powerParts} from '../dark/rules';
-import {blessings,blessingIds,realmRun,realmLast,realmSelected,roomReward,floorName,lordFloor,floorBoss,floorKeeper,roomTitles,REALM_COST,ROOMS,type BlessingId,type RealmTotals} from '../dark/realm';
-import {realmSelect,realmStart,realmResume,realmAbandon,darkEquip,darkUnequip,darkUpgrade,darkLock,darkSalvage,darkSalvageMany,darkBulkList,
+import {blessings,blessingIds,realmRun,realmLast,realmSelected,roomReward,floorName,lordFloor,floorBoss,roomTitles,REALM_COST,ROOMS,type BlessingId,type RealmTotals} from '../dark/realm';
+import {collectRealmReward,realmSelect,realmStart,realmResume,realmAbandon,darkEquip,darkUnequip,darkUpgrade,darkLock,darkSalvage,darkSalvageMany,darkBulkList,
  gemInsert,gemRemove,gemSynth,gemSynthAll,gemBuy,relicUnlock,relicUpgrade,summon,petLevel,petLevelCost,petStar,petAwaken,petTalent,petTalentReset,petActivate,type SummonResult} from '../dark/actions';
 import './dark.css';
 const fmt=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
@@ -31,23 +31,23 @@ const rewardRows=(t:RealmTotals)=>[[t.ess,'Тёмная эссенция'],[t.go
 
 // ───────────────────────── Dark Realm ─────────────────────────
 export function RealmPanel({p}:{p:Player}){
- const g=useGame(),run=realmRun(p),last=realmLast(p),floor=realmSelected(p),[bless,setBless]=useState<BlessingId>('fury'),[seen,setSeen]=useState(false),[info,setInfo]=useState(false);
+ const g=useGame(),run=realmRun(p),last=realmLast(p),floor=realmSelected(p),[bless,setBless]=useState<BlessingId>('fury'),[info,setInfo]=useState(false);
  const first=floor===p.darkFloor,max=p.darkFloor,from=Math.max(1,Math.min(floor-2,max-4)),strip=Array.from({length:Math.min(5,max)},(_,i)=>from+i).filter(f=>f<=max);
  if(run)return <div className="realm">
   <div className="workspace-toolbar"><span className="realm-resource"><Icon name="rune"/> {fmt(p.chaosite)} Хаосита</span><button onClick={()=>setInfo(true)}>Награды и правила</button></div>
-  <div className="realm-banner live"><small>ПОХОД ИДЁТ</small><strong>Этаж {run.f} · {floorName(run.f)}</strong><span>Комната {run.r} из {ROOMS} · {roomTitles[run.r-1]}</span><em style={{color:blessings[run.b].color}}>{blessings[run.b].name}: {blessings[run.b].text}</em></div>
+  <div className="realm-banner live"><small>ПОХОД ИДЁТ</small><strong>Этаж {run.f} · {floorName(run.f)}</strong><span>{roomTitles[run.r-1]} · {run.stage.startsWith('CHOICE')?'Выбор портала':`${run.killed}/${run.total}`}</span><em style={{color:blessings[run.b].color}}>{blessings[run.b].name}: {blessings[run.b].text}</em></div>
   <RoomTrack floor={run.f} at={run.r}/>
   <div className="local-scroll"><h3>Уже добыто</h3><RewardList t={run.acc}/></div>
   <div className="workspace-actions"><Btn onClick={()=>realmResume()}>Продолжить поход</Btn>
   <Btn kind="secondary" onClick={()=>realmAbandon()}>Покинуть поход · добытое сохранится</Btn></div>
-  {info&&<CardDialog title="Текущий поход" onClose={()=>setInfo(false)}><RewardList t={run.acc}/><p>Вход оплачен при старте. Закрытие игры не прерывает поход: вы вернётесь в ту же комнату.</p></CardDialog>}
+  {info&&<CardDialog title="Текущий поход" onClose={()=>setInfo(false)}><RewardList t={run.acc}/><p>Вход оплачен при старте. Закрытие игры не прерывает поход: вы вернётесь в тот же бой.</p></CardDialog>}
  </div>;
  return <div className="realm">
   <div className="workspace-toolbar"><span className="realm-resource"><Icon name="rune"/> {fmt(p.chaosite)} Хаосита</span><button onClick={()=>setInfo(true)}>Награды и правила</button></div>
-  {last&&!seen&&<CardDialog title={last.win?'Итоги победы':'Итоги похода'} onClose={()=>setSeen(true)}><div className={`realm-result ${last.win?'win':'lose'}`}><small>{last.win?'ПОБЕДА':'ПОХОД ПРЕРВАН'}</small><strong>{last.win?`Этаж ${last.f} пройден${last.first?' впервые':''}!`:`Этаж ${last.f} · пройдено комнат: ${last.rooms} из ${ROOMS}`}</strong>
+  {last&&!last.ack&&<CardDialog title={last.win?'Победа':'Поражение'} onClose={()=>g.open(null)}><div className={`realm-result ${last.win?'win':'lose'}`}><small>{last.win?'ПОБЕДА':'ПОРАЖЕНИЕ'}</small><strong>{last.win?`Этаж ${last.f} пройден${last.first?' впервые':''}!`:`Этаж ${last.f} · пройдено комнат: ${last.rooms} из ${ROOMS}`}</strong>
    <RewardList t={last}/>
    {!last.win&&<p>Герой пал, но всё добытое в пройденных комнатах сохранено. Усильте Тёмную энергию, вставьте камни или развивайте спутников — и возвращайтесь.</p>}
-   <div className="realm-result-actions">{last.win?<Btn onClick={()=>{setSeen(true)}}>{last.first?'К следующему этажу':'Продолжить'}</Btn>:<Btn onClick={()=>{realmSelect(last.f);setSeen(true)}}>Повторить этаж</Btn>}<Btn kind="secondary" onClick={()=>g.open(last.win?'darkgear':'companions')}>{last.win?'Тёмная энергия':'Усилить спутников'}</Btn></div></div></CardDialog>}
+   <div className="realm-result-actions">{last.win?<Btn onClick={()=>{collectRealmReward()}}>Забрать</Btn>:<Btn onClick={()=>{realmSelect(last.f);collectRealmReward()}}>Забрать и к этажам</Btn>}</div></div></CardDialog>}
   <div className="realm-entry">
    <div className={`realm-banner realm-portal ${lordFloor(floor)?'lord':''}`}><div className="portal-light" aria-hidden="true"/><div className="portal-caption"><small>{first?'НОВЫЙ ЭТАЖ':'ПРОЙДЕН · ПОВТОР'}{lordFloor(floor)?' · ЭТАЖ ВЛАДЫКИ':''}</small><strong>Этаж {floor} · {floorName(floor)}</strong></div></div>
    <div className="floor-route"><button className="floor-prev" aria-label="Предыдущий этаж" disabled={floor<=1} onClick={()=>realmSelect(floor-1)}>‹</button><div className="floor-strip" aria-label="Доступные этажи">{strip.map(f=><button key={f} data-near={Math.abs(f-floor)<=1||max<=2?'true':'false'} className={`${f===floor?'selected':''} ${f<max?'cleared':''} ${lordFloor(f)?'lord':''}`} aria-pressed={f===floor} onClick={()=>realmSelect(f)}><span>Этаж {f}</span><small>{f<max?'Пройден ✓':'Новый'}</small></button>)}</div><button className="floor-next" aria-label="Следующий этаж" disabled={floor>=max} onClick={()=>realmSelect(floor+1)}>›</button></div>
@@ -58,12 +58,12 @@ export function RealmPanel({p}:{p:Player}){
   <p className="bless-explainer" role="status">{blessings[bless].text}</p>
   <div className="workspace-actions"><Btn disabled={p.chaosite<REALM_COST} onClick={()=>realmStart(floor,bless)}>Вызов · {REALM_COST} Хаосита{p.chaosite<REALM_COST?` (есть ${p.chaosite})`:''}</Btn></div>
   {info&&<CardDialog title="Награды и правила" onClose={()=>setInfo(false)}>  <h3>Награда этажа{first?' · первое прохождение':''}</h3>
-  <div className="realm-rewards">{[1,2,3].map(room=>{const r=roomReward(floor,room,first);return <div key={room}><b>{roomTitles[room-1]}</b><span>{r.ess} эссенции · {fmt(r.gold)} золота{r.shard?` · ${r.shard} оск.`:''}{r.items?` · тёмный предмет${r.items>1?' ×'+r.items:''}`:''}{r.gemChance?` · камень ${Math.round(r.gemChance*100)}%`:''}{r.dusk?` · ${r.dusk} Камень Сумрака`:''}{r.sealChance?` · печать ${Math.round(r.sealChance*100)}%`:''}{r.gems?` · ${r.gems} самоцв.`:''}</span></div>})}</div>
-  <p className="hint">Три комнаты подряд: стража, страж врат и владыка этажа. Поражение завершает поход, но награды пройденных комнат остаются. Пройденные этажи можно повторять сколько угодно — ради эссенции, предметов и камней.</p></CardDialog>}
+  <div className="realm-rewards">{[1,2,3,4,5,6].map(room=>{const r=roomReward(floor,room,first);return <div key={room}><b>{roomTitles[room-1]}</b><span>{r.ess} эссенции · {fmt(r.gold)} золота{r.shard?` · ${r.shard} оск.`:''}{r.items?` · тёмный предмет${r.items>1?' ×'+r.items:''}`:''}{r.gemChance?` · камень ${Math.round(r.gemChance*100)}%`:''}{r.dusk?` · ${r.dusk} Камень Сумрака`:''}{r.sealChance?` · печать ${Math.round(r.sealChance*100)}%`:''}{r.gems?` · ${r.gems} самоцв.`:''}</span></div>})}</div>
+  <p className="hint">7 врагов, четыре выбора порталов и владыка этажа. Поражение завершает поход, но добыча пройденных участков доступна в итоге. Пройденные этажи можно повторять сколько угодно — ради эссенции, предметов и камней.</p></CardDialog>}
  </div>;
 }
 function RoomTrack({floor,at}:{floor:number;at:number}){
- const ids=[undefined,floorKeeper(floor),floorBoss(floor)];
+ const ids=[undefined,undefined,undefined,undefined,undefined,floorBoss(floor)];
  return <div className="room-track">{roomTitles.map((title,i)=><div key={title} className={at>i+1?'done':at===i+1?'now':''}><span className="room-art">{ids[i]?<img src={art(ids[i]!)} alt=""/>:<Icon name="axes"/>}</span><b>{i+1}. {title}</b><small>{ids[i]?nameOf(ids[i]!):'Отряд тьмы'}</small></div>)}</div>;
 }
 function RewardList({t}:{t:RealmTotals}){return <div className="reward-list">{rewardRows(t).map(([n,label])=><span key={label}><b>+{fmt(n)}</b>{label}</span>)}{t.loot.map((name,i)=><span key={i} className="loot"><b>★</b>{name}</span>)}{!rewardRows(t).length&&!t.loot.length&&<span>Награды не получены</span>}</div>}

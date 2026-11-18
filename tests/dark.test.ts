@@ -103,31 +103,42 @@ test('companions: summon pays once, shards unlock, stars, awakening, talents and
  const saved=R.squadState(reload());assert.equal(saved.act[0],'08_armored_boar');assert.equal(saved.own['08_armored_boar'].aw,true);
  assert.ok(Math.abs(R.summonTable.reduce((a,r)=>a+r.chance,0)-1)<1e-9);
 });
-test('dark realm: paid once, three rooms, rewards per room, first clear opens the next floor, replays do not',()=>{
- const start=P().chaosite;assert.equal(A.realmStart(2,'fury'),false,'floor 2 is locked');assert.equal(P().chaosite,start);
- assert.ok(A.realmStart(1,'harvest'));assert.equal(P().chaosite,start-realm.REALM_COST);assert.equal(A.realmStart(1,'fury'),false,'a run is already active');assert.equal(P().chaosite,start-realm.REALM_COST);
- const b=battle!;assert.equal(b.mode,'darkness');assert.equal(b.running,true);assert.equal(b.plan.units.length,2);assert.equal(b.plan.boss,false);
- const clear=()=>{b.phase='fight';b.units.forEach(u=>u.hp=0);b.victory()};
- clear();assert.equal(realm.realmRun(P())!.r,2);assert.ok(R.resCount(P(),'ess')>=Math.round(4*1.3));const id=b.id;b.rewarded=false;assert.equal(G().win('darkness',id),false,'the same room cannot pay twice');assert.equal(realm.realmRun(P())!.r,2);
- b.update(2);assert.equal(b.mode,'darkness');assert.equal(b.phase,'walk');assert.equal(b.plan.boss,true);assert.equal(b.plan.units[0].id,realm.floorKeeper(1));
- reload();assert.equal(realm.realmRun(P())!.r,2,'the room survives a reload');assert.equal(planFor(P(),'darkness').units[0].id,realm.floorKeeper(1));
- clear();b.update(2);assert.equal(b.plan.units[0].id,realm.floorBoss(1));assert.equal(P().darkFloor,1);
- clear();assert.equal(realm.realmRun(P()),undefined);assert.equal(P().darkFloor,2);const last=realm.realmLast(P())!;assert.equal(last.win,true);assert.equal(last.first,true);assert.equal(last.rooms,3);
- assert.ok(R.darkState(P()).inv.length>=2,'first clear gives two dark items');assert.ok(R.darkState(P()).inv.some(i=>i.r>=2));assert.ok(Object.keys(R.gemState(P()).bag).length>=1);assert.equal(R.resCount(P(),'seal'),1);assert.ok(R.duskCount(P())>=1);assert.equal(P().rewardOffer,undefined);
- b.update(2);assert.equal(b.mode,'campaign');assert.equal(b.running,false);assert.equal(G().panel,'realm','the result window opens');
- G().open(null);assert.ok(A.realmStart(1,'fury'));clear();b.update(2);clear();b.update(2);clear();assert.equal(P().darkFloor,2,'a replay never opens a floor twice');assert.equal(realm.realmLast(P())!.first,false);
+const clearRealmFoe=()=>{const b=battle!;b.phase='fight';b.units.forEach(u=>u.hp=0);b.victory()};
+const finishSection=()=>{const section=realm.realmRun(P())!.r;while(realm.realmRun(P())?.r===section&&!realm.realmRun(P())?.stage.startsWith('CHOICE'))clearRealmFoe()};
+test('realm: full 7 → four portal choices → boss → one durable claim, free resume and replay',()=>{
+ const start=P().chaosite,gold=P().gold;
+ assert.equal(A.realmStart(2,'fury'),false);assert.ok(A.realmStart(1,'harvest'));assert.equal(A.realmStart(1,'ward'),false);assert.equal(P().chaosite,start-realm.REALM_COST);
+ assert.equal(realm.realmRun(P())!.total,7);assert.equal(battle!.plan.units.length,3);
+ finishSection();assert.equal(realm.realmRun(P())!.stage,'CHOICE_1');assert.equal(P().gold,gold);assert.equal(R.resCount(P(),'ess'),0);assert.equal(battle!.phase,'waiting');
+ for(let choice=1;choice<=4;choice++){
+  const run=realm.realmRun(P())!,pair=structuredClone(run.pair);assert.equal(run.stage,`CHOICE_${choice}`);reload();assert.deepEqual(realm.realmRun(P())!.pair,pair);
+  assert.equal(A.chooseRealmPortal('fake'),false);assert.ok(A.chooseRealmPortal(pair![0].id));assert.equal(A.chooseRealmPortal(pair![1].id),false);
+  assert.equal(realm.realmRun(P())!.selected!.id,pair![0].id);finishSection();assert.equal(P().darkFloor,1);assert.equal(P().gold,gold);
+ }
+ assert.equal(realm.realmRun(P())!.stage,'FINAL_BOSS');assert.equal(battle!.plan.boss,true);assert.equal(battle!.plan.units[0].id,realm.floorBoss(1));clearRealmFoe();
+ assert.equal(realm.realmRun(P()),undefined);assert.equal(P().darkFloor,1);assert.equal(realm.realmLast(P())!.ack,false);assert.equal(A.realmStart(1,'ward'),false);
+ reload();assert.ok(A.collectRealmReward());assert.equal(P().darkFloor,2);assert.ok(P().gold>gold);assert.ok(R.darkState(P()).inv.length>=2);assert.equal(battle!.mode,'campaign');assert.equal(battle!.running,false);
+ const awarded=exportSave();assert.equal(A.collectRealmReward(),false);assert.equal(P().gold,JSON.parse(awarded).gold);assert.equal(realm.realmLast(reload())!.ack,true);
+ G().open(null);assert.ok(A.realmStart(1,'fury'));assert.equal(realm.realmLast(P()),undefined);finishSection();for(let i=0;i<4;i++){A.chooseRealmPortal(realm.realmRun(P())!.pair![0].id);finishSection()}clearRealmFoe();assert.ok(A.collectRealmReward());assert.equal(P().darkFloor,2);assert.equal(realm.realmLast(P())!.first,false);
 });
-test('dark realm: defeat ends the run, keeps earned rewards and returns to the campaign with a result',()=>{
- assert.ok(A.realmStart(1,'ward'));const b=battle!;b.phase='fight';b.units.forEach(u=>u.hp=0);b.victory();const ess=R.resCount(P(),'ess');assert.ok(ess>0);b.update(2);
- b.phase='fight';b.defeat();assert.equal(realm.realmRun(P()),undefined);const last=realm.realmLast(P())!;assert.equal(last.win,false);assert.equal(last.rooms,1);assert.equal(last.ess,ess);assert.equal(R.resCount(P(),'ess'),ess);assert.equal(P().darkFloor,1);
- b.update(2);assert.equal(b.mode,'campaign');assert.equal(b.running,false);assert.equal(G().panel,'realm');assert.equal(P().stage,1);assert.equal(P().wave,1,'campaign progress is untouched');
- G().open(null);assert.ok(A.realmStart(1,'fury'));assert.ok(A.realmAbandon());assert.equal(realm.realmRun(P()),undefined);assert.equal(battle!.mode,'campaign');
- give(p=>{p.chaosite=0});assert.equal(A.realmStart(1,'fury'),false);assert.equal(realm.realmRun(P()),undefined);
+test('realm: defeat and abandonment bank cleared sections only through explicit acknowledgment',()=>{
+ assert.ok(A.realmStart(1,'ward'));finishSection();const pending=realm.realmRun(P())!.acc.ess;assert.ok(pending>0);A.chooseRealmPortal(realm.realmRun(P())!.pair![0].id);clearRealmFoe();
+ battle!.defeat();assert.equal(realm.realmRun(P()),undefined);assert.equal(R.resCount(P(),'ess'),0);assert.equal(realm.realmLast(P())!.win,false);assert.equal(P().darkFloor,1);assert.equal(G().panel,'realm');
+ reload();assert.ok(A.collectRealmReward());assert.equal(R.resCount(P(),'ess'),pending);assert.equal(A.collectRealmReward(),false);assert.equal(P().stage,1);assert.equal(P().wave,1);
+ G().open(null);assert.ok(A.realmStart(1,'ward'));assert.ok(A.realmAbandon());assert.ok(A.collectRealmReward());give(p=>{p.chaosite=0});assert.equal(A.realmStart(1,'fury'),false);
 });
-test('floors are deterministic, grow smoothly and every fifth one is a lord floor',()=>{
- let previous=0;for(let f=1;f<=40;f++){const boss=realm.realmPlan(f,3),pack=realm.realmPlan(f,1),keeper=realm.realmPlan(f,2);assert.ok(boss.units[0].hp>previous,'boss grows at '+f);previous=realm.lordFloor(f)?boss.units[0].hp/1.25:boss.units[0].hp;assert.ok(keeper.units[0].hp<boss.units[0].hp);assert.equal(pack.units.length,f>=4?3:2);assert.deepEqual(realm.realmPlan(f,1),pack);
-  const first=realm.roomReward(f,3,true),again=realm.roomReward(f,3,false);assert.ok(first.gems>again.gems&&first.items===2&&again.items===1&&again.ess===first.ess)}
- assert.ok(realm.lordFloor(5)&&!realm.lordFloor(4));assert.ok(realm.realmPlan(5,3).timer>realm.realmPlan(4,3).timer);
+test('realm: legacy migration keeps already-issued loot and restarts the paid itinerary without charging',()=>{
+ give(p=>{p.gold=1234;sagaOf(p).box.realm={run:{f:1,r:2,b:'ward',acc:{ess:50}},last:{f:1,win:true,rooms:3}}});const chaos=P().chaosite;reload();
+ assert.equal(P().gold,1234);assert.equal(realm.realmRun(P())!.legacy,true);assert.equal(realm.realmRun(P())!.stage,'INTRO_7');assert.equal(realm.realmRun(P())!.killed,0);assert.equal(realm.realmLast(P())!.ack,true);assert.ok(A.realmResume());assert.equal(P().chaosite,chaos);
+});
+test('realm: stars include four and equal pairs; counts are independent configuration',()=>{
+ const equal=realm.portalPair('run',1,()=>.99);assert.deepEqual(equal.map(p=>p.stars),[4,4]);assert.notEqual(equal[0].id,equal[1].id);
+ assert.deepEqual(realm.portalPair('run',2,()=>0).map(p=>p.stars),[1,1]);
+ let previous=0;for(let f=1;f<=40;f++){const boss=realm.realmPlan(f,6);assert.ok(boss.units[0].hp>previous);previous=realm.lordFloor(f)?boss.units[0].hp/1.25:boss.units[0].hp;assert.equal(realm.realmPlan(f,1).boss,false)}
+});
+test('realm: reload resumes exact wounded enemy and paused hero; failure to persist cannot issue loot',()=>{
+ assert.ok(A.realmStart(1,'fury'));const b=battle!;b.phase='fight';b.hp-=10;b.units[0].hp-=11;b.pause();const hp=b.hp,foe=b.units[0].hp;reload();b.restorePlayer();assert.equal(b.running,false);assert.equal(b.hp,hp);assert.equal(b.units[0].hp,foe);assert.ok(A.realmResume());assert.equal(b.hp,hp);assert.equal(b.units[0].hp,foe);
+ finishSection();reload();b.restorePlayer();assert.ok(b.realmWaiting());assert.equal(b.running,false);assert.equal(realm.realmRun(P())!.killed,0);
 });
 test('auras really change the fight: blessing, veil, aegis, gap, thorns, reduction and companion traits',()=>{
  give(p=>{p.bosses=20;p.arenaWins=5;p.darkFloor=12;sagaOf(p).box.relics={lv:{aegis:2,gap:4,horn:1}};const box=R.darkBox(p);box.eq[5]=item({id:'veil',s:5,r:5,l:5,e:'veil'});box.eq[11]=item({id:'void',s:11,r:5,l:20,u:10,e:'thorns'})});
@@ -138,4 +149,44 @@ test('auras really change the fight: blessing, veil, aegis, gap, thorns, reducti
  b.shield=0;const foe=b.units[0].hp;seedRandom(3);b.takeDamage(500);restoreRandom();assert.ok(b.hp<hp);assert.ok(b.units[0].hp<foe,'thorns return damage');
  give(p=>{const q=R.squadBox(p);q.own.senior_driller.lv=3;q.act[0]='senior_driller'});b.tuneTeam();const def=b.foeDef(b.units[0]);b.hit(b.units[0],5,false,'#fff','goose');assert.ok(b.foeDef(b.units[0])<def,'the driller wears armour down');
  give(p=>{const q=R.squadBox(p);q.own.capybara_bruiser.lv=2;q.act[1]='capybara_bruiser'});b.tuneTeam();b.shield=0;b.guardianAid();assert.equal(b.shield,Math.round(b.maxHp*.06));
+});
+
+test('realm: final claim rolls back on storage failure and retries without granting twice',()=>{
+ assert.ok(A.realmStart(1,'ward'));finishSection();for(let n=0;n<4;n++){A.chooseRealmPortal(realm.realmRun(P())!.pair![0].id);finishSection()}clearRealmFoe();
+ const gold=P().gold,floor=P().darkFloor,save=localStorage.setItem;
+ localStorage.setItem=()=>{throw new Error('quota')};
+ try{assert.equal(A.collectRealmReward(),false);assert.equal(P().gold,gold);assert.equal(P().darkFloor,floor);assert.equal(realm.realmLast(P())!.ack,false)}finally{localStorage.setItem=save}
+ assert.ok(A.collectRealmReward());const paid=P().gold;assert.ok(paid>gold);assert.equal(A.collectRealmReward(),false);assert.equal(P().gold,paid);
+});
+test('realm: defeat at intro, every segment and final boss never opens a floor or leaks pending loot',()=>{
+ for(let section=1;section<=6;section++){
+  const p=freshPlayer();realm.realmBox(p).run=realm.newRealmRun(1,'ward','loss-'+section);
+  for(let r=1;r<section;r++){
+   const run=realm.realmRun(p)!;for(let i=0;i<run.total;i++)assert.ok(realm.realmVictory(p,`${r}-${i}`));
+   const next=realm.realmRun(p)!;if(next.pair)assert.ok(realm.realmChoose(p,next.pair[0].id));
+  }
+  const before=p.gold;assert.ok(realm.realmDefeat(p));assert.equal(realm.realmDefeat(p),false);assert.equal(p.gold,before);assert.equal(p.darkFloor,1);
+  const restored=parseSave(JSON.stringify(p),true)!;assert.ok(restored);const hooks={xp:()=>{},trophies:()=>{throw Error('defeat has no boss trophy')}};
+  assert.ok(realm.realmClaim(restored,hooks));assert.equal(realm.realmClaim(restored,hooks),false);assert.equal(restored.darkFloor,1);assert.equal(realm.realmLast(restored)!.rooms,section-1);
+ }
+});
+test('realm: duplicate combat event cannot advance two enemies and an acknowledged result stays silent',()=>{
+ const p=freshPlayer();realm.realmBox(p).run=realm.newRealmRun(1,'fury','dedupe');assert.ok(realm.realmVictory(p,'fight-1'));assert.equal(realm.realmVictory(p,'fight-1'),false);assert.equal(realm.realmRun(p)!.killed,1);assert.equal(p.kills,1);
+ realm.realmDefeat(p);realm.realmClaim(p,{xp:()=>{},trophies:()=>[]});const restored=parseSave(JSON.stringify(p))!;assert.equal(realm.realmLast(restored)!.stage,'CLAIMED');
+});
+test('realm: switching modes preserves a separate paid combat checkpoint with HP and cooldowns',()=>{
+ assert.ok(A.realmStart(1,'ward'));const b=battle!;b.phase='fight';b.hp-=18;b.units[0].hp-=13;b.cooldowns[0]=2.5;b.pause();const hp=b.hp,foe=b.units[0].hp;
+ b.leaveRealm();reload();b.restorePlayer();assert.equal(b.mode,'campaign');assert.ok(A.realmResume());assert.equal(b.mode,'darkness');assert.equal(b.hp,hp);assert.equal(b.units[0].hp,foe);assert.equal(b.cooldowns[0],2.5);
+});
+test('realm: shared companion achievements are banked until acknowledgment and cannot leak currency mid-run',()=>{
+ assert.ok(A.realmStart(1,'ward'));const before=P().gems;for(let i=0;i<5;i++)battle!.director.count('guard');assert.equal(P().gems,before);assert.equal(realm.realmRun(P())!.acc.gems,5);
+ assert.ok(A.realmAbandon());assert.equal(P().gems,before);assert.ok(A.collectRealmReward());assert.equal(P().gems,before+5);assert.equal(A.collectRealmReward(),false);
+});
+test('realm: every reference pair is representable, and four stars do not imply a fixed enemy count',()=>{
+ for(const pair of [[1,1],[1,2],[1,3],[1,4],[3,3]]){
+  const rolls=[(pair[0]-.5)/4,0,0,(pair[1]-.5)/4,0,0];let at=0;
+  assert.deepEqual(realm.portalPair('reference',1,()=>rolls[at++]).map(p=>p.stars),pair);
+ }
+ const counts=[0,.5,.99].map(count=>{const rolls=[.99,0,count,.99,0,count];let at=0;return realm.portalPair('independent',1,()=>rolls[at++])[0].count});
+ assert.deepEqual(counts,[9,10,11]);
 });
