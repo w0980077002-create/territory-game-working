@@ -92,8 +92,8 @@ export function Recipes({p}:{p:Player}){
 /** Honest drop table of sets and named trophies. */
 export function GearGuide({p}:{p:Player}){
  const owned=new Set([...Object.values(p.equipment),...p.inventory,...(p.pendingLoot??[])].flatMap(i=>i?.perk?[i.perk]:[]));
- return <div className="saga-section"><h3>Именные трофеи саги</h3><p className="hint">Владыка региона при первой победе всегда отдаёт свой трофей. Комплектные вещи: {Math.round(setChance(dropRules.setChanceRegular,p.blessing)*100)}% с обычной добычи региона, {Math.round(setChance(dropRules.setChanceBoss,p.blessing)*100)}% с боссов, {Math.round(setChance(dropRules.setChanceHorn,p.blessing)*100)}% из Рога (растёт с Благословением).</p>
-  {perkIds.map(id=><div className="hunt-item" key={id}><Icon name={gearIcon(perks[id].slot)}/><div><b>{perks[id].name} {owned.has(id)?'✓':''}</b><small>{perks[id].tag} · {perks[id].source}</small><p>{perks[id].text}</p></div></div>)}</div>;
+ return <div className="saga-section"><h3>Именные трофеи саги</h3><p className="hint">Владыка региона и хозяин Логова при первой победе всегда отдают свой трофей. Комплектные вещи: {Math.round(setChance(dropRules.setChanceRegular,p.blessing)*100)}% с обычной добычи региона, {Math.round(setChance(dropRules.setChanceBoss,p.blessing)*100)}% с боссов, {Math.round(setChance(dropRules.setChanceHorn,p.blessing)*100)}% из Рога (растёт с Благословением).</p>
+  {perkIds.filter(id=>id!=='compass').map(id=><div className="hunt-item" key={id}><Icon name={gearIcon(perks[id].slot)}/><div><b>{perks[id].name} {owned.has(id)?'✓':''}</b><small>{perks[id].tag} · {perks[id].source}</small><p>{perks[id].text}</p></div></div>)}</div>;
 }
 export function CompanionGrowth({p,pet}:{p:Player;pet:0|1}){
  const level=p.companions[pet],branch=branchOf(p,pet),next=nextEvolution(level);
