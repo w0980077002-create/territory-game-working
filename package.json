@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "test": "tsx --test tests/*.test.ts",
     "lint": "eslint src/ui/App.tsx src/ui/DarkPanels.tsx src/ui/SagaUI.tsx src/ui/HarborScene.tsx src/core/store.ts tests/notices.test.ts",
-    "test:windows": "node scripts/qa/windows.cjs"
+    "test:windows": "node scripts/qa/windows.cjs",
+    "test:buttons": "node scripts/qa/button-routes.cjs"
   },
   "dependencies": {
     "react": "^19.2.0",
