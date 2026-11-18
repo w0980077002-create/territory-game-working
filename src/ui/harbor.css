@@ -14,10 +14,8 @@
 .saga-modal[data-panel="port"] .harbor-port {
   flex: none;
   aspect-ratio: 3 / 4;
-  max-height: calc(min(
-    100dvh - var(--tg-content-safe-area-inset-top,0px) - var(--tg-safe-area-inset-bottom,0px),
-    var(--tg-viewport-stable-height,100dvh)
-  ) - 142px);
+  max-height: calc(var(--game-viewport-height,var(--tg-viewport-stable-height,100dvh))
+    - var(--game-safe-top,0px) - var(--game-safe-bottom,0px) - 142px);
   background: url('../../public/art/windows/harbor.webp') center / 100% 100% no-repeat;
 }
 .harbor-links { position: absolute; inset: 0; }

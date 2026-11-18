@@ -1,3 +1,6 @@
+import {useShallow} from 'zustand/react/shallow';
+import {useMemo} from 'react';
+import {hornRefillDue} from '../core/store';
 import {CompactFilter} from './CompactFilter';
 import {Backpack} from './Backpack';
 import {DialogShell,HeroPortrait,TrophyReveal,ForgeEcho,ExperienceMeter,LevelUpFeedback} from './SagaUI';
@@ -14,6 +17,7 @@ import {HarborScene} from './HarborScene';
 import './windowContent.css';
 import {stats,xpNeeded,stageLabel,itemPower,skillPowerMultiplier,odinCallSeconds,odinCallMaxLevel} from '../core/formulas';
 import {setupTelegram,readCloud} from '../core/telegram';
+import {observeTelegramViewport} from '../core/telegramViewport';
 import {LEGACY_SAVE_KEY,telegramProfile} from '../core/profile';
 import type {Slot,Item,HeroClass,Player} from '../core/types';
 import {slots,slotNames,rarityNames,rarityColors,classNames,heroArt,art,skillData} from '../data/catalog';
@@ -24,7 +28,7 @@ import {inventoryItems,type LootFilter} from '../core/loot';
 import {WorldHud,Chronicle,useRoadStatus,toggleSound} from './WorldHud';
 import {regionTitle,regions} from '../saga/regions';
 import {Album,SetSummary,SpecChooser,BuildSlots,ForgeBench,Recipes,GearGuide,QuestBoard,type QuestTab} from './SagaPanels';
-import {ensureQuests,questBadge} from '../saga/quests';
+import {ensureQuests,questBadge,questRefreshDue} from '../saga/quests';
 import {resCount,resources,duskCount,type ResId} from '../dark/rules';
 import {materials,matCount,materialIds,hasPerk} from '../saga/gear';
 import {shopQuote} from '../saga/shop';
@@ -43,7 +47,12 @@ function Action({children,onClick,disabled=false,kind=''}:{children:React.ReactN
 function Row({icon,title,detail,children}:{icon:string;title:string;detail?:string;children?:React.ReactNode}){return <div className="row"><Icon name={icon}/><div className="row-content"><strong>{title}</strong>{detail&&<small>{detail}</small>}</div>{children}</div>}
 function Gear({slot,item,better,onClick}:{slot:Slot;item?:Item;better?:boolean;onClick:()=>void}){return <button className={`gear gear-${slot} ${!item?'empty':''}${better?' has-better':''}`} style={{'--rarity':item?rarityColors[item.rarity]:'#7a92a1'} as React.CSSProperties} onClick={onClick} aria-label={`${slotNames[slot]}${item?` уровень ${item.level}, усиление ${item.upgrade}`:' · не надето'}${better?' · в рюкзаке есть сильнее':''}`}><Icon name={gearIcon(slot)}/>{better&&<i className="gear-better" aria-hidden="true">▲</i>}<span>{item?`ур.${item.level}${item.upgrade?` +${item.upgrade}`:''}`:slot==='wings'?'Получить крылья':'Пусто'}</span></button>}
 function Side({icon,label,panel,style,badge=false}:{icon:string;label:string;panel:string;style:React.CSSProperties;badge?:boolean}){const open=useGame(s=>s.open);return <button className={`side${style.right!==undefined?' side-right':''}${icon==='menu'?' side-menu':''}`} style={style} aria-label={label||titles[panel]||panel} onClick={()=>open(panel)}><span className="side-medal">{icon==='menu'?<img className="icon illustrated forge-menu-art" src={new URL('../../public/art/interface/forge-menu.svg',import.meta.url).href} alt="" aria-hidden="true" draggable={false}/>:<Icon name={icon}/>} {badge&&<i>!</i>}</span><span>{label}</span></button>}
-function screenScale(){const shell=document.querySelector('.viewport');const css=shell?getComputedStyle(shell):null;const horizontal=(parseFloat(css?.paddingLeft??'0')||0)+(parseFloat(css?.paddingRight??'0')||0);const vertical=(parseFloat(css?.paddingTop??'0')||0)+(parseFloat(css?.paddingBottom??'0')||0);return Math.min((window.innerWidth-horizontal)/864,(window.innerHeight-vertical)/1536)}
+function screenScale(shell?: HTMLElement | null) {
+ const css=shell?getComputedStyle(shell):undefined;
+ const width=(shell?.clientWidth??window.innerWidth)-(parseFloat(css?.paddingLeft??'0')||0)-(parseFloat(css?.paddingRight??'0')||0);
+ const height=(shell?.clientHeight??window.innerHeight)-(parseFloat(css?.paddingTop??'0')||0)-(parseFloat(css?.paddingBottom??'0')||0);
+ return Math.min(width/864,height/1536);
+}
 /** Shorter than a deliberate second tap, longer than a double tap. */
 const TAP_GUARD_MS=350;
 /** Large backpacks and storage stay importable; this only rejects unreasonable files. */
@@ -70,7 +79,12 @@ function ResourceSources({kind,returnTo}:{kind:string;returnTo?:string}){const g
 function SavedHeroes({onOpen}:{onOpen:(id:string)=>void}){const current=new URLSearchParams(location.search).get('hero');const heroes:{id:string;p:Player}[]=[];try{for(let i=0;i<localStorage.length;i++){const m=/^lootborn-codex-v1:test:(hero-[a-z0-9]{1,26})$/.exec(localStorage.key(i)??'');if(!m||m[1]===current)continue;const saved=parseSave(localStorage.getItem(m[0]));if(saved)heroes.push({id:m[1],p:saved})}}catch{return null}
  if(!heroes.length)return null;heroes.sort((a,b)=>b.p.savedAt-a.p.savedAt);
  return <><h3>Мои герои</h3>{heroes.map(h=><Row key={h.id} icon="people" title={`${classNames[h.p.heroClass]} · ур.${h.p.level}`} detail={`Этап ${stageLabel(h.p.stage)} · сохранён ${new Date(h.p.savedAt).toLocaleDateString('ru')}`}><Action kind="secondary" onClick={()=>onOpen(h.id)}>Открыть</Action></Row>)}</>}
-export default function App(){const g=useGame(),p=g.p,s=stats(p),road=useRoadStatus(),canvas=useRef<HTMLCanvasElement>(null),[scale,setScale]=useState(screenScale);
+export default function App(){
+ const g=useGame(useShallow(({p,battle,panel,auto,speed,open,equipBest,select,configure,toast,recoveryRequired,storageError})=>
+  ({p,battle,panel,auto,speed,open,equipBest,select,configure,toast,recoveryRequired,storageError})));
+ const p=g.p,s=useMemo(()=>stats(p),[p]),upgradeSlots=useMemo(()=>new Set(bestUpgrades(p).map(upgrade=>upgrade.slot)),[p]),road=useRoadStatus();
+ const canvas=useRef<HTMLCanvasElement>(null),viewport=useRef<HTMLElement>(null),[scale,setScale]=useState(screenScale);
+ useEffect(()=>battle?.invalidateViewport(),[scale]);
  const [questTab,setQuestTab]=useState<QuestTab>('day');
  // A window that just opened or closed must not catch the second half of a double tap.
  const switchedAt=useRef(0);useEffect(()=>useGame.subscribe((next,prev)=>{if(next.panel!==prev.panel||next.selected!==prev.selected)switchedAt.current=performance.now()}),[]);
@@ -105,32 +119,72 @@ export default function App(){const g=useGame(),p=g.p,s=stats(p),road=useRoadSta
     battle?.restorePlayer();
    }catch{useGame.getState().notice('Не удалось восстановить копию Telegram · попробуйте через меню')}
   });
-  const resize=()=>setScale(screenScale());
-  resize();
-  window.addEventListener('resize',resize);
+  const stopViewport=observeTelegramViewport(()=>{const next=screenScale(viewport.current);if(next>0)setScale(next)});
   const stop=canvas.current?mountBattle(canvas.current):()=>{};
+  let idleId:number|undefined;
+  let backupRunning=false;
+  const backup = async () => {
+   if(!active||!cloudReady||backupRunning)return;
+   backupRunning=true;
+   try { await backupCloud(); } finally { backupRunning=false; }
+  };
+  const maintain = () => {
+   idleId=undefined;
+   if(!active||!cloudReady||document.hidden)return;
+   const g=useGame.getState(),now=Date.now();
+   if(hornRefillDue(g.p,now)||questRefreshDue(g.p,now))g.mutate(p=>{refill(p,now);ensureQuests(p,now)});
+   if(telegramProfile)void backup();
+  };
   const timer=setInterval(()=>{
-   const g=useGame.getState();
-   if(cloudReady){g.mutate(p=>{refill(p);ensureQuests(p)});void backupCloud()}
+   if(idleId!==undefined||document.hidden)return;
+   if(window.requestIdleCallback)idleId=window.requestIdleCallback(maintain,{timeout:1000});
+   else idleId=window.setTimeout(maintain,0);
   },15000);
   let resumeWhenVisible=false;
- const visibility=()=>{if(document.hidden){resumeWhenVisible=!!battle?.running&&battle.mode!=='darkness';battle?.pause();if(cloudReady){useGame.getState().persist();backupCloud()}}else if(resumeWhenVisible){resumeWhenVisible=false;if(battle?.mode!=='darkness')battle?.resume()}};
- const leave=()=>{resumeWhenVisible=false;battle?.pause();if(cloudReady){useGame.getState().persist();backupCloud()}};
- document.addEventListener('visibilitychange',visibility);window.addEventListener('pagehide',leave);return()=>{active=false;stop();clearInterval(timer);window.removeEventListener('resize',resize);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('pagehide',leave)}},[]);
+  const checkpoint = () => {
+   if(battle)battle.pause();
+   else if(cloudReady)useGame.getState().persist();
+   void backup();
+  };
+  const visibility = () => {
+   if(document.hidden){
+    resumeWhenVisible=!!battle?.running&&battle.mode!=='darkness';
+    checkpoint();
+   }else if(resumeWhenVisible){
+    resumeWhenVisible=false;
+    if(battle?.mode!=='darkness')battle?.resume();
+   }
+  };
+  const leave = () => {resumeWhenVisible=false;checkpoint()};
+  document.addEventListener('visibilitychange',visibility);
+  window.addEventListener('pagehide',leave);
+  return()=>{
+   active=false;
+   stop();
+   clearInterval(timer);
+   if(idleId!==undefined){
+    if(window.cancelIdleCallback)window.cancelIdleCallback(idleId);
+    else window.clearTimeout(idleId);
+   }
+   stopViewport();
+   document.removeEventListener('visibilitychange',visibility);
+   window.removeEventListener('pagehide',leave);
+  };
+ },[]);
  const b=g.battle,run=realmRun(p);const trophy=p.rewardOffer&&!p.rewardOffer.resolved?[...p.inventory,...(p.pendingLoot??[])].find(i=>i.id===p.rewardOffer!.itemId):undefined;const chooseGear=(slot:Slot)=>{if(slot==='wings'&&!p.equipment.wings){g.open('wings');return}g.open(`gear:${slot}`)};
  const fallen=!g.panel&&!trophy&&b.phase==='defeat'&&!b.running&&b.mode==='campaign';
- return <main className="viewport" data-motion={p.reducedMotion?'reduced':undefined} onClickCapture={ghostTap}><div className="game" style={{'--game-scale':scale,width:864,height:1536,transform:`scale(${scale})`} as React.CSSProperties}><canvas ref={canvas} className="battle-canvas" width="864" height="940" aria-label="Живая боевая сцена"/>
+ return <main ref={viewport} className="viewport" data-motion={p.reducedMotion?'reduced':undefined} onClickCapture={ghostTap}><div className="game" style={{'--game-scale':scale,width:864,height:1536,transform:`scale(${scale})`} as React.CSSProperties}><canvas ref={canvas} className="battle-canvas" width="864" height="940" aria-label="Живая боевая сцена"/>
  {b.mode==='darkness'&&run&&<><div className="realm-progress" role="status">{run.stage.startsWith('CHOICE')?'Выберите портал':run.stage==='FINAL_BOSS'?'Владыка этажа':`${b.realmKilled??run.killed}/${run.total} врагов`}{run.selected?` · ${run.selected.stars}★`:''}</div>{b.phase==='waiting'&&run.pair?.map((portal,i)=><button key={portal.id} className="realm-world-hit" style={{left:PORTALS.firstX-PORTALS.width/2+i*PORTALS.spacing,top:PORTALS.top,width:PORTALS.width,height:PORTALS.height}} aria-label={`${portal.label} · ${portal.stars} звезды`} onClick={()=>battle?.choosePortal(portal.id)}/>)}</>}
  <header className="hud"><button className="avatar" onClick={()=>g.open('hero')} aria-label="Герой"><img src={art(heroArt[p.heroClass])}/><span>Lv.{p.level}</span></button><button className="power" onClick={()=>g.open('hero')}><span>♨</span>{fmt(s.cp)}</button><div className="currencies">{[{key:'gold',icon:'coins',value:p.gold},{key:'gems',icon:'gem',value:p.gems},{key:'chaosite',icon:'rune',value:p.chaosite}].map(c=><button key={c.key} className={`currency ${c.key}`} onClick={()=>g.open(`source:${c.key}`)} aria-label={`${currencyNames[c.key]}: ${c.value} · где получить`}><Icon name={c.icon}/><b>{fmt(c.value)}</b><span>+</span></button>)}</div><div className="name">Викинг <small>Северный страж</small><span>VIKING VS ROME</span></div></header>
  <section className="stage"><div className="stage-path">{(b.mode==='darkness'?[1,2,3,4,5,6]:[1,2,3,4,5]).map(w=><span key={w} className={`${(b.mode==='darkness'?run?.r??1:p.wave)>=w?'done':''} ${w===(b.mode==='darkness'?6:5)?'boss-node':''}`}>{w===(b.mode==='darkness'?6:5)?'☠':'◆'}</span>)}</div><button className="enter" onClick={()=>battle?.challenge()}><Icon name="portal"/><span>Войти</span></button>{b.mode==='darkness'&&realmRun(p)?<h1>[Царство тьмы] <em>{floorName(realmRun(p)!.f)}</em><br/><strong>Этаж {realmRun(p)!.f} · {realmRun(p)!.r}/6</strong></h1>:<h1>[Глава {Math.floor((p.stage-1)/10)+1}] <em>{regionTitle(p.stage)}</em><br/><strong>{stageLabel(p.stage)}</strong></h1>}{b.boss&&b.phase==='fight'&&!(b.intro!>0)&&<div className="boss-timer"> ФАЗА {b.bossPhase} · {Math.ceil(b.timer)} сек</div>}</section>
- {fallen&&<section className="defeat-ribbon" aria-label="Поражение · способы усилиться"><small>ПОРАЖЕНИЕ · {stageLabel(p.stage)} · волна {p.wave}/5</small><strong>Этап и добыча сохранены</strong><span>Усильте героя и нажмите топоры, чтобы повторить бой</span><div>{bestUpgrades(p).length>0?<button onClick={()=>g.equipBest()}>Надеть лучшее</button>:<button onClick={()=>g.open('equipment')}>Снаряжение</button>}<button onClick={()=>g.open('forge')}>Кузница</button><button onClick={()=>g.open('skills')}>Навыки</button></div></section>}
+ {fallen&&<section className="defeat-ribbon" aria-label="Поражение · способы усилиться"><small>ПОРАЖЕНИЕ · {stageLabel(p.stage)} · волна {p.wave}/5</small><strong>Этап и добыча сохранены</strong><span>Усильте героя и нажмите топоры, чтобы повторить бой</span><div>{upgradeSlots.size>0?<button onClick={()=>g.equipBest()}>Надеть лучшее</button>:<button onClick={()=>g.open('equipment')}>Снаряжение</button>}<button onClick={()=>g.open('forge')}>Кузница</button><button onClick={()=>g.open('skills')}>Навыки</button></div></section>}
  {trophy&&!g.panel?<button className="trophy-ribbon" style={{'--rarity':rarityColors[trophy.rarity]} as React.CSSProperties} onClick={()=>g.select(trophy.id)} aria-label="Трофей босса · открыть добычу"><Icon name={gearIcon(trophy.slot)}/><span><small>БОСС ПОВЕРЖЕН · {rarityNames[trophy.rarity]}</small><strong>{trophy.name}</strong><b className={compareItem(trophy,p)>0?'positive':'negative'}>{compareItem(trophy,p)>0?'+':''}{compareItem(trophy,p)} CP · посмотреть и выбрать →</b></span></button>:!g.panel&&b.phase!=='victory'&&b.encounterTitle&&(b.intro!>0||b.phase==='walk'&&(b.travelRemaining??100)<32)&&<div className={`encounter-ribbon ${b.boss?'boss-arrival':''}`}><small>{(b.encounterRole??(b.boss?'ЦИТАДЕЛЬ':'ВСТРЕЧА')).toUpperCase()}{b.mode==='campaign'&&!b.boss?' · '+p.wave+'/4':''}</small><strong>{b.encounterTitle}</strong><span>{b.encounterHint}</span></div>}
  {b.counterReady&&b.running&&!g.panel&&<div className="counter-cue">Удар сейчас — сорвите атаку!</div>}
  <Side icon="scroll" label="Задания" panel="quests" style={{left:0,top:132}} badge={p.bosses>p.mission||questBadge(p)}/><Side icon="banner" label="События" panel="events" style={{left:0,top:227}} badge={seasonBadge(p)}/><Side icon="companion" label="Спутники" panel="companions" style={{left:0,top:321}}/><Side icon="gift" label="Награды" panel="rewards" style={{left:0,top:418}} badge={p.daily!==new Date().toISOString().slice(0,10)}/><Side icon="handshake" label="Приглашение" panel="invite" style={{left:0,top:514}}/><Side icon="book" label="Коллекция" panel="collection" style={{left:0,top:615}}/><Side icon="ship" label="Корабли" panel="shipyard" style={{left:0,top:717}}/>
  <Side icon="menu" label="" panel="menu" style={{right:0,top:110}}/><Side icon="market" label="Лавка" panel="shop" style={{right:0,top:191}}/><Side icon="map" label="Испытания и функции" panel="adventure" style={{right:0,top:297}}/><Side icon="gift" label="Подарок" panel="rewards" style={{right:0,top:410}} badge={p.daily!==dailyGift().day}/><Side icon="arena" label="Арена" panel="arena" style={{right:3,top:741}}/>
  <button className={`battle-status ${b.running?'is-running':''}`} onClick={()=>trophy?(g.select(trophy.id)):g.open('controls')}>{trophy?'Трофей босса ждёт выбора':!b.running?(b.pendingMode?`${modeNames[b.pendingMode]} · топоры: старт${b.entryCost?' · '+b.entryCost+' Хаосита':''}`:b.phase==='defeat'?'Герой погиб · нажмите топоры':'Пауза · топоры: продолжить'):b.phase==='walk'?`Путь · ${b.district??'Ледяные вершины'}${road}`:b.phase==='victory'?'Добыча получена':b.phase==='defeat'?'Возвращение в бой…':`${b.mode==='campaign'?'Волна '+p.wave+'/5':b.mode==='darkness'&&b.encounterRole?b.encounterRole:modeNames[b.mode]??'Испытание'}${b.hazard?' · '+b.hazard:''}${b.curse?' · метки '+b.curse+'/3':''}${road}`}</button>
  <section className="combat-controls"><button className="orb red" onClick={()=>battle?.heal()} aria-label={`Зелье здоровья · ${b.potionCost??balance.combat_test_settings.potion_gold_cost} золота`}><Icon name="heart"/>{(b.potionCd??0)>0?<span>{Math.ceil(b.potionCd!)}</span>:<small className="potion-cost">{fmt(b.potionCost??balance.combat_test_settings.potion_gold_cost)}</small>}</button><button className="hp-panel" onClick={()=>g.open('hero')}><span className="level-diamond">{p.level}</span><span className="hp-track"><span className="hud-xp" aria-hidden="true" style={{width:`${Math.min(100,p.xp/xpNeeded(p.level)*100)}%`}}/><i style={{width:`${Math.max(0,b.hp/b.maxHp*100)}%`}}/><b>{fmt(b.hp)}/{fmt(b.maxHp)}</b></span></button><button className="chart" onClick={()=>g.open('battle')} aria-label="Статистика боя"><Icon name="chart"/></button><button className={`orb blue ${b.counterReady?'counter-ready':''}`} onClick={()=>battle?.skill(0)} aria-label="Сокрушительный удар"><Icon name="lightning"/>{b.cooldowns[0]>0&&<span>{Math.ceil(b.cooldowns[0])}</span>}</button></section>
- <section className="equipment" aria-label="12 основных предметов и отдельные крылья">{slots.map(slot=><Gear key={slot} slot={slot} item={p.equipment[slot]} better={!!bestUpgrade(p,slot,true)} onClick={()=>chooseGear(slot)}/>)}</section>
+ <section className="equipment" aria-label="12 основных предметов и отдельные крылья">{slots.map(slot=><Gear key={slot} slot={slot} item={p.equipment[slot]} better={upgradeSlots.has(slot)} onClick={()=>chooseGear(slot)}/>)}</section>
  <section className="quick-controls"><button className="mission" onClick={()=>g.open('quests')}><Icon name="rune"/><div><b>Пройти Основную Главу {stageLabel(p.stage)}</b><span>{p.bosses>p.mission?'Получить награду!':`Волна ${p.wave}/5`}</span></div><small>15</small></button><div className="quick-buttons"><button className="quick-speed" onClick={()=>g.configure({speed:g.speed===1?2:1})} aria-label="Скорость боя">x{g.speed}</button><button className={`quick-auto ${g.auto?'active':''}`} onClick={()=>g.open('autobattle')} aria-label="Открыть настройки автобоя" aria-haspopup="dialog"><Icon name="refresh"/></button><button className="quick-cry" onClick={()=>battle?.skill(1)} aria-label="Боевой клич"><Icon name="crown"/>{b.cooldowns[1]>0&&<span>{Math.ceil(b.cooldowns[1])}</span>}</button><button className="quick-thor" onClick={()=>battle?.skill(2)} aria-label="Молот Тора"><Icon name="lightning"/>{b.cooldowns[2]>0&&<span>{Math.ceil(b.cooldowns[2])}</span>}</button></div></section>
  <nav className="bottom"><button onClick={()=>g.open('port')}><img className="icon illustrated adventure-map-art" src={new URL('../../public/art/interface/adventure-map.svg',import.meta.url).href} alt="" aria-hidden="true" draggable={false}/><span>Карта</span></button><button onClick={()=>g.open('skills')}><Icon name="book"/><span>Навыки</span></button><button className="central" onClick={()=>battle?.toggle()} aria-label={b.running?"Остановить бой":"Начать или продолжить бой"} aria-pressed={b.running}><img className="forged-axes-art" src={new URL('../../public/art/interface/forged-axes.svg',import.meta.url).href} alt="" aria-hidden="true" draggable={false}/></button><button onClick={()=>g.open('adventure')}><Icon name="scroll"/><span>приключение</span></button><button onClick={()=>g.open('shop')}><Icon name="market"/><span>Магазин</span></button></nav><button className="horn-counter" onClick={()=>g.open('loot')}><Icon name="horn"/>{p.horn}<small>Рог Трофеев</small></button>
  <LevelUpFeedback/><WorldHud/>{g.recoveryRequired&&!g.panel&&<DialogShell panel="recovery" title="Восстановление прогресса" dismissible={false} footer={<footer className="modal-footer"><span>Исходное сохранение защищено</span></footer>}><p>Исходный файл сохранён на устройстве. Автосохранение и бой остановлены, чтобы не заменить ваш прогресс.</p><Action onClick={()=>g.open('menu')}>Открыть импорт и резервную копию</Action><Action kind="secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([unreadableSave()],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='lootborn-recovery.json';a.click();URL.revokeObjectURL(url)}}>Скачать исходное сохранение</Action></DialogShell>}{g.toast&&<div className="toast" role="status">{g.toast}</div>}{g.storageError&&<div className="storage-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{g.panel==='autobattle'?<AutobattleDialog/>:g.panel&&<Panel questTab={questTab} setQuestTab={setQuestTab}/>}</div></main>
