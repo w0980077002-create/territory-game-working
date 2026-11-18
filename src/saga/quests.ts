@@ -32,7 +32,6 @@ export const dailyPool:QuestDef[]=[
  {id:'d_forge',text:'Усилить или перековать предмет 2 раза',keys:['upgrade','reforge'],goal:2,reward:p=>({gems:6,mats:mat(p,2)})},
  {id:'d_set',text:'Собрать комплект: надеть 2 предмета одного набора',keys:['state:set2'],goal:1,reward:p=>({gems:10,mats:mat(p,4)})},
  {id:'d_lair',text:'Победить хозяина Логова',keys:['win:dungeon'],goal:1,reward:p=>({gems:8,chaosite:10})},
- {id:'d_sea',text:'Завершить морскую экспедицию',keys:['expedition'],goal:1,reward:p=>({gems:10,mats:{pearl:2}})},
  {id:'d_hammer',text:'Применить Молот Тора 6 раз',keys:['skill:2'],goal:6,reward:p=>({gold:stageCoins(p,1)})},
  {id:'d_arena',text:'Выиграть поединок на Арене',keys:['win:arena'],goal:1,reward:()=>({tokens:15,gems:5})}
 ];
@@ -40,8 +39,6 @@ export const weeklyPool:QuestDef[]=[
  {id:'w_boss',text:'Победить 12 боссов',keys:['stat:bosses','win:dungeon','win:darkness'],goal:12,reward:p=>({gems:60,horn:6,mats:mat(p,10)})},
  {id:'w_stage',text:'Пройти 3 этапа саги',keys:['stat:stage'],goal:3,reward:p=>({gems:50,gold:stageCoins(p,6)})},
  {id:'w_interrupt',text:'Сорвать 40 вражеских атак',keys:['interrupt'],goal:40,reward:p=>({gems:40,mats:mat(p,8)})},
- {id:'w_sea',text:'Завершить 3 морские экспедиции',keys:['expedition'],goal:3,reward:()=>({gems:45,mats:{pearl:6}})},
- {id:'w_tower',text:'Подняться на 5 этажей Башни',keys:['tower'],goal:5,reward:p=>({gems:50,chaosite:25,gold:stageCoins(p,4)})},
  {id:'w_dark',text:'Пройти 3 этажа Царства Тьмы',keys:['stat:dark'],goal:3,reward:()=>({gems:45,mats:{dusk:4}})},
  {id:'w_road',text:'Пережить 8 событий дороги',keys:['world:events'],goal:8,reward:p=>({gems:35,horn:5,gold:stageCoins(p,3)})},
  {id:'w_arena',text:'Выиграть 5 поединков на Арене',keys:['win:arena'],goal:5,reward:()=>({gems:35,tokens:60})}
@@ -55,8 +52,10 @@ function pick(pool:QuestDef[],count:number,seed:number){return pool.map((q,i)=>(
 interface Board {id:string;picks:string[];base:Record<string,number>;claimed:string[]}
 interface QuestBox {day?:Board;week?:Board}
 const fresh=(p:Player,id:string,pool:QuestDef[],count:number):Board=>{const picks=pick(pool,count,hashText(id)^(p.world?.seed??7)),base:Record<string,number>={};for(const q of pool)if(picks.includes(q.id))for(const k of q.keys)base[k]=counter(p,k);return {id,picks,base,claimed:[]}};
+/** Boards saved before a goal left the pool (it had no way to progress) get an honest replacement for the rest of the period. */
+function repair(p:Player,board:Board,pool:QuestDef[]){const used=new Set(board.picks);let changed=false;board.picks=board.picks.map(id=>{if(pool.some(q=>q.id===id))return id;const next=pool.find(q=>!used.has(q.id));if(!next)return id;used.add(next.id);for(const k of next.keys)board.base[k]??=counter(p,k);changed=true;return next.id});return changed}
 /** Starts today's/this week's board if needed. Call inside a mutation; cheap and idempotent. */
-export function ensureQuests(p:Player,now=Date.now()){const box=boxOf<QuestBox>(p,'quests',()=>({})),day=dayOf(now),week=weekOf(now);let changed=false;if(box.day?.id!==day){box.day=fresh(p,day,dailyPool,DAILY_COUNT);changed=true}if(box.week?.id!==week){box.week=fresh(p,week,weeklyPool,WEEKLY_COUNT);changed=true}return changed}
+export function ensureQuests(p:Player,now=Date.now()){const box=boxOf<QuestBox>(p,'quests',()=>({})),day=dayOf(now),week=weekOf(now);let changed=false;if(box.day?.id!==day){box.day=fresh(p,day,dailyPool,DAILY_COUNT);changed=true}if(box.week?.id!==week){box.week=fresh(p,week,weeklyPool,WEEKLY_COUNT);changed=true}if(box.day&&repair(p,box.day,dailyPool))changed=true;if(box.week&&repair(p,box.week,weeklyPool))changed=true;return changed}
 export interface QuestView {def:QuestDef;progress:number;done:boolean;claimed:boolean;reward:Reward}
 function view(p:Player,board:Board|undefined,pool:QuestDef[],current:boolean):QuestView[]{
  if(!board||!current)return [];
@@ -90,7 +89,7 @@ export const mastery:MasteryDef[]=[
  {id:'berserker',name:'Путь Берсерка',group:'Классы',keys:['cls:berserker'],unit:'побед'},{id:'ranger',name:'Путь Следопыта',group:'Классы',keys:['cls:ranger'],unit:'побед'},{id:'runologist',name:'Путь Рунолога',group:'Классы',keys:['cls:runologist'],unit:'побед'},
  {id:'strike',name:'Сокрушительный удар',group:'Навыки',keys:['skill:0'],unit:'применений'},{id:'call',name:'Клич Одина',group:'Навыки',keys:['skill:1'],unit:'применений'},{id:'hammer',name:'Молот Тора',group:'Навыки',keys:['skill:2'],unit:'применений'},{id:'breaker',name:'Срыватель атак',group:'Навыки',keys:['interrupt'],unit:'срывов'},
  {id:'goose',name:'Гусь-Обнимусь',group:'Спутники',keys:['dive','combo:finish'],unit:'пике и добиваний'},{id:'dog',name:'Верный пёс',group:'Спутники',keys:['guard','combo:riposte'],unit:'заслонов и контратак'},
- {id:'lair',name:'Охотник Логова',group:'Испытания',keys:['win:dungeon'],unit:'побед'},{id:'dark',name:'Сквозь Тьму',group:'Испытания',keys:['stat:dark'],unit:'этажей'},{id:'tower',name:'Башня испытаний',group:'Испытания',keys:['tower'],unit:'этажей'},{id:'sea',name:'Мореход',group:'Испытания',keys:['expedition'],unit:'экспедиций'},{id:'arena',name:'Гладиатор',group:'Испытания',keys:['stat:arena'],unit:'побед'},
+ {id:'lair',name:'Охотник Логова',group:'Испытания',keys:['win:dungeon'],unit:'побед'},{id:'dark',name:'Сквозь Тьму',group:'Испытания',keys:['stat:dark'],unit:'этажей'},{id:'arena',name:'Гладиатор',group:'Испытания',keys:['stat:arena'],unit:'побед'},
  {id:'road',name:'Исследователь дорог',group:'Мир',keys:['world:events'],unit:'событий'},{id:'bosses',name:'Гроза владык',group:'Мир',keys:['stat:bosses'],unit:'боссов'},{id:'smith',name:'Мастер кузни',group:'Мир',keys:['upgrade','reforge','engrave','craft'],unit:'работ'}
 ];
 export function masteryView(p:Player){return mastery.map(def=>{const value=total(p,def.keys),tier=masteryTiers.filter(t=>value>=t).length,claimed=masteryTiers.filter((_,i)=>hasFlag(p,`m:${def.id}:${i}`)).length;return {def,value,tier,claimed,next:masteryTiers[Math.min(3,tier)],ready:tier>claimed}})}
