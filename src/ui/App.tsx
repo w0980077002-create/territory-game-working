@@ -255,7 +255,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   if(route==='campaign'||route==='dungeon'){battle?.startMode(route);return}
   setQuestDestination(route);g.open(route);
  };
- useEffect(()=>{setConfirmRare(null);setConfirmHero(false)},[g.selected,panel]);
+ useEffect(()=>{setConfirmHero(false)},[g.selected,panel]);
  const download=()=>{const url=URL.createObjectURL(new Blob([g.recoveryRequired?unreadableSave():exportSave()],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='viking-vs-rome-save.json';a.click();URL.revokeObjectURL(url)};
  const previewCloud=async()=>{
   const request=++importRequest.current;
