@@ -116,3 +116,7 @@
 .realm-world-hit:focus-visible{outline:4px solid #ffe3a2;outline-offset:-12px}
 .realm .room-track{grid-template-columns:repeat(6,minmax(0,1fr))}
 .realm .room-track .room-art{height:30px}.realm .room-track .room-art img{max-height:30px}.realm .room-track .icon{height:24px;width:24px}.realm .room-track small{display:none}
+
+/* Long Russian labels remain readable in the existing five compact navigation targets. */
+.dark-hub strong,.dark-hub small{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.squad-grid i{top:1px;right:1px}

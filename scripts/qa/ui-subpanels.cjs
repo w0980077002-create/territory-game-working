@@ -18,9 +18,9 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await open('quests');for(const name of ['День','Неделя','Сага','Мастерство']){await page.locator('.quest-board .tabs').getByRole('button',{name:new RegExp('^'+name)}).tap();await check('quests-'+name)}
   await page.locator('summary').filter({hasText:/^Цели охоты и источники добычи$/}).tap();await page.locator('.hunt-goals').scrollIntoViewIfNeeded();await check('hunt-sources');
   await page.locator('summary').filter({hasText:/^Именные трофеи саги$/}).tap();await page.locator('.hunt-item').last().scrollIntoViewIfNeeded();await check('trophy-guide');
-  await open('forge');for(const [i,name] of ['frost','storm','rune','stone','legion','ember'].entries()){await page.locator('.tabs.wrap button').nth(i).tap();await page.locator('.material-row').scrollIntoViewIfNeeded();await check('recipe-'+name)}
+  await open('forge');await page.getByRole('button',{name:'Создание',exact:true}).tap();for(const [i,name] of ['frost','storm','rune','stone','legion','ember'].entries()){await page.locator('.tabs.wrap button').nth(i).tap();await page.locator('.material-row').scrollIntoViewIfNeeded();await check('recipe-'+name)}
   await open('skills');for(const card of await page.locator('.skill-card').all()){await card.locator('.rune-options button').last().tap()}await page.locator('.skill-card').last().scrollIntoViewIfNeeded();await check('runes-selected');
-  await open('companions');await page.locator('.companion-card').last().scrollIntoViewIfNeeded();await check('companion-evolved');
+  await open('companions');await page.locator('.squad-grid button').last().scrollIntoViewIfNeeded();await check('companion-evolved');
   await open('rewards');const gold=await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold);await page.getByRole('button',{name:'Забрать подарок',exact:true}).tap();assert.equal(await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold),gold+200);await check('daily-claimed');
   await open('shop');await page.locator('.row .action').first().tap();assert.ok(await page.evaluate(()=>window.__lootborn.useGame.getState().p.bought.length)>0);await check('shop-purchased');
   await open('events');await check('event-rewards-ready');await page.locator('.row .action').first().tap();await check('event-reward-claimed');
