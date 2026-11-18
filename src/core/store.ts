@@ -34,7 +34,7 @@ const hornConfig=balance.horn_test_settings;
 export {hornPurchase} from '../saga/shop';
 
 export function makeItem(slot:Slot,level:number,rarity:number):Item {const quality=1+rarity*.38;const v=(3+level*2)*quality;return {id:`${Date.now().toString(36)}-${++sequence}-${Math.random().toString(36).slice(2,7)}`,slot,name:slot==='wings'?'Крылья северного ветра':`${rarityNames[rarity]} · ${slotNames[slot]}`,level,rarity,attack:slot==='wings'?0:Math.round(v*(slot==='weapon'?2.1:.35)),hp:slot==='wings'?0:Math.round(v*(slot==='armor'?5:1.4)),defense:slot==='wings'?0:Math.round(v*(slot==='shield'?1.3:.4)),upgrade:0,...(slot==='wings'?{percent:{hp:balance.wings_test_settings.rank_1_example.bonuses_percent.hp+rarity*2,attack:balance.wings_test_settings.rank_1_example.bonuses_percent.attack+rarity,defense:balance.wings_test_settings.rank_1_example.bonuses_percent.defense+rarity}}:{})}}
-export function makeUnique(id:UniqueId,level:number,origin:string):Item {const def=uniques[id];return {...makeItem(def.slot,level,def.rarity),name:def.name,uniqueId:id,origin,locked:true}}
+export function makeUnique(id:UniqueId,level:number,origin:string):Item {const def=uniques[id];return {...makeItem(def.slot,level,def.rarity),name:def.name,uniqueId:id,origin}}
 /** A piece of a region set: ordinary stats, plus it counts towards the 2/4/6 bonuses. Never wings. */
 export function asSetItem(item:Item,set:SetId):Item {if(item.slot==='wings'||item.uniqueId||item.perk)return item;item.set=set;item.rarity=Math.max(item.rarity,2);const fresh=makeItem(item.slot,item.level,item.rarity);item.attack=fresh.attack;item.hp=fresh.hp;item.defense=fresh.defense;item.name=`${sets[set].name} · ${slotNames[item.slot]}`;return item}
 /** Each lair keeper's named trophy (see the saga trophy guide): granted once, on the first victory over that keeper. */
@@ -43,7 +43,7 @@ const lairPerks:Record<string,PerkId>={capybara_bruiser:'belt',senior_driller:'b
  * can still be won, so the newest receipts are kept and the oldest ones are dropped; other claims are never touched. */
 export const BATTLE_RECEIPTS=500;
 export function trimBattleReceipts(p:Player){let extra=p.claimed.reduce((n,c)=>n+(c.startsWith('battle:')?1:0),0)-BATTLE_RECEIPTS;if(extra>0)p.claimed=p.claimed.filter(c=>!(c.startsWith('battle:')&&extra-->0))}
-export function makePerkItem(id:PerkId,level:number,origin:string):Item {const def=perks[id],item=makeItem(def.slot,level,def.rarity);return {...item,name:def.name,perk:id,origin,locked:true,...(def.set?{set:def.set}:{})}}
+export function makePerkItem(id:PerkId,level:number,origin:string):Item {const def=perks[id],item=makeItem(def.slot,level,def.rarity);return {...item,name:def.name,perk:id,origin,...(def.set?{set:def.set}:{})}}
 /** Region material drop for a campaign victory. Call inside a mutation. */
 export function grantMaterial(p:Player,id:string,amount:number){const s=p.saga??=normalizeSaga(undefined);s.n[matKey(id)]=(s.n[matKey(id)]??0)+amount}
 /** Gold multiplier from long-term choices (named compass, goose «Добытчик»). */
@@ -67,22 +67,26 @@ export function rollItem(p:Player,forcedSlot?:Slot,setBase:number=dropRules.setC
  return item}
 const inventoryCapacity=balance.loot_test_settings.starter_inventory_capacity;
 const protectedOrigin=/босс|трофей|награда|покупка|boss|trophy|reward|shop/i;
-function automaticProtection(item:Item){
- if(item.locked)return 'на предмете стоит замок';
+export function salvageProtection(p:Player,item:Item):string|undefined{
+ if(item.locked===true)return 'Только вручную';
  if(item.slot==='wings')return 'крылья защищены';
  if(item.rarity>=3)return 'редкая вещь';
  if(item.uniqueId||uniqueOf(item)||item.set||item.perk)return 'именная или комплектная вещь';
  if(item.upgrade>0||item.engrave||item.percent)return 'вещь с усилением или особым свойством';
  if(item.origin&&protectedOrigin.test(item.origin))return 'особая награда';
+ if(p.rewardOffer?.itemId===item.id&&!p.rewardOffer.resolved)return 'активная награда';
  return undefined;
+}
+export function requiresSalvageConfirmation(p:Player,item:Item):boolean{
+ return salvageProtection(p,item)!==undefined;
 }
 /** Auto-dismantle only newly obtained, plainly weaker gear; never the player's old equipment. */
 export function shouldAutoSalvage(p:Player,item:Item){
- return !!p.preferences?.autoSalvageWeaker&&!!p.equipment[item.slot]&&!automaticProtection(item)&&compareItem(item,p)<0;
+ return !!p.preferences?.autoSalvageWeaker&&!!p.equipment[item.slot]&&!requiresSalvageConfirmation(p,item)&&compareItem(item,p)<0;
 }
 /** Bulk clean-up is deliberately stricter than a confirmed individual salvage. */
 export function canBulkSalvage(p:Player,item:Item):boolean{
- if(!p.inventory.some(i=>i.id===item.id)||automaticProtection(item)||p.rewardOffer?.itemId===item.id)return false;
+ if(!p.inventory.some(i=>i.id===item.id)||requiresSalvageConfirmation(p,item))return false;
  return !Object.values(p.equipment).some(i=>i?.id===item.id);
 }
 function salvageReward(p:Player,item:Item){
@@ -109,7 +113,7 @@ export function addLoot(p:Player,item:Item,allowAutoSalvage=false){
 function lootNotice(p:Player,item:Item,disposition:ReturnType<typeof placeLoot>,success:string){
  if(disposition==='salvaged')return 'Слабая добыча автоматически разобрана · золото и опыт получены';
  const destination=disposition==='stored'?'Рюкзак полон · добыча сохранена на складе':success;
- const protection=p.preferences?.autoSalvageWeaker?automaticProtection(item):undefined;
+ const protection=p.preferences?.autoSalvageWeaker?salvageProtection(p,item):undefined;
  return protection?destination+' · авторазбор пропущен: '+protection:destination;
 }
 
@@ -198,7 +202,7 @@ export const useGame=create<Store>((set,get)=>{
   if(disposition==='salvaged')lastHornAutoSalvage=tap;
   haptic(true);
   const message=lootNotice(get().p,item,disposition,'Добыча: '+item.name);
-  if(disposition!=='backpack'||get().p.preferences?.autoSalvageWeaker&&automaticProtection(item))g.notice(message);
+  if(disposition!=='backpack'||get().p.preferences?.autoSalvageWeaker&&requiresSalvageConfirmation(get().p,item))g.notice(message);
   if(disposition!=='salvaged')g.select(item.id);
  },
  unequip:slot=>{const g=get(),item=g.p.equipment[slot];if(!item)return;if(g.p.inventory.length>=balance.loot_test_settings.starter_inventory_capacity){g.notice('Рюкзак полон');return}if(!g.mutate(p=>{p.inventory.push(p.equipment[slot]!);delete p.equipment[slot]})){unsaved(get());return}g.notice('Предмет перемещён в рюкзак')},
@@ -230,8 +234,7 @@ export const useGame=create<Store>((set,get)=>{
   const inBackpack=g.p.inventory.find(i=>i.id===id);
   const item=inBackpack??g.p.pendingLoot?.find(i=>i.id===id);
   if(!item)return;
-  if(item.locked){g.notice('Предмет защищён · сначала снимите замок');return}
-  if(!confirmed&&(item.rarity>=3||uniqueOf(item)||item.perk||item.set||item.engrave||item.upgrade>0)){
+  if(!confirmed&&requiresSalvageConfirmation(g.p,item)){
    g.notice('Подтвердите распыление ценной вещи');return;
   }
   if(!g.mutate(p=>{
@@ -275,7 +278,8 @@ export const useGame=create<Store>((set,get)=>{
    g.notice(`Получено ${items.length} · осталось на хранении ${(get().p.pendingLoot??[]).length}`);
    return items.length;
   },
-  lockItem:id=>{const item=[...get().p.inventory,...(get().p.pendingLoot??[])].find(i=>i.id===id);if(item)get().mutate(p=>{const i=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.id===id)!;i.locked=!i.locked})},
+ // Compatibility with the current UI until the separate inventory UI PR removes its caller.
+ lockItem:()=>{get().notice('Защита от авторазбора определяется свойствами вещи')},
  keepReward:()=>{if(get().p.rewardOffer&&!get().p.rewardOffer!.resolved)get().mutate(p=>{p.rewardOffer!.resolved=true})},
  configure:settings=>{
   if(!writable())return;
@@ -290,7 +294,7 @@ export const useGame=create<Store>((set,get)=>{
  },
  importSave:incoming=>{if(!realmSessionWritable()){get().notice('Закройте другую вкладку игры перед восстановлением');return false}const checked=parseSave(JSON.stringify(incoming),true);if(!checked){get().notice('Некорректное сохранение');return false}resumeAfterPanel=false;encounterPause?.();try{localStorage.setItem(SAVE_KEY+':before-import',get().recoveryRequired?unreadableSave():exportSave())}catch{get().notice('Не удалось создать резервную копию · импорт отменён');return false}const raw=JSON.stringify(checked);try{localStorage.setItem(SAVE_KEY,raw)}catch{get().notice('Не удалось записать сохранение · импорт отменён');return false}observeLootSave(raw,true);observedPlayer=checked;set({recoveryRequired:false,storageError:false,p:checked,auto:checked.preferences?.auto??true,speed:checked.preferences?.speed??1,stopOnDeath:checked.preferences?.stopOnDeath??true,continueOnVictory:checked.preferences?.continueOnVictory??true,autoSalvageWeaker:checked.preferences?.autoSalvageWeaker??false,selected:null});encounterRestore?.();get().notice('Импорт завершён · копия сохранена');return true},
  upgrade:(slot,expected)=>{const g=get(),i=g.p.equipment[slot];if(!i||expected&&(i.id!==expected.id||i.upgrade!==expected.upgrade))return;const plan=upgradePreview(i);if(!Number.isFinite(plan.cost)||g.p.gold<plan.cost){g.notice('Недостаточно золота');return}if(!g.mutate(p=>{p.gold-=plan.cost;p.equipment[slot]=plan.next;bumpCount(p,'upgrade')})){unsaved(get());return}g.notice('Усиление успешно!')},
- train:(type,index=0)=>{const g=get();let cost=0;const p=g.p;if(type==='hero')cost=100*p.level;else if(type==='forge')cost=100*p.forge;else if(type==='blessing')cost=150*p.blessing;else if(type==='companion')cost=120*p.companions[index];else if(type==='skill'){if(index===1&&p.skills[index]>=odinCallMaxLevel){g.notice('Клич достиг предела');return}cost=120*p.skills[index]}else if(type==='relic')cost=300*(p.relic+1);else if(type==='talent')cost=0;if(type==='talent'&&p.talents.reduce((a,b)=>a+b,0)>=p.level-1){g.notice('Нужно новое очко: повышайте уровень героя');return}if(p.gold<cost){g.notice('Недостаточно золота');return}if(!g.mutate(p=>{p.gold-=cost;if(type==='hero')xp(p,xpNeeded(p.level));if(type==='forge')p.forge++;if(type==='blessing')p.blessing++;if(type==='companion')p.companions[index]++;if(type==='skill')p.skills[index]++;if(type==='talent')p.talents[index]++;if(type==='relic')p.relic++})){unsaved(get());return}haptic(true);g.notice('Уровень повышен')},
+ train:(type,index=0)=>{const g=get();if(type==='hero')return;let cost=0;const p=g.p;if(type==='forge')cost=100*p.forge;else if(type==='blessing')cost=150*p.blessing;else if(type==='companion')cost=120*p.companions[index];else if(type==='skill'){if(index===1&&p.skills[index]>=odinCallMaxLevel){g.notice('Клич достиг предела');return}cost=120*p.skills[index]}else if(type==='relic')cost=300*(p.relic+1);else if(type==='talent')cost=0;if(type==='talent'&&p.talents.reduce((a,b)=>a+b,0)>=p.level-1){g.notice('Нужно новое очко: повышайте уровень героя');return}if(p.gold<cost){g.notice('Недостаточно золота');return}if(!g.mutate(p=>{p.gold-=cost;if(type==='forge')p.forge++;if(type==='blessing')p.blessing++;if(type==='companion')p.companions[index]++;if(type==='skill')p.skills[index]++;if(type==='talent')p.talents[index]++;if(type==='relic')p.relic++})){unsaved(get());return}haptic(true);g.notice('Уровень повышен')},
  claim:id=>{const g=get(),p=g.p;let ok=true;const now=Date.now();if(id==='pending'){g.claimStored();return}if(id==='daily'||id.startsWith('season:')){
   if(id==='daily'&&p.daily===new Date(now).toISOString().slice(0,10)){g.notice('Награда уже получена. Возвращайтесь завтра');return}
   let message='';
@@ -340,8 +344,8 @@ export const useGame=create<Store>((set,get)=>{
  },
  win:(mode,encounterId,snapshot,tally)=>{const g=get();let extra='';if(mode==='darkness'){const run=realmRun(g.p);if(!run||encounterId&&run.lastCombatId===encounterId)return false;let won=false;return g.mutate(p=>{won=realmVictory(p,encounterId,snapshot?.units.length??1)})&&won;}if(encounterId&&(g.p.lastBattleReward===encounterId||g.p.claimed.includes('battle:'+encounterId)))return false;let loot:Item|undefined,disposition:ReturnType<typeof placeLoot>|undefined;if(!g.mutate(p=>{if(tally)for(const [key,amount] of Object.entries(tally))if(Number.isFinite(amount)&&amount>0)bumpCount(p,key,amount);if(encounterId){p.lastBattleReward=encounterId;p.claimed.push('battle:'+encounterId);trimBattleReceipts(p)}if(snapshot){p.encounter=snapshot;markSeen(p,snapshot.units.map(u=>u.id));for(const u of snapshot.units)bumpCount(p,'kill:'+u.id)}bumpCount(p,'win:'+mode);bumpCount(p,'cls:'+p.heroClass);p.kills++;if(mode==='campaign'){const boss=p.wave===5;p.gold+=Math.round(stageGold(p.stage,boss)*(1+p.talents[2]*.05)*goldBonus(p));xp(p,stageXp(p.stage,boss));const material=materialIds[regionIndex(p.stage)%6],finale=boss&&stageInRegion(p.stage)===10;if(boss)grantMaterial(p,material,finale?dropRules.materialFinale:dropRules.materialBoss);else if(Math.random()<dropRules.materialWave*(branchOf(p,0)===1?1.5:1))grantMaterial(p,material,1);if(boss){p.bosses++;p.gems+=balance.test_rewards.boss_win_gems;const named=namedDrop(mode);loot=named?makeUnique(named,p.level,'Босс основной главы · этап '+p.stage):rollItem(p,undefined,dropRules.setChanceBoss);
     // Region finale: the first victory always gives the region's named trophy (or a guaranteed set piece in region 1).
-    if(finale){const region=regionIndex(p.stage)%6,perk=([undefined,'cutlass','crown','echo','aquila','heart'] as (PerkId|undefined)[])[region],first=setFlag(p,'finale:'+regionIndex(p.stage));if(perk&&(setFlag(p,'perk:'+perk)||!first&&Math.random()<dropRules.legendFinalePerk))loot=makePerkItem(perk,p.level+2,'Трофей владыки · '+perks[perk].source);else if(first&&!perk){loot=asSetItem(makeItem('armor',p.level+2,4),'frost');loot.origin='Трофей Королевы паутины';loot.locked=true}if(p.stage===60)setFlag(p,'story:done')}
-    if(p.stage===1&&!p.claimed.includes('first-boss-relic')){loot=makeItem('weapon',p.level+balance.first_chapter_test.boss_reward_level_bonus,balance.first_chapter_test.boss_reward_min_rarity);loot.name='Клинок ледяного шёлка';loot.origin='Трофей Матриарха';loot.uniqueId='ice_silk';loot.locked=true;p.claimed.push('first-boss-relic')}loot.origin??='Босс основной главы · этап '+p.stage;disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false};p.stage++;p.wave=1;grantHorn(p,2)}else{p.wave++;if(Math.random()<gearRules.regular_equipment_chance){loot=rollItem(p,undefined,dropRules.setChanceRegular);loot.origin='Встреча основной главы · этап '+p.stage;disposition=placeLoot(p,loot,true)}}}else if(mode==='farm'){p.gold+=Math.round(stageGold(p.stage,false)*.8*(1+p.talents[2]*.05)*goldBonus(p));if(Math.random()<.25)grantMaterial(p,materialIds[regionIndex(p.stage)%6],1);xp(p,Math.round(stageXp(p.stage,false)*.6))}else if(mode==='arena'){p.arenaWins++;p.tokens+=10;p.gold+=100;xp(p,30);if(p.arenaWins%3===0)addRes(p,'seal',1)}else{if(mode==='dungeon'){addRes(p,'shard',2);if(Math.random()<.35){const gem=rollGem(),bag=gemBox(p).bag;bag[gem]=(bag[gem]??0)+1;extra='Камень: '+gemLabel(gem)}if(Math.random()<.1)addRes(p,'seal',1)}p.gold+=150;p.gems+=5;xp(p,50);const keeper=mode==='dungeon'?snapshot?.units.map(u=>lairPerks[u.id]).find(Boolean):undefined,trophy=keeper&&setFlag(p,'perk:'+keeper)?keeper:undefined,named=trophy?undefined:namedDrop(mode);loot=trophy?makePerkItem(trophy,p.level+2,'Трофей Логова · '+perks[trophy].source):named?makeUnique(named,p.level,mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы'):rollItem(p);loot.origin??=mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы';disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false}}}))return false;if(loot&&disposition&&disposition!=='duplicate'){
+    if(finale){const region=regionIndex(p.stage)%6,perk=([undefined,'cutlass','crown','echo','aquila','heart'] as (PerkId|undefined)[])[region],first=setFlag(p,'finale:'+regionIndex(p.stage));if(perk&&(setFlag(p,'perk:'+perk)||!first&&Math.random()<dropRules.legendFinalePerk))loot=makePerkItem(perk,p.level+2,'Трофей владыки · '+perks[perk].source);else if(first&&!perk){loot=asSetItem(makeItem('armor',p.level+2,4),'frost');loot.origin='Трофей Королевы паутины'}if(p.stage===60)setFlag(p,'story:done')}
+    if(p.stage===1&&!p.claimed.includes('first-boss-relic')){loot=makeItem('weapon',p.level+balance.first_chapter_test.boss_reward_level_bonus,balance.first_chapter_test.boss_reward_min_rarity);loot.name='Клинок ледяного шёлка';loot.origin='Трофей Матриарха';loot.uniqueId='ice_silk';p.claimed.push('first-boss-relic')}loot.origin??='Босс основной главы · этап '+p.stage;disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false};p.stage++;p.wave=1;grantHorn(p,2)}else{p.wave++;if(Math.random()<gearRules.regular_equipment_chance){loot=rollItem(p,undefined,dropRules.setChanceRegular);loot.origin='Встреча основной главы · этап '+p.stage;disposition=placeLoot(p,loot,true)}}}else if(mode==='farm'){p.gold+=Math.round(stageGold(p.stage,false)*.8*(1+p.talents[2]*.05)*goldBonus(p));if(Math.random()<.25)grantMaterial(p,materialIds[regionIndex(p.stage)%6],1);xp(p,Math.round(stageXp(p.stage,false)*.6))}else if(mode==='arena'){p.arenaWins++;p.tokens+=10;p.gold+=100;xp(p,30);if(p.arenaWins%3===0)addRes(p,'seal',1)}else{if(mode==='dungeon'){addRes(p,'shard',2);if(Math.random()<.35){const gem=rollGem(),bag=gemBox(p).bag;bag[gem]=(bag[gem]??0)+1;extra='Камень: '+gemLabel(gem)}if(Math.random()<.1)addRes(p,'seal',1)}p.gold+=150;p.gems+=5;xp(p,50);const keeper=mode==='dungeon'?snapshot?.units.map(u=>lairPerks[u.id]).find(Boolean):undefined,trophy=keeper&&setFlag(p,'perk:'+keeper)?keeper:undefined,named=trophy?undefined:namedDrop(mode);loot=trophy?makePerkItem(trophy,p.level+2,'Трофей Логова · '+perks[trophy].source):named?makeUnique(named,p.level,mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы'):rollItem(p);loot.origin??=mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы';disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false}}}))return false;if(loot&&disposition&&disposition!=='duplicate'){
     const player=get().p,hasOffer=!!encounterId&&player.rewardOffer?.encounterId===encounterId;
     if(!hasOffer||disposition==='stored'||player.preferences?.autoSalvageWeaker)g.notice(lootNotice(player,loot,disposition,'Добыча: '+loot.name));
    }else if(extra)g.notice(extra);

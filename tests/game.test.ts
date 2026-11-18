@@ -1,6 +1,6 @@
 import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {freshPlayer,makeItem,useGame,parseSave,compareItem,refill} from '../src/core/store';
+import {freshPlayer,makeItem,useGame,parseSave,compareItem,refill,SAVE_KEY} from '../src/core/store';
 import {damage,stats} from '../src/core/formulas';
 const saves=new Map<string,string>();
 Object.defineProperty(globalThis,'localStorage',{value:{getItem:(k:string)=>saves.get(k)??null,setItem:(k:string,v:string)=>saves.set(k,v)}});
@@ -11,7 +11,7 @@ test('daily, free wings and store grants are idempotent',()=>{const g=()=>useGam
 test('four waves then boss advances exactly one stage and reward claim is single use',()=>{const g=()=>useGame.getState();for(let i=0;i<4;i++)g().win('campaign');assert.equal(g().p.wave,5);assert.equal(g().p.stage,1);g().win('campaign');assert.equal(g().p.stage,2);assert.equal(g().p.wave,1);assert.equal(g().p.bosses,1);g().claim('mission');const gold=g().p.gold;g().claim('mission');assert.equal(g().p.gold,gold)});
 test('save roundtrip retains gear, currencies, runes, class and progress',()=>{const g=()=>useGame.getState();g().setClass('runologist');g().claim('wings');g().mutate(p=>{p.runes=[2,1,0];p.stage=8;p.wave=4});const p=g().p;assert.deepEqual(parseSave(JSON.stringify(p)),p);assert.equal(parseSave('{broken'),null);assert.equal(parseSave('{"version":9}'),null)});
 test('horn regen is capped and backward clock cannot create charges',()=>{const p=freshPlayer();p.hornAt=1000000;p.horn=49;refill(p,1240000);assert.equal(p.horn,50);refill(p,1);assert.equal(p.horn,50)});
-test('comparison uses actual CP; low funds cannot upgrade or buy',()=>{const g=()=>useGame.getState();const item=makeItem('weapon',20,5);assert.ok(compareItem(item,g().p)>0);g().mutate(p=>{p.gold=0;p.gems=0;p.tokens=0});const snapshot=JSON.stringify(g().p);g().train('hero');g().upgrade('weapon');g().buy('horn');g().buy('test_special_pack_1');assert.equal(JSON.stringify(g().p),snapshot)});
+test('comparison uses actual CP; low funds cannot upgrade or buy',()=>{const g=()=>useGame.getState();const item=makeItem('weapon',20,5);assert.ok(compareItem(item,g().p)>0);g().mutate(p=>{p.gold=0;p.gems=0;p.tokens=0});const snapshot=JSON.stringify(g().p);g().train('forge');g().upgrade('weapon');g().buy('horn');g().buy('test_special_pack_1');assert.equal(JSON.stringify(g().p),snapshot)});
 test('damage obeys mitigation, crit multiplier and ignores zero defense',()=>{assert.equal(damage(100,0,1),100);assert.equal(damage(100,115,1),50);assert.equal(damage(100,0,1,2.2,true,1.5),330)});
 test('a full backpack retains existing items and sends a new Horn drop to storage',()=>{
  const g=()=>useGame.getState();
@@ -42,4 +42,27 @@ test('horn grants include offline regeneration and restart the clock when fillin
 test('a full horn grant cannot move a future recharge clock backwards',async()=>{
  const {grantHorn}=await import('../src/core/store');const p=freshPlayer();p.horn=49;p.hornAt=2000000;
  grantHorn(p,5,1000000);assert.equal(p.horn,50);assert.equal(p.hornAt,2000000);
+});
+
+test('a previously earned level and talents survive reload and hero training cannot charge or grant XP',()=>{
+ const p=freshPlayer();
+ Object.assign(p,{level:12,xp:37,talents:[2,1,3],gold:5000,stage:3,inventory:[makeItem('armor',5,3)]});
+ const g=useGame.getState;
+ useGame.setState({p});
+ g().persist();
+ const raw=saves.get(SAVE_KEY)!;
+ const restored=parseSave(raw,true)!;
+ useGame.setState({p:restored});
+ g().train('hero');
+ g().train('hero');
+ assert.equal(g().p,restored);
+ assert.equal(saves.get(SAVE_KEY),raw);
+ g().train('forge');
+ assert.equal(g().p.forge,p.forge+1);
+ assert.equal(g().p.gold,p.gold-100*p.forge);
+ assert.equal(g().p.level,p.level);
+ assert.deepEqual(g().p.talents,p.talents);
+ g().win('campaign','earned-xp');
+ assert.ok(g().p.xp>p.xp);
+ assert.equal(g().p.level,p.level);
 });

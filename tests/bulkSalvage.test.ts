@@ -60,6 +60,8 @@ test('rare, upgraded, named, set, purchased, locked and rewarded gear cannot be 
  for(const i of items)assert.ok(p.inventory.some(x=>x.id===i.id),i.id);
  assert.ok(p.pendingLoot?.some(i=>i.id==='pending'));
  assert.equal(p.inventory.some(i=>i.id==='ordinary'),false);
+ const backup=parseSave(storage.get(SAVE_KEY+':before-bulk-salvage')??null,true);
+ assert.equal(backup?.inventory.find(i=>i.id==='locked')?.locked,true);
 });
 
 test('no-op and recovery mode do not mutate the backpack',()=>{

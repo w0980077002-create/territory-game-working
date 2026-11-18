@@ -1,6 +1,6 @@
 import {beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
-import {freshPlayer,makeItem,parseSave,SAVE_KEY,useGame} from '../src/core/store';
+import {freshPlayer,makeItem,parseSave,requiresSalvageConfirmation,salvageProtection,SAVE_KEY,useGame} from '../src/core/store';
 import {itemPower,xpNeeded} from '../src/core/formulas';
 const saved=new Map<string,string>();
 let failKey='';
@@ -102,16 +102,17 @@ test('inventory actions are blocked while an unreadable save is being recovered'
  assert.ok(p.inventory.some(i=>i.id===item.id));
 });
 
-test('manual salvage from storage respects the lock and confirmation, then pays exactly once',()=>{
- const p=freshPlayer(),item={...makeItem('weapon',15,4),locked:true};
+test('confirmed manual salvage from storage preserves rollback, then pays exactly once',()=>{
+ const p=freshPlayer(),item={...makeItem('weapon',15,0),locked:true};
  p.inventory=Array.from({length:80},()=>makeItem('helmet',1,0));
  p.pendingLoot=[item,makeItem('armor',2,0)];
  p.rewardOffer={itemId:item.id,encounterId:'trophy',resolved:false};
- useGame.setState({p,panel:'item',selected:item.id,back:'inventory'});
+ const raw=JSON.stringify(p);
+ const restored=parseSave(raw,true)!;
+ assert.deepEqual(restored,p);
+ assert.equal(salvageProtection(restored,item),'Только вручную');
+ useGame.setState({p:restored,panel:'item',selected:item.id,back:'inventory'});
  const g=useGame.getState();
- g.salvage(item.id,true);
- assert.equal(useGame.getState().p,p);
- g.lockItem(item.id);
  g.salvage(item.id);
  assert.match(useGame.getState().toast,/Подтвердите/);
  assert.equal(useGame.getState().p.pendingLoot?.length,2);
@@ -172,4 +173,35 @@ test('a failed local write never publishes a temporary inventory or spends a Hor
  assert.equal(g.panel,'loot');
  assert.equal(g.selected,null);
  assert.match(g.toast,/Не удалось сохранить/);
+});
+
+test('percent bonuses, wings and active rewards each require individual confirmation after reload',()=>{
+ const p=freshPlayer();
+ const percent={...makeItem('weapon',1,0),percent:{hp:1,attack:0,defense:0}};
+ const wings=makeItem('wings',1,0);
+ const reward=makeItem('armor',1,0);
+ const ordinary={...makeItem('helmet',1,0),locked:false};
+ p.inventory=[percent,wings,reward,ordinary];
+ p.rewardOffer={encounterId:'active-reward',itemId:reward.id,resolved:false};
+ useGame.setState({p});
+ useGame.getState().persist();
+ const restored=parseSave(saved.get(SAVE_KEY)??null,true)!;
+ useGame.setState({p:restored});
+ const g=useGame.getState;
+ assert.equal(requiresSalvageConfirmation(g().p,ordinary),false);
+ for(const item of [percent,wings,reward]){
+  const before=g().p;
+  assert.equal(requiresSalvageConfirmation(before,item),true);
+  g().salvage(item.id);
+  assert.equal(g().p,before);
+  g().salvage(item.id,true);
+  const after=g().p;
+  assert.equal(after.inventory.some(i=>i.id===item.id),false);
+  assert.equal(after.gold,before.gold+Math.round(itemPower(item)/3));
+  g().salvage(item.id,true);
+  assert.equal(g().p,after);
+ }
+ assert.equal(g().p.rewardOffer?.resolved,true);
+ g().salvage(ordinary.id);
+ assert.equal(g().p.inventory.length,0);
 });
