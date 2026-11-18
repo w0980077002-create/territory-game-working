@@ -45,7 +45,7 @@ import {dailyView,weeklyView,storyQuests,activeStory,masteryView,masteryTiers,ma
 import {actualReward} from '../saga/events';
 import {rewardText,type Reward} from '../saga/rewards';
 import {Icon,gearIcon} from './Icon';
-import {materialIcon} from './RewardArt';
+import {materialIcon,RewardArt} from './RewardArt';
 const short=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
 const Btn=({children,onClick,disabled=false,kind=''}:{children:React.ReactNode;onClick:()=>void;disabled?:boolean;kind?:string})=><button className={`action ${kind}`} onClick={onClick} disabled={disabled}>{children}</button>;
 /** Set membership, perk and engraving of one item — shown inside every item card. */
@@ -122,7 +122,7 @@ function questActivity(keys:readonly string[]) {
 
 function QuestRow({q,onClaim,onGo}:{q:{text:string;progress:number;goal:number;done:boolean;claimed:boolean;reward:Reward};onClaim:()=>void;onGo:()=>void}){
  return <div className={`quest-row ${q.claimed?'claimed':q.done?'ready':''}`}><div><strong>{q.text}</strong>
-  <small>{rewardText(q.reward)}</small><small className="quest-progress">{short(Math.min(q.progress,q.goal))}/{short(q.goal)}</small>
+  <div className="quest-prizes"><RewardArt reward={q.reward}/></div><small className="quest-progress">{short(Math.min(q.progress,q.goal))}/{short(q.goal)}</small>
   <i><b style={{width:`${Math.min(100,q.progress/q.goal*100)}%`}}/></i></div>
   <button className="action" disabled={q.claimed} onClick={q.done?onClaim:onGo}>{q.claimed?'Получено':q.done?'Забрать':'Перейти'}</button>
  </div>;

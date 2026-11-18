@@ -63,3 +63,8 @@
 .saga-modal[data-panel="skills"] .skill-card .action { margin: 5px 0 0; }
 .saga-modal[data-panel="companions"][data-layout="workspace"] { height: min(595px,100%); }
 .saga-modal[data-panel="relic"][data-layout="workspace"] { height: min(550px,100%); }
+
+.quest-prizes .reward-art { justify-content: flex-start; gap: 5px; margin: 3px 0; }
+.quest-prizes .reward-piece { display: flex; align-items: center; }
+.quest-prizes .reward-piece .icon { width: 21px; height: 21px; }
+.quest-prizes .reward-piece strong { font-size: 10px; padding: 0; }

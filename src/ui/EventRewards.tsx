@@ -50,7 +50,10 @@ export function DailyRewards({p}: {p: Player}) {
       {selected.day < today.day && !selected.claimed && <p>Для этой даты в сохранении нет отметки.</p>}
       {selected.day > today.day && <p>Будет доступен с 00:00 UTC в этот день.</p>}
     </article>
-    <div className="reward-plaque next-gift"><div><strong>Завтра · {dayLabel(next.day)}</strong><small>Новый подарок в 00:00 UTC</small></div><RewardArt reward={next.extra}/></div>
+    <div className="reward-plaque next-gift">
+      <div><strong>Завтра · {dayLabel(next.day)}</strong><small>С 00:00 UTC</small></div>
+      <div className="next-gift-contents"><RewardArt reward={next.base}/><RewardArt reward={next.extra}/></div>
+    </div>
     <button className="action secondary" onClick={() => open('wings')}>Крылья начинающего героя</button>
   </section>;
 }

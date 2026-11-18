@@ -68,6 +68,9 @@
 .saga-modal .reward-plaque p { margin: 5px 0 0; font-size: 11px; }
 .next-gift { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .next-gift .reward-art { width: auto; }
+.next-gift-contents { display: flex; align-items: center; gap: 5px; }
+.next-gift-contents .reward-art + .reward-art { border-left: 1px solid #aa876d58; padding-left: 5px; }
+.next-gift-contents .reward-piece .icon { width: 25px; height: 25px; }
 .season-progress { color: #d6e5ed; }
 .season-progress > div { display: flex; justify-content: space-between; font-size: 12px; }
 .season-progress progress { display: block; width: 100%; height: 9px; margin-top: 2px; appearance: none; overflow: hidden; border: 1px solid #816b56; border-radius: 10px; background: #212333; }
@@ -105,6 +108,11 @@
 .season-goal .action { grid-column: 1/-1; }
 
 @media (max-height: 650px) {
+  .saga-modal[data-panel="rewards"] .modal-header,
+  .saga-modal[data-panel="events"] .modal-header { padding-block: 5px; min-height: 60px; }
+  .saga-modal[data-panel="rewards"] .modal-header h2 { font-size: 18px; letter-spacing: 0; }
+  .saga-modal[data-panel="rewards"] .modal-footer,
+  .saga-modal[data-panel="events"] .modal-footer { padding-block: 4px; min-height: 52px; }
   .reward-window { gap: 6px; }
   .reward-hero { min-height: 74px; }
   .season-step { min-height: 57px; }
