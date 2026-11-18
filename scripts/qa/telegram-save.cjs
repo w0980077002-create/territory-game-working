@@ -119,6 +119,20 @@ const telegramKey = browserKey + ':telegram:1234567';
   await checkpoint();
   assert.equal(await page.evaluate(() => window.mockCloud.writes), 0, 'a timeout cannot authorize an upload');
   assert.equal((await read(telegramKey)).gold, other.gold);
+  await tap('Закрыть');
+  await page.evaluate(() => {
+   history.replaceState(null, '', location.pathname + '#tgWebAppData=synthetic');
+   Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: value => { window.copiedGameLink = value; return Promise.resolve(); } }
+   });
+  });
+  await tap('Приглашение');
+  await tap('Скопировать ссылку на игру');
+  assert.equal(await page.evaluate(() => window.copiedGameLink), base, 'game links omit the Telegram launch fragment');
+  await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error('Denied')); });
+  await tap('Скопировать ссылку на игру');
+  assert.equal(await page.getByRole('textbox', {name:'Адрес для копирования'}).inputValue(), base);
   assert.deepEqual(errors, []);
   console.log('Telegram bridge: restore, backup, reload, isolated Chrome progress, conflict and offline protection');
  } finally {
