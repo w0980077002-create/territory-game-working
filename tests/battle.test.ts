@@ -147,3 +147,40 @@ test('a failed buffered quest checkpoint retains the counters until they can be 
  assert.equal(parseSave(saves.get(SAVE_KEY)!,true)?.saga?.n.interrupt,1);
  b.destroy();
 });
+
+test('Arena results pause combat, pay once, and retry the duel after a reload or defeat',()=>{
+ const g=()=>useGame.getState();
+ const b=scene(false);
+ b.startMode('arena');
+ b.toggle();
+ const gold=g().p.gold,tokens=g().p.tokens;
+ b.units.forEach(u=>{u.hp=0});
+ b.victory();
+ assert.equal(g().panel,'arena');
+ assert.equal(b.running,false);
+ assert.equal(g().p.gold,gold+100);
+ assert.equal(g().p.tokens,tokens+10);
+ b.destroy();
+
+ const restored=parseSave(saves.get(SAVE_KEY)!);
+ assert.ok(restored);
+ useGame.setState({p:restored,panel:null});
+ const c=scene(false);
+ assert.equal(c.phase,'victory');
+ c.startMode('arena');
+ c.toggle();
+ c.update(3);
+ assert.equal(c.mode,'arena');
+ assert.equal(c.phase,'walk');
+ assert.equal(g().p.arenaWins,1);
+
+ c.defeat();
+ assert.equal(g().panel,'arena');
+ c.startMode('arena');
+ c.toggle();
+ c.update(3);
+ assert.equal(c.mode,'arena');
+ assert.equal(c.phase,'walk');
+ assert.equal(g().p.arenaWins,1);
+ c.destroy();
+});
