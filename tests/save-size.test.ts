@@ -1,10 +1,13 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {randomBytes} from 'node:crypto';
+import {setTimeout as delay} from 'node:timers/promises';
 import {installHeadless} from '../scripts/sim/bot';
 installHeadless();
-import {cloudSave,readCloud,CLOUD_MAX_CHUNKS} from '../src/core/telegram';
-import {freshPlayer,makeItem,makePerkItem,parseSave,useGame,trimBattleReceipts,BATTLE_RECEIPTS} from '../src/core/store';
+import {cloudSave,measureCloudSave,readCloud,CLOUD_MAX_CHUNKS} from '../src/core/telegram';
+import {freshPlayer,makeItem,makePerkItem,mayStartLoot,parseSave,SAVE_KEY,useGame,trimBattleReceipts,BATTLE_RECEIPTS} from '../src/core/store';
 import {slots} from '../src/data/catalog';
+import {Battle} from '../src/game/Battle';
 import type {Player,Item} from '../src/core/types';
 
 type Row={key:string;value:string;done:(e:unknown,stored?:boolean)=>void};
@@ -43,7 +46,12 @@ const ids=(p:Player)=>[...Object.values(p.equipment).map(i=>i!.id),...p.inventor
 for(const stored of [300,800,1500])test(`cloud: ${stored} stored items survive upload, restart and parsing without loss or duplicates`,async()=>{
  const cloud=mockCloud(),p=bigPlayer(stored),raw=JSON.stringify(p);
  const result=await save(raw);assert.deepEqual(result,{ok:true,reason:undefined});
- const meta=JSON.parse(cloud.data.get('save_meta')!);assert.equal(meta.z,1,'compressed');console.log(`${stored} stored: ${raw.length} chars → ${meta.count} chunks`);assert.ok(meta.count<=20,`${raw.length} chars took ${meta.count} chunks`);
+ const meta=JSON.parse(cloud.data.get('save_meta')!);assert.equal(meta.z,1,'compressed');
+ const measured=await measureCloudSave(raw);
+ assert.equal(measured.chunks,meta.count);
+ assert.equal(measured.bytes,[...cloud.data].filter(([key])=>key.startsWith('save_'+meta.generation+'_')).reduce((sum,[,v])=>sum+v.length,0));
+ console.log(`${stored} stored: ${Buffer.byteLength(raw)} UTF-8 bytes → ${measured.bytes} gzip+base64 bytes, ${meta.count} chunks`);
+ assert.ok(meta.count<=20,`${raw.length} chars took ${meta.count} chunks`);
  const restored=await read();assert.equal(restored,raw,'byte-identical after restart');
  const back=parseSave(restored as string,true)!;assert.ok(back);
  assert.deepEqual(ids(back),ids(p));assert.equal(new Set(ids(back)).size,ids(p).length,'no duplicated items');
@@ -95,4 +103,79 @@ test('claims: battle receipts stay bounded, other claims are kept and recent vic
  const g=useGame.getState();assert.equal(g.p.claimed.filter(c=>c.startsWith('battle:')).length,BATTLE_RECEIPTS);
  const gold=g.p.gold;for(const id of ['enc-'+(BATTLE_RECEIPTS+49),'enc-'+(BATTLE_RECEIPTS+10),'enc-100'])assert.equal(useGame.getState().win('farm',id),false,id+' paid twice');
  assert.equal(useGame.getState().p.gold,gold);
+});
+
+test('continued campaign above 80/80 and 80 stored retains every item and each boss reward once',t=>{
+ const p=bigPlayer(85);
+ p.stage=1;
+ p.claimed=[];
+ p.preferences={auto:false,speed:1,autoSalvageWeaker:false};
+ useGame.setState({p,auto:false,autoSalvageWeaker:false,panel:null,recoveryRequired:false});
+ t.mock.method(Math,'random',()=>0);
+ for(let i=0;i<250;i++)assert.equal(useGame.getState().win('campaign','long-run-'+i),true);
+ const g=useGame.getState();
+ assert.equal(g.p.bosses,50);
+ assert.equal(g.p.inventory.length,80);
+ assert.equal(g.p.pendingLoot?.length,335);
+ assert.equal(g.p.pendingLoot?.filter(i=>i.uniqueId==='ice_silk'&&i.origin==='Трофей Матриарха').length,1);
+ assert.equal(g.win('campaign','long-run-249'),false);
+ const restored=parseSave(localStorage.getItem(SAVE_KEY),true);
+ assert.ok(restored);
+ assert.deepEqual(ids(restored),ids(g.p));
+ assert.equal(new Set(ids(restored)).size,ids(restored).length);
+ assert.equal(restored.gold,g.p.gold);
+});
+
+test('near the actual gzip bank limit, new Horn rolls are blocked but earned rewards and old saves are kept',async t=>{
+ const p=bigPlayer(1840);
+ p.wave=5;
+ p.stage=1;
+ // Valid older item records with unusually long, poorly compressible text.
+ const field=(bytes:number)=>randomBytes(bytes).toString('base64');
+ for(const item of p.pendingLoot!)Object.assign(item,{id:field(90),name:field(90),origin:field(120)});
+ const raw=JSON.stringify(p);
+ const measured=await measureCloudSave(raw);
+ assert.ok(measured.compressed&&measured.chunks>=224&&measured.chunks<=CLOUD_MAX_CHUNKS,`compressed fixture used ${measured.chunks} chunks`);
+ assert.ok(parseSave(raw,true));
+ useGame.setState({p,panel:'loot',selected:null,recoveryRequired:false,storageError:false,continueOnVictory:true});
+ const random=t.mock.method(Math,'random',()=>0.1);
+ useGame.getState().hornLoot();
+ assert.equal(random.mock.callCount(),0,'no roll while a large save is being measured');
+ for(let waited=0;waited<3000&&/Проверяем размер/.test(useGame.getState().toast);waited+=10){
+  await delay(10);
+  useGame.getState().hornLoot();
+ }
+ const g=useGame.getState();
+ assert.match(g.toast,/близко к пределу/);
+ assert.equal(g.p,p);
+ assert.equal(random.mock.callCount(),0,'a refused opening never rolls loot or charges the Horn');
+ g.open(null);
+ const battle=new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement);
+ battle.toggle();
+ assert.equal(battle.running,false,'a new encounter cannot start while the reserve is low');
+ // The same profile can have a fight in progress when the size moves past the limit.
+ battle.phase='fight';
+ battle.running=true;
+ for(const unit of battle.units)unit.hp=0;
+ battle.victory();
+ assert.equal(battle.phase,'victory','an earned boss reward still commits');
+ const restored=parseSave(localStorage.getItem(SAVE_KEY),true);
+ assert.ok(restored);
+ assert.equal(restored.pendingLoot?.length,1841);
+ assert.deepEqual(restored.pendingLoot?.slice(0,1840),p.pendingLoot);
+ assert.equal(restored.rewardOffer?.itemId,restored.pendingLoot?.at(-1)?.id);
+ assert.equal(useGame.getState().win('campaign',battle.id),false);
+ g.keepReward();
+ battle.delay=0;
+ battle.update(.05);
+ assert.equal(battle.running,false,'autobattle stops before the next encounter');
+ assert.equal(battle.phase,'victory');
+ // A much smaller saved inventory should resume new loot actions without a new profile.
+ assert.equal(useGame.getState().mutate(draft=>{draft.pendingLoot=draft.pendingLoot!.slice(-80)}),true);
+ assert.equal(mayStartLoot(),true);
+ battle.toggle();
+ battle.update(.05);
+ assert.equal(battle.phase,'walk');
+ assert.equal(useGame.getState().p.bosses,p.bosses+1);
+ battle.destroy();
 });

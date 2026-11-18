@@ -101,3 +101,75 @@ test('inventory actions are blocked while an unreadable save is being recovered'
  assert.deepEqual(useGame.getState().p,p);
  assert.ok(p.inventory.some(i=>i.id===item.id));
 });
+
+test('manual salvage from storage respects the lock and confirmation, then pays exactly once',()=>{
+ const p=freshPlayer(),item={...makeItem('weapon',15,4),locked:true};
+ p.inventory=Array.from({length:80},()=>makeItem('helmet',1,0));
+ p.pendingLoot=[item,makeItem('armor',2,0)];
+ p.rewardOffer={itemId:item.id,encounterId:'trophy',resolved:false};
+ useGame.setState({p,panel:'item',selected:item.id,back:'inventory'});
+ const g=useGame.getState();
+ g.salvage(item.id,true);
+ assert.equal(useGame.getState().p,p);
+ g.lockItem(item.id);
+ g.salvage(item.id);
+ assert.match(useGame.getState().toast,/Подтвердите/);
+ assert.equal(useGame.getState().p.pendingLoot?.length,2);
+ failKey=SAVE_KEY;
+ g.salvage(item.id,true);
+ assert.equal(useGame.getState().selected,item.id);
+ assert.equal(useGame.getState().p.gold,p.gold);
+ assert.equal(useGame.getState().p.rewardOffer?.resolved,false);
+ failKey='';
+ g.salvage(item.id,true);
+ const result=useGame.getState();
+ assert.deepEqual(result.p.inventory,p.inventory);
+ assert.deepEqual(result.p.pendingLoot,[p.pendingLoot[1]]);
+ assert.equal(result.p.rewardOffer?.resolved,true);
+ assert.equal(result.panel,'inventory');
+ assert.equal(result.p.gold,p.gold+Math.round(itemPower(item)/3));
+ assert.equal(result.p.xp,10+item.level*2);
+ g.salvage(item.id,true);
+ assert.equal(useGame.getState().p,result.p);
+ assert.deepEqual(parseSave(saved.get(SAVE_KEY)??null)?.pendingLoot,result.p.pendingLoot);
+});
+
+test('an early mutation refusal keeps panels and results unchanged even without storageError',t=>{
+ const p=freshPlayer(),item=makeItem('helmet',1,0),stored=makeItem('armor',3,4);
+ p.inventory=[item];p.pendingLoot=[stored];
+ useGame.setState({p,panel:'item',selected:item.id,toast:'Герой открыт в другой вкладке'});
+ const mutate=useGame.getState().mutate;
+ const denied=t.mock.fn(()=>false);
+ useGame.setState({mutate:denied});
+ try{
+  const g=useGame.getState();
+  g.equip(item.id);
+  g.salvage(item.id);
+  assert.equal(g.bulkSalvage([item.id]),0);
+  assert.equal(g.claimStored([stored.id]),0);
+  g.hornLoot();
+  const after=useGame.getState();
+  assert.equal(denied.mock.callCount(),4,'an action sees the result of mutate even when storageError is false');
+  assert.equal(after.p,p);
+  assert.equal(after.selected,item.id);
+  assert.equal(after.panel,'item');
+  assert.equal(after.storageError,false);
+  assert.match(after.toast,/другой вкладке/);
+ }finally{useGame.setState({mutate})}
+});
+
+test('a failed local write never publishes a temporary inventory or spends a Horn charge',()=>{
+ const p=freshPlayer();
+ p.inventory=Array.from({length:80},()=>makeItem('helmet',1,0));
+ useGame.setState({p,panel:'loot'});
+ const seen=new Set();
+ const stop=useGame.subscribe(state=>seen.add(state.p));
+ failKey=SAVE_KEY;
+ try{useGame.getState().hornLoot()}finally{stop()}
+ const g=useGame.getState();
+ assert.deepEqual(seen,new Set([p]),'store subscribers never see uncommitted loot');
+ assert.equal(g.p,p);
+ assert.equal(g.panel,'loot');
+ assert.equal(g.selected,null);
+ assert.match(g.toast,/Не удалось сохранить/);
+});

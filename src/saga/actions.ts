@@ -2,7 +2,7 @@
  * Player actions of the saga systems. Every action validates, then changes the save in ONE store mutation
  * and reports the result, so a double tap or a reload can never pay or charge twice.
  */
-import {useGame,makeItem,asSetItem,addLoot} from '../core/store';
+import {useGame,makeItem,asSetItem,addLoot,mayStartLoot} from '../core/store';
 import type {Item,Player,Slot,HeroClass} from '../core/types';
 import balance from '../../config/test-balance.v1.json';
 import {slots} from '../data/catalog';
@@ -35,6 +35,7 @@ export const setUnlocked=(p:Player,set:SetId)=>regionIndex(p.stage)>=sets[set].r
 export function craftPlan(set:SetId,p:Player){const level=forgeLevel(p);return {level,gold:60*level,mats:12,material:sets[set].material,rarity:3}}
 /** Recipe: a guaranteed piece of a chosen set for a chosen slot. The honest way to finish a 2/4/6 bonus. */
 export function craftSet(set:SetId,slot:Slot){const p=G().p;if(slot==='wings'||!slots.includes(slot)||!Object.hasOwn(sets,set))return false;if(!setUnlocked(p,set))return fail('Сначала дойдите до региона этого комплекта');const plan=craftPlan(set,p);if(p.inventory.length>=capacity)return fail('Рюкзак полон');if(p.gold<plan.gold)return fail('Недостаточно золота');if(matCount(p,plan.material)<plan.mats)return fail(`Нужно ${plan.mats} × ${materials[plan.material].name}`);
+ if(!mayStartLoot())return false;
  let made:Item|undefined;if(!G().mutate(p=>{p.gold-=plan.gold;spend(p,plan.material,plan.mats);const rarity=plan.rarity+(Math.random()<Math.min(.5,p.blessing*.015)?1:0);made=asSetItem(makeItem(slot,plan.level,rarity),set);made.origin='Рецепт кузницы · '+sets[set].name;addLoot(p,made);bumpCount(p,'craft')}))return saveFailed();if(made)G().select(made.id);return true}
 /** Three materials of one kind become one of another: no dead-end stock after a region is finished. */
 export function trade(from:string,to:string){const p=G().p;if(from===to||!materialIds.includes(from)||!materialIds.includes(to))return false;if(matCount(p,from)<3)return fail(`Нужно 3 × ${materials[from].name}`);if(!G().mutate(p=>{spend(p,from,3);p.saga!.n[matKey(to)]=matCount(p,to)+1}))return saveFailed();return done(`+1 ${materials[to].name}`)}
