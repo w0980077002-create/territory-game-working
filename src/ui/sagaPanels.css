@@ -28,3 +28,5 @@
 .quest-row{display:flex;gap:10px;align-items:center;padding:8px 2px;border-bottom:1px solid #ffffff12}.quest-row>div{flex:1;min-width:0}.quest-row strong{display:block;font-size:13.5px;color:#f0e8d2;line-height:1.3}.quest-row small{color:#a9b3a6;font-size:11.5px}.quest-row i{display:block;height:5px;border-radius:3px;background:#0b1114;margin-top:5px;overflow:hidden}.quest-row i b{display:block;height:100%;background:linear-gradient(90deg,#b98a3c,#ffd98a)}
 .quest-row .action{flex:0 0 86px;width:86px;min-width:0;margin:0;font-size:13px!important;min-height:44px!important;padding:6px}.quest-row.ready strong{color:#ffe7a8}.quest-row.claimed{opacity:.5}
 .quest-board .tabs{flex-wrap:nowrap}.quest-board .tabs button{font-size:12.5px!important;padding:8px 2px!important;white-space:nowrap}
+
+.quest-row .quest-progress { display: block; }

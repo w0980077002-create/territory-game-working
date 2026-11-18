@@ -1,0 +1,30 @@
+.shop-wallet, .shop-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .35rem;
+}
+.shop-wallet button {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: .3rem .15rem;
+  gap: .15rem;
+  border: 1px solid #8f764b;
+  border-radius: 5px;
+  background: #192b35;
+  color: #f5e5c3;
+  text-align: center;
+}
+.shop-wallet span { min-width: 0; overflow-wrap: anywhere; }
+.shop-wallet strong, .shop-offer small, .shop-offer b {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.shop-wallet .icon { width: 1.2em; height: 1.2em; flex: none; }
+.shop-tabs button { min-width: 0; min-height: 2.25rem; overflow-wrap: anywhere; }
+.shop-offer { align-items: flex-start; }
+.shop-offer .row-content { min-width: 0; }
+.shop-offer .action { max-width: 100%; margin-top: .35rem; white-space: normal; }
+.shop-source { margin-top: .3rem; }

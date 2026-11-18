@@ -1,5 +1,6 @@
 import type {Player,Stats,Item} from './types';
 import balance from '../../config/test-balance.v1.json';
+import economy from '../../config/solo-economy.v1.json';
 import {setCounts,engraveTotals,hasPerk} from '../saga/gear';
 import {specId} from '../saga/specs';
 import {powerBonus} from '../dark/rules';
@@ -24,3 +25,7 @@ export const MITIGATION_CAP=balance.campaign_curve_test.mitigation_cap;
 export function damage(attack:number,defense:number,level:number,mult=1,crit=false,critDamage=1.5){return Math.max(1,Math.round(attack*mult*(1-Math.min(MITIGATION_CAP,defense/(defense+100+15*level)))*(crit?critDamage:1)))}
 export const xpNeeded=(level:number)=>Math.round(balance.progression_test_settings.level_exp_base*balance.progression_test_settings.level_exp_multiplier**(level-1));
 export const stageLabel=(stage:number)=>`${Math.floor((stage-1)/10)+1}-${(stage-1)%10+1}`;
+
+export const skillPowerMultiplier=(level:number)=>1+(level-1)*.1;
+export const odinCallMaxLevel=economy.odinCall.maxLevel;
+export const odinCallSeconds=(level:number,echo:boolean)=>(echo?8:5)+Math.min(level-1,odinCallMaxLevel-1)*economy.odinCall.extraSecondsPerLevel;

@@ -1,0 +1,28 @@
+{
+  "shop": {
+    "travel-stipend": {"price": 5, "amount": 300},
+    "guard-stones": {"price": 4, "amount": 5},
+    "blacksmith-coins": {"price": 12, "amount": 600},
+    "mine-reserve": {"price": 150, "amount": 10},
+    "region-supplies": {"price": 8, "amount": 3},
+    "dark-essence": {"price": 15, "amount": 6},
+    "summon-seal": {"price": 20, "amount": 1},
+    "relic-shards": {"price": 15, "amount": 2}
+  },
+  "confirmFrom": {"gold": 500, "gems": 30, "tokens": 40},
+  "odinCall": {"extraSecondsPerLevel": 0.2, "maxLevel": 16},
+  "dailyExtras": [
+    {"mats": {"ice": 2}},
+    {"chaosite": 5},
+    {"tokens": 3},
+    {"res": {"ess": 3}},
+    {"gems": 5},
+    {"res": {"shard": 1}},
+    {"res": {"seal": 1}}
+  ],
+  "seasonGoals": {
+    "lair": {"goal": 2, "reward": {"res": {"shard": 4}, "chaosite": 10}},
+    "arena": {"goal": 3, "reward": {"res": {"seal": 2}, "tokens": 10}},
+    "realm": {"goal": 2, "reward": {"res": {"ess": 10}, "mats": {"dusk": 1}}}
+  }
+}

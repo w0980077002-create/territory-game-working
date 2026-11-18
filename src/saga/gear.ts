@@ -21,7 +21,7 @@ export interface PerkDef {name:string;slot:Slot;rarity:number;tag:string;text:st
 export const perks:Record<PerkId,PerkDef>={
  cutlass:{name:'Абордажная сабля Адмирала',slot:'weapon',rarity:5,tag:'Первый удар',text:'Первый удар героя в каждом бою наносит тройной урон и оглушает врагов на 1 сек.',source:'Адмирал Штормов · Северные гавани',set:'storm'},
  crown:{name:'Корона Морока',slot:'helmet',rarity:5,tag:'Навыки лечат',text:'Каждое применение навыка лечит героя на 4% HP.',source:'Грибной король Морок · Лес древних рун',set:'rune'},
- echo:{name:'Рог Эха',slot:'extra1',rarity:5,tag:'Долгий клич',text:'Клич Одина длится 8 сек вместо 5 и даёт щит на 8% HP.',source:'Минотавр Эха · Горные крепости',set:'stone'},
+ echo:{name:'Рог Эха',slot:'extra1',rarity:5,tag:'Долгий клич',text:'Клич Одина длится на 3 сек дольше и даёт щит на 8% HP.',source:'Минотавр Эха · Горные крепости',set:'stone'},
  aquila:{name:'Плащ легата с орлом',slot:'cloak',rarity:5,tag:'Удар по всем',text:'Каждый 4-й обычный удар героя задевает всех врагов.',source:'Легат Аквила · Римская граница',set:'legion'},
  heart:{name:'Амулет Сердца Бездны',slot:'amulet',rarity:6,tag:'Второе дыхание',text:'Раз за бой смертельный удар не убивает героя: он восстаёт с 35% HP.',source:'Владыка Огненной Бездны · финал саги',set:'ember'},
  belt:{name:'Пояс Громилы',slot:'belt',rarity:4,tag:'Против щитов',text:'+25% урона по врагам под щитом; блок врага гасит меньше урона.',source:'Логово · Капибара-Громила'},

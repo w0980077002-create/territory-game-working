@@ -22,7 +22,7 @@ const total=(p:Player,keys:string[])=>keys.reduce((a,k)=>a+counter(p,k),0);
 const mat=(p:Player,n:number)=>({[regionMaterial(p)]:n});
 export const dailyPool:QuestDef[]=[
  {id:'d_wins',text:'Победить в 8 боях',keys:['stat:kills'],goal:8,reward:p=>({gold:stageCoins(p,1.5),horn:2})},
- {id:'d_boss',text:'Победить 2 боссов',keys:['stat:bosses','win:dungeon','win:darkness'],goal:2,reward:p=>({gems:12,mats:mat(p,3)})},
+ {id:'d_boss',text:'Победить 2 боссов',keys:['stat:bosses','win:dungeon'],goal:2,reward:p=>({gems:12,mats:mat(p,3)})},
  {id:'d_interrupt',text:'Сорвать 5 вражеских атак',keys:['interrupt'],goal:5,reward:p=>({gold:stageCoins(p,1),gems:5})},
  {id:'d_caravan',text:'Спасти караван на дороге',keys:['world:caravan'],goal:1,reward:p=>({gems:8,horn:1,mats:mat(p,2)})},
  {id:'d_cache',text:'Найти тайник у дороги',keys:['world:cache'],goal:1,reward:p=>({gold:stageCoins(p,1.2)})},
@@ -36,7 +36,7 @@ export const dailyPool:QuestDef[]=[
  {id:'d_arena',text:'Выиграть поединок на Арене',keys:['win:arena'],goal:1,reward:()=>({tokens:15,gems:5})}
 ];
 export const weeklyPool:QuestDef[]=[
- {id:'w_boss',text:'Победить 12 боссов',keys:['stat:bosses','win:dungeon','win:darkness'],goal:12,reward:p=>({gems:60,horn:6,mats:mat(p,10)})},
+ {id:'w_boss',text:'Победить 12 боссов',keys:['stat:bosses','win:dungeon'],goal:12,reward:p=>({gems:60,horn:6,mats:mat(p,10)})},
  {id:'w_stage',text:'Пройти 3 этапа саги',keys:['stat:stage'],goal:3,reward:p=>({gems:50,gold:stageCoins(p,6)})},
  {id:'w_interrupt',text:'Сорвать 40 вражеских атак',keys:['interrupt'],goal:40,reward:p=>({gems:40,mats:mat(p,8)})},
  {id:'w_dark',text:'Пройти 3 этажа Царства Тьмы',keys:['stat:dark'],goal:3,reward:()=>({gems:45,mats:{dusk:4}})},
@@ -92,7 +92,7 @@ export const mastery:MasteryDef[]=[
  {id:'lair',name:'Охотник Логова',group:'Испытания',keys:['win:dungeon'],unit:'побед'},{id:'dark',name:'Сквозь Тьму',group:'Испытания',keys:['stat:dark'],unit:'этажей'},{id:'arena',name:'Гладиатор',group:'Испытания',keys:['stat:arena'],unit:'побед'},
  {id:'road',name:'Исследователь дорог',group:'Мир',keys:['world:events'],unit:'событий'},{id:'bosses',name:'Гроза владык',group:'Мир',keys:['stat:bosses'],unit:'боссов'},{id:'smith',name:'Мастер кузни',group:'Мир',keys:['upgrade','reforge','engrave','craft'],unit:'работ'}
 ];
-export function masteryView(p:Player){return mastery.map(def=>{const value=total(p,def.keys),tier=masteryTiers.filter(t=>value>=t).length,claimed=masteryTiers.filter((_,i)=>hasFlag(p,`m:${def.id}:${i}`)).length;return {def,value,tier,claimed,next:masteryTiers[Math.min(3,tier)],ready:tier>claimed}})}
+export function masteryView(p:Player){return mastery.map(def=>{const value=total(p,def.keys),tier=masteryTiers.filter(t=>value>=t).length,claimed=masteryTiers.filter((_,i)=>hasFlag(p,`m:${def.id}:${i}`)).length;return {def,value,tier,claimed,next:masteryTiers[Math.min(3,claimed)],ready:tier>claimed}})}
 export function claimMastery(p:Player,id:string):Reward|null{const m=masteryView(p).find(v=>v.def.id===id);if(!m||!m.ready||!setFlag(p,`m:${id}:${m.claimed}`))return null;const reward:Reward={gems:masteryGems[m.claimed],horn:m.claimed+1};grant(p,reward);return reward}
 export const questBadge=(p:Player,now=Date.now())=>dailyView(p,now).some(q=>q.done&&!q.claimed)||weeklyView(p,now).some(q=>q.done&&!q.claimed)||storyQuests(p).some(q=>q.done&&!q.claimed)||masteryView(p).some(m=>m.ready);
 /** Three honest suggestions: what to do in five minutes, this evening and this week. */

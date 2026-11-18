@@ -4,9 +4,11 @@ import {useGame} from '../core/store';
 import type {Player} from '../core/types';
 import {regions,regionIndex,stageInRegion,legendLap,hazards,STORY_STAGES} from '../saga/regions';
 import {count} from '../saga/save';
+import {squadState} from '../dark/rules';
 import {characters,art,heroArt} from '../data/catalog';
 import {battle} from '../game/Battle';
 import './sagaPanels.css';
+const albumSources:Record<string,string>={companions:'Осколки из призыва',enemies:'Встречи основной главы',minibosses:'Логово мини-босса',bosses:'Боссы основной главы'};
 const categoryNames:Record<string,string>={heroes:'Герои',companions:'Спутники',enemies:'Враги',minibosses:'Мини-боссы',bosses:'Боссы',special:'Жители'};
 /** Six regions as one road. Shows real progress from the save, never a decorative map. */
 export function ChapterMap({p}:{p:Player}){
@@ -25,21 +27,22 @@ export function ChapterMap({p}:{p:Player}){
 }
 /** The album remembers every character really met in a fight (saved in saga.seen), not just the current encounter. */
 export function Album({p}:{p:Player}){
- const seen=new Set([...(p.saga?.seen??[]),...(p.encounter?.units.map(u=>u.id)??[]),heroArt[p.heroClass],'goose_aviator','brown_white_dog']),total=characters.length,met=characters.filter(c=>seen.has(c.id)).length;
+ const squad=squadState(p),seen=new Set([...(p.saga?.seen??[]),...(p.encounter?.units.map(u=>u.id)??[]),heroArt[p.heroClass],...squad.owned]),total=characters.length,met=characters.filter(c=>seen.has(c.id)).length;
  return <><p>Встречено {met} из {total}. Альбом хранит всех, с кем герой действительно сражался или путешествовал.</p>
   {Object.keys(categoryNames).map(cat=>{const list=characters.filter(c=>c.category===cat);if(!list.length)return null;return <section key={cat}><h3>{categoryNames[cat]} · {list.filter(c=>seen.has(c.id)).length}/{list.length}</h3>
-   <div className="collection-grid">{list.map(c=>{const known=seen.has(c.id)||cat==='heroes'||cat==='special',kills=count(p,'kill:'+c.id);return <div key={c.id} className={`${known?'recorded':'unrecorded'} category-${c.category}`}><small className="album-status">{cat==='heroes'?(heroArt[p.heroClass]===c.id?'Ваш герой':'Класс'):cat==='companions'?'В отряде':known?(kills?`Побед: ${kills}`:'Встречен'):'Не встречен'}</small><img loading="lazy" decoding="async" src={art(c.id)} alt={known?c.name.split(',')[0]:'Неизвестный'} style={known?undefined:{filter:'brightness(0) opacity(.55)'}}/><small>{known?c.name.split(',')[0]:'???'}</small></div>})}</div></section>})}
+   <div className="collection-grid">{list.map(c=>{const known=seen.has(c.id)||cat==='heroes'||cat==='special',kills=count(p,'kill:'+c.id);return <div key={c.id} className={`${known?'recorded':'unrecorded'} category-${c.category}`}><small className="album-status">{cat==='heroes'?(heroArt[p.heroClass]===c.id?'Ваш герой':'Класс'):cat==='companions'?(squad.act.includes(c.id)?'В отряде':squad.owned.includes(c.id)?'В коллекции':'Осколки из призыва'):known?(kills?`Побед: ${kills}`:'Встречен'):(albumSources[cat]??'Не встречен')}</small><img loading="lazy" decoding="async" src={art(c.id)} alt={known?c.name.split(',')[0]:'Неизвестный'} style={known?undefined:{filter:'brightness(0) opacity(.55)'}}/><small>{known?c.name.split(',')[0]:'???'}</small></div>})}</div></section>})}
  </>;
 }
 // ───────────────────────── Stage B: builds, sets, forge, companions, quests ─────────────────────────
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import type {Item,Slot} from '../core/types';
 import {slotNames,slots,rarityNames,classNames} from '../data/catalog';
 import {sets,setIds,setOf,setCounts,perkOf,perks,perkIds,engravings,engraveOf,materials,materialIds,matCount,dropRules,setChance,type SetId,type EngraveId} from '../saga/gear';
 import {specs,specIndex} from '../saga/specs';
 import {branches,branchOf,evoName,evoPower,nextEvolution,BRANCH_LEVEL,combos} from '../saga/companions';
 import {reforge,reforgePlan,engrave,engravePlan,craftSet,craftPlan,setUnlocked,trade,pickSpec,pickBranch,buildsOf,saveBuild,applyBuild,forgeLevel} from '../saga/actions';
-import {dailyView,weeklyView,storyQuests,activeStory,masteryView,masteryTiers,claimBoard,claimStory,claimMastery,goals,ensureQuests,type QuestView} from '../saga/quests';
+import {dailyView,weeklyView,storyQuests,activeStory,masteryView,masteryTiers,masteryGems,claimBoard,claimStory,claimMastery,goals,ensureQuests,type QuestView} from '../saga/quests';
+import {actualReward} from '../saga/events';
 import {rewardText,type Reward} from '../saga/rewards';
 import {Icon,gearIcon} from './Icon';
 const short=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
@@ -78,12 +81,13 @@ export function ForgeBench({slot,p}:{slot:Slot;p:Player}){
 export function Materials({p}:{p:Player}){return <div className="material-row">{[...materialIds,'dusk'].map(id=><span key={id} style={{'--tone':materials[id].color} as React.CSSProperties} title={materials[id].name}><i/>{matCount(p,id)}<small>{materials[id].name}</small></span>)}</div>}
 /** Set recipes and material exchange inside the Forge. */
 export function Recipes({p}:{p:Player}){
- const [set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost'),[slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice'),plan=craftPlan(set,p),open=setUnlocked(p,set),n=setCounts(p)[set];
+ const openSource=useGame(s=>s.open),[set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost'),[slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice'),plan=craftPlan(set,p),open=setUnlocked(p,set),n=setCounts(p)[set];
  return <div className="saga-section"><h3>Рецепты комплектов</h3><Materials p={p}/>
   <div className="tabs wrap">{setIds.map(id=><button key={id} className={set===id?'selected':''} onClick={()=>setSet(id)} style={{'--tone':sets[id].color} as React.CSSProperties}>{setUnlocked(p,id)?'':'🔒 '}{sets[id].name}</button>)}</div>
   <div className="set-line" style={{'--tone':sets[set].color} as React.CSSProperties}><strong>{sets[set].name} · {sets[set].tag} · надето {n}/6</strong><ol>{sets[set].bonuses.map((b,i)=><li key={i} className={n>=(i+1)*2?'on':''}><b>{(i+1)*2}</b><span>{b}</span></li>)}</ol></div>
   <div className="inventory-order"><span>Слот</span><CompactFilter label="Слот для ковки" value={slot} onChange={v=>setSlot(v as Slot)} options={slots.filter(s=>s!=='wings').map(s=>({value:s,label:slotNames[s]+(setOf(p.equipment[s])===set?' ✓':'')}))}/></div>
   <Btn disabled={!open||p.gold<plan.gold||matCount(p,plan.material)<plan.mats} onClick={()=>craftSet(set,slot)}>{open?`Выковать ур.${plan.level} · ${rarityNames[plan.rarity]}+ · ${short(plan.gold)} золота · ${plan.mats} × ${materials[plan.material].name}`:`Откроется в регионе «${regions[sets[set].region].name}»`}</Btn>
+  <Btn kind="secondary" onClick={()=>openSource(`source:${plan.material}:forge`)}>Где получить · {materials[plan.material].name}</Btn>
   <p className="hint">Материалы дают победы в регионе: {Math.round(dropRules.materialWave*100)}% за встречу, {dropRules.materialBoss} за стража, {dropRules.materialFinale} за владыку. Благословение даёт шанс выковать вещь на ступень лучше.</p>
   <div className="inventory-order"><span>Обмен 3 → 1</span><CompactFilter label="Материал для обмена" value={from} onChange={setFrom} options={materialIds.map(id=>({value:id,label:`${materials[id].name} (${matCount(p,id)})`}))}/></div>
   <Btn kind="secondary" disabled={matCount(p,from)<3||from===plan.material} onClick={()=>trade(from,plan.material)}>Обменять на {materials[plan.material].name}</Btn>
@@ -102,22 +106,48 @@ export function CompanionGrowth({p,pet}:{p:Player;pet:0|1}){
   {level<BRANCH_LEVEL&&<p className="hint">Ветвь открывается на {BRANCH_LEVEL} уровне спутника.</p>}
   <p className="hint">{pet===0?`Комбо: гусь срывает выстрел → ваш следующий удар «${combos.finish.label}» наносит +${Math.round(combos.finish.bonus*100)}%.`:`Комбо: пёс принимает удар → ваш следующий удар «${combos.riposte.label}» — крит и +${Math.round(combos.riposte.bonus*100)}%.`}</p></div>;
 }
-function QuestRow({q,onClaim}:{q:{text:string;progress:number;goal:number;done:boolean;claimed:boolean;reward:Reward};onClaim:()=>void}){
- return <div className={`quest-row ${q.claimed?'claimed':q.done?'ready':''}`}><div><strong>{q.text}</strong><small>{rewardText(q.reward)}</small><i><b style={{width:`${Math.min(100,q.progress/q.goal*100)}%`}}/></i></div><button className="action" disabled={!q.done||q.claimed} onClick={onClaim}>{q.claimed?'✓':q.done?'Забрать':`${short(q.progress)}/${short(q.goal)}`}</button></div>;
+export type QuestTab = 'day'|'week'|'story'|'mastery';
+
+function questActivity(keys:readonly string[]) {
+ if(keys[0]==='horn')return 'loot';
+ if(keys[0]==='state:set2')return 'equipment';
+ if(['upgrade','reforge','engrave','craft'].includes(keys[0]))return 'forge';
+ if(keys[0]==='win:dungeon')return 'dungeon';
+ if(keys[0]==='win:arena'||keys[0]==='stat:arena')return 'arena';
+ if(keys[0]==='stat:dark')return 'realm';
+ if(keys[0].startsWith('cls:'))return 'hero';
+ return 'campaign';
+}
+
+function QuestRow({q,onClaim,onGo}:{q:{text:string;progress:number;goal:number;done:boolean;claimed:boolean;reward:Reward};onClaim:()=>void;onGo:()=>void}){
+ return <div className={`quest-row ${q.claimed?'claimed':q.done?'ready':''}`}><div><strong>{q.text}</strong>
+  <small>{rewardText(q.reward)}</small><small className="quest-progress">{short(Math.min(q.progress,q.goal))}/{short(q.goal)}</small>
+  <i><b style={{width:`${Math.min(100,q.progress/q.goal*100)}%`}}/></i></div>
+  <button className="action" disabled={q.claimed} onClick={q.done?onClaim:onGo}>{q.claimed?'Получено':q.done?'Забрать':'Перейти'}</button>
+ </div>;
 }
 const boardRow=(q:QuestView)=>({text:q.def.text,progress:q.progress,goal:q.def.goal,done:q.done,claimed:q.claimed,reward:q.reward});
 /** Quest board: daily, weekly, story chain and mastery. All progress comes from saved counters. */
-export function QuestBoard({p}:{p:Player}){
- const g=useGame(),[tab,setTab]=useState<'day'|'week'|'story'|'mastery'>('day'),now=Date.now(),daily=dailyView(p,now),weekly=weeklyView(p,now);
- if(!daily.length||!weekly.length)setTimeout(()=>useGame.getState().mutate(p=>{ensureQuests(p)}),0);
- const claim=(fn:(p:Player)=>Reward|null)=>{let r:Reward|null=null;g.mutate(p=>{r=fn(p)});if(r)g.notice('Награда: '+rewardText(r))};
+export function QuestBoard({p,tab,setTab,onGo}:{p:Player;tab:QuestTab;setTab:(tab:QuestTab)=>void;onGo:(route:string)=>void}){
+ const g=useGame(),now=Date.now(),daily=dailyView(p,now),weekly=weeklyView(p,now),boardReady=!!daily.length&&!!weekly.length;
+ useEffect(()=>{
+  if(!boardReady&&!useGame.getState().recoveryRequired)useGame.getState().mutate(p=>{ensureQuests(p)});
+ },[boardReady]);
+ const claim=(fn:(p:Player)=>Reward|null)=>{
+  let message='';
+  if(!g.mutate(p=>{
+   const before={horn:p.horn,hornAt:p.hornAt},reward=fn(p);
+   if(reward)message=rewardText(actualReward(before,reward));
+  })){g.notice('Не удалось сохранить награду');return}
+  if(message)g.notice('Награда: '+message);
+ };
  const count=(list:{done:boolean;claimed:boolean}[])=>list.filter(q=>q.done&&!q.claimed).length,story=activeStory(p),m=masteryView(p);
  return <div className="quest-board">
   <div className="goal-strip">{goals(p,now).map(v=><div key={v.span}><small>{v.span}</small><span>{v.text}</span></div>)}</div>
   <div className="tabs">{([['day','День',count(daily)],['week','Неделя',count(weekly)],['story','Сага',count(story)],['mastery','Мастерство',m.filter(v=>v.ready).length]] as const).map(([id,name,n])=><button key={id} className={tab===id?'selected':''} onClick={()=>setTab(id)}>{name}{n?<em>{n}</em>:null}</button>)}</div>
-  {tab==='day'&&<>{daily.map(q=><QuestRow key={q.def.id} q={boardRow(q)} onClaim={()=>claim(p=>claimBoard(p,'day',q.def.id))}/>)}<p className="hint">Шесть заданий из большого набора каждый день. Пропущенный день ничего не отнимает — завтра появится новый набор.</p></>}
-  {tab==='week'&&<>{weekly.map(q=><QuestRow key={q.def.id} q={boardRow(q)} onClaim={()=>claim(p=>claimBoard(p,'week',q.def.id))}/>)}<p className="hint">Недельные цели рассчитаны на несколько спокойных вечеров.</p></>}
-  {tab==='story'&&<>{story.map(q=><QuestRow key={q.id} q={q} onClaim={()=>claim(p=>claimStory(p,q.id))}/>)}<p className="hint">Сюжетная цепочка текущего региона: {regions[Math.min(5,regionIndex(p.stage))].name}. Выполнено всего: {storyQuests(p).filter(q=>q.claimed).length}/{storyQuests(p).length}.</p></>}
-  {tab==='mastery'&&<>{[...new Set(m.map(v=>v.def.group))].map(group=><section key={group}><h3>{group}</h3>{m.filter(v=>v.def.group===group).map(v=><QuestRow key={v.def.id} q={{text:`${v.def.name} · ступень ${v.claimed}/4`,progress:v.value,goal:v.next,done:v.ready,claimed:v.claimed>=masteryTiers.length,reward:{gems:[10,25,60,150][Math.min(3,v.claimed)],horn:Math.min(4,v.claimed+1)}}} onClaim={()=>claim(p=>claimMastery(p,v.def.id))}/>)}</section>)}<p className="hint">Мастерство копится всю игру и никогда не сбрасывается.</p></>}
+  {tab==='day'&&<>{daily.map(q=><QuestRow key={q.def.id} q={boardRow(q)} onGo={()=>onGo(questActivity(q.def.keys))} onClaim={()=>claim(p=>claimBoard(p,'day',q.def.id))}/>)}<p className="hint">Шесть заданий из большого набора каждый день. Пропущенный день ничего не отнимает — завтра появится новый набор.</p></>}
+  {tab==='week'&&<>{weekly.map(q=><QuestRow key={q.def.id} q={boardRow(q)} onGo={()=>onGo(questActivity(q.def.keys))} onClaim={()=>claim(p=>claimBoard(p,'week',q.def.id))}/>)}<p className="hint">Недельные цели рассчитаны на несколько спокойных вечеров.</p></>}
+  {tab==='story'&&<>{story.map(q=><QuestRow key={q.id} q={q} onGo={()=>onGo('campaign')} onClaim={()=>claim(p=>claimStory(p,q.id))}/>)}<p className="hint">Сюжетная цепочка текущего региона: {regions[Math.min(5,regionIndex(p.stage))].name}. Выполнено всего: {storyQuests(p).filter(q=>q.claimed).length}/{storyQuests(p).length}.</p></>}
+  {tab==='mastery'&&<>{[...new Set(m.map(v=>v.def.group))].map(group=><section key={group}><h3>{group}</h3>{m.filter(v=>v.def.group===group).map(v=><QuestRow key={v.def.id} q={{text:`${v.def.name} · ступень ${v.claimed}/4`,progress:v.value,goal:v.next,done:v.ready,claimed:v.claimed>=masteryTiers.length,reward:{gems:masteryGems[Math.min(3,v.claimed)],horn:Math.min(4,v.claimed+1)}}} onGo={()=>onGo(questActivity(v.def.keys))} onClaim={()=>claim(p=>claimMastery(p,v.def.id))}/>)}</section>)}<p className="hint">Мастерство копится всю игру и никогда не сбрасывается.</p></>}
  </div>;
 }

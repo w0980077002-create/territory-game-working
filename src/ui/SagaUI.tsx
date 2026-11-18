@@ -22,7 +22,7 @@ function SceneArt({kind}:{kind:Material}){const id=useId().replace(/:/g,'');cons
  </svg>}
 export function Scene({kind,panel}:{kind:Material;panel:string}){const [eyebrow,quote]=atmospheres[kind];return <div className={`saga-scene scene-${kind}`}><SceneArt kind={kind}/><div className="scene-caption"><small>{panel==='shop'?'ТОРГОВЫЕ РЯДЫ':eyebrow}</small><span>{quote}</span></div><Atmosphere kind={kind}/></div>}
 
-export function DialogShell({panel,title,children,footer,rarity,dismissible=true}:{panel:string;title:string;children:React.ReactNode;footer:React.ReactNode;rarity?:number;dismissible?:boolean}){
+export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel,dismissible=true}:{panel:string;title:string;children:React.ReactNode;footer:React.ReactNode;rarity?:number;onBack?:()=>void;backLabel?:string;dismissible?:boolean}){
  const toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError),close=useGame(s=>s.open),reduced=useGame(s=>s.p.reducedMotion);
  const kind=panelMaterial(panel),ref=useRef<HTMLElement>(null),body=useRef<HTMLDivElement>(null);
  useEffect(()=>{
@@ -46,7 +46,7 @@ export function DialogShell({panel,title,children,footer,rarity,dismissible=true
  const showScene=['shop','collection','events'].includes(panel);
  return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClick={e=>{if(dismissible&&e.target===e.currentTarget)close(null)}} onKeyDown={keyDown}>
   <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} data-layout={workspace?'workspace':undefined} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
-   <header className="modal-header">{harborBack?<button className="harbor-back" aria-label="‹ В гавань" title="В гавань" onClick={()=>close('port')}>‹</button>:<div className="header-seal"><Icon name={atmospheres[kind][2]}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&<button className="close" onClick={()=>close(null)} aria-label="Закрыть">×</button>}</header>
+   <header className="modal-header">{(onBack||harborBack)?<button className="harbor-back" aria-label={backLabel??'‹ В гавань'} title={backLabel??'В гавань'} onClick={onBack??(()=>close('port'))}>‹</button>:<div className="header-seal"><Icon name={atmospheres[kind][2]}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&<button className="close" onClick={()=>close(null)} aria-label="Закрыть">×</button>}</header>
    <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status">{toast}</div>}</div>
    <div className="modal-body" ref={body} key={panel}>{showScene&&<Scene kind={kind} panel={panel}/>}<div className="panel-content">{children}</div></div>
    {!workspace&&footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/>
