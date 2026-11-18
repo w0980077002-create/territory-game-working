@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {cloudLoad,cloudSave} from '../src/core/telegram';
+import {cloudLoad,cloudSave,readCloud} from '../src/core/telegram';
 test('cloud backups use bounded alternating banks and restore UTF-8 without splitting characters',async()=>{const data=new Map<string,string>();Object.defineProperty(globalThis,'window',{value:{Telegram:{WebApp:{initData:'test-init',CloudStorage:{getItem:(k:string,cb:(e:unknown,v:string)=>void)=>cb(null,data.get(k)??''),setItem:(k:string,v:string,cb?:(e:unknown)=>void)=>{assert.ok(new TextEncoder().encode(v).length<4000);data.set(k,v);cb?.(null)}}}}},configurable:true});const raw=JSON.stringify({test:'Крылья 🪽'.repeat(1000)});for(let i=0;i<50;i++)cloudSave(raw);assert.ok(data.size<20);assert.equal(await cloudLoad(),raw)});
 
 test('a failed chunk keeps its bank locked until all callbacks finish',async()=>{
@@ -47,4 +47,13 @@ test('cloud save coalesces edits made mid-upload and restores the newest state',
  assert.ok(pending.some(row=>row.key.startsWith('save_')),'the newest pending upload starts automatically');
  while(pending.length){const row=pending.shift()!;data.set(row.key,row.value);row.done(null)}
  assert.equal(await cloudLoad(),latest);
+});
+
+test('a successful read without a metadata key is distinct from a transport failure',async()=>{
+ Object.defineProperty(globalThis,'window',{value:{Telegram:{WebApp:{initData:'test',CloudStorage:{
+  getItem:(_key:string,done:(err:unknown)=>void)=>done(null)
+ }}}},configurable:true});
+ assert.deepEqual(await readCloud(),{status:'empty'});
+ window.Telegram!.WebApp!.CloudStorage!.getItem=(_key,done)=>done(new Error('Offline'));
+ assert.deepEqual(await readCloud(),{status:'unavailable'});
 });
