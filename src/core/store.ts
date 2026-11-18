@@ -222,11 +222,15 @@ export async function backupCloud(){
   if(!raw||!parseSave(raw,true))return;
   if(latest.status==='found'&&latest.raw!==raw&&!isKnownCloud(latest.raw))return;
   if(latest.status==='found'&&latest.raw===raw){acknowledgeCloud(raw);return}
+  const confirmed=()=>{
+   acknowledgeCloud(raw);
+   if(cloudWarned){cloudWarned=false;useGame.getState().notice('Копия Telegram снова обновлена')}
+  };
   await new Promise<void>(resolve=>void cloudSave(raw,(ok,reason)=>{
-   if(ok){acknowledgeCloud(raw);if(cloudWarned){cloudWarned=false;useGame.getState().notice('Копия Telegram снова обновлена')}}
+   if(ok)confirmed();
    else if(reason!=='superseded'&&!cloudWarned){cloudWarned=true;useGame.getState().notice(reason==='too-large'?'Копия Telegram не обновлена: сохранение слишком большое · прогресс сохранён на устройстве, прежняя копия цела':'Копия Telegram не обновлена · прогресс сохранён на устройстве, прежняя копия цела · повторим автоматически')}
    resolve();
-  },()=>acknowledgeCloud(raw)));
+  },confirmed));
  }catch{ /* No upload when local storage is unavailable. */ }finally{checkingCloud=false}
 }
 /** CP change if the item is worn. `stats` only reads, so a shallow copy is enough and stays cheap for 80 tiles. */
