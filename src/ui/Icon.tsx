@@ -34,6 +34,12 @@ const paths:Record<string,React.ReactNode>={
 const illustrated:Record<string,string>={axe:'weapon',armor:'armor',helmet:'helmet',shield:'shield',boots:'boots',belt:'belt',ring:'ring1',ring1:'ring1',ring2:'ring2',amulet:'amulet',cloak:'cloak',gem:'extra2',rune:'extra1',wings:'wings',horn:'horn',coins:'coins',crown:'crown',gift:'gift',book:'book',scroll:'scroll',ship:'ship',people:'people',portal:'portal',market:'market',banner:'banner',arena:'arena',handshake:'handshake',medal:'medal',map:'map',chest:'chest',potion:'potion',skill:'skill',event:'event'};
 const pictureIcons:Record<string,{asset:string; filter?:string}>={
  companion:{asset:'goose_aviator'},
+ 'mat-ice':{asset:'materials/ice'},
+ 'mat-harbor':{asset:'materials/harbor'},
+ 'mat-forest':{asset:'materials/forest'},
+ 'mat-peaks':{asset:'materials/peaks'},
+ 'mat-limes':{asset:'materials/limes'},
+ 'mat-ember':{asset:'materials/ember'},
  'lair-keeper':{asset:'capybara_bruiser'},
  'red-diamond':{asset:'ui-extra2',filter:'hue-rotate(160deg) saturate(1.7)'},
  essence:{asset:'ui-extra1',filter:'hue-rotate(65deg) saturate(1.2)'},

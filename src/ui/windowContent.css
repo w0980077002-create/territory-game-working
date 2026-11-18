@@ -1,0 +1,65 @@
+.panel-intro {
+  display: grid;
+  grid-template-columns: 62px minmax(0,1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px;
+  border: 1px solid #846d4d;
+  border-radius: 7px;
+  background: linear-gradient(110deg,#a9814140,#292731 64%),var(--saga-oak);
+  box-shadow: inset 0 0 0 1px #342725;
+}
+.panel-intro > .icon { width: 60px; height: 60px; filter: drop-shadow(0 3px 3px #1c1521); }
+.saga-modal .panel-intro h3 { margin: 0 0 3px; font-size: 17px; line-height: 1.12; }
+.saga-modal .panel-intro p { margin: 0; font-size: 12px; line-height: 1.3; }
+.saga-modal[data-panel="invite"] .panel-intro,
+.saga-modal[data-panel="friends"] .panel-intro {
+  background: linear-gradient(105deg,#211b2755,#302320e8 53%), url('../../public/art/windows/north-season.webp') right center / cover;
+}
+.saga-modal[data-panel="invite"] label,
+.saga-modal[data-panel="friends"] label { display: grid; gap: 5px; }
+.saga-modal[data-panel="invite"] input[type=url],
+.saga-modal[data-panel="friends"] input[type=url] { width: 100%; min-width: 0; }
+.adventure-destinations { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+.adventure-route {
+  display: grid;
+  justify-items: center;
+  grid-template-rows: 46px auto 1fr;
+  min-width: 0;
+  padding: 6px;
+  gap: 3px;
+  border: 1px solid #9c7f58;
+  border-radius: 6px;
+  background: radial-gradient(ellipse at top,var(--route-glow,#a377425e),transparent 78%),#272734;
+  color: #ffedc8;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px #1f202b;
+}
+.adventure-route.route-campaign { --route-glow:#5f968b8a; }
+.adventure-route.route-dungeon { --route-glow:#a66c4592; }
+.adventure-route.route-darkness { --route-glow:#9265ad83; }
+.adventure-route > .icon { width: 46px; height: 46px; filter: drop-shadow(0 3px 3px #171528); }
+.adventure-route strong { font: 700 14px/1.1 Georgia,serif; }
+.adventure-route small { color: #ded5c9; font-size: 11px; line-height: 1.15; }
+.album-summary { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-bottom: 1px solid #987b53; }
+.album-summary .icon { width: 37px; height: 37px; }
+.album-summary > div { flex: 1; color: #f1deb4; font-size: 12px; }
+.album-summary progress { display: block; width: 100%; height: 8px; accent-color: #d3a660; }
+.saga-modal[data-panel="forge"] .material-row > span {
+  display: grid; grid-template-columns: 32px minmax(0,1fr); align-items: center; gap: 1px 5px; padding: 4px;
+}
+.saga-modal .material-row .icon { width: 31px; height: 29px; filter: drop-shadow(0 2px 2px #180e1b); }
+.saga-modal[data-panel="forge"] .material-row small {
+  grid-column: 1 / -1; text-align: left; min-width: 0; font-size: 10px; margin: 0; overflow-wrap: anywhere;
+}
+.saga-modal[data-panel="skills"] .skill-card { padding: 7px; margin-bottom: 9px; }
+.saga-modal[data-panel="skills"] .skill-card p { font-size: 12px; margin: 5px 0; }
+.saga-modal[data-panel="skills"] .rune-options { grid-template-columns: repeat(3,minmax(0,1fr)); margin: 5px 0; gap: 3px; }
+.saga-modal[data-panel="skills"] .rune-options button {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 2px; text-align: center; min-height: 62px; font-size: 10px; padding: 3px; overflow-wrap: anywhere;
+}
+.saga-modal[data-panel="skills"] .rune-sign { min-width: 0; margin: 0; font-size: 25px; }
+.saga-modal[data-panel="skills"] .skill-card .action { margin: 5px 0 0; }
+.saga-modal[data-panel="companions"][data-layout="workspace"] { height: min(595px,100%); }
+.saga-modal[data-panel="relic"][data-layout="workspace"] { height: min(550px,100%); }

@@ -16,7 +16,10 @@
     "squad-rations": {"price": 27, "reward": {"gold": 300, "res": {"seal": 1}}},
     "relic-workshop": {"price": 24, "reward": {"gold": 350, "res": {"shard": 2}}},
     "horn-kit": {"price": 10, "reward": {"gold": 200, "horn": 4}},
-    "quartermaster": {"price": 12, "reward": {"gold": 400, "chaosite": 5}}
+    "quartermaster": {"price": 12, "reward": {"gold": 400, "chaosite": 5}},
+    "expedition-kit": {"price": 14, "reward": {"chaosite": 10, "horn": 3}},
+    "workshop-kit": {"price": 18, "amount": 4, "gold": 300},
+    "relic-expedition": {"price": 26, "reward": {"chaosite": 5, "res": {"shard": 2}}}
   },
   "confirmFrom": {"gold": 500, "gems": 30, "tokens": 40},
   "odinCall": {"extraSecondsPerLevel": 0.2, "maxLevel": 16},

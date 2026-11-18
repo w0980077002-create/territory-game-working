@@ -1,33 +1,163 @@
-/* Original painted vector harbor; respects reduced motion and 320px screens. */
-.saga-modal .harbor-scene{position:relative;isolation:isolate;overflow:hidden;width:100%;aspect-ratio:9/5;min-height:210px;max-height:315px;margin:0 0 13px;border:2px solid #b18c5b;border-radius:10px;box-shadow:0 7px 18px #0009,inset 0 0 0 3px #34251e;background:#38647c}
-.saga-modal .harbor-art{width:100%;height:100%;position:absolute;inset:0}
-.saga-modal .harbor-scene:after{content:'';pointer-events:none;position:absolute;inset:0;background:linear-gradient(0deg,#0b26327a,transparent 30%,transparent 74%,#0b263250)}
-.saga-modal .harbor-title{pointer-events:none;z-index:2;position:absolute;top:9px;left:12px;display:flex;flex-direction:column;text-shadow:0 2px 5px #07151d}
-.saga-modal .harbor-title small{font-size:9px;letter-spacing:5px;color:#e4cd96}
-.saga-modal .harbor-title strong{font:bold 19px/1.15 Georgia,serif;color:#fff1c9}
-.saga-modal .harbor-links button{z-index:3;position:absolute;min-height:44px;min-width:86px;padding:8px 9px;border:2px solid #dfc88b;border-radius:8px;box-shadow:0 3px 7px #071923d9,inset 0 1px #fff5bc72;background:linear-gradient(#866345f5,#27343df1);color:#ffe7ae;font:bold 12px Arial,sans-serif;text-shadow:0 1px #000;touch-action:manipulation}
-.saga-modal .harbor-forge-link{left:4%;top:52%}.saga-modal .harbor-yard-link{right:5%;top:62%}.saga-modal .harbor-pack-link{right:5%;top:29%}
-.saga-modal .harbor-boat-pick,.saga-modal .harbor-empty{position:absolute;top:74%;transform:translateX(-50%);min-width:72px;min-height:45px;z-index:3;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;white-space:nowrap;padding:5px 7px;border:2px solid #ae9873;border-radius:8px;background:linear-gradient(#29414ce8,#14262deb);color:#ffecbd;font:bold 11px Arial,sans-serif;box-shadow:0 3px 7px #0009;touch-action:manipulation}
-.saga-modal .harbor-boat-pick b{color:#ffd478}.saga-modal .harbor-boat-pick.selected{border-color:#ffda83;box-shadow:0 0 0 2px #ffda8350,0 3px 7px #0009;background:linear-gradient(#76583ee6,#1c3138)}
-.saga-modal .harbor-empty{pointer-events:none;opacity:.65;border-style:dashed}
-.saga-modal .harbor-economy{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center;padding:10px;border:1px solid #907a50;border-radius:7px;background:#152e32;color:#c9dbe0;margin-bottom:10px}
-.saga-modal .harbor-economy strong{font-size:14px;color:#ffe099}.saga-modal .harbor-economy span{font-size:12px}
-.saga-modal .harbor-quicklinks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:9px 0 15px}
-.saga-modal .harbor-quicklinks button{display:flex;align-items:center;gap:8px;min-height:48px;padding:8px;background:linear-gradient(#37505c,#192a31);border:1px solid #978362;border-radius:7px;color:#ead8b5;font:bold 13px Arial,sans-serif;text-align:left;touch-action:manipulation}
-.saga-modal .harbor-quicklinks .icon{width:28px;height:28px}
-.saga-modal .harbor-boat-pick:focus-visible,.saga-modal .harbor-links button:focus-visible,.saga-modal .harbor-quicklinks button:focus-visible{outline:3px solid #ffeb9d;outline-offset:2px}
-.saga-modal .harbor-bob{animation:harbor-bob 4s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 72%}
-.saga-modal .harbor-waves{animation:harbor-water 6s ease-in-out infinite alternate}
-.saga-modal .harbor-cloud{animation:harbor-cloud 20s ease-in-out infinite alternate}
-@keyframes harbor-bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(4px) rotate(1deg)}}
-@keyframes harbor-water{from{opacity:.42;transform:translateX(-3px)}to{opacity:.75;transform:translateX(4px)}}
-@keyframes harbor-cloud{from{transform:translateX(-5px)}to{transform:translateX(16px)}}
-@media(max-width:420px){.saga-modal .harbor-scene{min-height:200px}.saga-modal .harbor-links button{min-width:80px;font-size:11px}.saga-modal .harbor-boat-pick,.saga-modal .harbor-empty{min-width:65px;font-size:10px}}
-@media(prefers-reduced-motion:reduce){.saga-modal .harbor-bob,.saga-modal .harbor-waves,.saga-modal .harbor-cloud{animation:none!important}}
-
-.saga-modal .harbor-links button > .icon {
-  width: 13px;
-  height: 13px;
-  margin-right: 3px;
-  vertical-align: middle;
+.saga-modal .harbor-scene {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  border: 1px solid #bb9b68;
+  border-radius: 8px;
+  background-color: #17263e;
+  box-shadow: inset 0 0 0 2px #372b3c, 0 4px 12px #0008;
+}
+.saga-modal[data-panel="port"] {
+  height: auto;
+}
+.saga-modal[data-panel="port"] .harbor-port {
+  flex: none;
+  aspect-ratio: 3 / 4;
+  max-height: calc(min(100dvh,var(--tg-viewport-stable-height,100dvh)) - 142px - var(--tg-content-safe-area-inset-top,0px) - var(--tg-safe-area-inset-bottom,0px));
+  background: url('../../public/art/windows/harbor.webp') center / 100% 100% no-repeat;
+}
+.harbor-links { position: absolute; inset: 0; }
+.saga-modal[data-panel="port"] .harbor-workspace .workspace-actions { margin-top: 0; }
+.saga-modal .harbor-building {
+  --sign-light:#bb9350;
+  position: absolute;
+  display: grid;
+  place-items: end center;
+  transform: translate(-50%,-50%);
+  min-width: 76px;
+  min-height: 44px;
+  max-width: 36%;
+  padding: 0 1px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #ffebbf;
+  touch-action: manipulation;
+}
+.saga-modal .harbor-building:active:not(:disabled) { transform: translate(-50%,-50%) translateY(1px); }
+.harbor-building.sign-violet { --sign-light:#ae91c6; }
+.harbor-building.sign-teal { --sign-light:#86b9aa; }
+.harbor-building.sign-copper { --sign-light:#f59d60; }
+.harbor-building > span {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 3px;
+  min-height: 18px;
+  border: 1px solid var(--sign-light);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px #110b05, inset 0 0 0 1px #392d28;
+  background: linear-gradient(#5a3d32,#2b2327);
+  text-align: center;
+  text-shadow: 0 1px 2px #0c0c14;
+  font: 700 10px/1.1 system-ui,sans-serif;
+  white-space: nowrap;
+}
+.harbor-building > span::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  height: 7px;
+  border-left: 1px solid var(--sign-light);
+  box-shadow: 1px 0 #251b1a;
+}
+.harbor-building .icon { width: 14px; height: 14px; }
+.harbor-building:hover > span, .harbor-building:focus-visible > span { background: #755035; color: #fff5c9; }
+.harbor-building:focus-visible, .harbor-boat-pick:focus-visible { outline: 2px solid #fff1af; outline-offset: 1px; }
+.harbor-aurora, .harbor-forge-light, .harbor-smoke, .harbor-reflections, .harbor-live-fleet {
+  position: absolute;
+  pointer-events: none;
+}
+.harbor-aurora {
+  inset: 0 0 74%;
+  background: linear-gradient(115deg,transparent 15%,#99e3ff30 48%,transparent 75%);
+  mix-blend-mode: screen;
+  animation: harbor-water 8s infinite alternate ease-in-out;
+}
+.harbor-forge-light {
+  top: 36%;
+  left: 13%;
+  width: 19%;
+  height: 14%;
+  background: radial-gradient(ellipse,#ffa35281,transparent 65%);
+  mix-blend-mode: screen;
+  animation: harbor-fire 3s infinite alternate ease-in-out;
+}
+.harbor-smoke { top: 27%; left: 25%; width: 32px; height: 46px; }
+.harbor-smoke i {
+  position: absolute;
+  bottom: 0;
+  left: 4px;
+  width: 20px;
+  height: 28px;
+  border-radius: 50%;
+  background: #d5cfda6b;
+  filter: blur(6px);
+  animation: harbor-smoke-rise 4.6s linear infinite;
+}
+.harbor-smoke i + i { animation-delay: -2.3s; }
+.harbor-reflections {
+  inset: 82% 0 0 36%;
+  background: repeating-linear-gradient(174deg,transparent 0 9px,#ffe2a425 10px 11px,transparent 13px 22px);
+  mask-image: radial-gradient(ellipse at bottom,#000 52%,transparent 92%);
+  animation: harbor-water 5s infinite alternate ease-in-out;
+}
+.harbor-live-fleet { inset: 83% 2% 0 35%; }
+.harbor-live-fleet .icon {
+  position: absolute;
+  width: 28%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 2px #092435c8);
+}
+.harbor-live-fleet .vessel-0 { left: 0; bottom: 8%; }
+.harbor-live-fleet .vessel-1 { left: 35%; bottom: -2%; animation-delay: -1.2s; }
+.harbor-live-fleet .vessel-2 { left: 70%; bottom: 18%; animation-delay: -2.5s; }
+.saga-modal .harbor-shipyard {
+  min-height: 174px;
+  margin-bottom: 8px;
+  background: linear-gradient(0deg,#102a3b 2%,transparent 64%),
+    url('../../public/art/windows/harbor.webp') center 92% / cover no-repeat;
+}
+.harbor-shipyard .harbor-reflections { inset: 60% 0 0; }
+.harbor-berths { position: absolute; inset: 4px 4px 6px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
+.harbor-boat-pick, .harbor-empty {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-width: 0;
+  justify-items: center;
+  align-items: end;
+  padding: 3px;
+  color: #fbe6b3;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.harbor-boat-pick[aria-pressed=true] { background: radial-gradient(ellipse at bottom,#ecb66742,transparent 74%); border-bottom-color: #edc37d; }
+.harbor-boat-pick .icon { width: min(100%,102px); height: 90px; filter: drop-shadow(0 4px 4px #112231); }
+.harbor-boat-pick span, .harbor-empty span {
+  grid-row: 2;
+  display: grid;
+  gap: 1px;
+  padding: 3px 5px;
+  border: 1px solid #967855;
+  border-radius: 3px;
+  background: #2c2625ec;
+  text-align: center;
+  font: 700 11px/1.1 system-ui,sans-serif;
+}
+.harbor-empty span { opacity: .9; border-style: dashed; color: #f0ddbe; }
+.harbor-boat-pick b { color: #f6cb80; }
+.harbor-bob { animation: harbor-bob 4.2s ease-in-out infinite; }
+@keyframes harbor-bob { 0%,100% {transform:translateY(0) rotate(-2deg)} 50% {transform:translateY(3px) rotate(1.5deg)} }
+@keyframes harbor-water { from {opacity:.35;transform:translateX(-3px)} to {opacity:.86;transform:translateX(4px)} }
+@keyframes harbor-smoke-rise { from {opacity:0;transform:translateY(3px) scale(.35)} 35% {opacity:.7} to {opacity:0;transform:translate(12px,-45px) scale(1.65)} }
+@keyframes harbor-fire { 0%,65% {opacity:.74} 26%,92% {opacity:.38} 100% {opacity:.87} }
+[data-motion="reduced"] :is(.harbor-bob,.harbor-forge-light,.harbor-smoke i,.harbor-aurora,.harbor-reflections) { animation:none; }
+@media (max-height: 600px) {
+  .saga-modal .harbor-building { min-height: 40px; }
 }

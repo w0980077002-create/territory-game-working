@@ -86,7 +86,7 @@ export function shopOffers(p: Player, now = Date.now()): ShopOffer[] {
     dailyOffer('mine-reserve','resources','Запас шахтёров','rune','Хаосит для входа в Логово или Царство тьмы.','gold',{chaosite:stock['mine-reserve'].amount}),
     dailyOffer('arena-pay','resources','Жалованье дружины','coins','Обменяйте жетоны Арены на золото для развития героя.','tokens',stock['arena-pay'].reward),
     dailyOffer('long-march','resources','Запас для дальнего похода','rune','Хаосит на три входа в Логово или Царство тьмы.','gold',stock['long-march'].reward),
-    dailyOffer('region-supplies','materials',materials[material].name,'hammer','Материал текущего региона для создания и перековки экипировки.','gems',{mats:{[material]:stock['region-supplies'].amount}}),
+    dailyOffer('region-supplies','materials',materials[material].name,`mat-${material}`,'Материал текущего региона для создания и перековки экипировки.','gems',{mats:{[material]:stock['region-supplies'].amount}}),
     dailyOffer('forge-parcel','materials','Посылка кузнеца','hammer','Золото и материал текущего региона для изготовления и улучшения вещей.','gems',
       {gold:stock['forge-parcel'].gold,mats:{[material]:stock['forge-parcel'].materials}}),
     dailyOffer('dark-essence','materials',resources.ess.name,resources.ess.icon,'Расходуется на усиление тёмной экипировки.','gems',{res:{ess:stock['dark-essence'].amount}}),
@@ -96,9 +96,14 @@ export function shopOffers(p: Player, now = Date.now()): ShopOffer[] {
     hornOffer(p, now),
     dailyOffer('horn-kit','horn','Припасы охотника','horn','Заряды для добычи и золото для её усиления.','tokens',stock['horn-kit'].reward),
     dailyOffer('quartermaster','supplies','Дорожный паёк','chest','Золото на подготовку героя и Хаосит на один поход.','tokens',stock.quartermaster.reward),
+    dailyOffer('expedition-kit','supplies','Походный сундук','chest',
+      'Хаосит для двух вылазок и заряды для новой экипировки.','tokens',stock['expedition-kit'].reward),
+    dailyOffer('workshop-kit','materials','Набор подмастерья',`mat-${material}`,
+      'Материалы текущего региона и золото для изготовления вещей в кузнице.','gems',
+      {gold:stock['workshop-kit'].gold,mats:{[material]:stock['workshop-kit'].amount}}),
   ];
   if(regionIndex(p.stage)>0){
-    offers.push(dailyOffer('previous-region','materials',materials[previous].name,'hammer',
+    offers.push(dailyOffer('previous-region','materials',materials[previous].name,`mat-${previous}`,
       'Материал из предыдущего региона для старых рецептов и реликвий.','gems',{mats:{[previous]:stock['previous-region'].amount}}));
   }
   if(p.darkFloor>=2){
@@ -108,6 +113,8 @@ export function shopOffers(p: Player, now = Date.now()): ShopOffer[] {
   if(p.bosses>=3||p.darkFloor>=2){
     offers.push(dailyOffer('relic-workshop','growth','Запас хранителя реликвий','relic-shard',
       'Осколки и золото на реликвии, доступные герою.','gems',stock['relic-workshop'].reward));
+    offers.push(dailyOffer('relic-expedition','growth','Припасы искателя','relic-shard',
+      'Осколки для развития реликвий и Хаосит для похода за добычей.','gems',stock['relic-expedition'].reward));
   }
   return [...offers, ...packs];
 }
