@@ -1,4 +1,5 @@
 import {art} from '../data/catalog';
+import './iconArt.css';
 const paths:Record<string,React.ReactNode>={
  axe:<><path fill="#a97442" d="m19 6 5-3 23 48-7 4Z"/><path fill="#b8d8ea" d="M24 11 11 7 3 20 10 31 27 22Z"/><path fill="#edfaff" d="m11 7-8 13 7 11 4-6-5-6 5-10Z"/></>,
  axes:<><g transform="rotate(-44 32 32)"><path fill="#a67c45" d="M28 10h8v49h-8Z"/><path fill="#c2d6de" d="M29 10 13 5 8 15 10 28 29 23Z"/><path fill="#fff" d="m13 5-5 10 2 13 5-3-1-10 4-8Z"/></g><g transform="rotate(44 32 32)"><path fill="#a67c45" d="M28 10h8v49h-8Z"/><path fill="#c2d6de" d="M35 10 51 5 56 15 54 28 35 23Z"/><path fill="#fff" d="m51 5 5 10-2 13-5-3 1-10-4-8Z"/></g></>,
@@ -31,5 +32,19 @@ const paths:Record<string,React.ReactNode>={
  chart:<><path fill="#b1c5d5" d="M8 32h10v23H8ZM26 10h10v45H26ZM44 23h10v32H44Z"/></>
 };
 const illustrated:Record<string,string>={axe:'weapon',armor:'armor',helmet:'helmet',shield:'shield',boots:'boots',belt:'belt',ring:'ring1',ring1:'ring1',ring2:'ring2',amulet:'amulet',cloak:'cloak',gem:'extra2',rune:'extra1',wings:'wings',horn:'horn',coins:'coins',crown:'crown',gift:'gift',book:'book',scroll:'scroll',ship:'ship',people:'people',portal:'portal',market:'market',banner:'banner',arena:'arena',handshake:'handshake',medal:'medal',map:'map',chest:'chest',potion:'potion',skill:'skill',event:'event'};
-export function Icon({name,className=''}:{name:string;className?:string}){if(illustrated[name])return <img className={`icon illustrated ${className}`} src={art(`ui-${illustrated[name]}`)} alt="" aria-hidden="true" draggable={false}/>;return <svg className={`icon ${className}`} viewBox="0 0 64 64" fill="none" stroke="#202631" strokeWidth="2.7" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">{paths[name]??paths.star}</svg>}
+const pictureIcons:Record<string,{asset:string; filter?:string}>={
+ companion:{asset:'goose_aviator'},
+ 'lair-keeper':{asset:'capybara_bruiser'},
+ 'red-diamond':{asset:'ui-extra2',filter:'hue-rotate(160deg) saturate(1.7)'},
+ essence:{asset:'ui-extra1',filter:'hue-rotate(65deg) saturate(1.2)'},
+ 'dusk-stone':{asset:'ui-extra2',filter:'hue-rotate(75deg)'},
+ 'relic-shard':{asset:'ui-extra2',filter:'hue-rotate(215deg) saturate(1.4)'},
+ 'summon-seal':{asset:'ui-medal',filter:'hue-rotate(55deg)'},
+};
+export function Icon({name,className=''}:{name:string;className?:string}){
+ if(name==='hammer')return <span className={`icon illustrated icon-hammer ${className}`} aria-hidden="true"/>;
+ const picture=pictureIcons[name],asset=picture?.asset??(illustrated[name]?`ui-${illustrated[name]}`:undefined);
+ if(asset)return <img className={`icon illustrated ${className}`} src={art(asset)} style={picture?.filter?{filter:picture.filter}:undefined} alt="" aria-hidden="true" draggable={false}/>;
+ return <svg className={`icon ${className}`} viewBox="0 0 64 64" fill="none" stroke="#202631" strokeWidth="2.7" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">{paths[name]??paths.star}</svg>;
+}
 export function gearIcon(slot:string){return ({weapon:'axe',armor:'armor',helmet:'helmet',shield:'shield',boots:'boots',belt:'belt',ring1:'ring1',ring2:'ring2',amulet:'amulet',cloak:'cloak',extra1:'rune',extra2:'gem',wings:'wings'} as Record<string,string>)[slot]??'star'}

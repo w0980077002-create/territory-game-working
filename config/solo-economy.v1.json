@@ -7,7 +7,16 @@
     "region-supplies": {"price": 8, "amount": 3},
     "dark-essence": {"price": 15, "amount": 6},
     "summon-seal": {"price": 20, "amount": 1},
-    "relic-shards": {"price": 15, "amount": 2}
+    "relic-shards": {"price": 15, "amount": 2},
+    "arena-pay": {"price": 18, "reward": {"gold": 850}},
+    "long-march": {"price": 260, "reward": {"chaosite": 15}},
+    "forge-parcel": {"price": 12, "gold": 250, "materials": 2},
+    "previous-region": {"price": 12, "amount": 3},
+    "dark-stock": {"price": 34, "reward": {"gold": 200, "res": {"ess": 12}}},
+    "squad-rations": {"price": 27, "reward": {"gold": 300, "res": {"seal": 1}}},
+    "relic-workshop": {"price": 24, "reward": {"gold": 350, "res": {"shard": 2}}},
+    "horn-kit": {"price": 10, "reward": {"gold": 200, "horn": 4}},
+    "quartermaster": {"price": 12, "reward": {"gold": 400, "chaosite": 5}}
   },
   "confirmFrom": {"gold": 500, "gems": 30, "tokens": 40},
   "odinCall": {"extraSecondsPerLevel": 0.2, "maxLevel": 16},

@@ -1,8 +1,10 @@
 import type {CSSProperties} from 'react';
 import './harbor.css';
+import {Icon} from './Icon';
 type Ship={id:string;level:number};
 type Destination='shipyard'|'forge'|'inventory'|'blessing'|'companions'|'talents'|'relic'|'realm'|'darkgear'|'gems';
 type Props={view:'port'|'shipyard';ships:readonly Ship[];selectedShipId?:string;onNavigate?:(id:Destination)=>void;onChooseShip?:(id:string)=>void};
+const buildingIcons:Partial<Record<Destination,string>>={forge:'hammer',inventory:'chest',shipyard:'ship',gems:'gem'};
 const berths=[{x:205,y:371,left:'23%'},{x:452,y:373,left:'50%'},{x:698,y:370,left:'77%'}] as const;
 function Drakkar({x,y,level,index}:{x:number;y:number;level:number;index:number}){
  const sails=['#a9473a','#bc8735','#53898e'];
@@ -64,7 +66,7 @@ export function HarborScene({view,ships,selectedShipId,onNavigate,onChooseShip}:
      Драккар {i+1}<b>ур. {ships[i].level}</b>
    </button>:<span key={'free'+i} className="harbor-empty" style={{left:b.left} as CSSProperties}>Причал {i+1}</span>)}
   </div>:<nav className="harbor-links" aria-label="Постройки гавани">
-   {([['blessing','Благословение',22,15],['talents','Таланты',50,23],['companions','Спутники',49,34],['forge','⚒ Кузница',22,46],['inventory','▣ Рюкзак',78,46],['relic','Реликвии',20,62],['shipyard','⚓ Верфь',77,64],['realm','Царство тьмы',22,85],['darkgear','Тёмная энергия',75,85],['gems','Самоцветы',78,15]] as const).map(([id,label,x,y])=><button key={id} className={'harbor-building harbor-building-'+id} style={{left:x+'%',top:y+'%'}} type="button" onClick={()=>onNavigate?.(id)}>{label}</button>)}
+   {([['blessing','Благословение',22,15],['talents','Таланты',50,23],['companions','Спутники',49,34],['forge','Кузница',22,46],['inventory','Рюкзак',78,46],['relic','Реликвии',20,62],['shipyard','Верфь',77,64],['realm','Царство тьмы',22,85],['darkgear','Тёмная энергия',75,85],['gems','Камни',78,15]] as const).map(([id,label,x,y])=><button key={id} className={'harbor-building harbor-building-'+id} style={{left:x+'%',top:y+'%'}} type="button" onClick={()=>onNavigate?.(id)}>{buildingIcons[id]&&<Icon name={buildingIcons[id]}/>}<span>{label}</span></button>)}
   </nav>}
  </section>;
 }

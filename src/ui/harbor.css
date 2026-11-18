@@ -24,3 +24,10 @@
 @keyframes harbor-cloud{from{transform:translateX(-5px)}to{transform:translateX(16px)}}
 @media(max-width:420px){.saga-modal .harbor-scene{min-height:200px}.saga-modal .harbor-links button{min-width:80px;font-size:11px}.saga-modal .harbor-boat-pick,.saga-modal .harbor-empty{min-width:65px;font-size:10px}}
 @media(prefers-reduced-motion:reduce){.saga-modal .harbor-bob,.saga-modal .harbor-waves,.saga-modal .harbor-cloud{animation:none!important}}
+
+.saga-modal .harbor-links button > .icon {
+  width: 13px;
+  height: 13px;
+  margin-right: 3px;
+  vertical-align: middle;
+}

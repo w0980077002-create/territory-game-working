@@ -26,5 +26,5 @@
 .shop-tabs button { min-width: 0; min-height: 2.25rem; overflow-wrap: anywhere; }
 .shop-offer { align-items: flex-start; }
 .shop-offer .row-content { min-width: 0; }
-.shop-offer .action { max-width: 100%; margin-top: .35rem; white-space: normal; }
+.saga-modal .shop-offer .action { max-width: 100%; margin-top: .35rem; white-space: normal; }
 .shop-source { margin-top: .3rem; }

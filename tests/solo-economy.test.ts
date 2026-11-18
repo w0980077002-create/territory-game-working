@@ -70,3 +70,22 @@ test('season respects old receipts and rewards only completed goals', () => {
   assert.equal(claimSeason(p,'season:goal:lair',now),null);
   assert.equal(seasonBadge(p),false);
 });
+
+test('new stock respects progression, daily limits and Horn capacity', () => {
+  const now = Date.UTC(2026,10,18);
+  const p = freshPlayer();
+  const gated = ['previous-region','dark-stock','relic-workshop'];
+  const openingOffers = shopOffers(p,now);
+  assert.ok(gated.every(id => !openingOffers.some(offer => offer.id === id)));
+
+  p.stage = 11;
+  p.bosses = 3;
+  p.darkFloor = 2;
+  p.horn = 50;
+  const offers = shopOffers(p,now);
+  const offer = (id:string) => offers.find(row => row.id === id)!;
+  assert.ok(gated.every(id => offer(id).limit === 'daily'));
+  assert.deepEqual(offer('previous-region').reward.mats,{ice:3});
+  assert.deepEqual(offer('forge-parcel').reward.mats,{harbor:2});
+  assert.equal(shopStatus(p,offer('horn-kit'),now),'Освободите место в Роге');
+});
