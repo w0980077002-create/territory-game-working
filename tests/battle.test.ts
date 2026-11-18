@@ -184,3 +184,14 @@ test('Arena results pause combat, pay once, and retry the duel after a reload or
  assert.equal(g().p.arenaWins,1);
  c.destroy();
 });
+
+test('a failed save import leaves the previous running profile and disk save intact',()=>{
+ const game=()=>useGame.getState();
+ game().mutate(p=>{p.gold=1234});
+ const current=game().p,saved=saves.get(SAVE_KEY);
+ failWrites=true;
+ assert.equal(game().importSave({...current,gold:5678}),false);
+ assert.equal(game().p,current);
+ assert.equal(saves.get(SAVE_KEY),saved);
+ assert.match(game().toast,/импорт отменён/);
+});

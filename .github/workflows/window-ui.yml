@@ -30,6 +30,8 @@ jobs:
           cat /tmp/vite.log
           exit 1
       - run: npm run test:windows
+      - name: Verify Telegram save and restore
+        run: BASE_URL=http://localhost:5173/ node scripts/qa/telegram-save.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

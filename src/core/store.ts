@@ -4,7 +4,9 @@ import type {Player,Item,Slot,HeroClass,BattleView,EncounterSnapshot} from './ty
 import balance from '../../config/test-balance.v1.json';
 import {slots,slotNames,rarityNames} from '../data/catalog';
 import {itemPower,stats,xpNeeded} from './formulas';
-import {cloudSave,haptic} from './telegram';
+import {cloudSave,haptic,readCloud} from './telegram';
+import {SAVE_KEY,telegramProfile} from './profile';
+export {SAVE_KEY,isolatedProfile} from './profile';
 import {validEncounter} from '../game/snapshot';
 import {uniques,uniqueOf,namedDrop,gearRules} from './gear';
 import {upgradePreview} from './forge';
@@ -18,9 +20,6 @@ import {setFlag} from '../saga/save';
 import {realmSessionWritable} from '../dark/session';
 import {realmRun,realmVictory,realmClaim,migrateRealm,realmBox} from '../dark/realm';
 import {lootBonus,addRes,rollGem,gemBox,gemLabel} from '../dark/rules';
-const requestedProfile=typeof window!=='undefined'?new URLSearchParams(window.location?.search??'').get('hero')??new URLSearchParams(window.location?.search??'').get('testProfile'):null;
-export const isolatedProfile=!!requestedProfile&&/^[a-z0-9_-]{1,32}$/.test(requestedProfile);
-export const SAVE_KEY='lootborn-codex-v1'+(isolatedProfile?':test:'+requestedProfile:'');
 let sequence=0;
 let encounterPause:(()=>void)|undefined;let encounterRestore:(()=>void)|undefined;let encounterResume:(()=>void)|undefined;
 let resumeAfterPanel=false;
@@ -136,7 +135,7 @@ export const useGame=create<Store>((set,get)=>({p:loadedPlayer,panel:null,select
   lockItem:id=>{const item=[...get().p.inventory,...(get().p.pendingLoot??[])].find(i=>i.id===id);if(item)get().mutate(p=>{const i=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.id===id)!;i.locked=!i.locked})},
  keepReward:()=>{if(get().p.rewardOffer&&!get().p.rewardOffer!.resolved)get().mutate(p=>{p.rewardOffer!.resolved=true})},
  configure:settings=>{set({...('auto'in settings?{auto:!!settings.auto}:{}),...('speed'in settings?{speed:settings.speed===2?2:1}:{}),...('stopOnDeath'in settings?{stopOnDeath:settings.stopOnDeath!==false}:{}),...('continueOnVictory'in settings?{continueOnVictory:settings.continueOnVictory!==false}:{}),...('autoSalvageWeaker'in settings?{autoSalvageWeaker:settings.autoSalvageWeaker===true}:{})});get().persist()},
- importSave:incoming=>{const checked=parseSave(JSON.stringify(incoming),true);if(!checked){get().notice('Некорректное сохранение');return false}resumeAfterPanel=false;encounterPause?.();try{localStorage.setItem(SAVE_KEY+':before-import',get().recoveryRequired?unreadableSave():exportSave())}catch{get().notice('Не удалось создать резервную копию · импорт отменён');return false}set({recoveryRequired:false,p:checked,auto:checked.preferences?.auto??true,speed:checked.preferences?.speed??1,stopOnDeath:checked.preferences?.stopOnDeath??true,continueOnVictory:checked.preferences?.continueOnVictory??true,autoSalvageWeaker:checked.preferences?.autoSalvageWeaker??false,selected:null});encounterRestore?.();get().persist();get().notice('Импорт завершён · копия сохранена');return true},
+ importSave:incoming=>{if(!realmSessionWritable()){get().notice('Закройте другую вкладку игры перед восстановлением');return false}const checked=parseSave(JSON.stringify(incoming),true);if(!checked){get().notice('Некорректное сохранение');return false}resumeAfterPanel=false;encounterPause?.();try{localStorage.setItem(SAVE_KEY+':before-import',get().recoveryRequired?unreadableSave():exportSave())}catch{get().notice('Не удалось создать резервную копию · импорт отменён');return false}try{localStorage.setItem(SAVE_KEY,JSON.stringify(checked))}catch{get().notice('Не удалось записать сохранение · импорт отменён');return false}set({recoveryRequired:false,storageError:false,p:checked,auto:checked.preferences?.auto??true,speed:checked.preferences?.speed??1,stopOnDeath:checked.preferences?.stopOnDeath??true,continueOnVictory:checked.preferences?.continueOnVictory??true,autoSalvageWeaker:checked.preferences?.autoSalvageWeaker??false,selected:null});encounterRestore?.();get().notice('Импорт завершён · копия сохранена');return true},
  upgrade:(slot,expected)=>{const g=get(),i=g.p.equipment[slot];if(!i||expected&&(i.id!==expected.id||i.upgrade!==expected.upgrade))return;const plan=upgradePreview(i);if(!Number.isFinite(plan.cost)||g.p.gold<plan.cost){g.notice('Недостаточно золота');return}if(!g.mutate(p=>{p.gold-=plan.cost;p.equipment[slot]=plan.next;bumpCount(p,'upgrade')})){unsaved(get());return}g.notice('Усиление успешно!')},
  train:(type,index=0)=>{const g=get();let cost=0;const p=g.p;if(type==='hero')cost=100*p.level;else if(type==='forge')cost=100*p.forge;else if(type==='blessing')cost=150*p.blessing;else if(type==='companion')cost=120*p.companions[index];else if(type==='skill')cost=120*p.skills[index];else if(type==='relic')cost=300*(p.relic+1);else if(type==='talent')cost=0;if(type==='talent'&&p.talents.reduce((a,b)=>a+b,0)>=p.level-1){g.notice('Нужно новое очко: повышайте уровень героя');return}if(p.gold<cost){g.notice('Недостаточно золота');return}if(!g.mutate(p=>{p.gold-=cost;if(type==='hero')xp(p,xpNeeded(p.level));if(type==='forge')p.forge++;if(type==='blessing')p.blessing++;if(type==='companion')p.companions[index]++;if(type==='skill')p.skills[index]++;if(type==='talent')p.talents[index]++;if(type==='relic')p.relic++})){unsaved(get());return}haptic(true);g.notice('Уровень повышен')},
  claim:id=>{const g=get(),p=g.p;let ok=true;const day=new Date().toISOString().slice(0,10);if(id==='pending'){g.claimStored();return}if(id==='daily'){if(p.daily===day){g.notice('Награда уже получена. Возвращайтесь завтра');return}ok=g.mutate(p=>{p.daily=day;p.gold+=balance.test_rewards.daily_login_gold;p.gems+=balance.test_rewards.daily_login_gems;grantHorn(p,5)})}else if(id==='mission'){if(p.bosses<=p.mission){g.notice('Победите следующего босса главы');return}ok=g.mutate(p=>{p.mission++;p.gems+=15;p.gold+=200})}else if(id==='wings'){if(p.claimed.includes(id))return;if(p.equipment.wings&&p.inventory.length>=balance.loot_test_settings.starter_inventory_capacity){g.notice('Освободите место для прежних крыльев');return}ok=g.mutate(p=>{p.claimed.push(id);if(p.equipment.wings)p.inventory.push(p.equipment.wings);p.equipment.wings=makeItem('wings',1,3)})}else if(id==='mine'){const elapsed=Math.min(balance.resource_test_settings.offline_accrual_limit_hours*3600,Math.max(0,(Date.now()-p.mineAt)/1000));if(elapsed<balance.resource_test_settings.mine_collect_cooldown_seconds){g.notice(`Шахтёры работают · сбор через ${Math.ceil((balance.resource_test_settings.mine_collect_cooldown_seconds-elapsed)/60)} мин`);return}ok=g.mutate(p=>{p.gold+=Math.floor(elapsed*2);p.chaosite+=Math.floor(elapsed/60);p.mineAt=Date.now()})}else if(id.startsWith('season')){const tier=Number(id.split(':')[1]);if(!Number.isInteger(tier)||tier<1||tier>10||p.seasonClaims.includes(tier)||p.bosses<tier)return;ok=g.mutate(p=>{p.seasonClaims.push(tier);p.gems+=10*tier;grantHorn(p,3)})}else return;if(!ok){unsaved(get());return}haptic(true);g.notice('Награда получена!')},
@@ -168,7 +167,28 @@ export const useGame=create<Store>((set,get)=>({p:loadedPlayer,panel:null,select
  setClass:heroClass=>{if(!get().mutate(p=>{p.heroClass=heroClass})){unsaved(get());return}get().notice('Класс изменён · боевые бонусы применены')}
 }));
 export function exportSave(){return JSON.stringify({...useGame.getState().p,preferences:{auto:useGame.getState().auto,speed:useGame.getState().speed as 1|2,stopOnDeath:useGame.getState().stopOnDeath,continueOnVictory:useGame.getState().continueOnVictory,autoSalvageWeaker:useGame.getState().autoSalvageWeaker},...(encounterProvider?{encounter:encounterProvider()}:{})})}
-export function backupCloud(){if(!isolatedProfile&&!useGame.getState().recoveryRequired)cloudSave(exportSave())}
+const cloudReceiptKey=SAVE_KEY+':cloud-base';
+let checkingCloud=false;
+
+export function isKnownCloud(raw:string){return localStorage.getItem(cloudReceiptKey)===raw}
+
+export function acknowledgeCloud(raw:string){
+ try{localStorage.setItem(cloudReceiptKey,raw)}catch{ /* Existing cloud copy stays protected. */ }
+}
+
+export async function backupCloud(){
+ if(!telegramProfile||checkingCloud||!realmSessionWritable()||useGame.getState().recoveryRequired)return;
+ checkingCloud=true;
+ try{
+  const latest=await readCloud();
+  if(latest.status==='unavailable'||useGame.getState().recoveryRequired)return;
+  const raw=localStorage.getItem(SAVE_KEY);
+  if(!raw||!parseSave(raw,true))return;
+  if(latest.status==='found'&&latest.raw!==raw&&!isKnownCloud(latest.raw))return;
+  if(latest.status==='found'&&latest.raw===raw){acknowledgeCloud(raw);return}
+  await new Promise<void>(resolve=>cloudSave(raw,ok=>{if(ok)acknowledgeCloud(raw);resolve()}));
+ }catch{ /* No upload when local storage is unavailable. */ }finally{checkingCloud=false}
+}
 /** CP change if the item is worn. `stats` only reads, so a shallow copy is enough and stays cheap for 80 tiles. */
 export function compareItem(item:Item,p:Player){return stats({...p,equipment:{...p.equipment,[item.slot]:item}}).cp-stats(p).cp}
 /** Strongest backpack piece for a slot, if it beats what is worn. Equipped named items (effects outside CP) are left to the player. */
