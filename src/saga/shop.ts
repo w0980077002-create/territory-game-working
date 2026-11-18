@@ -60,7 +60,7 @@ function hornOffer(p: Player, now: number): ShopOffer {
 
 const packs: ShopOffer[] = balance.test_store.test_packs.map((pack, index) => ({
   id:pack.id, category:'supplies', name:pack.display_name,
-  icon:['chest','gift','ship','shield','crown','book','banner'][index] ?? 'chest',
+  icon:['chest','gift','ship','crown','book','banner','helmet','boots','ring','cloak'][index] ?? 'chest',
   description:'Запас золота, самоцветов и зарядов для развития героя и новой добычи.',
   currency:'tokens', price:pack.test_token_price, limit:'once',
   reward:{gold:pack.grant.gold, gems:pack.grant.gems, horn:pack.grant.horn_charges},
@@ -77,7 +77,7 @@ export function shopOffers(p: Player, now = Date.now()): ShopOffer[] {
     offer('travel-stipend','daily','Кошель разведчика','coins','Золото на первые усиления и обучение навыкам.','tokens',gold=>({gold})),
     offer('guard-stones','daily','Камни караула','shield','Хаосит для одного похода в Логово или Царство тьмы.','tokens',chaosite=>({chaosite})),
     offer('blacksmith-coins','resources','Казна кузнеца','belt','Золото на экипировку, навыки и развитие спутников.','gems',gold=>({gold})),
-    offer('mine-reserve','resources','Запас шахтёров','rune','Хаосит для входа в Логово или Царство тьмы.','gold',chaosite=>({chaosite})),
+    offer('mine-reserve','resources','Запас шахтёров','axe','Хаосит для входа в Логово или Царство тьмы.','gold',chaosite=>({chaosite})),
     offer('region-supplies','materials',materials[material].name,'armor','Материал текущего региона для создания и перековки экипировки.','gems',amount=>({mats:{[material]:amount}})),
     offer('dark-essence','materials',resources.ess.name,resources.ess.icon,'Расходуется на усиление тёмной экипировки.','gems',ess=>({res:{ess}})),
     offer('summon-seal','growth','Печать призыва',resources.seal.icon,'Один призыв за осколками спутников.','gems',seal=>({res:{seal}})),

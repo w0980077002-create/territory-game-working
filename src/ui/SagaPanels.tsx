@@ -8,6 +8,7 @@ import {squadState} from '../dark/rules';
 import {characters,art,heroArt} from '../data/catalog';
 import {battle} from '../game/Battle';
 import './sagaPanels.css';
+const albumSources:Record<string,string>={companions:'Осколки из призыва',enemies:'Встречи основной главы',minibosses:'Логово мини-босса',bosses:'Боссы основной главы'};
 const categoryNames:Record<string,string>={heroes:'Герои',companions:'Спутники',enemies:'Враги',minibosses:'Мини-боссы',bosses:'Боссы',special:'Жители'};
 /** Six regions as one road. Shows real progress from the save, never a decorative map. */
 export function ChapterMap({p}:{p:Player}){
@@ -29,7 +30,7 @@ export function Album({p}:{p:Player}){
  const squad=squadState(p),seen=new Set([...(p.saga?.seen??[]),...(p.encounter?.units.map(u=>u.id)??[]),heroArt[p.heroClass],...squad.owned]),total=characters.length,met=characters.filter(c=>seen.has(c.id)).length;
  return <><p>Встречено {met} из {total}. Альбом хранит всех, с кем герой действительно сражался или путешествовал.</p>
   {Object.keys(categoryNames).map(cat=>{const list=characters.filter(c=>c.category===cat);if(!list.length)return null;return <section key={cat}><h3>{categoryNames[cat]} · {list.filter(c=>seen.has(c.id)).length}/{list.length}</h3>
-   <div className="collection-grid">{list.map(c=>{const known=seen.has(c.id)||cat==='heroes'||cat==='special',kills=count(p,'kill:'+c.id);return <div key={c.id} className={`${known?'recorded':'unrecorded'} category-${c.category}`}><small className="album-status">{cat==='heroes'?(heroArt[p.heroClass]===c.id?'Ваш герой':'Класс'):cat==='companions'?(squad.act.includes(c.id)?'В отряде':squad.owned.includes(c.id)?'В коллекции':'Осколки из призыва'):known?(kills?`Побед: ${kills}`:'Встречен'):'Не встречен'}</small><img loading="lazy" decoding="async" src={art(c.id)} alt={known?c.name.split(',')[0]:'Неизвестный'} style={known?undefined:{filter:'brightness(0) opacity(.55)'}}/><small>{known?c.name.split(',')[0]:'???'}</small></div>})}</div></section>})}
+   <div className="collection-grid">{list.map(c=>{const known=seen.has(c.id)||cat==='heroes'||cat==='special',kills=count(p,'kill:'+c.id);return <div key={c.id} className={`${known?'recorded':'unrecorded'} category-${c.category}`}><small className="album-status">{cat==='heroes'?(heroArt[p.heroClass]===c.id?'Ваш герой':'Класс'):cat==='companions'?(squad.act.includes(c.id)?'В отряде':squad.owned.includes(c.id)?'В коллекции':'Осколки из призыва'):known?(kills?`Побед: ${kills}`:'Встречен'):(albumSources[cat]??'Не встречен')}</small><img loading="lazy" decoding="async" src={art(c.id)} alt={known?c.name.split(',')[0]:'Неизвестный'} style={known?undefined:{filter:'brightness(0) opacity(.55)'}}/><small>{known?c.name.split(',')[0]:'???'}</small></div>})}</div></section>})}
  </>;
 }
 // ───────────────────────── Stage B: builds, sets, forge, companions, quests ─────────────────────────
