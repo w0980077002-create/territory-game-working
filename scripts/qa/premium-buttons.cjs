@@ -20,7 +20,7 @@ const fs=require('node:fs');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.screenshot({path:`${out}/${width}-home.png`});
   const state=()=>page.evaluate(()=>JSON.parse(JSON.stringify(window.__lootborn.useGame.getState().p)));
-  const beforeMap=await state();await map.tap();await page.getByRole('dialog',{name:'Карта и мастерские',exact:true}).waitFor();
+  const beforeMap=await state();await map.tap();await page.getByRole('dialog',{name:'Северная гавань',exact:true}).waitFor();
   assert.equal(await page.getByRole('dialog').getByText(/Порт/).count(),0);
   await page.screenshot({path:`${out}/${width}-map.png`});
   const afterMap=await state();delete beforeMap.savedAt;delete afterMap.savedAt;assert.deepEqual(afterMap,beforeMap,'map must not mutate player');
