@@ -1,0 +1,16 @@
+{
+  "twoTabs": true,
+  "lockHandoff": true,
+  "claimOnce": true,
+  "explicitPause": true,
+  "nestedPanels": true,
+  "visibility": true,
+  "auto": false,
+  "speed": 2,
+  "safeArea": {
+    "top": 28,
+    "bottom": 24,
+    "height": 600
+  },
+  "locale": "en-US"
+}

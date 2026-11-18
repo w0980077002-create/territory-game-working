@@ -2,13 +2,14 @@
  * Player actions of the dark systems. Each one validates on the live save, then changes it in ONE store
  * mutation (re-validated inside), so a double tap, a reload or two tabs can never pay or grant twice.
  */
-import {useGame} from '../core/store';
+import {realmSessionWritable} from './session';
+import {useGame,claimRealmReward} from '../core/store';
 import type {Player,Slot} from '../core/types';
 import {battle} from '../game/Battle';
 import {haptic} from '../core/telegram';
 import {matKey,matCount,materials} from '../saga/gear';
 import {bumpCount} from '../saga/save';
-import {realmRun,realmBox,realmDefeat,blessingIds,REALM_COST,emptyTotals,type BlessingId} from './realm';
+import {realmRun,realmLast,realmBox,realmDefeat,newRealmRun,realmChoose,blessingIds,REALM_COST,type BlessingId} from './realm';
 import {resCount,addRes,duskCount,addDusk,darkState,darkBox,darkUpgradeCost,darkMaxUpgrade,darkSalvageValue,darkName,DARK_STORAGE,
  gemState,gemBox,parseGem,gemCode,gemSynthGold,gemSlots,socketOpen,rollGem,gemLabel,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicLevel,relicUnlockCost,relicUpgradeCost,RELIC_MAX,type RelicId,
@@ -22,15 +23,18 @@ function tx(check:(p:Player)=>string|null,apply:(p:Player)=>void,ok?:string){
  haptic(true);if(ok)G().notice(ok);return true;
 }
 // ── Dark Realm ──
+export function collectRealmReward(){const ok=claimRealmReward();if(ok){battle?.leaveRealm();G().open('realm')}return ok}
 export function realmSelect(floor:number){if(!Number.isInteger(floor)||floor<1||floor>G().p.darkFloor)return false;return G().mutate(p=>{realmBox(p).sel=floor})}
 const trophyWaiting=(p:Player)=>p.rewardOffer&&!p.rewardOffer.resolved?'Сначала разберите трофей босса':null;
 export function realmStart(floor:number,blessing:BlessingId){
+ if(!realmSessionWritable())return fail('Поход открыт в другой вкладке · продолжите там');
  if(!battle)return false;
- const ok=tx(p=>trophyWaiting(p)??(realmRun(p)?'Поход во Тьму уже идёт':!Number.isInteger(floor)||floor<1||floor>p.darkFloor?'Этот этаж ещё закрыт':!blessingIds.includes(blessing)?'Выберите благословение':p.chaosite<REALM_COST?`Нужно ${REALM_COST} Хаосита`:null),
-  p=>{p.chaosite-=REALM_COST;const box=realmBox(p);box.run={f:floor,r:1,b:blessing,acc:emptyTotals()};box.sel=floor;delete box.last;bumpCount(p,'realm:run')});
+ const ok=tx(p=>trophyWaiting(p)??(realmLast(p)&&!realmLast(p)!.ack?'Сначала заберите итог похода':realmRun(p)?'Поход во Тьму уже идёт':!Number.isInteger(floor)||floor<1||floor>p.darkFloor?'Этот этаж ещё закрыт':!blessingIds.includes(blessing)?'Выберите благословение':p.chaosite<REALM_COST?`Нужно ${REALM_COST} Хаосита`:null),
+  p=>{p.chaosite-=REALM_COST;const box=realmBox(p);box.run=newRealmRun(floor,blessing);box.sel=floor;delete box.last;bumpCount(p,'realm:run')});
  if(ok)battle.enterRealm();return ok;
 }
 /** Returns to a run that was interrupted by another mode. Free: the entry was paid at the start. */
+export function chooseRealmPortal(id:string){let chosen=false;const ok=G().mutate(p=>{chosen=realmChoose(p,id)});if(ok&&chosen)battle?.continueRealm();return ok&&chosen}
 export function realmResume(){const p=G().p;if(!battle||!realmRun(p))return false;const wait=trophyWaiting(p);if(wait)return fail(wait);battle.enterRealm();return true}
 export function realmAbandon(){if(battle?.mode==='darkness')battle.leaveRealm();return tx(p=>realmRun(p)?null:'Поход уже завершён',p=>{realmDefeat(p)},'Поход завершён · добытое сохранено')}
 // ── Dark Energy ──
