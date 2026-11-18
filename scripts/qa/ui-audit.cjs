@@ -27,6 +27,8 @@ async function assertBuild(page){
    await page.waitForTimeout(100);
    const dialog=page.getByRole('dialog');await dialog.waitFor();
    const geometry=await dialog.evaluate(el=>{
+    // A corner badge (position:absolute, e.g. the «!» on a relic) deliberately overhangs its tile; only in-flow content can be cut.
+    const overhangOnly=x=>{const edge=x.getBoundingClientRect().right+2;return [...x.childNodes].every(n=>{if(n.nodeType===3){const range=document.createRange();range.selectNodeContents(n);return range.getBoundingClientRect().right<=edge}if(n.nodeType!==1||n instanceof SVGElement)return true;const s=getComputedStyle(n);return s.position==='absolute'||s.position==='fixed'||n.getBoundingClientRect().right<=edge})};
     const r=el.getBoundingClientRect();
     const inaccessible=[...el.querySelectorAll('header button,footer button')].filter(x=>{const b=x.getBoundingClientRect();return b.width>0&&(b.width<44||b.height<44||b.top<0||b.bottom>innerHeight+1)}).map(x=>x.textContent);
     const outsideViewport=r.x<0||r.y<0||r.right>innerWidth+1||r.bottom>innerHeight+1;
@@ -34,7 +36,7 @@ async function assertBuild(page){
      if(x instanceof SVGElement)return false;const s=getComputedStyle(x),b=x.getBoundingClientRect();
      return b.width>0&&s.position!=='absolute'&&s.position!=='fixed'&&(b.right>r.right+1||b.left<r.left-1);
     }).map(x=>({tag:x.tagName,cls:x.className,text:x.textContent.slice(0,90)}));
-    return {inaccessible,outsideViewport,rect:{x:r.x,y:r.y,width:r.width,height:r.height},overflow,clipped:[...el.querySelectorAll('*')].filter(x=>!(x instanceof SVGElement)&&x.clientWidth>0&&x.scrollWidth>x.clientWidth+2&&getComputedStyle(x).textOverflow!=='ellipsis'&&!x.matches('.saga-scene,.saga-scenery,.ambient')).map(x=>({cls:x.className,text:x.textContent.slice(0,70),width:x.clientWidth,content:x.scrollWidth})),scrolls:[...el.querySelectorAll('*')].filter(x=>['auto','scroll'].includes(getComputedStyle(x).overflowY)&&x.scrollHeight>x.clientHeight+1).map(x=>({cls:x.className,height:x.clientHeight,content:x.scrollHeight})),setWidths:[...el.querySelectorAll('.set-line')].map(x=>x.getBoundingClientRect().width),horizontal:document.documentElement.scrollWidth>innerWidth};
+    return {inaccessible,outsideViewport,rect:{x:r.x,y:r.y,width:r.width,height:r.height},overflow,clipped:[...el.querySelectorAll('*')].filter(x=>!(x instanceof SVGElement)&&x.clientWidth>0&&x.scrollWidth>x.clientWidth+2&&getComputedStyle(x).textOverflow!=='ellipsis'&&!x.matches('.saga-scene,.saga-scenery,.ambient')&&!overhangOnly(x)).map(x=>({cls:x.className,text:x.textContent.slice(0,70),width:x.clientWidth,content:x.scrollWidth})),scrolls:[...el.querySelectorAll('*')].filter(x=>['auto','scroll'].includes(getComputedStyle(x).overflowY)&&x.scrollHeight>x.clientHeight+1).map(x=>({cls:x.className,height:x.clientHeight,content:x.scrollHeight})),setWidths:[...el.querySelectorAll('.set-line')].map(x=>x.getBoundingClientRect().width),horizontal:document.documentElement.scrollWidth>innerWidth};
    });
    if(process.env.ALL_SHOTS||['inventory','item','hero','forge','skills','autobattle','gear:weapon'].includes(panel))await dialog.screenshot({path:path.join(out,`${width}-${panel.replace(':','-')}.png`)});
    results.push({width,height,panel,...geometry});

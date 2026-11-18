@@ -70,6 +70,20 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await btn('Слабых нет').waitFor();
   // Storage tab: counts visible, items still selectable.
   await page.getByRole('group',{name:'Место хранения'}).getByRole('button',{name:/^Хранение/}).tap();await page.getByRole('group',{name:'Предметы на хранении'}).waitFor();
+  // Manual salvage straight from storage (P1 salvage(id)): one confirmed tap pays exactly once, the item leaves storage only.
+  const stored0=await state();
+  await page.getByRole('group',{name:'Предметы на хранении'}).getByRole('button').first().tap();await page.getByRole('dialog',{name:/./}).waitFor();
+  const target={id:await page.evaluate(()=>window.__lootborn.useGame.getState().selected)};assert.ok(stored0.pendingLoot.some(i=>i.id===target.id),'tapped a stored item');
+  const salv=page.getByRole('button',{name:/^Распылить \+\d+$/});await salv.tap();
+  const confirmBtn=btn('Подтвердить распыление');if(await confirmBtn.count())await confirmBtn.dblclick();
+  await page.waitForTimeout(400);const stored1=await state();
+  assert.equal(stored1.pendingLoot.length,stored0.pendingLoot.length-1,'one item left storage');
+  assert.ok(!stored1.pendingLoot.some(i=>i.id===target.id));assert.equal(stored1.inventory.length,stored0.inventory.length,'backpack untouched');
+  assert.ok(stored1.gold>stored0.gold);
+  const paid=stored1.gold-stored0.gold;
+  await page.waitForTimeout(400);assert.equal((await state()).gold-stored0.gold,paid,'paid once');
+  if(await page.getByRole('dialog',{name:'Рюкзак'}).count()===0){await page.evaluate(()=>window.__lootborn.useGame.getState().open('inventory'))}
+  await page.getByRole('dialog',{name:'Рюкзак'}).waitFor();
   await noOverflow('backpack');await close();
 
   // 4) Reload keeps everything.
@@ -79,8 +93,9 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
 
   // 5) Harbour guide routes to the three systems.
   for(const [label,dialog] of [['Тёмная энергия','Тёмная энергия'],['Камни','Драгоценные камни'],['Верфь','Верфь драккаров']]){
-   if(height<=700)break;// the guide is hidden on short screens; the map signs stay
-   await btn('Карта').tap();await page.locator('.harbor-guide button',{hasText:label}).tap();await page.getByRole('dialog',{name:dialog}).waitFor();
+   await btn('Карта').tap();
+   if(height<=700){const mapBefore=await page.locator('.harbor-scene').boundingBox();await page.locator('.harbor-help').tap();assert.deepEqual(await page.locator('.harbor-scene').boundingBox(),mapBefore,'«?» does not shrink the map')}
+   await page.locator('.harbor-guide button',{hasText:label}).tap();await page.getByRole('dialog',{name:dialog}).waitFor();
    if(dialog==='Драгоценные камни')await page.locator('.panel-lead').waitFor();await close();
   }
   await noOverflow('main');

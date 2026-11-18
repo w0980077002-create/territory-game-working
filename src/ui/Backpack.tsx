@@ -43,6 +43,7 @@ export function Backpack({storage,setStorage}:{storage:boolean;setStorage:(value
   </div>
   {help==='auto'&&<p className="pack-explain">Срабатывает только на <b>новую</b> добычу: слабее надетой вещи того же типа, ниже «Редкого», без усилений и свойств — сразу в золото и опыт. Вещи, которые уже лежат в рюкзаке или сняты с героя, не трогает: для них «Очистить слабые».</p>}
   {help==='ranks'&&<ol className="pack-ranks" aria-label="9 рангов качества, от слабого к сильному">{rarityNames.map((name,n)=><li key={name} style={{'--rarity':rarityColors[n]} as CSSProperties}><i aria-hidden="true"/>{name}</li>)}</ol>}
+  {storage&&!!stored&&<p className="pack-explain pack-storage-hint">Нажмите вещь: надеть, оставить на складе или распылить.</p>}
   <InventoryGrid key={storage?'storage':'backpack'} p={p} filter={filter} slot={slot} order={order} storage={storage} onSelect={g.select} onBulkSalvage={g.bulkSalvage} onClaim={g.claimStored}/>
  </DialogShell>;
 }
