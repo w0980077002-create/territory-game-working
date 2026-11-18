@@ -37,21 +37,24 @@
   padding: 1px 3px;
   font-size: 12px;
 }
-.shop-wallet .icon, .shop-price .icon { width: 19px; height: 19px; }
+.shop-wallet > button strong { min-width: 0; overflow-wrap: anywhere; }
+.shop-wallet .icon, .shop-price .icon { flex-shrink: 0; width: 19px; height: 19px; }
 .shop-tabs {
   display: grid;
-  grid-template-columns: repeat(12,minmax(0,1fr));
+  grid-template-columns: repeat(24,minmax(0,1fr));
   padding: 2px 0;
   border-bottom: 1px solid #89684470;
 }
 .shop-tabs > button {
-  grid-column: span 3;
+  grid-column: span 5;
   min-width: 0;
   min-height: 30px;
   padding: 2px 0;
-  font: 700 10px/1.05 system-ui,sans-serif;
+  font: 700 10px/1.12 Arial,sans-serif;
+  overflow-wrap: anywhere;
 }
-.shop-tabs > button:nth-child(n+5) { grid-column: span 4; }
+.shop-tabs > button:nth-child(2), .shop-tabs > button:nth-child(4) { grid-column: span 7; }
+.shop-tabs > button:nth-child(n+5) { grid-column: span 8; }
 .shop-tabs > button[aria-pressed=true] {
   border-color: #e6b378;
   background: linear-gradient(#9a633a,#65432c);

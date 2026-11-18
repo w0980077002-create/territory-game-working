@@ -9,7 +9,7 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'?testProfile=ui-subpanels');await page.waitForFunction(()=>window.__lootborn);
   const open=async panel=>{await page.evaluate(panel=>{window.__lootborn.useGame.getState().open(panel);window.__lootborn.useGame.setState({toast:''})},panel);await page.getByRole('dialog').waitFor()};
   const check=async name=>{
-   const bad=await page.getByRole('dialog').evaluate(el=>[...el.querySelectorAll('*')].filter(x=>!(x instanceof SVGElement)&&x.clientWidth>0&&x.scrollWidth>x.clientWidth+2&&getComputedStyle(x).textOverflow!=='ellipsis'&&!x.matches('.saga-scene,.saga-scenery,.ambient')).map(x=>x.className||x.getAttribute("aria-label")||x.tagName));assert.deepEqual(bad,[],name+' clipped content');
+   const bad=await page.getByRole('dialog').evaluate(el=>[...el.querySelectorAll('*')].filter(x=>!(x instanceof SVGElement)&&x.clientWidth>0&&x.scrollWidth>x.clientWidth+2&&getComputedStyle(x).textOverflow!=='ellipsis'&&!x.matches('.saga-scene,.saga-scenery,.ambient')).map(x=>[x.className||x.tagName,x.getAttribute("aria-label")||x.textContent.trim().slice(0,50),x.clientWidth,x.scrollWidth]));assert.deepEqual(bad,[],name+' clipped content');
    await page.getByRole('dialog').screenshot({path:`${out}/${width}-${name}.png`});results.push({width,height,state:name,clipped:bad});
   };
   await open('hero');await page.locator('summary').filter({hasText:/^Сохранённые сборки$/}).tap();
