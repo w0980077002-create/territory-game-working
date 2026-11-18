@@ -59,3 +59,5 @@
 .saga-modal .hero-sheet .saga-portrait .portrait-wings{height:84px;top:8px}
 .saga-modal[data-panel="hero"] .saga-disclosure{margin:6px 0}
 .saga-modal[data-panel="hero"] .saga-disclosure summary{padding:10px 12px}
+.saga-modal .hero-sheet .saga-portrait .portrait-hero,.saga-modal .hero-sheet .saga-portrait .portrait-wings{max-width:100%;object-fit:contain}
+.saga-modal .hero-sheet .saga-portrait .portrait-halo{max-width:100%}

@@ -57,6 +57,7 @@ const slotNames={weapon:'Оружие',armor:'Доспех',helmet:'Шлем',sh
   const url=page.url(),saved=await state();
   await page.getByRole('button',{name:'Меню',exact:true}).tap();await dialog('Меню').waitFor();
   const heroes=page.locator('summary',{hasText:'Другие герои на этом устройстве'});
+  await page.waitForTimeout(400);// past the 350 ms tap-through guard after a window opens
   await heroes.tap();await page.getByRole('button',{name:'Новый герой · первый поход'}).tap();
   await page.getByText('Начать нового героя?').waitFor();assert.equal(page.url(),url);
   await page.screenshot({path:`${out}/${width}x${height}-new-hero-confirm.png`});
