@@ -143,6 +143,7 @@
 @media (max-height: 650px) {
   .saga-modal[data-panel="shop"] .modal-header { padding-block: 5px; min-height: 59px; }
   .saga-modal[data-panel="shop"] .modal-footer { padding-block: 4px; min-height: 52px; }
+  .shop-counter { min-height: 72px; padding-block: 6px; }
   .shop-tabs > button { min-height: 25px; }
   .shop-item-picture { height: 46px; }
   .shop-item-picture > .icon { height: 43px; }
