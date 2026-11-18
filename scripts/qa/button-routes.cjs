@@ -19,7 +19,7 @@ const slotNames={weapon:'Оружие',armor:'Доспех',helmet:'Шлем',sh
   await page.goto(base+'?testProfile='+profile);await page.waitForFunction(()=>window.__lootborn?.battle);
   const state=()=>page.evaluate(()=>JSON.parse(JSON.stringify(window.__lootborn.useGame.getState().p)));
   const dialog=name=>page.getByRole('dialog',{name,exact:true});
-  const close=async()=>{await page.getByRole('button',{name:'Закрыть',exact:true}).tap();await page.getByRole('dialog').waitFor({state:'detached'})};
+  const close=async()=>{await page.getByRole('button',{name:'Закрыть',exact:true}).tap();await page.getByRole('dialog').waitFor({state:'detached'});await page.waitForTimeout(400)};// past the 350 ms tap-through guard
   const row={width,height,slots:0};
   // 1) every one of the 12 slots + wings opens its own card, tapped at its real centre
   for(const [slot,name] of Object.entries(slotNames)){
@@ -46,7 +46,7 @@ const slotNames={weapon:'Оружие',armor:'Доспех',helmet:'Шлем',sh
   await dialog('Где получить самоцветы').getByRole('button',{name:/Забрать|Открыть/}).first().tap();await dialog('Ежедневная награда').waitFor();await close();
   await page.locator('.currency.chaosite').tap();await dialog('Где получить Хаосит').waitFor();
   assert.equal(await dialog('Где получить Хаосит').getByRole('button',{name:'Копится'}).isDisabled(),true,'mine already collected cannot pay twice');
-  await dialog('Где получить Хаосит').getByRole('button',{name:'Перейти'}).last().tap();await dialog('Карта и мастерские').waitFor();await close();
+  await dialog('Где получить Хаосит').getByRole('button',{name:'Перейти'}).last().tap();await dialog('Северная гавань').waitFor();await close();
   // 3) «Войти» while a chapter fight runs keeps it running
   await page.locator('.bottom>.central').tap();await page.waitForFunction(()=>window.__lootborn.battle.running);
   await page.locator('.enter').tap();await page.waitForTimeout(150);

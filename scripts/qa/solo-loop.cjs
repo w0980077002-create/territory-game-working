@@ -33,7 +33,7 @@ const base=process.env.BASE_URL||'http://localhost:5173/',out=process.env.OUT||'
   await page.screenshot({path:`${out}/${W}-defeat.png`});
   await page.evaluate(()=>window.__lootborn.useGame.getState().mutate(p=>{const w=structuredClone(p.equipment.helmet);w.id='solo-strong';w.attack+=400;p.inventory.push(w)}));
   await page.locator('.gear-helmet .gear-better').waitFor();
-  await ribbon.getByRole('button',{name:'Надеть лучшее'}).tap();assert.equal(await page.evaluate(()=>window.__lootborn.useGame.getState().p.equipment.helmet.id),'solo-strong');assert.equal(await page.locator('.gear-better').count(),0);
+  await ribbon.getByRole('button',{name:'Надеть лучшее'}).dblclick();await page.waitForTimeout(300);assert.equal(await page.evaluate(()=>window.__lootborn.useGame.getState().panel),null,'the second tap does not open «Снаряжение» that replaced the button');assert.equal(await page.evaluate(()=>window.__lootborn.useGame.getState().p.equipment.helmet.id),'solo-strong');assert.equal(await page.locator('.gear-better').count(),0);
   await ribbon.getByRole('button',{name:'Кузница'}).tap();await page.getByRole('button',{name:'К бою'}).tap();await page.waitForTimeout(300);
   assert.equal((await st()).running,false,'closing a window after defeat never starts the fight');
   await page.locator('button.central').tap();await page.waitForTimeout(300);assert.equal(await ribbon.count(),0);await page.locator('button.central').tap();

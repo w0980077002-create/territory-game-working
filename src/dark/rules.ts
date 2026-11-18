@@ -13,7 +13,7 @@ export type ResId='ess'|'shard'|'seal';
 export const resources:Record<ResId,{name:string;short:string;color:string;icon:string;source:string}>={
  ess:{name:'Тёмная эссенция',short:'Эссенция',color:'#b98cff',icon:'essence',source:'Царство тьмы и разбор тёмных предметов'},
  shard:{name:'Осколки реликвий',short:'Осколки',color:'#ffd27a',icon:'relic-shard',source:'Владыки Царства тьмы и Логово мини-босса'},
- seal:{name:'Печати призыва',short:'Печати',color:'#9ff3e0',icon:'summon-seal',source:'Первое прохождение этажей Тьмы, Логово и Арена'}
+ seal:{name:'Печати призыва',short:'Печати',color:'#9ff3e0',icon:'summon-seal',source:'Первое прохождение этажей Тьмы, Логово, Арена и обмен красных алмазов на верфи'}
 };
 export const resKey=(id:ResId)=>'res:'+id;
 export const resCount=(p:Player,id:ResId)=>p.saga?.n[resKey(id)]??0;

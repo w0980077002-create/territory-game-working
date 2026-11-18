@@ -8,7 +8,7 @@ import {ItemDetails,EffectComparison,UpgradePlan,BuildGuide,HuntGoals,StatDelta,
 import {uniqueOf} from '../core/gear';
 import {useEffect,useRef,useState} from 'react';
 import {useGame,compareItem,bestUpgrade,bestUpgrades,refill,backupCloud,acknowledgeCloud,isKnownCloud,parseSave,SAVE_KEY,hornPurchase,isolatedProfile,exportSave,unreadableSave} from '../core/store';
-import {starterShipyard,previewShips,shipRate,shipCapacity,shipBuyCost,shipUpgradeCost} from '../core/shipyard';
+import {SHIP_RULES,starterShipyard,previewShips,shipRate,shipCapacity,shipBuyCost,shipUpgradeCost} from '../core/shipyard';
 import {TreasureShop} from './TreasureShop';
 import {HarborScene} from './HarborScene';
 import './windowContent.css';
@@ -46,6 +46,8 @@ function Side({icon,label,panel,style,badge=false}:{icon:string;label:string;pan
 function screenScale(){const shell=document.querySelector('.viewport');const css=shell?getComputedStyle(shell):null;const horizontal=(parseFloat(css?.paddingLeft??'0')||0)+(parseFloat(css?.paddingRight??'0')||0);const vertical=(parseFloat(css?.paddingTop??'0')||0)+(parseFloat(css?.paddingBottom??'0')||0);return Math.min((window.innerWidth-horizontal)/864,(window.innerHeight-vertical)/1536)}
 /** Shorter than a deliberate second tap, longer than a double tap. */
 const TAP_GUARD_MS=350;
+/** Worn gear changed (e.g. «Надеть лучшее» swaps itself for «Снаряжение»): the second half of a double tap must not land on the new button. */
+const wornIds=(p:Player)=>slots.map(slot=>p.equipment[slot]?.id??'').join();
 /** Large backpacks and storage stay importable; this only rejects unreasonable files. */
 const MAX_SAVE_TEXT=4_000_000;
 /** «+» next to a currency: real places to earn it, each button performs that action. */
@@ -63,7 +65,7 @@ function ResourceSources({kind,returnTo}:{kind:string;returnTo?:string}){const g
   {kind==='chaosite'&&<>{mine}{quests}<Row icon="ship" title="Северная гавань" detail="Шахта и мастерские"><Action kind="secondary" onClick={()=>g.open('port')}>Перейти</Action></Row><p className="hint">Хаосит тратится на вход в Логово мини-босса и Царство тьмы.</p></>}
   {kind==='tokens'&&<><Row icon="arena" title="Победы на Арене" detail="Поединки с противниками под управлением игры">{go('arena')}</Row>{quests}<p className="hint">Жетоны Арены тратятся на припасы в Лавке сокровищ.</p></>}
   {kind==='horn'&&<><Row icon="horn" title="Восстановление со временем" detail={`1 заряд за ${balance.horn_test_settings.recharge_one_charge_every_seconds/60} мин · до ${balance.horn_test_settings.maximum_charges}`}/>{daily}{quests}{shop}</>}
-  {(Object.hasOwn(resources,kind)||kind==='dusk')&&<><Row icon="portal" title="Царство тьмы" detail={kind==='dusk'?'Победа над владыкой этажа.':resources[kind as ResId].source}>{go('realm')}</Row>{kind==='seal'&&<Row icon="arena" title="Победить на Арене">{go('arena')}</Row>}{kind!=='dusk'&&shop}</>}
+  {(Object.hasOwn(resources,kind)||kind==='dusk')&&<><Row icon="portal" title="Царство тьмы" detail={kind==='dusk'?'Победа над владыкой этажа.':resources[kind as ResId].source}>{go('realm')}</Row>{kind==='seal'&&<><Row icon="arena" title="Победить на Арене">{go('arena')}</Row><Row icon="ship" title="Верфь драккаров" detail={`Обмен ${SHIP_RULES.sealPrice} красных алмазов → 1 печать`}>{go('shipyard')}</Row></>}{kind!=='dusk'&&shop}</>}
   {materials[kind]&&kind!=='dusk'&&<><Row icon="axes" title={regions[materialIds.indexOf(kind)]?.name??'Основная глава'} detail="Материал за победы в регионе. В кузнице также доступен обмен 3 → 1."/>{quests}{shop}</>}
  </>}
 /** Extra heroes made with «Новый герой» stay in their own local save; list them so none is lost behind a URL. */
@@ -73,7 +75,7 @@ function SavedHeroes({onOpen}:{onOpen:(id:string)=>void}){const current=new URLS
 export default function App(){const g=useGame(),p=g.p,s=stats(p),road=useRoadStatus(),canvas=useRef<HTMLCanvasElement>(null),[scale,setScale]=useState(screenScale);
  const [questTab,setQuestTab]=useState<QuestTab>('day');
  // A window that just opened or closed must not catch the second half of a double tap.
- const switchedAt=useRef(0);useEffect(()=>useGame.subscribe((next,prev)=>{if(next.panel!==prev.panel||next.selected!==prev.selected)switchedAt.current=performance.now()}),[]);
+ const switchedAt=useRef(0);useEffect(()=>useGame.subscribe((next,prev)=>{if(next.panel!==prev.panel||next.selected!==prev.selected||wornIds(next.p)!==wornIds(prev.p))switchedAt.current=performance.now()}),[]);
  const ghostTap=(e:React.MouseEvent)=>{if(e.detail>1&&performance.now()-switchedAt.current<TAP_GUARD_MS){e.preventDefault();e.stopPropagation()}};
  useEffect(()=>{
   setupTelegram();
@@ -237,6 +239,9 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   <div className="harbor-economy"><strong className="content-with-icon"><Icon name="red-diamond"/>{fmt(p.redDiamonds??0)} красных алмазов</strong><span>Добыча: {shipRate(fleet)}/час · запас: {shipCapacity(fleet)}</span></div>
   <Row icon="red-diamond" title={'На кораблях: '+fleet.stored.toFixed(2)} detail="Добыча продолжается в походе. Запас ограничен 12 часами."/>
   <Action disabled={claimable<=0} onClick={()=>g.shipAction('claim')}>{claimable>0?'Забрать '+claimable+' красных алмазов':'Добыча продолжается'}</Action>
+  <Row icon="red-diamond" title="Обмен у корабельщика" detail={`${SHIP_RULES.sealPrice} красных алмазов → 1 печать призыва для спутников`}>
+    <Action disabled={(p.redDiamonds??0)<SHIP_RULES.sealPrice} onClick={()=>g.shipAction('trade')}>{(p.redDiamonds??0)<SHIP_RULES.sealPrice?`Нужно ${SHIP_RULES.sealPrice} алмазов`:`Обменять · ${SHIP_RULES.sealPrice} алмазов`}</Action>
+  </Row>
   <Row icon="ship" title={'Драккар '+currentShip.id.split('-')[1]+' · ур. '+currentShip.level} detail={'Приносит '+currentShip.level+' алмазов/час'}>
     <Action disabled={shipUpgradeCost(currentShip.level)===null||p.gold<(shipUpgradeCost(currentShip.level)??Infinity)} onClick={()=>g.shipAction('upgrade',currentShip.id)}>{shipUpgradeCost(currentShip.level)===null?'Макс. уровень':'Улучшить · '+shipUpgradeCost(currentShip.level)+' зол.'}</Action>
   </Row>

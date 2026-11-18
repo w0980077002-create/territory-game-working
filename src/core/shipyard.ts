@@ -2,7 +2,8 @@
 export interface Ship {id:string;level:number}
 export interface ShipyardState {ships:Ship[];lastAt:number;stored:number}
 export interface ShipWallet {gold:number;redDiamonds?:number;shipyard?:ShipyardState}
-export const SHIP_RULES={maxShips:3,maxLevel:5,diamondsPerLevelHour:1,maxStoredHours:12} as const;
+/** sealPrice: red diamonds traded for one summon seal in the harbor (the only spend; companions grow from it). */
+export const SHIP_RULES={maxShips:3,maxLevel:5,diamondsPerLevelHour:1,maxStoredHours:12,sealPrice:20} as const;
 const HOUR=3_600_000;
 export function starterShipyard(now=Date.now()):ShipyardState {return {ships:[{id:'drakkar-1',level:1}],lastAt:now,stored:0}}
 export function shipRate(s:ShipyardState):number{return s.ships.reduce((n,ship)=>n+ship.level*SHIP_RULES.diamondsPerLevelHour,0)}

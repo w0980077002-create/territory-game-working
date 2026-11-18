@@ -1,5 +1,5 @@
 import {create} from 'zustand';
-import {starterShipyard,validShipyard,shipClaimable,shipBuyCost,shipUpgradeCost,claimShips,buyShip,upgradeShip} from './shipyard';
+import {SHIP_RULES,starterShipyard,validShipyard,shipClaimable,shipBuyCost,shipUpgradeCost,claimShips,buyShip,upgradeShip} from './shipyard';
 import type {Player,Item,Slot,HeroClass,BattleView,EncounterSnapshot} from './types';
 import balance from '../../config/test-balance.v1.json';
 import {slots,slotNames,rarityNames} from '../data/catalog';
@@ -24,7 +24,7 @@ import {realmSessionWritable} from '../dark/session';
 import {realmRun,realmVictory,realmClaim,migrateRealm,realmBox} from '../dark/realm';
 import {lootBonus,addRes,rollGem,gemBox,gemLabel} from '../dark/rules';
 let sequence=0;
-let lastHornPurchase = -Infinity;
+let lastHornPurchase = -Infinity;let lastSealTrade=-Infinity;
 let encounterPause:(()=>void)|undefined;let encounterRestore:(()=>void)|undefined;let encounterResume:(()=>void)|undefined;
 let resumeAfterPanel=false;
 let encounterProvider:(()=>EncounterSnapshot)|undefined;
@@ -89,7 +89,7 @@ export function addLoot(p:Player,item:Item,allowAutoSalvage=false){
 }
 
 export const initialBattle:BattleView={hp:1,maxHp:1,enemyHp:1,enemyMax:1,phase:'walk',boss:false,timer:30,cooldowns:[0,0,0],enemyName:'',mode:'campaign',running:false,bossPhase:1,ability:''};
-interface Store {p:Player;panel:string|null;selected:string|null;back:string|null;leaveItem:()=>void;equipBest:()=>number;toast:string;toastId:number;dismissNotice:(expectedId:number)=>void;auto:boolean;speed:number;stopOnDeath:boolean;continueOnVictory:boolean;autoSalvageWeaker:boolean;battle:BattleView;storageError:boolean;recoveryRequired:boolean;open:(s:string|null)=>void;notice:(s:string)=>void;select:(id:string|null)=>void;mutate:(fn:(p:Player)=>void)=>boolean;persist:()=>void;hornLoot:()=>void;equip:(id:string)=>void;salvage:(id:string,confirmed?:boolean)=>void;bulkSalvage:(ids:string[])=>number;claimStored:(ids?:string[])=>number;lockItem:(id:string)=>void;keepReward:()=>void;configure:(settings:{auto?:boolean;speed?:1|2;stopOnDeath?:boolean;continueOnVictory?:boolean;autoSalvageWeaker?:boolean})=>void;importSave:(p:Player)=>boolean;upgrade:(slot:Slot,expected?:{id:string;upgrade:number})=>void;train:(type:string,index?:number)=>void;claim:(id:string)=>void;buy:(id:string,quote?:string)=>boolean;shipAction:(action:'claim'|'buy'|'upgrade',id?:string)=>void;win:(mode:string,encounterId?:string,snapshot?:EncounterSnapshot,tally?:Record<string,number>)=>boolean;unequip:(slot:Slot)=>void;setClass:(c:HeroClass)=>void}
+interface Store {p:Player;panel:string|null;selected:string|null;back:string|null;leaveItem:()=>void;equipBest:()=>number;toast:string;toastId:number;dismissNotice:(expectedId:number)=>void;auto:boolean;speed:number;stopOnDeath:boolean;continueOnVictory:boolean;autoSalvageWeaker:boolean;battle:BattleView;storageError:boolean;recoveryRequired:boolean;open:(s:string|null)=>void;notice:(s:string)=>void;select:(id:string|null)=>void;mutate:(fn:(p:Player)=>void)=>boolean;persist:()=>void;hornLoot:()=>void;equip:(id:string)=>void;salvage:(id:string,confirmed?:boolean)=>void;bulkSalvage:(ids:string[])=>number;claimStored:(ids?:string[])=>number;lockItem:(id:string)=>void;keepReward:()=>void;configure:(settings:{auto?:boolean;speed?:1|2;stopOnDeath?:boolean;continueOnVictory?:boolean;autoSalvageWeaker?:boolean})=>void;importSave:(p:Player)=>boolean;upgrade:(slot:Slot,expected?:{id:string;upgrade:number})=>void;train:(type:string,index?:number)=>void;claim:(id:string)=>void;buy:(id:string,quote?:string)=>boolean;shipAction:(action:'claim'|'buy'|'upgrade'|'trade',id?:string)=>void;win:(mode:string,encounterId?:string,snapshot?:EncounterSnapshot,tally?:Record<string,number>)=>boolean;unequip:(slot:Slot)=>void;setClass:(c:HeroClass)=>void}
 // A message produced in the same synchronous operation may follow its automatic redirect.
 // The flag expires before the next user interaction; it is never part of a player save.
 let activeNoticeId:number|undefined;
@@ -162,6 +162,12 @@ export const useGame=create<Store>((set,get)=>({p:loadedPlayer,panel:null,select
    const n=shipClaimable(s,now);if(n<=0){g.notice('Корабли продолжают добычу');return}
    if((p.redDiamonds??0)+n>1_000_000_000){g.notice('Достигнут лимит алмазов');return}
    if(g.mutate(q=>{claimShips(q,now)})){haptic(true);g.notice('Собрано '+n+' красных алмазов')}
+   return;
+  }
+  if(action==='trade'){
+   const price=SHIP_RULES.sealPrice;if(performance.now()-lastSealTrade<600)return;
+   if((p.redDiamonds??0)<price){g.notice(`Нужно ${price} красных алмазов · корабли добывают их в походе`);return}
+   if(g.mutate(q=>{q.redDiamonds=(q.redDiamonds??0)-price;addRes(q,'seal',1)})){lastSealTrade=performance.now();haptic(true);g.notice('Печать призыва получена · призыв в окне «Спутники»')}
    return;
   }
   if(action==='buy'){
