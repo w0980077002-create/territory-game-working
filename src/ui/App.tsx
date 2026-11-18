@@ -46,8 +46,8 @@ function Side({icon,label,panel,style,badge=false}:{icon:string;label:string;pan
 function screenScale(){const shell=document.querySelector('.viewport');const css=shell?getComputedStyle(shell):null;const horizontal=(parseFloat(css?.paddingLeft??'0')||0)+(parseFloat(css?.paddingRight??'0')||0);const vertical=(parseFloat(css?.paddingTop??'0')||0)+(parseFloat(css?.paddingBottom??'0')||0);return Math.min((window.innerWidth-horizontal)/864,(window.innerHeight-vertical)/1536)}
 /** Shorter than a deliberate second tap, longer than a double tap. */
 const TAP_GUARD_MS=350;
-/** Worn gear changed (e.g. «Надеть лучшее» swaps itself for «Снаряжение»): the second half of a double tap must not land on the new button. */
-const wornIds=(p:Player)=>slots.map(slot=>p.equipment[slot]?.id??'').join();
+/** Worn gear and socketed gems: when these change, the tapped button is replaced in place (Вставить → Извлечь). Upgrades keep it. */
+const swapKey=(p:Player)=>slots.map(slot=>p.equipment[slot]?.id??'').join()+JSON.stringify((p.saga?.box?.gems as {sock?:unknown}|undefined)?.sock??null);
 /** Large backpacks and storage stay importable; this only rejects unreasonable files. */
 const MAX_SAVE_TEXT=4_000_000;
 /** «+» next to a currency: real places to earn it, each button performs that action. */
@@ -74,8 +74,9 @@ function SavedHeroes({onOpen}:{onOpen:(id:string)=>void}){const current=new URLS
  return <><h3>Мои герои</h3>{heroes.map(h=><Row key={h.id} icon="people" title={`${classNames[h.p.heroClass]} · ур.${h.p.level}`} detail={`Этап ${stageLabel(h.p.stage)} · сохранён ${new Date(h.p.savedAt).toLocaleDateString('ru')}`}><Action kind="secondary" onClick={()=>onOpen(h.id)}>Открыть</Action></Row>)}</>}
 export default function App(){const g=useGame(),p=g.p,s=stats(p),road=useRoadStatus(),canvas=useRef<HTMLCanvasElement>(null),[scale,setScale]=useState(screenScale);
  const [questTab,setQuestTab]=useState<QuestTab>('day');
- // A window that just opened or closed must not catch the second half of a double tap.
- const switchedAt=useRef(0);useEffect(()=>useGame.subscribe((next,prev)=>{if(next.panel!==prev.panel||next.selected!==prev.selected||wornIds(next.p)!==wornIds(prev.p))switchedAt.current=performance.now()}),[]);
+ // A window that just opened or closed, or a committed equip/socket change that swapped the button
+ // under the finger (Вставить → Извлечь, «Надеть лучшее» → «Снаряжение»), must not catch the second half of a double tap.
+ const switchedAt=useRef(0);useEffect(()=>useGame.subscribe((next,prev)=>{if(next.panel!==prev.panel||next.selected!==prev.selected||(next.p!==prev.p&&swapKey(next.p)!==swapKey(prev.p)))switchedAt.current=performance.now()}),[]);
  const ghostTap=(e:React.MouseEvent)=>{if(e.detail>1&&performance.now()-switchedAt.current<TAP_GUARD_MS){e.preventDefault();e.stopPropagation()}};
  useEffect(()=>{
   setupTelegram();

@@ -85,11 +85,12 @@ const heights={320:568,360:740,390:844,430:932};
   for(let n=3;n<=stages+1;n++){const r=await until(s=>s.stage>=n||s.phase==='defeat',300000,'stage '+n);log('stage',r.stage,'level',r.level,'gold',r.gold,'backpack',r.inv.length,'phase',r.phase);if(r.phase==='defeat')break}
   // 9. Dark Realm with the hero grown above: 7 → four portal pairs (real canvas taps) → boss → one result → «Забрать».
   if(process.env.REALM!=='0'){
+   await until(s=>!s.offer||s.offer.resolved,20000,'boss trophy kept before the realm');// the realm honestly waits for an open trophy
    if((await st()).running){await page.locator('button.central').tap();await page.waitForTimeout(400)}
    const realm=()=>page.evaluate(()=>{const p=window.__lootborn.useGame.getState().p,b=p.saga?.box?.realm;return {floor:p.darkFloor,chaosite:p.chaosite,gold:p.gold,run:b?.run&&{stage:b.run.stage},last:b?.last&&{win:b.last.win,ack:b.last.ack}}});
    await tap('приключение');await page.getByRole('button',{name:/^Царство тьмы Этаж/}).first().tap();await page.waitForTimeout(500);
    const r0=await realm();await page.getByRole('button',{name:/Вызов/}).first().dblclick();await page.waitForTimeout(600);
-   let r=await realm();assert.equal(r.chaosite,r0.chaosite-5,'entry paid once');assert.equal(r.run.stage,'INTRO_7');
+   let r=await realm();assert.equal(r.chaosite,r0.chaosite-5,'entry paid once · '+(await st()).toast);assert.equal(r.run.stage,'INTRO_7');
    const picks=new Set();
    for(let t=0;t<600000&&!(r.last&&!r.last.ack);t+=600){await page.waitForTimeout(600);r=await realm();
     if(r.run?.stage?.startsWith('CHOICE')&&!picks.has(r.run.stage)){picks.add(r.run.stage);await page.waitForTimeout(700);const box=await page.locator('canvas').boundingBox();await page.touchscreen.tap(box.x+470/864*box.width,box.y+690/940*box.height)}}
@@ -100,6 +101,10 @@ const heights={320:568,360:740,390:844,430:932};
    assert.equal(after.last.ack,true);if(after.last.win){assert.equal(after.floor,r0.floor+1);assert.ok(after.gold>r0.gold,'victory pays on claim')}
    log('realm floor',r0.floor,after.last.win?'won':'lost','gold',r0.gold,'→',after.gold);
    assert.equal((await st()).panel,'realm','claim returns to the floor list');await closeAll();
+   // A gem from the realm: a double tap on «Вставить» must not hit the «Извлечь» that replaces it.
+   await tap('Карта');await tap('Камни');const insert=page.getByRole('button',{name:'Вставить',exact:true}).first();
+   if(await insert.count()){await insert.dblclick();await page.waitForTimeout(500);assert.match((await st()).toast,/Камень вставлен/,'gem stays socketed after a double tap');log('gem socketed')}
+   await closeAll();
   }
   // 10. Reload keeps everything earned and does not restart the fight on its own.
   if((await st()).running){await page.locator('button.central').tap();await page.waitForTimeout(500)}const keep=await st();
