@@ -29,7 +29,7 @@ export function HuntGoals({p}:{p:Player}){return <div className="hunt-goals"><h3
 export function ItemDetails({item}:{item:Item}){
  const p=useGame(s=>s.p);
  return <article className="item-card" style={{'--rarity':rarityColors[item.rarity]} as React.CSSProperties}>
-  <div className="item-summary"><Icon name={gearIcon(item.slot)}/><div className="item-copy"><h4>{item.name}</h4><small>{rarityNames[item.rarity]} · ур.{item.level} +{item.upgrade}{item.origin&&<><br/>{item.origin}</>}{item.locked&&<><br/>🔒 Защищено от распыления</>}</small></div></div>
+  <div className="item-summary"><Icon name={gearIcon(item.slot)}/><div className="item-copy"><h4>{item.name}</h4><small>{rarityNames[item.rarity]} · ур.{item.level} +{item.upgrade}{item.origin&&<><br/>{item.origin}</>}</small></div></div>
   <dl className="item-stats">{(item.percent?[['Атака',item.percent.attack+'%'],['HP',item.percent.hp+'%'],['Защита',item.percent.defense+'%']]:[['Атака',item.attack],['HP',item.hp],['Защита',item.defense]]).map(([label,value])=><div key={label}><dt>{label}</dt><dd>+{value}</dd></div>)}</dl>
   <UniqueEffect item={item}/><SagaItemLines item={item} p={p}/>
  </article>;

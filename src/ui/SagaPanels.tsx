@@ -62,9 +62,17 @@ export function SetSummary({p}:{p:Player}){
  const n=setCounts(p),active=setIds.filter(id=>n[id]>0);
  return <div className="saga-section"><h3>Комплекты</h3>{active.length?active.map(id=><div key={id} className="set-line" style={{'--tone':sets[id].color} as React.CSSProperties}><strong>{sets[id].name} · {n[id]}/6 <small>{sets[id].tag}</small></strong><ol>{sets[id].bonuses.map((b,i)=><li key={i} className={n[id]>=(i+1)*2?'on':''}><b>{(i+1)*2}</b><span>{b}</span></li>)}</ol></div>):<p className="hint">Предметы комплектов выпадают в своих регионах и куются по рецептам в Кузнице. 2, 4 и 6 вещей одного набора включают боевые бонусы.</p>}</div>;
 }
+/** Compact: one line with the current spec; both options and their details open on request. Same pickSpec. */
 export function SpecChooser({p}:{p:Player}){
- const current=specIndex(p);
- return <div className="saga-section"><h3>Сборка класса · {classNames[p.heroClass]}</h3><div className="spec-grid">{specs[p.heroClass].map((s,i)=><button key={s.id} className={`spec-card ${current===i?'selected':''}`} aria-pressed={current===i} onClick={()=>pickSpec(i)}><strong>{s.name}</strong><small>{s.tag}</small><ul>{s.lines.map(l=><li key={l}>{l}</li>)}</ul><em>Сочетается: {s.pairs}</em></button>)}</div><p className="hint">Сборку можно менять между боями бесплатно. Она меняет поведение атак, а не только цифры.</p></div>;
+ const current=specIndex(p),list=specs[p.heroClass],chosen=list[current],[open,setOpen]=useState(false);
+ return <div className="spec-compact">
+  <button type="button" className="spec-toggle" aria-expanded={open} onClick={()=>setOpen(v=>!v)}><span><small>Сборка класса</small><strong>{chosen.name}</strong><em>{chosen.tag}</em></span><b aria-hidden="true">{open?'▴':'▾'}</b></button>
+  {open&&<div className="spec-panel">
+   <div className="spec-options" role="group" aria-label="Сборка класса">{list.map((s,i)=><button key={s.id} type="button" className={current===i?'selected':''} aria-pressed={current===i} onClick={()=>pickSpec(i)}><strong>{s.name}</strong><small>{s.tag}</small></button>)}</div>
+   <ul className="spec-lines">{chosen.lines.map(l=><li key={l}>{l}</li>)}</ul>
+   <p className="hint">Сочетается: {chosen.pairs}. Меняется бесплатно между боями.</p>
+  </div>}
+ </div>;
 }
 export function BuildSlots({p}:{p:Player}){
  const list=buildsOf(p);

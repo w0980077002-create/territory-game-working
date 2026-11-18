@@ -68,3 +68,12 @@
 .quest-prizes .reward-piece { display: flex; align-items: center; }
 .quest-prizes .reward-piece .icon { width: 21px; height: 21px; }
 .quest-prizes .reward-piece strong { font-size: 10px; padding: 0; }
+
+/* Solo 1.1 audit: menu shortcuts compact, slot card leads with the worn item, battle summary 2×2. */
+.saga-modal .menu-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+.saga-modal .menu-shortcuts .action{margin:0;min-height:44px;font-size:14px}
+.saga-modal .menu-heroes .action{margin:6px 12px;width:calc(100% - 24px)}
+.saga-modal .menu-heroes>.hint{padding:0 12px}
+.saga-modal .slot-pack-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px!important;margin:14px 0 6px!important}
+.saga-modal .slot-pack-title button{min-height:40px;padding:4px 10px;border:1px solid #b18c54;border-radius:6px;background:var(--saga-iron);color:#efddb3;font:600 12px Arial,sans-serif}
+.saga-modal[data-panel="battle"] .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
