@@ -61,7 +61,9 @@ const inviteUrl = 'https://t.me/VikingRomeGame';
   await tap('Награды');
   await tap('Забрать подарок');
   const chrome = await read(browserKey);
-  const incoming = { ...chrome, daily: '', gold: chrome.gold + 1000 };
+  const incoming = { ...structuredClone(chrome), daily: '', gold: chrome.gold + 1000 };
+  // Restore a copy from before the calendar shipped, with its old receipt format.
+  delete incoming.saga.box['daily-gifts'];
   await putCloud(incoming);
 
   await open(true);
@@ -77,6 +79,9 @@ const inviteUrl = 'https://t.me/VikingRomeGame';
   await open(true);
   await waitForCloud();
   assert.equal((await read(telegramKey)).gold, local.gold);
+  await tap('Награды');
+  assert.equal(await page.getByRole('button', {name:'Сегодня уже получено',exact:true}).isDisabled(), true);
+  await tap('Закрыть');
   assert.equal((await read(browserKey)).gold, chrome.gold, 'Chrome progress is independent');
 
   const other = { ...incoming, gold: local.gold + 777, savedAt: Date.now() + 30000 };
