@@ -130,7 +130,7 @@ test('realm: legacy migration keeps already-issued loot and restarts the paid it
  give(p=>{p.gold=1234;sagaOf(p).box.realm={run:{f:1,r:2,b:'ward',acc:{ess:50}},last:{f:1,win:true,rooms:3}}});const chaos=P().chaosite;reload();
  assert.equal(P().gold,1234);assert.equal(realm.realmRun(P())!.legacy,true);assert.equal(realm.realmRun(P())!.stage,'INTRO_7');assert.equal(realm.realmRun(P())!.killed,0);assert.equal(realm.realmLast(P())!.ack,true);assert.ok(A.realmResume());assert.equal(P().chaosite,chaos);
 });
-test('realm: stars include four and equal pairs; counts are independent configuration',()=>{
+test('realm: four and equal stars remain valid and floor boss threat grows',()=>{
  const equal=realm.portalPair('run',1,()=>.99);assert.deepEqual(equal.map(p=>p.stars),[4,4]);assert.notEqual(equal[0].id,equal[1].id);
  assert.deepEqual(realm.portalPair('run',2,()=>0).map(p=>p.stars),[1,1]);
  let previous=0;for(let f=1;f<=40;f++){const boss=realm.realmPlan(f,6);assert.ok(boss.units[0].hp>previous);previous=realm.lordFloor(f)?boss.units[0].hp/1.25:boss.units[0].hp;assert.equal(realm.realmPlan(f,1).boss,false)}
@@ -181,11 +181,39 @@ test('realm: shared companion achievements are banked until acknowledgment and c
  assert.ok(A.realmStart(1,'ward'));const before=P().gems;for(let i=0;i<5;i++)battle!.director.count('guard');assert.equal(P().gems,before);assert.equal(realm.realmRun(P())!.acc.gems,5);
  assert.ok(A.realmAbandon());assert.equal(P().gems,before);assert.ok(A.collectRealmReward());assert.equal(P().gems,before+5);assert.equal(A.collectRealmReward(),false);
 });
-test('realm: every reference pair is representable, and four stars do not imply a fixed enemy count',()=>{
- for(const pair of [[1,1],[1,2],[1,3],[1,4],[3,3]]){
-  const rolls=[(pair[0]-.5)/4,0,0,(pair[1]-.5)/4,0,0];let at=0;
-  assert.deepEqual(realm.portalPair('reference',1,()=>rolls[at++]).map(p=>p.stars),pair);
+test('realm: higher stars rank above the other portal in size and per-enemy threat',()=>{
+ const base=realm.newRealmRun(1,'ward','reference');
+ const counts=[0,.5,.99];
+ for(const left of realm.portalConfig.stars)for(const right of realm.portalConfig.stars){
+  for(const leftRoll of counts)for(const rightRoll of counts){
+   const rolls=[(left-.5)/4,0,leftRoll,(right-.5)/4,.99,rightRoll];
+   const [a,b]=realm.portalPair('reference',1,()=>rolls.shift()!);
+   assert.deepEqual([a.stars,b.stars],[left,right]);
+   assert.ok(realm.portalConfig.counts.includes(a.count));
+   assert.ok(realm.portalConfig.counts.includes(b.count));
+   if(left===right)continue;
+   const [easy,hard]=left<right?[a,b]:[b,a];
+   assert.ok(hard.count>easy.count,`${left}★/${right}★ with rolls ${leftRoll}/${rightRoll}`);
+   const foe=(portal:realm.Portal)=>realm.realmPlan(1,2,{...base,r:2,selected:portal,total:portal.count}).units[0];
+   assert.ok(foe(hard).hp>foe(easy).hp);
+   assert.ok(foe(hard).atk>foe(easy).atk);
+  }
  }
- const counts=[0,.5,.99].map(count=>{const rolls=[.99,0,count,.99,0,count];let at=0;return realm.portalPair('independent',1,()=>rolls[at++])[0].count});
- assert.deepEqual(counts,[9,10,11]);
+});
+
+test('realm: published choices keep their saved enemy counts after reload',()=>{
+ const p=freshPlayer(),run=realm.newRealmRun(1,'ward','old-pair');
+ const pair:[realm.Portal,realm.Portal]=[
+  {id:'old-pair:1:0',stars:1,count:11,biome:0,label:'Врата теней'},
+  {id:'old-pair:1:1',stars:4,count:9,biome:1,label:'Путь скитальцев'},
+ ];
+ realm.realmBox(p).run={...run,r:2,stage:'CHOICE_1',total:0,pair};
+ const restored=parseSave(JSON.stringify(p),true)!;
+ assert.deepEqual(realm.realmRun(restored)!.pair,pair);
+ assert.ok(realm.realmChoose(restored,pair[1].id));
+ assert.ok(realm.realmVictory(restored,'first-enemy'));
+ const resumed=realm.realmRun(parseSave(JSON.stringify(restored),true)!)!;
+ assert.equal(resumed.total,9);
+ assert.equal(resumed.killed,1);
+ assert.deepEqual(resumed.selected,pair[1]);
 });

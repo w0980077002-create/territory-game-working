@@ -30,10 +30,23 @@ export const floorKeeper=(floor:number)=>miniIds[(floor-1)%miniIds.length];
 export const roomTitles=['Вступление · 7 врагов','Участок 1','Участок 2','Участок 3','Участок 4','Владыка этажа'];
 export type RealmStage='ENTRY_PAID'|'INTRO_7'|`CHOICE_${1|2|3|4}`|`SEGMENT_${1|2|3|4}`|'FINAL_BOSS'|'WIN_PENDING'|'DEFEAT'|'CLAIMED';
 export interface Portal {id:string;stars:number;biome:number;count:number;label:string}
-/** TEST_ONLY provisional counts, independent of stars: video proves 7/9/11, not a star/count formula. */
+/** The existing section sizes are shared across pairs; stars rank the two choices on offer. */
 export const portalConfig={stars:[1,2,3,4],counts:[9,10,11],biomes:['Тёмные руины','Ледяной склеп','Грибная бездна']};
 export function portalPair(runId:string,choice:number,random:()=>number=Math.random):[Portal,Portal]{
- return [0,1].map(i=>({id:`${runId}:${choice}:${i}`,stars:portalConfig.stars[Math.min(3,Math.floor(random()*4))],biome:Math.min(2,Math.floor(random()*3)),count:portalConfig.counts[Math.min(2,Math.floor(random()*3))],label:['Врата теней','Путь скитальцев'][i]})) as [Portal,Portal];
+ const pick=(size:number)=>Math.min(size-1,Math.floor(random()*size));
+ const roll=(side:number,label:string,other?:Portal):Portal=>{
+  const stars=portalConfig.stars[pick(portalConfig.stars.length)];
+  const biome=pick(portalConfig.biomes.length);
+  const counts=other&&stars!==other.stars?portalConfig.counts.filter(count=>count!==other.count):portalConfig.counts;
+  return {id:`${runId}:${choice}:${side}`,stars,biome,count:counts[pick(counts.length)],label};
+ };
+ const left=roll(0,'Врата теней');
+ const right=roll(1,'Путь скитальцев',left);
+ // An unequal pair draws two different sizes. Attach the larger size to the higher rank.
+ if((left.stars-right.stars)*(left.count-right.count)<0){
+  [left.count,right.count]=[right.count,left.count];
+ }
+ return [left,right];
 }
 export function realmPlan(floor:number,room:number,run?:RealmRun):EncounterPlan{
  const t=threat(floorStage(floor)),selected=run?.selected,region=regions[(selected?.biome??floor-1)%regions.length],title=`Тьма ${floor} · ${roomTitles[room-1]}`,boss=room===ROOMS;
