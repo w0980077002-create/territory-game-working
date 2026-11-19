@@ -62,7 +62,7 @@ export function HonorPanel({p, onBack}: {p: Player; onBack: () => void}) {
     {id:'gold', icon:'coins', label:'Золото для повышения', progress:`${number(p.gold)} / ${number(next.gold)}`, done:conditions.gold},
   ];
 
-  const footer = (next && requirements || received) && <footer className="modal-footer honor-footer">
+  const footer = (requirements || received) && <footer className="honor-footer">
     {next && requirements ?
       <button type="button" className="action honor-claim" disabled={!requirements.every(req => req.done)} onClick={() => {
         if (claim(rank + 1)) setReceived(true);
