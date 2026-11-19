@@ -129,15 +129,18 @@
 .honor-condition-mark { color: #e6c073; text-align: center; font-size: 18px; }
 .honor-requirements [data-done="true"] .honor-condition-mark { color: #b5e395; }
 
-.saga-modal .honor-panel .honor-claim {
-  margin: 1px 0 0;
+.saga-modal .honor-footer {
+  padding: 5px clamp(9px, 3vw, 22px);
+}
+.saga-modal .honor-footer .honor-claim {
+  margin: 0;
   border-color: #edc877;
   background: linear-gradient(#f8db94, #ca943d);
   color: #30210d;
   text-shadow: none;
   box-shadow: inset 0 0 0 2px #9e6f3688, 0 3px 5px #080b12;
 }
-.saga-modal .honor-panel .honor-claim:disabled {
+.saga-modal .honor-footer .honor-claim:disabled {
   opacity: 1;
   filter: none;
   border-color: #746c5e;
@@ -157,6 +160,7 @@
 
 @media (max-height: 640px) {
   .saga-modal[data-panel="honor"] .modal-body { padding-block: 6px; }
+  .saga-modal .honor-footer { padding-block: 3px; }
   .honor-panel { gap: 4px; }
   .honor-banner { padding-block: 4px; }
   .honor-banner .honor-crest { width: 64px; height: 64px; margin: 2px 0; }

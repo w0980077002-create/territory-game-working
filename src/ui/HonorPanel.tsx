@@ -5,6 +5,7 @@ import type {Player, Stats} from '../core/types';
 import {art} from '../data/catalog';
 import {honorConditions, honorRank, honorRanks} from '../saga/honor';
 import {Icon} from './Icon';
+import {DialogShell} from './SagaUI';
 import './honor.css';
 
 const format = new Intl.NumberFormat('ru-RU');
@@ -61,27 +62,31 @@ export function HonorPanel({p, onBack}: {p: Player; onBack: () => void}) {
     {id:'gold', icon:'coins', label:'Золото для повышения', progress:`${number(p.gold)} / ${number(next.gold)}`, done:conditions.gold},
   ];
 
-  return <section className="honor-panel">
-    <div className="honor-banners">
-      <RankCard rank={rank}/>
-      {next && <RankCard rank={rank + 1} next/>}
-    </div>
-    <Comparison current={stats(p)} after={next && stats(p, rank + 1)} rank={rank}/>
-    {next && requirements ? <>
-      <h3 className="honor-requirement-title">Условия повышения</h3>
-      <ul className="honor-requirements">{requirements.map(({id, icon, label, progress, done}) =>
-        <li key={id} data-done={done}>
-          <Icon name={icon}/>
-          <div><strong>{label}</strong><small>{progress}</small></div>
-          <span className="honor-condition-mark" aria-label={done ? 'Выполнено' : 'В процессе'}>{done ? '✓' : '·'}</span>
-        </li>
-      )}</ul>
+  const footer = (next && requirements || received) && <footer className="modal-footer honor-footer">
+    {next && requirements ?
       <button type="button" className="action honor-claim" disabled={!requirements.every(req => req.done)} onClick={() => {
         if (claim(rank + 1)) setReceived(true);
-      }}>Получить звание · {number(next.gold)} золота</button>
-    </> : <>
-      <p className="honor-receipt" role="status">{received ? `Звание «${honorRanks[rank].name}» получено` : 'Высшее почётное звание достигнуто'}</p>
-      {received && <button type="button" className="action honor-claim" onClick={onBack}>Готово</button>}
-    </>}
-  </section>;
+      }}>Получить звание · {number(next.gold)} золота</button> :
+      <button type="button" className="action honor-claim" onClick={onBack}>Готово</button>}
+  </footer>;
+
+  return <DialogShell panel="honor" title="Почётные звания" onBack={onBack} backLabel="К герою" footer={footer}>
+    <section className="honor-panel">
+      <div className="honor-banners">
+        <RankCard rank={rank}/>
+        {next && <RankCard rank={rank + 1} next/>}
+      </div>
+      <Comparison current={stats(p)} after={next && stats(p, rank + 1)} rank={rank}/>
+      {requirements ? <>
+        <h3 className="honor-requirement-title">Условия повышения</h3>
+        <ul className="honor-requirements">{requirements.map(({id, icon, label, progress, done}) =>
+          <li key={id} data-done={done}>
+            <Icon name={icon}/>
+            <div><strong>{label}</strong><small>{progress}</small></div>
+            <span className="honor-condition-mark" aria-label={done ? 'Выполнено' : 'В процессе'}>{done ? '✓' : '·'}</span>
+          </li>
+        )}</ul>
+      </> : <p className="honor-receipt" role="status">{received ? `Звание «${honorRanks[rank].name}» получено` : 'Высшее почётное звание достигнуто'}</p>}
+    </section>
+  </DialogShell>;
 }
