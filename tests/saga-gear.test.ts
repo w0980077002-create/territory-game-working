@@ -3,14 +3,16 @@ import assert from 'node:assert/strict';
 import {installHeadless} from '../scripts/sim/bot';
 installHeadless();
 import {Battle} from '../src/game/Battle';
-import {freshPlayer,useGame,parseSave,makeItem,asSetItem,makePerkItem,exportSave} from '../src/core/store';
+import {freshPlayer,useGame,parseSave,makeItem,asSetItem,makePerkItem,exportSave,salvageYield} from '../src/core/store';
 import {stats} from '../src/core/formulas';
+import {upgradePreview} from '../src/core/forge';
+import {namedDrop} from '../src/core/gear';
 import type {Player,Slot} from '../src/core/types';
-import {setCounts,setTier,sets,perks,setIds,matKey,matCount,type SetId,type PerkId} from '../src/saga/gear';
+import {setCounts,setTier,sets,perks,setIds,matKey,matCount,professions,type SetId,type PerkId} from '../src/saga/gear';
 import {specs,specId} from '../src/saga/specs';
 import {freshSaga} from "../src/saga/save";
 import {branchOf,evoTier,evoPower} from '../src/saga/companions';
-import {reforge,reforgePlan,engrave,craftSet,trade,pickSpec,pickBranch,saveBuild,applyBuild,buildsOf} from '../src/saga/actions';
+import {reforge,reforgePlan,engrave,craftPlan,craftSet,trade,pickSpec,pickBranch,saveBuild,applyBuild,buildsOf} from '../src/saga/actions';
 import {ensureQuests,dailyView,weeklyView,claimBoard,storyQuests,claimStory,masteryView,claimMastery,goals,DAILY_COUNT,WEEKLY_COUNT,dailyPool} from '../src/saga/quests';
 const G=()=>useGame.getState();
 beforeEach(()=>{useGame.setState({p:freshPlayer(),auto:false,panel:null,selected:null,recoveryRequired:false})});
@@ -106,4 +108,93 @@ test('failed storage writes keep forge resources, horn charges and saved builds 
  }
  assert.equal(saveBuild(0),true);
  assert.equal(buildsOf(G().p)[0]?.gear.weapon,before.equipment.weapon?.id);
+});
+
+test('masterwork unlocks after the first region and keeps the two general recipes available',()=>{
+ G().mutate(p=>{p.stage=10;p.gold=10000;p.saga=freshSaga();p.saga.n[matKey('ice')]=50});
+ const before=G().p;
+ assert.equal(craftSet('frost','weapon',true),false);
+ assert.deepEqual(G().p,before);
+ G().mutate(p=>{p.stage=11});
+ for(const slot of ['extra1','extra2'] as const){
+  assert.equal(craftSet('frost',slot,true),false);
+  assert.ok(craftSet('frost',slot));
+  const item=G().p.inventory.at(-1)!;
+  assert.equal(item.slot,slot);
+  assert.equal(item.masterwork,undefined);
+  assert.equal(salvageYield(item).xp,10+item.level*2);
+ }
+ assert.equal(craftSet('frost','wings',true),false);
+ assert.equal(craftSet('ember','weapon',true),false);
+});
+
+test('all four professions and six sets use the same price, bonus and nonprofitable refund',()=>{
+ const levels=[8,20,36,55,80,160];
+ const stages=[11,21,31,41,51,75];
+ for(const [i,id] of setIds.entries()){
+  useGame.setState({p:freshPlayer(),storageError:false});
+  G().mutate(p=>{
+   p.stage=stages[i];p.level=levels[i];p.forge=4;p.blessing=40;
+   p.gold=1e6;p.saga=freshSaga();p.saga.n[matKey(sets[id].material)]=250;
+  });
+  const plan=craftPlan(id,G().p,true);
+  assert.deepEqual([plan.level,plan.gold,plan.mats,plan.rarity],[levels[i]+1,90*(levels[i]+1),18,3]);
+  const worn=structuredClone(G().p.equipment);
+  for(const profession of professions)for(const slot of profession.slots){
+   const before=G().p,material=matCount(before,plan.material),gold=before.gold;
+   assert.ok(craftSet(id,slot,true));
+   const item=G().p.inventory.at(-1)!;
+   const base=makeItem(slot,plan.level,3);
+   assert.equal(item.rarity,3);
+   assert.equal(item.set,id);
+   assert.equal(item.masterwork,true);
+   assert.equal(item.uniqueId,undefined);
+   assert.equal(item.perk,undefined);
+   assert.match(item.origin!,new RegExp(profession.name));
+   for(const key of ['attack','hp','defense'] as const)assert.equal(item[key],Math.round(base[key]*1.25));
+   assert.equal(G().p.gold,gold-plan.gold);
+   assert.equal(matCount(G().p,plan.material),material-18);
+   assert.ok(salvageYield(item).gold<plan.gold);
+   assert.equal(salvageYield(item).xp,0);
+   G().salvage(item.id,true);
+   assert.equal(G().p.gold,gold-plan.gold+salvageYield(item).gold);
+   assert.equal(G().p.xp,before.xp);
+   assert.equal(matCount(G().p,plan.material),material-18);
+   assert.deepEqual(G().p.equipment,worn);
+  }
+ }
+});
+
+test('masterwork survives reload, upgrading and reforging without multiplying the bonus or the refund',()=>{
+ G().mutate(p=>{p.stage=11;p.level=20;p.gold=1e6;p.saga=freshSaga();p.saga.n[matKey('ice')]=40});
+ const write=localStorage.setItem,before=G().p;
+ localStorage.setItem=()=>{throw new Error('Quota exceeded')};
+ try{assert.equal(craftSet('frost','weapon',true),false);assert.deepEqual(G().p,before)}
+ finally{localStorage.setItem=write}
+ assert.ok(craftSet('frost','weapon',true));
+ const made=G().p.inventory.at(-1)!;
+ assert.equal(parseSave(exportSave())?.inventory.at(-1)?.masterwork,true);
+ G().equip(made.id);
+ G().upgrade('weapon');
+ G().upgrade('weapon');
+ G().mutate(p=>{p.level=40});
+ const expected=makeItem('weapon',40,3);
+ for(const key of ['attack','hp','defense'] as const)expected[key]=Math.round(expected[key]*1.25);
+ const upgraded=upgradePreview(upgradePreview(expected).next).next;
+ assert.ok(reforge('weapon'));
+ const item=G().p.equipment.weapon!;
+ for(const key of ['attack','hp','defense'] as const)assert.equal(item[key],upgraded[key]);
+ assert.equal(item.id,made.id);
+ assert.equal(item.set,'frost');
+ assert.deepEqual(salvageYield(item),salvageYield(made));
+ assert.deepEqual(parseSave(exportSave())?.equipment.weapon,item);
+});
+
+test('campaign random named trophies occupy exactly four percent and keep both effects',()=>{
+ assert.equal(namedDrop('campaign',.019999),'ice_silk');
+ assert.equal(namedDrop('campaign',.02),'storm_ring');
+ assert.equal(namedDrop('campaign',.039999),'storm_ring');
+ assert.equal(namedDrop('campaign',.04),undefined);
+ assert.equal(namedDrop('dungeon',.39),'pack_sigil');
+ assert.equal(namedDrop('darkness',.54),'pack_sigil');
 });

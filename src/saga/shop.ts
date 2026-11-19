@@ -1,6 +1,7 @@
 import balance from '../../config/test-balance.v1.json';
 import economy from '../../config/solo-economy.v1.json';
-import type {Player} from '../core/types';
+import type {Player,Slot} from '../core/types';
+import {slots} from '../data/catalog';
 import {resources} from '../dark/rules';
 import {grant, regionMaterial, type Reward} from './rewards';
 import {materials,materialIds} from './gear';
@@ -12,6 +13,7 @@ export const shopCategories = [
   ['daily', 'Ежедневные'],
   ['resources', 'Ресурсы'],
   ['materials', 'Материалы'],
+  ['equipment', 'Экипировка'],
   ['growth', 'Развитие'],
   ['horn', 'Рог Трофеев'],
   ['supplies', 'Наборы припасов'],
@@ -34,6 +36,7 @@ export interface ShopOffer {
   price: number;
   currency: ShopCurrency;
   reward: Reward;
+  equipment?: {slot:Slot;level:number};
   limit?: 'daily' | 'once';
 }
 
@@ -75,7 +78,9 @@ function dailyOffer(id: StockId, category: Category, name: string, icon: string,
   return {id, category, name, icon, description, currency, reward, price:stock[id].price, limit:'daily'};
 }
 
-export function shopOffers(p: Player, now = Date.now()): ShopOffer[] {
+export const shopEquipmentSlots=slots.filter(slot=>slot!=='wings');
+
+export function shopOffers(p: Player, now = Date.now(), equipmentSlot:Slot='weapon'): ShopOffer[] {
   const material = regionMaterial(p);
   const previousIndex = (materialIds.indexOf(material) + materialIds.length - 1) % materialIds.length;
   const previous = materialIds[previousIndex];
@@ -116,6 +121,14 @@ export function shopOffers(p: Player, now = Date.now()): ShopOffer[] {
     offers.push(dailyOffer('relic-expedition','growth','Припасы искателя','relic-shard',
       'Осколки для развития реликвий и Хаосит для похода за добычей.','gems',stock['relic-expedition'].reward));
   }
+  if(shopEquipmentSlots.some(slot=>slot===equipmentSlot)){
+    offers.push({
+      id:'basic-equipment',category:'equipment',name:'Снаряжение дружины',icon:'armor',
+      description:'Одна обычная вещь уровня героя. Выберите слот экипировки.',
+      currency:'gold',price:Math.max(50,35*p.level),reward:{},limit:'daily',
+      equipment:{slot:equipmentSlot,level:p.level},
+    });
+  }
   return [...offers, ...packs];
 }
 
@@ -132,11 +145,12 @@ export function shopStatus(p: Player, offer: ShopOffer, now: number): string | u
   const space = hornConfig.maximum_charges - availableHorn(p, now);
   if (offer.id === 'horn' && space === 0) return 'Рог заполнен';
   if ((offer.reward.horn ?? 0) > space) return 'Освободите место в Роге';
+  if (offer.equipment && p.inventory.length >= balance.loot_test_settings.starter_inventory_capacity) return 'Рюкзак полон';
   if (p[offer.currency] < offer.price) return 'Недостаточно средств';
 }
 
 /** Includes displayed contents so a stale confirmation cannot buy a different quantity or material. */
-export const shopQuote = (offer: Pick<ShopOffer,'price'|'reward'>) => JSON.stringify([offer.price, offer.reward]);
+export const shopQuote = (offer: Pick<ShopOffer,'price'|'reward'|'equipment'>) => JSON.stringify([offer.price, offer.reward, ...(offer.equipment?[offer.equipment]:[])]);
 export const expensiveOffer = (offer: ShopOffer) => offer.price >= economy.confirmFrom[offer.currency];
 
 export function applyPurchase(p: Player, offer: ShopOffer, now: number) {

@@ -2,11 +2,11 @@
  * Player actions of the saga systems. Every action validates, then changes the save in ONE store mutation
  * and reports the result, so a double tap or a reload can never pay or charge twice.
  */
-import {useGame,makeItem,asSetItem,addLoot,mayStartLoot} from '../core/store';
+import {useGame,makeItem,asSetItem,addLoot,mayStartLoot,salvageYield} from '../core/store';
 import type {Item,Player,Slot,HeroClass} from '../core/types';
 import balance from '../../config/test-balance.v1.json';
 import {slots} from '../data/catalog';
-import {sets,engravings,matKey,matCount,materials,materialIds,type SetId,type EngraveId} from './gear';
+import {sets,engravings,matKey,matCount,materials,materialIds,masterworkStartStage,professionForSlot,applyMasterwork,type SetId,type EngraveId} from './gear';
 import {regionIndex} from './regions';
 import {chooseSpec,specIndex} from './specs';
 import {chooseBranch} from './companions';
@@ -22,7 +22,9 @@ export const forgeLevel=(p:Player)=>Math.max(1,p.level+Math.floor(p.forge/3));
 /** Reforging raises an item to the forge's current level and keeps its name, rarity, upgrades, set and perk. */
 export function reforgePlan(item:Item,p:Player){
  const target=forgeLevel(p);if(item.slot==='wings'||item.level>=target)return null;
- const fresh=makeItem(item.slot,target,item.rarity),next:Item={...structuredClone(item),level:target,attack:fresh.attack,hp:fresh.hp,defense:fresh.defense};
+ const fresh=makeItem(item.slot,target,item.rarity);
+ if(item.masterwork)applyMasterwork(fresh);
+ const next:Item={...structuredClone(item),level:target,attack:fresh.attack,hp:fresh.hp,defense:fresh.defense};
  for(let n=0;n<item.upgrade;n++)for(const k of ['attack','hp','defense'] as const)next[k]=Math.ceil(next[k]*balance.gear_rpg_test.upgrade_stat_multiplier);
  const levels=target-item.level,mats=Math.max(1,Math.ceil(levels/6));return {next,gold:Math.round(30*levels*(1+item.rarity*.4)),mats,material:payMaterial(p,mats)};
 }
@@ -32,11 +34,39 @@ export function engravePlan(item:Item,p:Player){const mats=2;return {gold:150*(1
 export function engrave(slot:Slot,id:EngraveId){const p=G().p,item=p.equipment[slot];if(!item||!Object.hasOwn(engravings,id))return false;if(item.engrave===id)return fail('Эта руна уже выгравирована');const plan=engravePlan(item,p);if(p.gold<plan.gold)return fail('Недостаточно золота');if(matCount(p,plan.material)<plan.mats)return fail(`Нужно ${plan.mats} × ${materials[plan.material].name}`);
  if(!G().mutate(p=>{const now=p.equipment[slot];if(!now||now.id!==item.id)return;p.gold-=plan.gold;spend(p,plan.material,plan.mats);now.engrave=id;bumpCount(p,'engrave')}))return saveFailed();return done(`${engravings[id].name} выгравирована`)}
 export const setUnlocked=(p:Player,set:SetId)=>regionIndex(p.stage)>=sets[set].region;
-export function craftPlan(set:SetId,p:Player){const level=forgeLevel(p);return {level,gold:60*level,mats:12,material:sets[set].material,rarity:3}}
-/** Recipe: a guaranteed piece of a chosen set for a chosen slot. The honest way to finish a 2/4/6 bonus. */
-export function craftSet(set:SetId,slot:Slot){const p=G().p;if(slot==='wings'||!slots.includes(slot)||!Object.hasOwn(sets,set))return false;if(!setUnlocked(p,set))return fail('Сначала дойдите до региона этого комплекта');const plan=craftPlan(set,p);if(p.inventory.length>=capacity)return fail('Рюкзак полон');if(p.gold<plan.gold)return fail('Недостаточно золота');if(matCount(p,plan.material)<plan.mats)return fail(`Нужно ${plan.mats} × ${materials[plan.material].name}`);
+export function craftPlan(set:SetId,p:Player,masterwork=false){
+ const level=forgeLevel(p);
+ return {level,gold:(masterwork?90:60)*level,mats:masterwork?18:12,material:sets[set].material,rarity:3};
+}
+/** Both recipe types produce a chosen set piece in the ordinary equipment inventory. */
+export function craftSet(set:SetId,slot:Slot,masterwork=false){
+ const p=G().p,profession=masterwork?professionForSlot(slot):undefined;
+ if(slot==='wings'||!slots.includes(slot)||!Object.hasOwn(sets,set)||masterwork&&!profession)return false;
+ if(profession&&p.stage<masterworkStartStage)return fail('Мастера открываются после первого финала кампании');
+ if(!setUnlocked(p,set))return fail('Сначала дойдите до региона этого комплекта');
+ const plan=craftPlan(set,p,masterwork);
+ if(p.inventory.length>=capacity)return fail('Рюкзак полон');
+ if(p.gold<plan.gold)return fail('Недостаточно золота');
+ if(matCount(p,plan.material)<plan.mats)return fail(`Нужно ${plan.mats} × ${materials[plan.material].name}`);
  if(!mayStartLoot())return false;
- let made:Item|undefined;if(!G().mutate(p=>{p.gold-=plan.gold;spend(p,plan.material,plan.mats);const rarity=plan.rarity+(Math.random()<Math.min(.5,p.blessing*.015)?1:0);made=asSetItem(makeItem(slot,plan.level,rarity),set);made.origin='Рецепт кузницы · '+sets[set].name;addLoot(p,made);bumpCount(p,'craft')}))return saveFailed();if(made)G().select(made.id);return true}
+ let made:Item|undefined;
+ if(!G().mutate(p=>{
+  p.gold-=plan.gold;
+  spend(p,plan.material,plan.mats);
+  const rarity=plan.rarity+(!masterwork&&Math.random()<Math.min(.5,p.blessing*.015)?1:0);
+  made=asSetItem(makeItem(slot,plan.level,rarity),set);
+  if(profession){
+   applyMasterwork(made);
+   made.masterwork=true;
+   made.salvageGoldCap=salvageYield(made).gold;
+  }
+  made.origin=profession?`Мастерская · ${profession.name} · ${sets[set].name}`:'Рецепт кузницы · '+sets[set].name;
+  addLoot(p,made);
+  bumpCount(p,'craft');
+ }))return saveFailed();
+ if(made)G().select(made.id);
+ return true;
+}
 /** Three materials of one kind become one of another: no dead-end stock after a region is finished. */
 export function trade(from:string,to:string){const p=G().p;if(from===to||!materialIds.includes(from)||!materialIds.includes(to))return false;if(matCount(p,from)<3)return fail(`Нужно 3 × ${materials[from].name}`);if(!G().mutate(p=>{spend(p,from,3);p.saga!.n[matKey(to)]=matCount(p,to)+1}))return saveFailed();return done(`+1 ${materials[to].name}`)}
 export function pickSpec(index:number){if(specIndex(G().p)===index)return false;if(!G().mutate(p=>chooseSpec(p,index)))return saveFailed();return done('Сборка изменена · работает со следующего удара')}
