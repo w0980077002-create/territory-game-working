@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {installHeadless} from '../scripts/sim/bot';
-import {freshPlayer, parseSave, SAVE_KEY, useGame} from '../src/core/store';
+import {freshPlayer, makeItem, parseSave, salvageYield, SAVE_KEY, useGame} from '../src/core/store';
 import {shopOffers, shopQuote, shopSold, shopStatus} from '../src/saga/shop';
 import {claimDailyGift, claimSeason, dailyCalendar, dailyGift, seasonBadge} from '../src/saga/events';
 import {bumpCount} from '../src/saga/save';
@@ -125,4 +125,34 @@ test('the expedition bundle grants both supplies and rejects a second purchase',
   assert.equal(restored.chaosite,before+10);
   assert.equal(restored.tokens,16);
   assert.equal(shopSold(restored,kit,Date.now()),true);
+});
+
+test('basic equipment purchase uses one daily limit for all slots and rejects stale selections',t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:Date.UTC(2026,10,18)});
+ const p=freshPlayer();p.level=20;p.gold=2500;
+ useGame.setState({p,recoveryRequired:false,storageError:false});
+ const offer=shopOffers(p,Date.now(),'shield').find(row=>row.id==='basic-equipment')!;
+ assert.equal(offer.price,700);
+ assert.equal(shopOffers(p,Date.now(),'wings').some(row=>row.id===offer.id),false);
+ assert.equal(game().buy(offer.id,shopQuote(offer),'helmet'),false);
+ assert.equal(game().buy(offer.id),false);
+ const full={...p,inventory:Array.from({length:80},()=>makeItem('helmet',1,1))};
+ assert.equal(shopStatus(full,offer,Date.now()),'Рюкзак полон');
+ const write=localStorage.setItem;
+ localStorage.setItem=()=>{throw new Error('Quota exceeded')};
+ try{
+  assert.equal(game().buy(offer.id,shopQuote(offer),'shield'),false);
+  assert.equal(game().p.gold,2500);
+  assert.equal(shopSold(game().p,offer,Date.now()),false);
+ }finally{localStorage.setItem=write}
+ assert.ok(game().buy(offer.id,shopQuote(offer),'shield'));
+ const after=parseSave(localStorage.getItem(SAVE_KEY))!,item=after.inventory[0];
+ assert.equal(after.gold,1800);
+ assert.deepEqual([item.slot,item.level,item.rarity,item.set,item.perk],['shield',20,1,undefined,undefined]);
+ assert.ok(salvageYield(item).gold<offer.price);
+ assert.equal(salvageYield(item).xp,0);
+ const boots=shopOffers(after,Date.now(),'boots').find(row=>row.id===offer.id)!;
+ assert.equal(game().buy(boots.id,shopQuote(boots),'boots'),false);
+ t.mock.timers.tick(86_400_000);
+ assert.ok(game().buy(boots.id,shopQuote(boots),'boots'));
 });

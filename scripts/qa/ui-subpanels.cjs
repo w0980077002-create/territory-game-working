@@ -18,7 +18,27 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await open('quests');for(const name of ['День','Неделя','Сага','Мастерство']){await page.locator('.quest-board .tabs').getByRole('button',{name:new RegExp('^'+name)}).tap();await check('quests-'+name)}
   await page.locator('summary').filter({hasText:/^Цели охоты и источники добычи$/}).tap();await page.locator('.hunt-goals').scrollIntoViewIfNeeded();await check('hunt-sources');
   await page.locator('summary').filter({hasText:/^Именные трофеи саги$/}).tap();await page.locator('.hunt-item').last().scrollIntoViewIfNeeded();await check('trophy-guide');
-  await open('forge');await page.getByRole('button',{name:'Создание',exact:true}).tap();for(const [i,name] of ['frost','storm','rune','stone','legion','ember'].entries()){await page.locator('.tabs.wrap button').nth(i).tap();await page.locator('.material-row').scrollIntoViewIfNeeded();await check('recipe-'+name)}
+  await open('forge');await page.getByRole('button',{name:'Создание',exact:true}).tap();
+  const sets=page.getByRole('group',{name:'Комплекты для ковки'}),masters=page.getByRole('group',{name:'Мастера кузницы'});
+  for(const [i,name] of ['frost','storm','rune','stone','legion','ember'].entries()){await sets.getByRole('button').nth(i).tap();await page.locator('.material-row').scrollIntoViewIfNeeded();await check('recipe-'+name)}
+  const workshop=await page.evaluate(()=>{
+   const g=window.__lootborn.useGame.getState();
+   g.mutate(p=>{p.gold=Math.max(p.gold,100000);p.inventory=p.inventory.slice(0,78);p.saga.n['mat:ember']=18});
+   const p=window.__lootborn.useGame.getState().p;
+   return {gold:p.gold,level:p.level+Math.floor(p.forge/3)};
+  });
+  for(const [master,slot] of [['Кузнец','Оружие'],['Кожевник','Сапоги'],['Портной','Доспех'],['Ювелир','Кольцо I']]){
+   await masters.getByRole('button',{name:master,exact:true}).tap();
+   await page.getByRole('button',{name:`Слот для ковки: ${slot}`,exact:true}).waitFor();
+  }
+  await check('masterwork');
+  await page.getByRole('button',{name:/^Выковать/}).evaluate(e=>{e.click();e.click()});
+  await page.locator('[data-panel="item"]').waitFor();
+  const craft=await page.evaluate(()=>{const p=window.__lootborn.useGame.getState().p;return {gold:p.gold,material:p.saga.n['mat:ember'],item:p.inventory.at(-1)}});
+  assert.equal(craft.gold,workshop.gold-workshop.level*90);
+  assert.equal(craft.material,0);
+  assert.equal(craft.item.slot,'ring1');
+  assert.equal(craft.item.masterwork,true);
   await open('skills');for(const card of await page.locator('.skill-card').all()){await card.locator('.rune-options button').last().tap()}await page.locator('.skill-card').last().scrollIntoViewIfNeeded();await check('runes-selected');
   await open('companions');await page.locator('.squad-grid button').last().scrollIntoViewIfNeeded();await check('companion-evolved');
   await open('rewards');const gold=await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold);await page.getByRole('button',{name:'Забрать подарок',exact:true}).tap();assert.equal(await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold),gold+200);await check('daily-claimed');
@@ -73,6 +93,21 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   assert.equal(afterForge.saga.n['mat:ember'],(beforeForge.saga?.n['mat:ember']??0)+2);
   await offer('forge-parcel').getByText('Сегодня куплено').waitFor();
   await check('shop-materials');
+  await category('Экипировка');
+  await purchase('basic-equipment').tap();
+  const gear=page.getByRole('dialog',{name:'Снаряжение дружины'});
+  await gear.getByRole('button',{name:/^Слот покупки/}).tap();
+  await page.getByRole('option',{name:'Щит',exact:true}).tap();
+  await gear.getByRole('button',{name:/^Купить/}).tap();
+  const confirmation=page.getByRole('dialog',{name:'Подтвердить покупку'});
+  assert.match(await confirmation.innerText(),/Щит/);
+  const beforeEquipment=await read();
+  await confirmation.getByRole('button',{name:/^Подтвердить/}).evaluate(button=>{button.click();button.click()});
+  await offer('basic-equipment').getByText('Сегодня куплено').waitFor();
+  const afterEquipment=await read();
+  assert.equal(afterEquipment.gold,beforeEquipment.gold-Math.max(50,35*beforeEquipment.level));
+  assert.equal(afterEquipment.inventory.at(-1).slot,'shield');
+  assert.equal(afterEquipment.inventory.at(-1).rarity,1);
   await category('Развитие');
   await page.evaluate(()=>window.__lootborn.useGame.getState().mutate(p=>{p.gems=0}));
   await purchase('relic-shards').isDisabled().then(disabled=>assert.equal(disabled,true));

@@ -369,11 +369,11 @@
       "campaign": [
         {
           "id": "ice_silk",
-          "chance": 0.08
+          "chance": 0.02
         },
         {
           "id": "storm_ring",
-          "chance": 0.12
+          "chance": 0.02
         }
       ],
       "dungeon": [

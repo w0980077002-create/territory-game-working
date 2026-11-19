@@ -16,6 +16,20 @@ export const sets:Record<SetId,SetDef>={
  ember:{name:'Сердце Бездны',tag:'Вампиризм и ярость',color:'#ff9a5c',region:5,material:'ember',bonuses:['+6% вампиризма','Ниже 50% HP: +25% урона','Убийство врага лечит 15% HP и поджигает следующего']}
 };
 export const setOfRegion=(region:number)=>setIds[((region%6)+6)%6];
+export const masterworkStartStage=11;
+export const masterworkStatMultiplier=1.25;
+export const professions=[
+ {id:'smith',name:'Кузнец',slots:['weapon','helmet','shield']},
+ {id:'leatherworker',name:'Кожевник',slots:['boots','belt']},
+ {id:'tailor',name:'Портной',slots:['armor','cloak']},
+ {id:'jeweler',name:'Ювелир',slots:['ring1','ring2','amulet']},
+] as const satisfies ReadonlyArray<{id:string;name:string;slots:readonly Slot[]}>;
+export const professionForSlot=(slot:Slot)=>professions.find(profession=>(profession.slots as readonly Slot[]).includes(slot));
+/** Apply only to fresh base stats, before normal upgrades. */
+export function applyMasterwork(item:Item){
+ for(const stat of ['attack','hp','defense'] as const)item[stat]=Math.round(item[stat]*masterworkStatMultiplier);
+ return item;
+}
 export type PerkId='cutlass'|'crown'|'echo'|'aquila'|'heart'|'belt'|'boots'|'moss'|'compass'|'void'|'duskwings';
 export interface PerkDef {name:string;slot:Slot;rarity:number;tag:string;text:string;source:string;set?:SetId}
 export const perks:Record<PerkId,PerkDef>={

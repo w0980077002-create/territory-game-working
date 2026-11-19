@@ -1,15 +1,17 @@
 import {useState} from 'react';
-import type {Player} from '../core/types';
+import type {Player,Slot} from '../core/types';
+import {slotNames} from '../data/catalog';
 import {useGame} from '../core/store';
-import {expensiveOffer, shopCategories, shopCurrencies, shopOffers, shopQuote, shopStatus, type ShopOffer} from '../saga/shop';
+import {expensiveOffer, shopCategories, shopCurrencies, shopEquipmentSlots, shopOffers, shopQuote, shopStatus, type ShopOffer} from '../saga/shop';
 import {rewardText} from '../saga/rewards';
-import {Icon} from './Icon';
+import {Icon,gearIcon} from './Icon';
+import {CompactFilter} from './CompactFilter';
 import {RewardArt, rewardParts} from './RewardArt';
 import {CardDialog} from './SagaUI';
 import './treasureShop.css';
 
 const categories = [['all','Витрина'], ...shopCategories] as const;
-const featured = ['travel-stipend','region-supplies','expedition-kit','mine-reserve','summon-seal','forge-parcel'];
+const featured = ['travel-stipend','region-supplies','expedition-kit','mine-reserve','summon-seal','forge-parcel','basic-equipment'];
 const compactCoins = new Intl.NumberFormat('ru', {notation:'compact',maximumFractionDigits:1});
 const priceText = (offer: ShopOffer) => `${offer.price.toLocaleString('ru')} ${shopCurrencies[offer.currency].unit}`;
 const limitText = (offer: ShopOffer) => offer.limit === 'daily' ? 'Одна покупка в сутки · обновление в 00:00 UTC'
@@ -21,19 +23,20 @@ export function TreasureShop({p, source, sources}: {
   sources: (kind: string) => string;
 }) {
   const [category, setCategory] = useState<typeof categories[number][0]>('all');
+  const [equipmentSlot,setEquipmentSlot]=useState<Slot>('weapon');
   const [details, setDetails] = useState<string>();
   const [confirmation, setConfirmation] = useState<ShopOffer>();
   const [guide, setGuide] = useState<string>();
   const buy = useGame(state => state.buy);
   const now = Date.now();
-  const offers = shopOffers(p, now);
+  const offers = shopOffers(p, now, equipmentSlot);
   const order = (id: string) => featured.includes(id) ? featured.indexOf(id) : featured.length;
   const visible = category === 'all' ? [...offers].sort((a,b) => order(a.id) - order(b.id))
     : offers.filter(offer => offer.category === category);
   const selected = offers.find(offer => offer.id === details);
-  const purchase = (offer: ShopOffer) => buy(offer.id, shopQuote(offer));
+  const purchase = (offer: ShopOffer) => buy(offer.id, shopQuote(offer), offer.equipment?.slot);
   const requestPurchase = (offer: ShopOffer) => {
-    if (expensiveOffer(offer)) setConfirmation(offer);
+    if (offer.equipment||expensiveOffer(offer)) setConfirmation(offer);
     else purchase(offer);
   };
   const selectedStatus = selected && shopStatus(p, selected, now);
@@ -61,7 +64,7 @@ export function TreasureShop({p, source, sources}: {
         const parts = rewardParts(offer.reward);
         return <article className={`shop-offer${sold ? ' sold' : ''}`} key={offer.id} data-offer={offer.id}>
           <button className="shop-item" type="button" onClick={() => setDetails(offer.id)}
-            aria-label={`Подробнее · ${offer.name} · ${rewardText(offer.reward)}`}>
+            aria-label={`Подробнее · ${offer.name}${parts.length?` · ${rewardText(offer.reward)}`:''}`}>
             <span className="shop-item-picture">
               {parts.length > 1 ? <RewardArt reward={offer.reward}/> : <><Icon name={parts[0]?.icon ?? offer.icon}/>
                 {parts[0] && <b>×{parts[0].count.toLocaleString('ru')}</b>}</>}
@@ -70,9 +73,9 @@ export function TreasureShop({p, source, sources}: {
           </button>
           <button type="button" className="shop-buy" disabled={!!status}
             aria-label={sold ? status : `Купить · ${priceText(offer)}${status ? ` · ${status}` : ''}`} title={status || priceText(offer)}
-            onClick={() => requestPurchase(offer)}>
+            onClick={() => offer.equipment?setDetails(offer.id):requestPurchase(offer)}>
             {sold ? <span>{status}</span> : <><Icon name={shopCurrencies[offer.currency].icon}/>
-              <b>{offer.price.toLocaleString('ru')}</b>{status && <span>{status === 'Недостаточно средств' ? 'Не хватает' : status === 'Рог заполнен' ? status : 'Мало места в Роге'}</span>}</>}
+              <b>{offer.price.toLocaleString('ru')}</b>{status && <span>{status === 'Недостаточно средств' ? 'Не хватает' : status === 'Освободите место в Роге' ? 'Мало места в Роге' : status}</span>}</>}
           </button>
         </article>;
       })}
@@ -82,13 +85,19 @@ export function TreasureShop({p, source, sources}: {
         ? <button className="action secondary" onClick={() => setGuide(selected.currency)}>Где получить</button>
         : <button className="action" disabled={!!selectedStatus}
           onClick={() => requestPurchase(selected)}>{selectedStatus || `Купить · ${priceText(selected)}`}</button>}>
-      <RewardArt reward={selected.reward} names/>
+      {selected.equipment?<div className="inventory-order">
+        <span>Слот</span><CompactFilter label="Слот покупки" value={equipmentSlot} onChange={slot=>setEquipmentSlot(slot as Slot)}
+          options={shopEquipmentSlots.map(slot=>({value:slot,label:slotNames[slot]}))}/>
+      </div>:<RewardArt reward={selected.reward} names/>}
       <p>{selected.description}</p><p className="hint">{limitText(selected)}</p>
       <p className="shop-price"><Icon name={shopCurrencies[selected.currency].icon}/>{priceText(selected)}</p>
     </CardDialog>}
     {confirmation && <CardDialog title="Подтвердить покупку" onClose={() => setConfirmation(undefined)}
-      actions={<button className="action" onClick={() => {purchase(confirmation); setConfirmation(undefined)}}>Подтвердить · {priceText(confirmation)}</button>}>
-      <p><strong>{confirmation.name}</strong></p><RewardArt reward={confirmation.reward} names/>
+      actions={<button className="action" onClick={() => {if(purchase(confirmation)&&confirmation.equipment)setDetails(undefined);setConfirmation(undefined)}}>Подтвердить · {priceText(confirmation)}</button>}>
+      {confirmation.equipment?<div className="row">
+        <Icon name={gearIcon(confirmation.equipment.slot)}/>
+        <p><strong>{slotNames[confirmation.equipment.slot]}</strong><br/>Обычный предмет · ур.{confirmation.equipment.level}</p>
+      </div>:<><p><strong>{confirmation.name}</strong></p><RewardArt reward={confirmation.reward} names/></>}
     </CardDialog>}
     {guide && <CardDialog title={sources(guide)} onClose={() => setGuide(undefined)}>{source(guide)}</CardDialog>}
   </div>;

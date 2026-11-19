@@ -1,6 +1,7 @@
 import {CompactFilter} from './CompactFilter';
 /** Saga windows: chapter map, album and (later) every long-term system. Rendered inside the shared DialogShell. */
 import {useGame} from '../core/store';
+import {gearRules} from '../core/gear';
 import type {Player} from '../core/types';
 import {regions,regionIndex,stageInRegion,legendLap,hazards,STORY_STAGES} from '../saga/regions';
 import {count} from '../saga/save';
@@ -37,7 +38,7 @@ export function Album({p}:{p:Player}){
 import {useEffect,useState} from 'react';
 import type {Item,Slot} from '../core/types';
 import {slotNames,slots,rarityNames,classNames} from '../data/catalog';
-import {sets,setIds,setOf,setCounts,perkOf,perks,perkIds,engravings,engraveOf,materials,materialIds,matCount,dropRules,setChance,type SetId,type EngraveId} from '../saga/gear';
+import {sets,setIds,setOf,setCounts,perkOf,perks,perkIds,engravings,engraveOf,materials,materialIds,matCount,dropRules,setChance,professions,masterworkStartStage,masterworkStatMultiplier,type SetId,type EngraveId} from '../saga/gear';
 import {specs,specIndex} from '../saga/specs';
 import {branches,branchOf,evoName,evoPower,nextEvolution,BRANCH_LEVEL,combos} from '../saga/companions';
 import {reforge,reforgePlan,engrave,engravePlan,craftSet,craftPlan,setUnlocked,trade,pickSpec,pickBranch,buildsOf,saveBuild,applyBuild,forgeLevel} from '../saga/actions';
@@ -90,22 +91,40 @@ export function ForgeBench({slot,p}:{slot:Slot;p:Player}){
 export function Materials({p}:{p:Player}){return <div className="material-row">{[...materialIds,'dusk'].map(id=><span key={id} style={{'--tone':materials[id].color} as React.CSSProperties} title={materials[id].name}><Icon name={materialIcon(id)}/><b>{matCount(p,id)}</b><small>{materials[id].name}</small></span>)}</div>}
 /** Set recipes and material exchange inside the Forge. */
 export function Recipes({p}:{p:Player}){
- const openSource=useGame(s=>s.open),[set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost'),[slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice'),plan=craftPlan(set,p),open=setUnlocked(p,set),n=setCounts(p)[set];
+ const openSource=useGame(s=>s.open),[set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost');
+ const [slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice');
+ const [master,setMaster]=useState<(typeof professions)[number]['id']>();
+ const profession=professions.find(entry=>entry.id===master);
+ const craftSlots:readonly Slot[]=profession?.slots??slots.filter(s=>s!=='wings');
+ const mastersOpen=p.stage>=masterworkStartStage,open=setUnlocked(p,set),n=setCounts(p)[set];
+ const plan=craftPlan(set,p,!!profession);
+ const chooseMaster=(next?:typeof profession)=>{
+  setMaster(next?.id);
+  if(next&&!(next.slots as readonly Slot[]).includes(slot))setSlot(next.slots[0]);
+ };
+ const bonus=Math.round((masterworkStatMultiplier-1)*100);
+ const ready=open&&(!profession||mastersOpen)&&p.gold>=plan.gold&&matCount(p,plan.material)>=plan.mats;
  return <div className="saga-section"><h3>Рецепты комплектов</h3><Materials p={p}/>
-  <div className="tabs wrap">{setIds.map(id=><button key={id} className={set===id?'selected':''} onClick={()=>setSet(id)} style={{'--tone':sets[id].color} as React.CSSProperties}>{setUnlocked(p,id)?'':'🔒 '}{sets[id].name}</button>)}</div>
+  <div className="tabs wrap" role="group" aria-label="Мастера кузницы">
+   <button type="button" aria-pressed={!master} className={!master?'selected':''} onClick={()=>chooseMaster()}>Обычные рецепты</button>
+   {professions.map(entry=><button type="button" key={entry.id} aria-pressed={master===entry.id} className={master===entry.id?'selected':''} onClick={()=>chooseMaster(entry)}>{entry.name}</button>)}
+  </div>
+  {profession&&<p className="hint">{mastersOpen?`+${bonus}% к базовым характеристикам · редкий предмет без случайного броска`:'Мастера принимают заказы после первого финала кампании.'}</p>}
+  <div className="tabs wrap" role="group" aria-label="Комплекты для ковки">{setIds.map(id=><button key={id} aria-pressed={set===id} className={set===id?'selected':''} onClick={()=>setSet(id)} style={{'--tone':sets[id].color} as React.CSSProperties}>{setUnlocked(p,id)?'':'🔒 '}{sets[id].name}</button>)}</div>
   <div className="set-line" style={{'--tone':sets[set].color} as React.CSSProperties}><strong>{sets[set].name} · {sets[set].tag} · надето {n}/6</strong><ol>{sets[set].bonuses.map((b,i)=><li key={i} className={n>=(i+1)*2?'on':''}><b>{(i+1)*2}</b><span>{b}</span></li>)}</ol></div>
-  <div className="inventory-order"><span>Слот</span><CompactFilter label="Слот для ковки" value={slot} onChange={v=>setSlot(v as Slot)} options={slots.filter(s=>s!=='wings').map(s=>({value:s,label:slotNames[s]+(setOf(p.equipment[s])===set?' ✓':'')}))}/></div>
-  <Btn disabled={!open||p.gold<plan.gold||matCount(p,plan.material)<plan.mats} onClick={()=>craftSet(set,slot)}>{open?`Выковать ур.${plan.level} · ${rarityNames[plan.rarity]}+ · ${short(plan.gold)} золота · ${plan.mats} × ${materials[plan.material].name}`:`Откроется в регионе «${regions[sets[set].region].name}»`}</Btn>
+  <div className="inventory-order"><span>Слот</span><CompactFilter label="Слот для ковки" value={slot} onChange={v=>setSlot(v as Slot)} options={craftSlots.map(s=>({value:s,label:slotNames[s]+(setOf(p.equipment[s])===set?' ✓':'')}))}/></div>
+  <Btn disabled={!ready} onClick={()=>{if(useGame.getState().panel==='forge')craftSet(set,slot,!!profession)}}>{open?`Выковать ур.${plan.level} · ${rarityNames[plan.rarity]}${profession?'':'+'} · ${plan.gold.toLocaleString('ru')} золота · ${plan.mats} × ${materials[plan.material].name}`:`Откроется в регионе «${regions[sets[set].region].name}»`}</Btn>
   <Btn kind="secondary" onClick={()=>openSource(`source:${plan.material}:forge`)}>Где получить · {materials[plan.material].name}</Btn>
-  <p className="hint">Материалы дают победы в регионе: {Math.round(dropRules.materialWave*100)}% за встречу, {dropRules.materialBoss} за стража, {dropRules.materialFinale} за владыку. Благословение даёт шанс выковать вещь на ступень лучше.</p>
+  <p className="hint">Материалы дают победы в регионе: {Math.round(dropRules.materialWave*100)}% за встречу, {dropRules.materialBoss} за стража, {dropRules.materialFinale} за владыку. {!profession&&' Благословение даёт шанс выковать вещь на ступень лучше.'}</p>
   <div className="inventory-order"><span>Обмен 3 → 1</span><CompactFilter label="Материал для обмена" value={from} onChange={setFrom} options={materialIds.map(id=>({value:id,label:`${materials[id].name} (${matCount(p,id)})`}))}/></div>
   <Btn kind="secondary" disabled={matCount(p,from)<3||from===plan.material} onClick={()=>trade(from,plan.material)}>Обменять на {materials[plan.material].name}</Btn>
  </div>;
 }
 /** Honest drop table of sets and named trophies. */
 export function GearGuide({p}:{p:Player}){
+ const campaignChance=Math.round(100*gearRules.drops.campaign.reduce((total,row)=>total+row.chance,0));
  const owned=new Set([...Object.values(p.equipment),...p.inventory,...(p.pendingLoot??[])].flatMap(i=>i?.perk?[i.perk]:[]));
- return <div className="saga-section"><h3>Именные трофеи саги</h3><p className="hint">Владыка региона и хозяин Логова при первой победе всегда отдают свой трофей. Комплектные вещи: {Math.round(setChance(dropRules.setChanceRegular,p.blessing)*100)}% с обычной добычи региона, {Math.round(setChance(dropRules.setChanceBoss,p.blessing)*100)}% с боссов, {Math.round(setChance(dropRules.setChanceHorn,p.blessing)*100)}% из Рога (растёт с Благословением).</p>
+ return <div className="saga-section"><h3>Именные трофеи саги</h3><p className="hint">Случайный именной трофей обычного босса кампании — {campaignChance}% суммарно. Владыка региона и хозяин Логова при первой победе отдают свой трофей. Комплектные вещи: {Math.round(setChance(dropRules.setChanceRegular,p.blessing)*100)}% с обычной добычи региона, {Math.round(setChance(dropRules.setChanceBoss,p.blessing)*100)}% с боссов, {Math.round(setChance(dropRules.setChanceHorn,p.blessing)*100)}% из Рога (растёт с Благословением).</p>
   {perkIds.filter(id=>id!=='compass').map(id=><div className="hunt-item" key={id}><Icon name={gearIcon(perks[id].slot)}/><div><b>{perks[id].name} {owned.has(id)?'✓':''}</b><small>{perks[id].tag} · {perks[id].source}</small><p>{perks[id].text}</p></div></div>)}</div>;
 }
 export function CompanionGrowth({p,pet}:{p:Player;pet:0|1}){
