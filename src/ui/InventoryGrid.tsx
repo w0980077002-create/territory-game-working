@@ -29,6 +29,7 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
  const [mode,setMode]=useState<Mode>(null);
  const [ids,setIds]=useState<string[]>([]);
  const [confirmation,setConfirmation]=useState<string|null>(null);
+ const [savedCount,setSavedCount]=useState(0);
  const armedAt=useRef(0);
  const source=storage?{...p,inventory:p.pendingLoot??[]}:p;
  const visible=inventoryItems(source,filter,slot,order);
@@ -46,6 +47,12 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
   const visibleSelection=JSON.parse(selectionKey) as string[];
   setIds(previous=>previous.length===visibleSelection.length?previous:visibleSelection);
  },[selectionKey]);
+ useEffect(()=>{
+  if(!savedCount)return;
+  // Keep the modal over the grid until the second half of a double tap has passed.
+  const timer=window.setTimeout(()=>{setSavedCount(0);setMode(null);setIds([]);setConfirmation(null)},TAP_GUARD_MS);
+  return ()=>clearTimeout(timer);
+ },[savedCount]);
  const reset=(next:Mode=null)=>{setMode(next);setIds([]);setConfirmation(null)};
  const arm=(quote:string)=>{armedAt.current=performance.now();setConfirmation(quote)};
  const toggle=(id:string)=>setIds(previous=>previous.includes(id)?previous.filter(value=>value!==id):[...previous,id]);
@@ -57,7 +64,8 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
  const confirm=()=>{
   if(!plan||performance.now()-armedAt.current<TAP_GUARD_MS)return;
   if(confirmation!==plan.quote){arm(plan.quote);return}
-  if(onBulkSalvage(chosen,plan.quote)>0)reset();
+  const count=onBulkSalvage(chosen,plan.quote);
+  if(count>0)setSavedCount(count);
  };
  const visibleCount=source.inventory.length;
  const changed=confirmation!==plan?.quote;
@@ -108,12 +116,12 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
       {room<=0?'Рюкзак полон':`Забрать ${Math.min(chosen.length,room)}`}
      </button>:<button type="button" className="action" disabled={!plan} onClick={()=>{if(plan)arm(plan.quote)}}>Распылить {chosen.length}</button>}
   </div>}
-  {confirmation&&<CardDialog className="bulk-confirm" title={`Распылить выбранные вещи · ${chosen.length}`} onClose={()=>setConfirmation(null)}
-    actions={<><button type="button" className="action secondary" onClick={()=>setConfirmation(null)}>Назад</button>
+  {confirmation&&<CardDialog className="bulk-confirm" title={savedCount?`Распылено вещей · ${savedCount}`:`Распылить выбранные вещи · ${chosen.length}`} onClose={()=>{if(!savedCount)setConfirmation(null)}}
+    actions={savedCount?undefined:<><button type="button" className="action secondary" onClick={()=>setConfirmation(null)}>Назад</button>
      <button type="button" className="action" disabled={!plan} onClick={confirm}>
       {changed?'Обновить подтверждение':`Да, распылить ${chosen.length}`}
      </button></>}>
-    {plan?<><p>+{plan.gold.toLocaleString('ru')} золота · +{plan.xp.toLocaleString('ru')} опыта</p>
+    {savedCount?null:plan?<><p>+{plan.gold.toLocaleString('ru')} золота · +{plan.xp.toLocaleString('ru')} опыта</p>
       {valuable>0&&<p role="status">Ценных вещей: {valuable}. Распылённые вещи исчезнут.</p>}
       <ul className="bulk-confirm-items" aria-label="Выбранные вещи">
        {plan.entries.map(({item,warning})=><li key={item.id}>{item.name} · ур. {item.level}{warning&&<small> · {warning}</small>}</li>)}

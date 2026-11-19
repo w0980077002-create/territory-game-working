@@ -52,6 +52,7 @@ const out=process.env.OUT||'.tmp/ui-actions',base=process.env.BASE_URL||'http://
   await page.locator('dialog.bulk-confirm').screenshot({path:`${out}/${width}-confirmation.png`});
   await page.waitForTimeout(400);
   await page.getByRole('button',{name:'Да, распылить 1',exact:true}).tap();
+  await page.locator('dialog.bulk-confirm').waitFor({state:'detached'});
   const after=await state();assert.equal(after.inventory.length,79);assert.ok(after.inventory.some(i=>i.id==='ui-item-0'),'set/perk item must survive');
   await open('autobattle');const prior=await page.getByRole('checkbox',{name:'Автобой навыков',exact:true}).isChecked();
   await page.getByRole('checkbox',{name:'Автобой навыков',exact:true}).setChecked(!prior);await page.getByRole('button',{name:'Отмена',exact:true}).tap();

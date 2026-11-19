@@ -106,7 +106,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
    assert.equal((await state()).pendingLoot.length,beforeBatch.pendingLoot.length);
    await guard();
   }
-  await bulk.getByRole('button',{name:'Да, распылить 2'}).dblclick();
+  await bulk.getByRole('button',{name:'Да, распылить 2'}).dblclick();await bulk.waitFor({state:'detached'});
   const afterBatch=await state();
   assert.deepEqual(afterBatch.inventory,beforeBatch.inventory);
   assert.deepEqual(afterBatch.pendingLoot,beforeBatch.pendingLoot.filter(i=>!['qa-storage-rare','qa-storage-legacy'].includes(i.id)));
@@ -130,7 +130,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   assert.ok(dialogBounds.y>=0&&dialogBounds.y+dialogBounds.height<=height+1,'confirmation fits the viewport');
   await bulk.screenshot({path:`${out}/${width}-clean-confirm.png`});
   const pre=await state();
-  await guard();await bulk.getByRole('button',{name:'Да, распылить 2'}).dblclick();
+  await guard();await bulk.getByRole('button',{name:'Да, распылить 2'}).dblclick();await bulk.waitFor({state:'detached'});
   const post=await state();
   assert.equal(post.inventory.length,78);
   assert.ok(!post.inventory.some(i=>i.id==='weak-0'||i.id==='weak-locked'));
