@@ -14,6 +14,49 @@ async function closeCard(page){await page.getByRole('button',{name:'Закрыт
 async function geometry(page){return page.evaluate(()=>{const body=document.querySelector('.modal-body'),r=body.getBoundingClientRect();const local=document.querySelector('.local-scroll');return {outerOverflow:body.scrollHeight-body.clientHeight,horizontal:document.documentElement.scrollWidth-innerWidth,body:{top:r.top,bottom:r.bottom},local:local?{height:local.clientHeight,scroll:local.scrollHeight}:null};});}
 async function assertCard(page){assert.equal(await page.locator('dialog[open]').count(),1);assert.equal(await page.evaluate(()=>{const d=document.querySelector('dialog[open]');const r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth+1&&d.contains(document.activeElement)}),true);}
 async function assertSigns(page){assert.equal(await page.locator('.harbor-links button').evaluateAll(es=>{for(let i=0;i<es.length;i++){const a=es[i].getBoundingClientRect();if(a.width<76||a.height<44||document.elementFromPoint(a.x+a.width/2,a.y+a.height/2)?.closest('button')!==es[i])return false;for(let j=i+1;j<es.length;j++){const b=es[j].getBoundingClientRect();if(Math.min(a.right,b.right)>Math.max(a.left,b.left)&&Math.min(a.bottom,b.bottom)>Math.max(a.top,b.top))return false}}return true}),true,'All city signs have separate reachable touch areas');}
+async function verifyRealmVictory(page,width){
+ await page.setViewportSize({width,height:568});
+ await page.evaluate(()=>{
+  document.documentElement.style.setProperty('--tg-content-safe-area-inset-top','26px');
+  document.documentElement.style.setProperty('--tg-safe-area-inset-bottom','24px');
+  const g=window.__lootborn.useGame.getState();
+  g.mutate(p=>{
+   // The preceding warehouse scenario fills storage; this receipt exercises normal item delivery.
+   if(p.saga.box.dgear)p.saga.box.dgear.inv=[];
+   const item={id:'qa-finale-armor',s:1,r:3,l:p.darkFloor,u:0};
+   const totals={ess:36,gold:8765,xp:37,shard:3,dusk:1,seal:1,gems:25,loot:['Затменный · Панцирь Ночи','Рубин 2 ур.','Рубин 2 ур.']};
+   p.saga.box.realm={last:{...totals,stage:'WIN_PENDING',resultId:'qa-finale',ack:false,f:p.darkFloor,win:true,rooms:6,first:true,
+    pending:[{totals,items:[item],gem:'ruby:2'},{totals:{ess:0,gold:0,xp:0,shard:0,dusk:0,seal:0,gems:0,loot:[]},items:[],gem:'ruby:2'}]}};
+  });
+  g.open('realm');
+ });
+ const prior=await read(page),reward=page.getByRole('dialog',{name:'Победа'});
+ await reward.waitFor();
+ const grid=reward.locator('.realm-loot-grid');
+ assert.equal(await grid.getByRole('button').count(),9,'seven resource icons, one armor card and one stacked gem card');
+ assert.equal(await grid.locator('img,.gem-dot').count(),9,'all reward tiles show art');
+ const armor=grid.getByRole('button',{name:'Затменный · Панцирь Ночи · 1'});
+ const gem=grid.getByRole('button',{name:'Рубин 2 ур. · 2'});
+ assert.equal(await armor.locator('img').count(),1);
+ assert.equal(await gem.locator('.realm-loot-count').textContent(),'2');
+ await gem.tap();assert.equal(await reward.locator('.realm-loot-detail').textContent(),'Рубин 2 ур.');
+ const collect=reward.getByRole('button',{name:'Забрать',exact:true});
+ const rect=await collect.boundingBox();assert.ok(rect&&rect.y+rect.height<=544,'collect stays above the Telegram bottom safe area');
+ await assertCard(page);
+ await page.screenshot({path:`${output}/realm-victory-${width}.png`});
+ await collect.evaluate(e=>{e.click();e.click()});
+ await reward.waitFor({state:'detached'});
+ const after=await read(page);
+ assert.equal(after.gold,prior.gold+8765);
+ assert.equal(after.darkFloor,prior.darkFloor+1);
+ assert.equal(after.saga.box.dgear.inv.filter(x=>x.id==='qa-finale-armor').length,1);
+ assert.equal(after.saga.box.gems.bag['ruby:2'],(prior.saga.box.gems?.bag?.['ruby:2']??0)+2);
+ await page.reload();
+ await page.waitForFunction(()=>window.__lootborn&&document.querySelector('.viewport'));
+ assert.equal((await read(page)).gold,after.gold);
+ await open(page,'realm');
+ assert.equal(await reward.count(),0,'reload cannot reopen a claimed victory');
+}
 let browser;
 (async()=>{browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':chromium.executablePath()),args:['--no-sandbox']});const report=[];
  for(const [width,height] of [[320,640],[360,740],[390,780],[430,932]]){
@@ -93,6 +136,7 @@ let browser;
    await page.setViewportSize({width,height});await page.evaluate(()=>{document.documentElement.style.removeProperty('--tg-content-safe-area-inset-top');document.documentElement.style.removeProperty('--tg-safe-area-inset-bottom')});await page.screenshot({path:`${output}/populated-${width}-darkgear.png`});assert.equal(await page.locator('.dark-slot small').count(),12);
    await open(page,'realm');
    await page.evaluate(()=>window.__lootborn.useGame.getState().mutate(p=>p.chaosite=10));await page.getByRole('button',{name:/Вызов ·/}).evaluate(e=>{e.click();e.click()});assert.equal((await read(page)).chaosite,5);await page.reload();await page.waitForFunction(()=>window.__lootborn&&document.querySelector('.viewport'));assert.equal((await read(page)).chaosite,5);await open(page,'realm');assert.equal(await page.getByRole('button',{name:'Продолжить поход',exact:true}).count(),1);
+   await verifyRealmVictory(page,width);
   }
   assert.deepEqual(errors,[]);await context.close();
  }
