@@ -1,7 +1,14 @@
-import {telegramAccountId} from './telegram';
+import {telegramAccountId,tg} from './telegram';
 
 const params=new URLSearchParams(typeof window==='undefined'?'':window.location?.search??'');
-const requested=params.get('hero')??params.get('testProfile');
+const launch=new URLSearchParams(tg()?.initData).get('start_param');
+const acceptanceLaunch=/^carnival_acceptance_([1-8])$/.exec(launch??'');
+const requested=params.get('hero')??params.get('testProfile')??(acceptanceLaunch?'carnival-acceptance':null);
+const acceptanceDay=requested==='carnival-acceptance'?(params.get('carnivalDay')??acceptanceLaunch?.[1]):undefined;
+const acceptanceStart=acceptanceDay&&/^[1-8]$/.test(acceptanceDay)?Date.UTC(2026,11,Number(acceptanceDay)):undefined;
+const dayMs=86_400_000;
+/** Only the explicitly selected local acceptance hero uses a simulated carnival date. */
+export const carnivalNow=(now=Date.now())=>acceptanceStart===undefined?now:acceptanceStart+now%dayMs;
 export const isolatedProfile=!!requested&&/^[a-z0-9_-]{1,32}$/.test(requested);
 export const LEGACY_SAVE_KEY='lootborn-codex-v1';
 export const telegramProfile=isolatedProfile?undefined:telegramAccountId();
