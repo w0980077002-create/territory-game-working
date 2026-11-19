@@ -7,7 +7,7 @@
 1. [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) — **единственные действующие правила**.
 2. [AGENTS.md](AGENTS.md) — компактная памятка для обоих агентов; Claude также использует [CLAUDE.md](CLAUDE.md).
 3. [PROJECT_BRIEF.md](PROJECT_BRIEF.md) — утверждённые свойства игры, без автоматического запуска долгосрочных систем.
-4. [Экран «100%»](assets/references/main-screen-100-percent.png) и **последнее прямое поручение владельца**.
+4. [Issue #51](https://github.com/w0980077002-create/territory-game-working/issues/51) — единственное действующее поручение и последние решения владельца. [Экран «100%»](assets/references/main-screen-100-percent.png) и Google Drive — референсы по конкретной задаче.
 
 Все большие исторические GDD, исследования Lootborn, старые Issue/PR и 201-пунктный список — **архив/долгосрочная дорожная карта**, а не текущие задачи. Сначала закончить имеющуюся увлекательную одиночную игру; балерину Капучино не трогать.
 
@@ -28,3 +28,6 @@
 [Решения и расхождения](docs/DECISIONS_AND_GAPS.md) · [Описание экрана](docs/SCREEN_100_PERCENT.md) · [Аудит](docs/LOOTBORN_DEEP_AUDIT_20261112_RU.md) · [Каталоги и экономика](docs/LOOTBORN_PRECISION_AUDIT_ECONOMY_CATALOGS_20261112_RU.md) · [Магазин](docs/LOOTBORN_SHOP_PACKS_PRICES_20261112_RU.md) · [Патчи 2026](docs/LOOTBORN_2026_OFFICIAL_PATCH_MECHANICS_RU.md) · [Сезонные системы](docs/LOOTBORN_2026_SEASON_GEMS_MOUNT_FORGE_CN_RU.md) · [Архив раннего ТЗ](docs/OWNER_ORIGINAL_GDD_20261112_RU.md)
 
 Международные и китайские данные различаются по версиям и датам: неподтверждённые цифры не выдавать за точные. Три транспортных ZIP удалены из текущего дерева GitHub по решению владельца: исходные PNG/WebP и десять оригинальных референсов уже распакованы в `assets/characters/v2-source/`. Старые ZIP остаются доступными в истории Git, но не нужны для сборки. Единственный эталон экрана — `assets/references/main-screen-100-percent.png`.
+
+## Исторические материалы QA
+Существующие отчёты в `docs/qa/` — история; не перечитывать и не пересоздавать их ради каждой задачи. Новые временные скриншоты и видео оставлять в CI artifacts, а не коммитить без конкретной необходимости. Перенос старых бинарных отчётов на Google Drive — только после проверки копии; до этого ничего не удалять.

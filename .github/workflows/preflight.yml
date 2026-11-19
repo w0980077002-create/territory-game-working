@@ -5,6 +5,7 @@ on:
     branches: [main, codex-build]
     paths:
       - 'AGENTS.md'
+      - 'ARCHITECTURE.md'
       - 'DEVELOPMENT_WORKFLOW.md'
       - '.codex/agents/critic.toml'
       - 'PROJECT_BRIEF.md'
@@ -19,6 +20,7 @@ on:
   pull_request:
     paths:
       - 'AGENTS.md'
+      - 'ARCHITECTURE.md'
       - 'DEVELOPMENT_WORKFLOW.md'
       - '.codex/agents/critic.toml'
       - 'PROJECT_BRIEF.md'
@@ -41,5 +43,9 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Validate shared-game image, 21 characters, docs, and scope
-        run: python3 scripts/validate_handoff.py
+        with:
+          fetch-depth: 2
+      - name: Validate changed materials (full check if base unavailable)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+        run: python3 scripts/validate_handoff.py --base "$BASE_SHA"
