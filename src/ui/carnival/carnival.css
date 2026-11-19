@@ -167,22 +167,24 @@
 .carnival-btn.claim:disabled { filter: brightness(.8); }
 
 /* ——— Seven day tabs ——— */
-.carnival-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.carnival-daybook { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 6px; align-items: start; }
+.carnival-days { position: sticky; top: 0; display: grid; grid-auto-rows: minmax(44px, auto); gap: 4px; }
+.carnival-daypage { display: grid; gap: 5px; min-width: 0; }
 .carnival-day {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-width: 0; min-height: 46px; padding: 3px 0 4px;
-  border: 1.5px solid #7d5a3d; border-radius: 8px 8px 5px 5px;
+  border: 1.5px solid #7d5a3d; border-radius: 5px 9px 9px 5px;
   background: linear-gradient(#5b3a34, #33242a); color: #f2dcb4;
   box-shadow: 0 2px 0 #150a09, inset 0 1px #ffffff22;
 }
-.carnival-day small { font: 700 9px/1 system-ui, sans-serif; color: #d7bf9a; }
+.carnival-day small { font: 800 8px/1 system-ui, sans-serif; letter-spacing: .06em; color: #d7bf9a; }
 .carnival-day b { font: 900 19px/1 Georgia, serif; text-shadow: 0 2px 0 #1a0a08; }
 .carnival-day.locked { background: linear-gradient(#3a3134, #241e24); color: #a99a8c; border-color: #554641; }
 .carnival-day.locked b { color: #b9ab9b; }
 .carnival-day.complete { border-color: #5f9a58; background: linear-gradient(#3b5a42, #22302b); }
 .carnival-day.today { border-color: #ffd35a; }
 .carnival-day.today::before {
-  content: 'сегодня'; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+  content: 'сегодня'; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%);
   padding: 1px 3px; border-radius: 4px; background: #ffd35a; color: #3a1606; font: 800 7px/1.1 system-ui; letter-spacing: .02em;
 }
 .carnival-day[aria-selected=true] {
@@ -207,7 +209,7 @@
   border: 1.5px solid #a99a8c; border-bottom: 0; border-radius: 3px 3px 0 0; box-sizing: border-box;
 }
 
-.carnival-day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-top: 3px; padding: 0 2px; }
+.carnival-day-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 6px; padding: 0 2px; }
 .carnival-day-head strong { font: 700 15px/1.1 Georgia, serif; color: #ffe2a0; }
 .carnival-day-head small { color: #d9c3a0; font-size: 11px; white-space: nowrap; }
 
@@ -282,25 +284,6 @@
 .carnival-finale.claimed { filter: saturate(.75); }
 .carnival-finale .carnival-btn { justify-self: stretch; }
 
-/* ——— HUD medal (inside the 864×1536 game frame, game pixels) ——— */
-.game .carnival-side { width: 118px; min-height: 120px; -webkit-user-select: none; user-select: none; }
-.carnival-medal {
-  position: relative; display: grid; place-items: center; width: 92px; height: 88px;
-  border: 5px solid #3b1d10; border-radius: 44% 44% 32% 32%;
-  background: radial-gradient(circle at 50% 35%, #ffe08a, #f29a2a 45%, #a3402a 80%);
-  box-shadow: inset 0 0 0 3px #ffe7a4, 0 4px 0 #1a0a08, 0 0 18px #ffb84aaa;
-}
-.carnival-medal .carnival-tent { width: 82px; height: 82px; margin-top: -8px; filter: drop-shadow(0 3px 0 #3b1d1088); }
-.game .carnival-side .carnival-medal > i { right: -10px; top: -8px; }
-.game .carnival-side .carnival-label { position: relative; margin-top: -6px; font-size: 22px; color: #fff3b8; z-index: 1; }
-.game .carnival-side > span.carnival-chip {
-  margin-top: 2px; padding: 2px 9px; border: 2px solid #ffd35a; border-radius: 99px;
-  background: linear-gradient(#6b1818, #2c0b12); color: #fff3c2; font-size: 18px; line-height: 1.1;
-  text-shadow: 1px 1px #000; white-space: nowrap; max-width: none;
-}
-.game:not([data-motion=reduced]) .carnival-medal, .viewport:not([data-motion=reduced]) .carnival-medal { animation: cv-glow 1.6s ease-in-out infinite alternate; }
-@keyframes cv-glow { to { box-shadow: inset 0 0 0 3px #ffe7a4, 0 4px 0 #1a0a08, 0 0 28px #ffd35a; } }
-
 /* ——— Small phones ——— */
 @media (max-width: 374px) {
   .carnival-hero { min-height: 132px; }
@@ -334,7 +317,7 @@
   .cast-hero { height: 92px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .confetti b, .tier-node .tier-box, .finale-rays, .carnival-medal { animation: none !important; }
+  .confetti b, .tier-node .tier-box, .finale-rays { animation: none !important; }
 }
 
 .carnival-entry { display:flex; align-items:center; gap:10px; width:100%; margin-bottom:8px; text-align:left; color:#ffe2a0; }

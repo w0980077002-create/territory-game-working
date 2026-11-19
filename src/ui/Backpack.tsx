@@ -1,5 +1,4 @@
 import {CompactFilter} from './CompactFilter';
-import {Icon} from './Icon';
 import {useState} from 'react';
 import type {CSSProperties} from 'react';
 import {useGame} from '../core/store';
@@ -22,15 +21,14 @@ export function Backpack({storage,setStorage}:{storage:boolean;setStorage:(value
  const used=p.inventory.length,stored=p.pendingLoot?.length??0,full=used>=capacity;
  const toggleHelp=(next:Help)=>setHelp(h=>h===next?null:next);
  return <DialogShell panel="inventory" title="Рюкзак" footer={null}>
-  <div className={full?'pack-capacity is-full':'pack-capacity'}>
-   <strong><Icon name="chest"/>{used} / {capacity}</strong>
-   <span className="pack-meter" aria-hidden="true"><i style={{'--fill':`${Math.min(100,used/capacity*100)}%`} as CSSProperties}/></span>
-   <span className="pack-status">{full?'Полон · добыча → Склад':`Свободно ${capacity-used}`}</span>
-  </div>
   <div className="pack-tabs" role="group" aria-label="Место хранения">
-   <button aria-pressed={!storage} onClick={()=>setStorage(false)}>Рюкзак <small>{used}/{capacity}</small></button>
+   <button aria-pressed={!storage} className={full?'is-full':undefined} onClick={()=>setStorage(false)}>
+    Рюкзак <small>{used}/{capacity}</small>
+    <i className="pack-meter" aria-hidden="true" style={{'--fill':`${Math.min(100,used/capacity*100)}%`} as CSSProperties}/>
+   </button>
    <button aria-pressed={storage} onClick={()=>setStorage(true)}>Склад <small>{stored}</small></button>
   </div>
+  {full&&!storage&&<p className="pack-full">Рюкзак полон · новая добыча идёт на склад</p>}
   <div className="pack-filters">
    <CompactFilter label="Тип предмета" value={slot??''} onChange={value=>setSlot(value as Slot||undefined)} options={[{value:'',label:'Все типы'},...slots.map(s=>({value:s,label:slotNames[s]}))]}/>
    <CompactFilter label="Фильтр качества" value={filter} onChange={value=>setFilter(value as LootFilter)} options={[{value:'all',label:'Качество'},{value:'better',label:'Сильнее'},{value:'rare',label:'Редкие'},{value:'unique',label:'Именные / сеты'}]}/>

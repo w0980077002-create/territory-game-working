@@ -50,13 +50,13 @@ const heights={320:568,360:740,390:844,430:932};
   await up.dblclick();await page.waitForTimeout(500);s=await st();
   assert.equal(s.eq.weapon,trophy+'+1','one upgrade level');assert.equal(s.gold,before.gold-cost,'one payment');log('forge +1 for',cost);
   // 5. Salvage a weaker piece through the backpack selection (gold and XP arrive, item leaves once).
-  await closeAll();await tap('Карта');await tap('Рюкзак');await tap('☑ Выбрать');
+  await closeAll();await tap('Карта');await tap('Рюкзак');await tap('Выбрать');
   const pick=page.getByRole('button',{name:/· отметить$/}).first();
   if(await pick.count()){
    const g0=(await st()).gold,n0=(await st()).inv.length;await pick.tap();await page.waitForTimeout(250);
-   const gain=+((await page.locator('body').innerText()).match(/\+(\d+) золота · \+\d+ опыта/)||[0,0])[1];
-   await page.getByRole('button',{name:'Распылить выбранное'}).dblclick();await page.waitForTimeout(500);
-   const confirm=page.getByRole('button',{name:/^Распылить/}).last();if((await st()).inv.length===n0&&await confirm.count()){await confirm.tap();await page.waitForTimeout(500)}
+   const gain=+((await page.locator('.bulk-preview').innerText()).match(/\+([\d\s\u00a0]+) золота/)||[0,'0'])[1].replace(/\D/g,'');
+   await page.getByRole('button',{name:'Распылить 1',exact:true}).tap();await page.waitForTimeout(450);
+   await page.getByRole('button',{name:'Да, распылить 1',exact:true}).dblclick();await page.waitForTimeout(500);
    s=await st();assert.equal(s.inv.length,n0-1,'exactly one item salvaged');assert.equal(s.gold,g0+gain,'salvage gold paid once');log('salvage +',gain,'gold');
   }else log('no unprotected weak item to salvage yet');
   // 6. Hero growth with earned gold: skill upgrade, quest reward (double tap), daily gift, summon.
