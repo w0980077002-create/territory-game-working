@@ -56,4 +56,3 @@
 .saga-modal[data-panel="inventory"] .bulk-toolbar{flex-wrap:nowrap}
 .saga-modal[data-panel="inventory"] .inventory-grid small.bulk-reason{font-size:10px;line-height:1.2;color:#ffcf9a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 @media(max-width:374px){.pack-auto-extra{display:none}.pack-status{font-size:10px}.pack-help-row{gap:4px}.pack-help-row .pack-auto{font-size:10.5px;gap:5px}.pack-help{width:32px}.pack-ranks-toggle{padding:0 5px}.pack-ranks{font-size:11px;padding-left:22px}}
-@media(max-height:650px){.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-help-row,.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .bulk-rules{display:none}}

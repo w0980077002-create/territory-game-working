@@ -25,11 +25,11 @@ export function Backpack({storage,setStorage}:{storage:boolean;setStorage:(value
   <div className={full?'pack-capacity is-full':'pack-capacity'}>
    <strong><Icon name="chest"/>{used} / {capacity}</strong>
    <span className="pack-meter" aria-hidden="true"><i style={{'--fill':`${Math.min(100,used/capacity*100)}%`} as CSSProperties}/></span>
-   <span className="pack-status">{full?'Полон · добыча → Хранение':`Свободно ${capacity-used}`}</span>
+   <span className="pack-status">{full?'Полон · добыча → Склад':`Свободно ${capacity-used}`}</span>
   </div>
   <div className="pack-tabs" role="group" aria-label="Место хранения">
-   <button aria-pressed={!storage} onClick={()=>setStorage(false)}>Рюкзак <small>{used}</small></button>
-   <button aria-pressed={storage} onClick={()=>setStorage(true)}>Хранение <small>{stored}</small></button>
+   <button aria-pressed={!storage} onClick={()=>setStorage(false)}>Рюкзак <small>{used}/{capacity}</small></button>
+   <button aria-pressed={storage} onClick={()=>setStorage(true)}>Склад <small>{stored}</small></button>
   </div>
   <div className="pack-filters">
    <CompactFilter label="Тип предмета" value={slot??''} onChange={value=>setSlot(value as Slot||undefined)} options={[{value:'',label:'Все типы'},...slots.map(s=>({value:s,label:slotNames[s]}))]}/>
@@ -43,7 +43,6 @@ export function Backpack({storage,setStorage}:{storage:boolean;setStorage:(value
   </div>
   {help==='auto'&&<p className="pack-explain">Срабатывает только на <b>новую</b> добычу: слабее надетой вещи того же типа, ниже «Редкого», без усилений и свойств — сразу в золото и опыт. Вещи, которые уже лежат в рюкзаке или сняты с героя, не трогает: для них «Очистить слабые».</p>}
   {help==='ranks'&&<ol className="pack-ranks" aria-label="9 рангов качества, от слабого к сильному">{rarityNames.map((name,n)=><li key={name} style={{'--rarity':rarityColors[n]} as CSSProperties}><i aria-hidden="true"/>{name}</li>)}</ol>}
-  {storage&&!!stored&&<p className="pack-explain pack-storage-hint">Нажмите вещь: надеть, оставить на складе или распылить.</p>}
   <InventoryGrid key={storage?'storage':'backpack'} p={p} filter={filter} slot={slot} order={order} storage={storage} onSelect={g.select} onBulkSalvage={g.bulkSalvage} onClaim={g.claimStored}/>
  </DialogShell>;
 }

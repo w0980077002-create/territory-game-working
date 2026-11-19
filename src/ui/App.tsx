@@ -9,13 +9,13 @@ import {InventoryGrid} from './InventoryGrid';
 import {sound,unlockAudio} from '../game/Sound';
 import {ItemDetails,EffectComparison,UpgradePlan,BuildGuide,HuntGoals,StatDelta,QuickSwap} from './GearDetails';
 import {useEffect,useRef,useState} from 'react';
-import {useGame,compareItem,bestUpgrade,bestUpgrades,refill,backupCloud,acknowledgeCloud,isKnownCloud,parseSave,SAVE_KEY,hornPurchase,isolatedProfile,exportSave,unreadableSave,requiresSalvageConfirmation} from '../core/store';
+import {useGame,compareItem,bestUpgrade,bestUpgrades,refill,backupCloud,acknowledgeCloud,isKnownCloud,parseSave,SAVE_KEY,hornPurchase,isolatedProfile,exportSave,unreadableSave,requiresSalvageConfirmation,salvageRestriction,salvageYield} from '../core/store';
 import {SHIP_RULES,starterShipyard,previewShips,shipRate,shipCapacity,shipBuyCost,shipUpgradeCost} from '../core/shipyard';
 import {TreasureShop} from './TreasureShop';
 import {HarborScene} from './HarborScene';
 import {ClassPicker} from './ClassPicker';
 import './windowContent.css';
-import {stats,xpNeeded,stageLabel,itemPower,skillPowerMultiplier,odinCallSeconds,odinCallMaxLevel} from '../core/formulas';
+import {stats,xpNeeded,stageLabel,skillPowerMultiplier,odinCallSeconds,odinCallMaxLevel} from '../core/formulas';
 import {setupTelegram,readCloud} from '../core/telegram';
 import {observeTelegramViewport} from '../core/telegramViewport';
 import {LEGACY_SAVE_KEY,telegramProfile,carnivalNow} from '../core/profile';
@@ -83,7 +83,8 @@ function ResourceSources({kind,returnTo}:{kind:string;returnTo?:string}){const g
 function ItemDecisions({item,p,isTrophy,onRewardResolved}:{item:Item;p:Player;isTrophy:boolean;onRewardResolved:()=>void}){
  const [confirming,setConfirming]=useState(false);
  const armedAt=useRef(0);
- const gold=Math.round(itemPower(item)/3);
+ const {gold}=salvageYield(item);
+ const restriction=salvageRestriction(p,item);
  const salvage=()=>{
   const g=useGame.getState();
   if(confirming){
@@ -110,10 +111,11 @@ function ItemDecisions({item,p,isTrophy,onRewardResolved}:{item:Item;p:Player;is
    <span>Предмет исчезнет · +{gold} золота и опыт</span>
    <button type="button" onClick={()=>setConfirming(false)}>Отмена</button>
   </div>}
+  {restriction&&<p className="item-confirm">{restriction}</p>}
   <div className="item-decisions">
    <Action onClick={()=>{useGame.getState().equip(item.id);if(isTrophy)onRewardResolved()}}>Надеть</Action>
    <Action kind="secondary" onClick={keep}>{p.pendingLoot?.some(i=>i.id===item.id)?'На хранение':'В рюкзак'}</Action>
-   <Action kind="secondary" onClick={salvage}>{confirming?'Подтвердить распыление':`Распылить +${gold}`}</Action>
+   <Action kind="secondary" disabled={!!restriction} onClick={salvage}>{confirming?'Подтвердить распыление':`Распылить +${gold}`}</Action>
   </div>
  </>;
 }

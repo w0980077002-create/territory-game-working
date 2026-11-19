@@ -1,6 +1,6 @@
 import {beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
-import {freshPlayer,makeItem,parseSave,requiresSalvageConfirmation,salvageProtection,SAVE_KEY,useGame} from '../src/core/store';
+import {freshPlayer,makeItem,parseSave,previewBulkSalvage,requiresSalvageConfirmation,salvageProtection,SAVE_KEY,useGame} from '../src/core/store';
 import {itemPower,xpNeeded} from '../src/core/formulas';
 const saved=new Map<string,string>();
 let failKey='';
@@ -10,9 +10,10 @@ for(const size of [1,10,20,40])test(`bulk ${size}: exact reward, one payment, re
  const p=freshPlayer();p.inventory=Array.from({length:size},()=>makeItem('helmet',1,0));
  const gold=p.inventory.reduce((n,i)=>n+Math.round(itemPower(i)/3),0),ids=p.inventory.map(i=>i.id);
  let level=p.level,experience=p.xp+size*12;while(experience>=xpNeeded(level)){experience-=xpNeeded(level++);}
- useGame.setState({p});assert.equal(useGame.getState().bulkSalvage(ids),size);
+ const quote=previewBulkSalvage(p,ids)!.quote;
+ useGame.setState({p});assert.equal(useGame.getState().bulkSalvage(ids,quote),size);
  const after=useGame.getState().p;assert.equal(after.gold,p.gold+gold);assert.equal(after.level,level);assert.equal(after.xp,experience);
- assert.equal(useGame.getState().bulkSalvage(ids),0);assert.equal(useGame.getState().p.gold,after.gold);
+ assert.equal(useGame.getState().bulkSalvage(ids,quote),0);assert.equal(useGame.getState().p.gold,after.gold);
  assert.deepEqual(parseSave(saved.get(SAVE_KEY)??null)?.inventory,[]);assert.equal(parseSave(saved.get(SAVE_KEY+':before-bulk-salvage')??null)?.inventory.length,size);
 });
 test('71/80 + 41 stored: selected transfer gets nine, preserves the other 32 and all IDs',()=>{
@@ -26,7 +27,7 @@ test('71/80 + 41 stored: selected transfer gets nine, preserves the other 32 and
 test('transfer and salvage roll back completely when persistence fails',()=>{
  const p=freshPlayer(),item=makeItem('helmet',1,0);p.inventory=[item];p.pendingLoot=[makeItem('armor',1,1)];useGame.setState({p});failKey=SAVE_KEY;
  assert.equal(useGame.getState().claimStored(),0);assert.deepEqual(useGame.getState().p,p);
- assert.equal(useGame.getState().bulkSalvage([item.id]),0);assert.deepEqual(useGame.getState().p,p);
+ assert.equal(useGame.getState().bulkSalvage([item.id],previewBulkSalvage(p,[item.id])!.quote),0);assert.deepEqual(useGame.getState().p,p);
 });
 test('selection/navigation does not change saved items and old profiles restore intact',()=>{
  const p=freshPlayer();p.inventory=[makeItem('armor',1,1)];p.pendingLoot=[makeItem('weapon',3,4)];useGame.setState({p});useGame.getState().persist();
@@ -110,7 +111,7 @@ test('confirmed manual salvage from storage preserves rollback, then pays exactl
  const raw=JSON.stringify(p);
  const restored=parseSave(raw,true)!;
  assert.deepEqual(restored,p);
- assert.equal(salvageProtection(restored,item),'Только вручную');
+ assert.equal(salvageProtection(restored,item),'активная награда');
  useGame.setState({p:restored,panel:'item',selected:item.id,back:'inventory'});
  const g=useGame.getState();
  g.salvage(item.id);
@@ -146,7 +147,7 @@ test('an early mutation refusal keeps panels and results unchanged even without 
   const g=useGame.getState();
   g.equip(item.id);
   g.salvage(item.id);
-  assert.equal(g.bulkSalvage([item.id]),0);
+  assert.equal(g.bulkSalvage([item.id],previewBulkSalvage(p,[item.id])!.quote),0);
   assert.equal(g.claimStored([stored.id]),0);
   g.hornLoot();
   const after=useGame.getState();

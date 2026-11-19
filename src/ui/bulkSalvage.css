@@ -7,14 +7,19 @@
 .saga-modal .bulk-preview{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;font-size:13px;padding:0 0 5px;gap:4px;min-width:0}
 .saga-modal .bulk-preview strong{color:#ffe5a2}.saga-modal .bulk-preview span{font-size:12px;color:#c6d9a8}.saga-modal .bulk-preview [hidden]{display:none}
 .saga-modal .bulk-action .action{margin:0;min-height:44px;background:linear-gradient(#91331988,#3e130a88),var(--saga-iron);border-color:#d0a05a}
-.saga-modal .bulk-confirm{margin:0;padding:4px 0;border:0}.saga-modal .bulk-confirm>strong{font-size:14px;color:#ffe1a0}.saga-modal .bulk-confirm p{font-size:12px;line-height:1.4;margin:6px 0}
-.saga-modal .bulk-confirm>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:7px}
-.saga-modal .bulk-confirm button{min-width:0;min-height:44px;font-size:13px;padding:7px;border:1px solid #a58a5c;border-radius:5px;background:var(--saga-iron);color:#ebd7ae}
 .saga-modal[data-panel="inventory"] .bulk-toolbar,.saga-modal[data-panel="inventory"] .bulk-action{margin:0}
 @media(max-height:650px){.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-auto,.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-capacity{display:none}}
 .saga-modal .bulk-toolbar .bulk-clean{flex:1.4;font-weight:700;border-color:#e4ad43;color:#ffe9a6;background:linear-gradient(#b0592438,#0003),var(--saga-oak)}
 .saga-modal .bulk-toolbar .bulk-clean:disabled{border-color:#6d5a3d;color:#a3967c;background:var(--saga-iron)}
-.saga-modal .bulk-rules{flex:none;margin:0;font-size:11px;line-height:1.35;color:#d9c79f}
-.saga-modal .bulk-rules b{color:#ffcf9a}
 .saga-modal .bulk-hidden{flex-basis:100%;font-size:11px;color:#c6b48c}
 .saga-modal .inventory-grid small.bulk-reason{font-size:10px;color:#ffcf9a}
+
+.context-card.bulk-confirm { padding:0; }
+.context-card.bulk-confirm .context-body { display:grid; gap:6px; }
+.context-card.bulk-confirm p { margin:0; }
+.bulk-confirm-items { margin:0; padding:0 0 0 1.15em; max-height:25vh; overflow-y:auto; overscroll-behavior:contain; }
+.bulk-confirm-items li { padding:3px 0; overflow-wrap:anywhere; }
+.bulk-confirm-items small { color:#d4ba86; }
+.saga-modal[data-panel="inventory"] .bulk-action { padding-bottom:max(8px,env(safe-area-inset-bottom)); }
+.saga-modal .bulk-confirm .context-actions { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:6px; }
+.saga-modal .bulk-confirm .context-actions .action { width:100%; margin:0; }
