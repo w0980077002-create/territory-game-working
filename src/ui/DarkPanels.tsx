@@ -60,6 +60,7 @@ export function RealmPanel({p}:{p:Player}){
     {Array.from({length:Math.max(5,max+2)},(_,i)=>{
      const number=i+1;
      return <button key={number} disabled={number>max} aria-pressed={number===floor} onClick={()=>realmSelect(number)}>
+      <Icon name={number>max?'shield':lordFloor(number)?'portal':'rune'}/>
       <span>Этаж {number}</span><small>{number>max?'Закрыт':number<max?'Пройден':'Новый'}</small>
      </button>;
     })}
