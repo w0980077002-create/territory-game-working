@@ -18,7 +18,7 @@ import './windowContent.css';
 import {stats,xpNeeded,stageLabel,itemPower,skillPowerMultiplier,odinCallSeconds,odinCallMaxLevel} from '../core/formulas';
 import {setupTelegram,readCloud} from '../core/telegram';
 import {observeTelegramViewport} from '../core/telegramViewport';
-import {LEGACY_SAVE_KEY,telegramProfile} from '../core/profile';
+import {LEGACY_SAVE_KEY,telegramProfile,carnivalNow} from '../core/profile';
 import type {Slot,Item,Player} from '../core/types';
 import {slots,slotNames,rarityNames,rarityColors,classNames,heroArt,art,skillData} from '../data/catalog';
 import balance from '../../config/test-balance.v1.json';
@@ -35,6 +35,7 @@ import {shopQuote} from '../saga/shop';
 import {dailyGift,seasonBadge} from '../saga/events';
 import {carnivalRefreshDue} from '../saga/carnival';
 import {bumpCount} from '../saga/save';
+import {CarnivalEntry,CarnivalPanel} from './carnival/CarnivalPanel';
 import {DailyRewards,SeasonRewards} from './EventRewards';
 import {rewardText} from '../saga/rewards';
 import {PORTALS} from '../dark/portals';
@@ -176,7 +177,7 @@ export default function App(){
    idleId=undefined;
    if(!active||!cloudReady||document.hidden)return;
    const g=useGame.getState(),now=Date.now();
-   if(hornRefillDue(g.p,now)||questRefreshDue(g.p,now)||carnivalRefreshDue(g.p,now))g.mutate(p=>{refill(p,now);ensureQuests(p,now)});
+   if(hornRefillDue(g.p,now)||questRefreshDue(g.p,now)||carnivalRefreshDue(g.p,carnivalNow(now)))g.mutate(p=>{refill(p,now);ensureQuests(p,now)});
    if(telegramProfile)void backup();
   };
   const timer=setInterval(()=>{
@@ -303,7 +304,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   }catch{setShareAddress(INVITE_URL)}
  };
  if(panel==='inventory')return <Backpack storage={storage} setStorage={setStorage}/>;
- return <DialogShell panel={panel} onBack={sourceBack?()=>g.open(sourceBack):returnToQuest?()=>{setQuestDestination(null);g.open('quests')}:undefined} backLabel={sourceBack?'Назад':returnToQuest?'К заданию':undefined} title={slot?slotNames[slot]:titles[panel]??(panel.startsWith('source:')?sourceTitle(panel.split(':')[1]):panel)} rarity={item?.rarity} footer={<footer className={`modal-footer ${panel==='item'&&item?'item-footer':''}`}>{panel==='item'&&item&&<ItemDecisions key={item.id} item={item} p={p} isTrophy={isTrophy} onRewardResolved={finish}/>}<div className="footer-wallet"><span><Icon name="coins"/>{fmt(p.gold)}</span><span><Icon name="gem"/>{fmt(p.gems)}</span><button onClick={()=>g.open(null)}>К бою</button></div></footer>}><ForgeEcho/>
+ return <DialogShell panel={panel} onBack={panel==='carnival'?()=>g.open('events'):sourceBack?()=>g.open(sourceBack):returnToQuest?()=>{setQuestDestination(null);g.open('quests')}:undefined} backLabel={panel==='carnival'?'К событиям':sourceBack?'Назад':returnToQuest?'К заданию':undefined} title={slot?slotNames[slot]:titles[panel]??(panel.startsWith('source:')?sourceTitle(panel.split(':')[1]):panel)} rarity={item?.rarity} footer={<footer className={`modal-footer ${panel==='item'&&item?'item-footer':''}`}>{panel==='item'&&item&&<ItemDecisions key={item.id} item={item} p={p} isTrophy={isTrophy} onRewardResolved={finish}/>}<div className="footer-wallet"><span><Icon name="coins"/>{fmt(p.gold)}</span><span><Icon name="gem"/>{fmt(p.gems)}</span><button onClick={()=>g.open(null)}>К бою</button></div></footer>}><ForgeEcho/>
  {panel==='controls'&&<><p>Нажмите топоры для запуска путешествия. По умолчанию герой сам идёт после победы и ждёт топоры после смерти. Скорость, навыки и условия остановки настраиваются через кнопку автобоя. Меню временно ставит активный бой на паузу.</p><Action onClick={()=>{battle?.toggle();g.open(null)}}>{g.battle.running?'Остановить':'Продолжить'} бой</Action><Action onClick={()=>g.configure({auto:!g.auto})}>Auto навыков: {g.auto?'ВКЛ':'ВЫКЛ'}</Action><Action onClick={()=>g.configure({speed:g.speed===1?2:1})}>Скорость: x{g.speed}</Action><Action onClick={()=>g.open('autobattle')}>Настройки автобоя</Action>{skillData.map((skill,i)=><Action key={skill.name} disabled={!g.battle.running||g.battle.cooldowns[i]>0} onClick={()=>battle?.skill(i)}>{skill.name} {g.battle.cooldowns[i]>0?Math.ceil(g.battle.cooldowns[i])+' сек':''}</Action>)}</>}
  {panel==='equipment'&&<><HeroPortrait p={p} compact/>{(()=>{const plan=bestUpgrades(p);return plan.length?<><Action onClick={()=>g.equipBest()}>Надеть лучшее · {plan.length} {plan.length===1?'вещь':plan.length<5?'вещи':'вещей'}</Action><p className="hint">Берёт из рюкзака самые сильные вещи. Старые возвращаются в рюкзак; именные трофеи не заменяются.</p></>:<p className="hint">Сила героя {fmt(s.cp)} · в рюкзаке нет вещей сильнее надетых.</p>})()}<div className="equipment-ledger">{slots.map(slot=>{const worn=p.equipment[slot],better=bestUpgrade(p,slot);return <Row key={slot} icon={gearIcon(slot)} title={slotNames[slot]} detail={worn?`${rarityNames[worn.rarity]} · ур.${worn.level} · +${worn.upgrade}${better?` · ↑ в рюкзаке +${better.gain} силы`:''}`:better?`Не надето · ↑ в рюкзаке +${better.gain} силы`:'Не надето'}><Action kind={better?'':'secondary'} onClick={()=>g.open(slot==='wings'&&!p.equipment.wings&&!better?'wings':`gear:${slot}`)}>{better?'Заменить':'Открыть'}</Action></Row>})}</div></>}
  {panel==='hero'&&(()=>{const goal=xpNeeded(p.level),points=p.level-1-p.talents.reduce((a,b)=>a+b,0);return <>
@@ -338,7 +339,8 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  {panel==='blessing'&&<><PanelIntro icon="crown" title={'Благословение · ур.'+p.blessing}>Шанс повысить качество новой добычи на одну ступень · {Math.min(100,p.blessing*1.5).toFixed(1)}%.</PanelIntro><p>После повышения: {Math.min(100,(p.blessing+1)*1.5).toFixed(1)}%.</p><Action disabled={p.gold<150*p.blessing} onClick={()=>g.train('blessing')}>Получить благословение · {150*p.blessing} золота</Action></>}
  {panel==='quests'&&<>{p.bosses>p.mission&&<div className="chapter-reward-ready">{chapterReward}</div>}<QuestBoard p={p} tab={questTab} setTab={setQuestTab} onGo={goFromQuest}/><details className="saga-disclosure"><summary>Цели охоты и источники добычи</summary><HuntGoals p={p}/></details><details className="saga-disclosure"><summary>Именные трофеи саги</summary><GearGuide p={p}/></details>{p.bosses<=p.mission&&chapterReward}<Row icon="axes" title="Продолжить главу" detail={`Текущий этап ${stageLabel(p.stage)}, волна ${p.wave}/5`}/><Action onClick={()=>{battle?.challenge();g.open(null)}}>В бой</Action><Action kind="secondary" onClick={()=>g.open('loot')}>Рог Трофеев · {p.horn}</Action><Chronicle/></>}
  {panel==='rewards'&&<DailyRewards p={p}/>}
- {panel==='events'&&<SeasonRewards p={p}/>}
+ {panel==='events'&&<><CarnivalEntry/><SeasonRewards p={p}/></>}
+ {panel==='carnival'&&<CarnivalPanel/>}
  {(panel==='friends'||panel==='invite')&&<><PanelIntro icon="handshake" title="В поход с друзьями">Отправьте ссылку другу, чтобы он открыл игру в Telegram.</PanelIntro><Action onClick={copyInvite}>Скопировать ссылку на игру</Action>{shareAddress&&<label>Адрес для копирования <input type="url" readOnly value={shareAddress} onFocus={event=>event.currentTarget.select()}/></label>}</>}
  {panel==='collection'&&<Album p={p}/>}
  {panel==='port'&&<div className={harborHelp?'harbor-workspace guide-open':'harbor-workspace'}>

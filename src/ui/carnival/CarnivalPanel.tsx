@@ -1,35 +1,46 @@
-import {useEffect, useState} from 'react';
-import {art} from '../../data/catalog';
-import type {Reward} from '../../saga/rewards';
+import {useEffect,useId,useState} from 'react';
+import type {Slot} from '../../core/types';
+import {art,heroArt,rarityNames,slotNames} from '../../data/catalog';
+import {carnivalNow} from '../../core/profile';
+import {claimCarnivalReward,useGame} from '../../core/store';
+import {battle} from '../../game/Battle';
+import {carnivalView,type CarnivalView} from '../../saga/carnival';
+import type {CarnivalRoute} from '../../saga/carnivalRules';
+import {sets} from '../../saga/gear';
+import {rewardText} from '../../saga/rewards';
 import {Icon} from '../Icon';
-import {RewardArt, rewardParts} from '../RewardArt';
-import {Bunting, CarnivalTent, CarnivalToken, Firework} from './CarnivalArt';
-import {
-  CARNIVAL_DAYS, carnivalPhase, countdown, currentDay, dayOpen, dayOpensAt, dayReady, shortCountdown, taskState, tierReady,
-  type CarnivalActions, type CarnivalTask, type CarnivalTier, type CarnivalView,
-} from './model';
+import {RewardArt,rewardParts} from '../RewardArt';
+import {Bunting,CarnivalTent,CarnivalToken,Firework} from './CarnivalArt';
+import {countdown,shortCountdown} from './model';
 import '../eventRewards.css';
 import './carnival.css';
 
-/** Ticks once a second while mounted; a fixed `now` (QA calendar) disables the timer. */
-export function useCarnivalClock(fixed?: number) {
-  const [now, setNow] = useState(() => fixed ?? Date.now());
-  useEffect(() => {
-    if (fixed !== undefined) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [fixed]);
-  return fixed ?? now;
+type Period = NonNullable<CarnivalView['period']>;
+type Milestone = Period['milestones'][number];
+type Task = Period['days'][number]['tasks'][number];
+type Objective = Task['primary'];
+
+function useCarnival() {
+  const player=useGame(state=>state.p);
+  const [now,setNow]=useState(carnivalNow);
+  useEffect(()=>{
+    const tick=()=>setNow(carnivalNow());
+    const timer=window.setInterval(tick,1000);
+    document.addEventListener('visibilitychange',tick);
+    return ()=>{clearInterval(timer);document.removeEventListener('visibilitychange',tick)};
+  },[]);
+  return {event:carnivalView(player,now),hero:heroArt[player.heroClass],now};
 }
 
-const firstPiece = (reward: Reward | undefined) => reward ? rewardParts(reward)[0] : undefined;
-const short = (n: number) => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.0', '') + 'M' : n >= 1e4 ? Math.round(n / 1000) + 'K' : String(n);
+const nextDate=(time:number)=>new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(time);
+function timerText(event:CarnivalView,now:number,archived=false){
+  if(event.clockBlocked)return 'Проверьте дату и время устройства';
+  if(archived)return 'Награды прошлых карнавалов';
+  if(event.remainingMs!==null)return 'Осталось '+countdown(event.remainingMs);
+  return 'До начала '+countdown(event.nextStartAt-now);
+}
 
-function Hero({view, now, hero}: {view: CarnivalView; now: number; hero: string}) {
-  const phase = carnivalPhase(view, now);
-  const timer = phase === 'soon' ? 'До начала ' + countdown(view.startsAt - now)
-    : phase === 'live' ? 'Осталось ' + countdown(view.endsAt - now)
-    : phase === 'claim' ? 'Призы ещё ' + countdown((view.claimUntil ?? view.endsAt) - now) : 'Карнавал завершён';
+function Hero({timer,active,hero}:{timer:string;active:boolean;hero:string}) {
   return <div className="carnival-hero">
     <div className="carnival-sky" aria-hidden="true"/>
     <Firework color="#ffd35a" className="fw-a"/><Firework color="#ff6f7d" className="fw-b"/><Firework color="#6fe3f0" className="fw-c"/>
@@ -43,7 +54,7 @@ function Hero({view, now, hero}: {view: CarnivalView; now: number; hero: string}
     <div className="carnival-title">
       <small>Семь дней праздника</small>
       <h3>Великий карнавал</h3>
-      <span className={'carnival-timer' + (phase === 'live' ? '' : ' muted')} role="timer" aria-live="off">
+      <span className={'carnival-timer' + (active ? '' : ' muted')} role="timer" aria-live="off">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8.5" fill="#fff3c4" stroke="#3b2214" strokeWidth="2.4"/><path d="M12 8.5V13l3 2M9 2.5h6" stroke="#3b2214" strokeWidth="2.4" strokeLinecap="round" fill="none"/></svg>
         {timer}
       </span>
@@ -52,28 +63,25 @@ function Hero({view, now, hero}: {view: CarnivalView; now: number; hero: string}
   </div>;
 }
 
-function TierTrack({view, now, selected, select}: {view: CarnivalView; now: number; selected: number; select: (points: number) => void}) {
-  const max = view.tiers.at(-1)?.points ?? 600;
-  const fill = Math.min(100, view.points / max * 100);
+function displayReward(prize:Milestone|Task){
+  return prize.partiallyClaimed?{horn:prize.hornRemaining}:prize.reward;
+}
+
+function TierTrack({period,selected,select}:{period:Period;selected:number;select:(points:number)=>void}){
+  const fill=Math.min(100,period.points/period.targetPoints*100);
   return <div className="carnival-track">
-    <div className="carnival-points" aria-label={'Очки карнавала: ' + view.points}>
-      <CarnivalToken/><b>{view.points}</b><small>очков</small>
-    </div>
+    <div className="carnival-points" aria-label={'Очки карнавала: '+period.points}><CarnivalToken/><b>{period.points}</b><small>очков</small></div>
     <div className="track-lane">
-      <div className="track-bar" aria-hidden="true"><i style={{width: fill + '%'}}/></div>
+      <div className="track-bar" aria-hidden="true"><i style={{width:fill+'%'}}/></div>
       <div className="track-nodes" role="group" aria-label="Награды за очки карнавала">
-        {view.tiers.map((tier, index) => {
-          const ready = tierReady(view, tier, now);
-          const final = index === view.tiers.length - 1;
-          const piece = firstPiece(tier.reward);
-          const status = tier.claimed ? 'Получено' : ready ? 'Можно забрать' : 'Нужно ' + tier.points + ' очков';
-          return <button key={tier.points} type="button"
-            className={'tier-node' + (tier.claimed ? ' claimed' : ready ? ' ready' : '') + (final ? ' final' : '')}
-            style={{'--at': (tier.points / max * 100) + '%'} as React.CSSProperties}
-            aria-pressed={selected === tier.points} aria-label={(final ? 'Главный приз · ' : 'Порог ') + tier.points + ' · ' + status}
-            onClick={() => select(tier.points)}>
-            <span className="tier-box"><Icon name={final ? 'chest' : piece?.icon ?? 'gift'}/>{tier.claimed && <em aria-hidden="true">✓</em>}</span>
-            <b>{tier.points}</b>
+        {period.milestones.map(tier=>{
+          const final=!!tier.gear,claimed=tier.status==='claimed',ready=tier.status==='claimable';
+          const piece=rewardParts(displayReward(tier))[0];
+          const status=claimed?'Получено':ready?'Можно забрать':'Нужно '+tier.points+' очков';
+          return <button key={tier.id} type="button" className={'tier-node '+(claimed?'claimed':ready?'ready':'')+(final?' final':'')}
+            style={{'--at':(tier.points/period.targetPoints*100)+'%'} as React.CSSProperties} aria-pressed={selected===tier.points}
+            aria-label={(final?'Главный приз · ':'Порог ')+tier.points+' · '+status} onClick={()=>select(tier.points)}>
+            <span className="tier-box"><Icon name={final?'chest':piece?.icon??'gift'}/>{claimed&&<em aria-hidden="true">✓</em>}</span><b>{tier.points}</b>
           </button>;
         })}
       </div>
@@ -81,133 +89,159 @@ function TierTrack({view, now, selected, select}: {view: CarnivalView; now: numb
   </div>;
 }
 
-function TierPlaque({view, now, tier, final, busy, claim}: {view: CarnivalView; now: number; tier: CarnivalTier; final: boolean; busy: boolean; claim: () => void}) {
-  const ready = tierReady(view, tier, now);
-  const need = Math.max(0, tier.points - view.points);
-  return <article className={'reward-plaque carnival-tier' + (final ? ' final' : '') + (ready ? ' ready' : '')}>
-    <div className="reward-plaque-head">
-      <strong>{final ? tier.title ?? 'Главный приз карнавала' : tier.title ?? 'Награда за ' + tier.points + ' очков'}</strong>
-      <small>{tier.claimed ? '✓ Получено' : ready ? 'Готово!' : 'Ещё ' + need + ' очк.'}</small>
-    </div>
-    <div className="tier-row">
-      <RewardArt reward={tier.reward} names/>
-      {!tier.claimed && ready && <button type="button" className="carnival-btn claim" disabled={busy} onClick={claim}>Забрать</button>}
-    </div>
-  </article>;
+function PrizeButton({prize,claim,label}:{prize:Milestone|Task;claim:()=>void;label?:string}){
+  if(prize.status==='claimed')return <span className="carnival-btn done">✓ Получено</span>;
+  if(prize.status!=='claimable')return null;
+  return <button type="button" className="carnival-btn claim" onClick={claim}
+    aria-label={label}>{prize.partiallyClaimed?'Забрать заряды':'Забрать'}</button>;
 }
 
-function TaskCard({view, task, now, busy, actions, claim}: {view: CarnivalView; task: CarnivalTask; now: number; busy: boolean; actions: CarnivalActions; claim: () => void}) {
-  const state = taskState(view, task, now);
-  const progress = Math.min(task.progress, task.goal);
-  const label = state === 'claimed' ? 'Получено' : state === 'ready' ? 'Забрать' : state === 'go' ? 'Перейти'
-    : state === 'locked' ? 'Скоро' : 'Не успели';
-  return <article className={'carnival-task ' + state}>
-    <span className="task-icon"><Icon name={task.icon ?? 'star'}/></span>
+function ObjectiveRow({objective,active,go}:{objective:Objective;active:boolean;go:(route:CarnivalRoute)=>void}){
+  const route=objective.route;
+  return <div className="carnival-objective">
+    <strong>{objective.text}</strong>
+    <div className="task-progress">
+      <span className="task-bar" aria-hidden="true"><i style={{width:objective.progress/objective.target*100+'%'}}/></span>
+      <small>{objective.progress} / {objective.target}</small>
+    </div>
+    {active&&route&&<button type="button" className="carnival-btn go"
+      aria-label={'Перейти · '+objective.text} onClick={()=>go(route)}>Перейти</button>}
+  </div>;
+}
+
+function TaskCard({task,claim,go}:{task:Task;claim:()=>void;go:(route:CarnivalRoute)=>void}){
+  return <article className={'carnival-task '+task.status}>
+    <span className="task-icon"><Icon name="star"/></span>
     <div className="task-main">
-      <strong>{task.text}</strong>
-      <div className="task-progress">
-        <span className="task-bar" aria-hidden="true"><i style={{width: progress / task.goal * 100 + '%'}}/></span>
-        <small>{short(progress)} / {short(task.goal)}</small>
-      </div>
+      <ObjectiveRow objective={task.primary} active={task.acceptsProgress} go={go}/>
+      {task.alternative&&<><small className="carnival-or">или</small><ObjectiveRow objective={task.alternative} active={task.acceptsProgress} go={go}/></>}
       <div className="task-rewards">
-        <span className="task-points" aria-label={'+' + task.points + ' очков карнавала'}><CarnivalToken/>+{task.points}</span>
-        {task.reward && <RewardArt reward={task.reward}/>}
+        <span className="task-points" aria-label={'+'+task.points+' очков карнавала'}><CarnivalToken/>+{task.points}</span>
+        <RewardArt reward={task.reward}/>
+        <PrizeButton prize={task} claim={claim} label={'Забрать · '+task.primary.text}/>
       </div>
     </div>
-    {state === 'claimed'
-      ? <span className="carnival-btn done" role="status">✓ Получено</span>
-      : <button type="button" className={'carnival-btn ' + (state === 'ready' ? 'claim' : state === 'go' ? 'go' : 'idle')}
-        disabled={busy || state === 'locked' || state === 'missed' || (state === 'go' && !task.route)}
-        aria-label={label + ' · ' + task.text}
-        onClick={() => state === 'ready' ? claim() : task.route && actions.go(task.route)}>{label}</button>}
   </article>;
 }
 
-function Finale({view, now, tier, hero, busy, claim}: {view: CarnivalView; now: number; tier: CarnivalTier; hero: string; busy: boolean; claim: () => void}) {
-  const ready = tierReady(view, tier, now);
-  const fill = Math.min(100, view.points / tier.points * 100);
-  return <section className={'carnival-finale' + (tier.claimed ? ' claimed' : ready ? ' ready' : '')} aria-label="Главный приз карнавала">
+function Finale({period,tier,hero,claim}:{period:Period;tier:Milestone;hero:string;claim:(slot:Slot)=>void}){
+  const gear=tier.gear;
+  const id=useId();
+  const [slot,setSlot]=useState<Slot>('weapon');
+  const fill=Math.min(100,period.points/tier.points*100);
+  if(!gear)return null;
+  return <section className={'carnival-finale '+(tier.status==='claimed'?'claimed':tier.status==='claimable'?'ready':'')} aria-label="Главный приз карнавала">
     <div className="finale-rays" aria-hidden="true"/>
-    <div className="finale-art" aria-hidden="true">
-      <img className="finale-hero" src={art(hero)} alt="" draggable={false}/>
-      <Icon name="chest" className="finale-chest"/>
-    </div>
+    <div className="finale-art" aria-hidden="true"><img className="finale-hero" src={art(hero)} alt="" draggable={false}/><Icon name="chest" className="finale-chest"/></div>
     <div className="finale-copy">
       <small>Главный приз · {tier.points} очков</small>
-      <strong>{tier.title ?? 'Сундук Великого карнавала'}</strong>
+      <strong>{sets[gear.set].name} · {rarityNames[gear.rarity]} · ур. {gear.level}</strong>
       <RewardArt reward={tier.reward}/>
-      <div className="finale-progress" aria-label={'Очки: ' + Math.min(view.points, tier.points) + ' из ' + tier.points}>
-        <span><i style={{width: fill + '%'}}/></span><b>{Math.min(view.points, tier.points)}/{tier.points}</b>
+      <div className="finale-progress" aria-label={'Очки: '+Math.min(period.points,tier.points)+' из '+tier.points}>
+        <span><i style={{width:fill+'%'}}/></span><b>{Math.min(period.points,tier.points)}/{tier.points}</b>
       </div>
-      {tier.claimed ? <span className="carnival-btn done" role="status">✓ Приз получен</span>
-        : ready ? <button type="button" className="carnival-btn claim big" disabled={busy} onClick={claim}>Забрать главный приз</button>
-        : null}
+      {tier.status==='claimed'&&<span className="carnival-btn done">✓ Приз получен</span>}
+      {tier.status==='claimable'&&<>
+        <label htmlFor={id}>Место экипировки</label>
+        <select id={id} value={slot} onChange={e=>{const choice=gear.slots.find(value=>value===e.target.value);if(choice)setSlot(choice)}}>
+          {gear.slots.map(value=><option key={value} value={value}>{slotNames[value]}</option>)}
+        </select>
+        <button type="button" className="carnival-btn claim big" onClick={()=>claim(slot)}>Забрать главный приз</button>
+      </>}
     </div>
   </section>;
 }
 
-export function CarnivalPanel({view, actions, now: fixedNow, hero = 'winged_helmet_warrior'}: {view: CarnivalView; actions: CarnivalActions; now?: number; hero?: string}) {
-  const now = useCarnivalClock(fixedNow);
-  const phase = carnivalPhase(view, now);
-  const today = phase === 'soon' ? 1 : currentDay(view, now);
-  const [day, setDay] = useState(today);
-  const [tierSelection, selectTier] = useState<number>();
-  // A tap disables only that control until the next committed view arrives (double-tap guard).
-  const [pending, setPending] = useState<{view: CarnivalView; key: string} | null>(null);
-  const busy = (key: string) => pending?.view === view && pending.key === key;
-  const run = (key: string, fn: () => void) => {if (busy(key)) return; setPending({view, key}); fn()};
-
-  const finalTier = view.tiers.at(-1)!;
-  const tier = view.tiers.find(t => t.points === tierSelection)
-    ?? view.tiers.find(t => tierReady(view, t, now))
-    ?? view.tiers.find(t => !t.claimed && t.points > view.points) ?? finalTier;
-  const tasks = view.tasks.filter(task => task.day === day);
-  const done = tasks.filter(task => task.claimed).length;
-  const open = dayOpen(view, day, now);
-
-  return <section className="reward-window carnival-window">
-    <Hero view={view} now={now} hero={hero}/>
-    <TierTrack view={view} now={now} selected={tier.points} select={selectTier}/>
-    {tier !== finalTier && <TierPlaque view={view} now={now} tier={tier} final={false}
-      busy={busy('tier:' + tier.points)} claim={() => run('tier:' + tier.points, () => actions.claimTier(tier.points))}/>}
+function PeriodPanel({period,active,now,hero}:{period:Period;active:boolean;now:number;hero:string}){
+  const open=useGame(state=>state.open);
+  const notice=useGame(state=>state.notice);
+  const today=period.days.filter(day=>day.unlocked).at(-1)?.day??1;
+  const [selection,setSelection]=useState({day:today,tier:0});
+  const [hornFull,setHornFull]=useState(false);
+  const day=period.days[selection.day-1];
+  const tier=period.milestones.find(entry=>entry.points===selection.tier)
+    ??period.milestones.find(entry=>entry.status==='claimable')
+    ??period.milestones.find(entry=>entry.status==='locked')
+    ??period.milestones[0];
+  const finalTier=period.milestones.at(-1)!;
+  const claim=(prize:Milestone|Task,slot?:Slot)=>{
+    const result=claimCarnivalReward(period.id,prize.id,slot);
+    setHornFull(result.status==='horn_full');
+    switch(result.status){
+      case 'claimed':
+      case 'partial': {
+        const item=result.item;
+        const message=[rewardText(result.reward),item&&item.name+(item.destination==='storage'?' · на складе':' · в рюкзаке')].filter(Boolean).join(' · ');
+        notice((message?'Получено: '+message:'')+(result.status==='partial'?' · Оставшиеся заряды можно забрать позже':''));
+        break;
+      }
+      case 'horn_full': notice('Рог полон. Потратьте заряды и вернитесь за призом'); break;
+      case 'save_failed': notice('Приз не сохранён. Повторите попытку'); break;
+      case 'choose_slot': notice('Выберите место экипировки'); break;
+    }
+  };
+  const go=(route:CarnivalRoute)=>{
+    if(route==='campaign'||route==='dungeon'||route==='farm')battle?.startMode(route);
+    else open(route);
+  };
+  const done=day.tasks.filter(task=>task.status==='claimable'||task.status==='claimed').length;
+  return <>
+    <TierTrack period={period} selected={tier.points} select={points=>setSelection(current=>({...current,tier:points}))}/>
+    {tier!==finalTier&&<article className="reward-plaque carnival-tier">
+      <div className="reward-plaque-head"><strong>Награда за {tier.points} очков</strong>
+        <small>{tier.status==='locked'?'Ещё '+(tier.points-period.points)+' очк.':tier.status==='claimed'?'Получено':'Можно забрать'}</small>
+      </div>
+      <div className="tier-row"><RewardArt reward={displayReward(tier)} names/>
+        <PrizeButton prize={tier} claim={()=>claim(tier)}/></div>
+      {hornFull&&tier.partiallyClaimed&&<button className="carnival-btn go" onClick={()=>open('loot')}>К Рогу Трофеев</button>}
+    </article>}
     <div className="carnival-days" role="tablist" aria-label="Дни карнавала">
-      {Array.from({length: CARNIVAL_DAYS}, (_, i) => i + 1).map(n => {
-        const opened = dayOpen(view, n, now), ready = dayReady(view, n, now);
-        const all = view.tasks.filter(task => task.day === n);
-        const complete = all.length > 0 && all.every(task => task.claimed);
-        return <button key={n} type="button" role="tab" aria-selected={day === n}
-          className={'carnival-day' + (n === today && phase === 'live' ? ' today' : '') + (opened ? '' : ' locked') + (complete ? ' complete' : '')}
-          aria-label={'День ' + n + (ready ? ' · есть награды' : complete ? ' · всё получено' : opened ? '' : ' · откроется позже')}
-          onClick={() => setDay(n)}>
-          <small>День</small><b>{n}</b>
-          {ready ? <i className="day-badge">!</i> : complete ? <i className="day-check">✓</i> : !opened ? <i className="day-lock" aria-hidden="true"/> : null}
+      {period.days.map(entry=>{
+        const ready=entry.tasks.some(task=>task.status==='claimable'),complete=entry.tasks.every(task=>task.status==='claimed');
+        return <button key={entry.day} type="button" role="tab" aria-selected={day.day===entry.day}
+          className={'carnival-day'+(entry.day===today&&active?' today':'')+(entry.unlocked?'':' locked')+(complete?' complete':'')}
+          aria-label={'День '+entry.day+(ready?' · есть награды':complete?' · всё получено':entry.unlocked?'':' · откроется позже')}
+          onClick={()=>setSelection(current=>({...current,day:entry.day}))}>
+          <small>День</small><b>{entry.day}</b>
+          {ready?<i className="day-badge">!</i>:complete?<i className="day-check">✓</i>:!entry.unlocked?<i className="day-lock" aria-hidden="true"/>:null}
         </button>;
       })}
     </div>
-    <div className="carnival-day-head" role="tabpanel" aria-label={'Задания дня ' + day}>
-      <strong>{day === today && phase === 'live' ? 'Сегодня · день ' + day : 'День ' + day}</strong>
-      <small>{open ? 'Выполнено ' + done + ' из ' + tasks.length : 'Откроется через ' + shortCountdown(dayOpensAt(view, day) - now)}</small>
+    <div className="carnival-day-head" role="tabpanel" aria-label={'Задания дня '+day.day}>
+      <strong>{day.title}</strong>
+      <small>{day.unlocked?'Выполнено '+done+' из '+day.tasks.length:'Откроется через '+shortCountdown(day.unlockAt-now)}</small>
     </div>
-    <div className="carnival-tasks">
-      {tasks.map(task => <TaskCard key={task.id} view={view} task={task} now={now} actions={actions}
-        busy={busy('task:' + task.id)} claim={() => run('task:' + task.id, () => actions.claimTask(task.id))}/>)}
-    </div>
-    {open && phase === 'live' && <p className="carnival-note">Открытые дни остаются доступными до конца карнавала.</p>}
-    <Finale view={view} now={now} tier={finalTier} hero={hero}
-      busy={busy('tier:' + finalTier.points)} claim={() => run('tier:' + finalTier.points, () => actions.claimTier(finalTier.points))}/>
+    <div className="carnival-tasks">{day.tasks.map(task=><TaskCard key={task.id} task={task} claim={()=>claim(task)} go={go}/>)}</div>
+    <Finale period={period} tier={finalTier} hero={hero} claim={slot=>claim(finalTier,slot)}/>
+  </>;
+}
+
+export function CarnivalPanel(){
+  const {event,hero,now}=useCarnival();
+  const [history,selectHistory]=useState<string>();
+  const archived=event.past.find(period=>period.id===history);
+  const period=archived??event.period??event.past[0];
+  const active=!!event.period&&period===event.period&&event.remainingMs!==null;
+  return <section className="reward-window carnival-window">
+    <Hero timer={timerText(event,now,!!(period&&period!==event.period))} active={active} hero={hero}/>
+    {event.past.length>0&&<label className="carnival-period">Период
+      <select value={period?.id??''} onChange={e=>selectHistory(e.target.value)}>
+        {event.period&&<option value={event.period.id}>{event.period.id} · текущий</option>}
+        {event.past.map(previous=><option key={previous.id} value={previous.id}>{previous.id} · награды</option>)}
+      </select>
+    </label>}
+    {period?<PeriodPanel key={period.id} period={period} active={active} now={now} hero={hero}/>
+      :<p className="carnival-note">Следующий карнавал — {nextDate(event.nextStartAt)}, 00:00 UTC.</p>}
   </section>;
 }
 
-/** Festive HUD medal; render it only while `carnivalVisible(view, now)` is true. */
-export function CarnivalButton({view, onOpen, style, now: fixedNow}: {view: CarnivalView; onOpen: () => void; style?: React.CSSProperties; now?: number}) {
-  const now = useCarnivalClock(fixedNow);
-  const phase = carnivalPhase(view, now);
-  const badge = view.tiers.some(t => tierReady(view, t, now)) || view.tasks.some(t => taskState(view, t, now) === 'ready');
-  const left = phase === 'live' ? shortCountdown(view.endsAt - now) : 'Призы';
-  return <button type="button" className="side side-right carnival-side" style={style}
-    aria-label={'Великий карнавал · ' + (phase === 'live' ? 'осталось ' + left : 'заберите призы') + (badge ? ' · есть награды' : '')} onClick={onOpen}>
-    <span className="carnival-medal"><CarnivalTent/>{badge && <i>!</i>}</span>
-    <span className="carnival-label">Карнавал</span>
-    <span className="carnival-chip">{left}</span>
+export function CarnivalEntry(){
+  const {event,now}=useCarnival();
+  const open=useGame(state=>state.open);
+  const active=event.remainingMs!==null;
+  return <button type="button" className="carnival-entry reward-plaque" onClick={()=>open('carnival')}>
+    {active?<CarnivalTent/>:<Icon name="event"/>}
+    <span><strong>Великий карнавал</strong><small>{timerText(event,now,!active&&event.hasClaimable)}</small></span>
+    {event.hasClaimable&&<b aria-label="Есть награды">!</b>}
   </button>;
 }

@@ -336,3 +336,19 @@
 @media (prefers-reduced-motion: reduce) {
   .confetti b, .tier-node .tier-box, .finale-rays, .carnival-medal { animation: none !important; }
 }
+
+.carnival-entry { display:flex; align-items:center; gap:10px; width:100%; margin-bottom:8px; text-align:left; color:#ffe2a0; }
+.carnival-entry > svg, .carnival-entry > .icon { width:40px; height:40px; flex:none; }
+.carnival-entry > span { display:grid; flex:1; gap:3px; }
+.carnival-entry small { color:#f5e1bd; }
+.carnival-entry > b { padding:2px 8px; border-radius:20px; color:white; background:#aa2537; }
+.carnival-task { grid-template-columns:36px minmax(0,1fr); }
+.carnival-task.claimable { border-color:#d5ac63; }
+.carnival-objective { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 8px; }
+.carnival-objective > strong { grid-column:1/-1; }
+.carnival-objective .task-progress { min-width:0; }
+.carnival-objective .carnival-btn { min-height:44px; }
+.carnival-or { display:block; margin:4px 0; color:#ead6af; }
+.carnival-period { display:flex; align-items:center; gap:10px; }
+.carnival-period select, .finale-copy select { max-width:100%; min-width:0; min-height:40px; color:#ffe9bc; background:#3e292b; }
+.carnival-btn, .carnival-day { min-height:44px; }

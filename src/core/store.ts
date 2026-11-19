@@ -6,7 +6,7 @@ import {slots,slotNames,rarityNames} from '../data/catalog';
 import {itemPower,stats,xpNeeded,odinCallMaxLevel} from './formulas';
 import {cloudSave,haptic,readCloud} from './telegram';
 import {lootStorageNotice,observeLootSave} from './lootStorage';
-import {SAVE_KEY,telegramProfile} from './profile';
+import {SAVE_KEY,telegramProfile,carnivalNow} from './profile';
 export {SAVE_KEY,isolatedProfile} from './profile';
 import {validEncounter} from '../game/snapshot';
 import {uniques,uniqueOf,namedDrop,gearRules} from './gear';
@@ -148,7 +148,7 @@ export const useGame=create<Store>((set,get)=>{
   const player=get().p;
   try{
    const current=localStorage.getItem(SAVE_KEY);
-   const carnival=!!player.carnival||carnivalRefreshDue(player)||current?.includes('"carnival"');
+   const carnival=!!player.carnival||carnivalRefreshDue(player,carnivalNow())||current?.includes('"carnival"');
    if(carnival&&current&&current!==observedRaw){
     // Storage events can lag behind a transfer of the browser's profile lock.
     // Never apply actions computed against the earlier in-memory profile.
@@ -164,7 +164,7 @@ export const useGame=create<Store>((set,get)=>{
   const {auto,speed,stopOnDeath,continueOnVictory,autoSalvageWeaker}=settings;
   const now=Date.now();
   const p={...draft,preferences:{auto,speed:speed as 1|2,stopOnDeath,continueOnVictory,autoSalvageWeaker},savedAt:now};
-  const carnival=updateCarnival(get().p,p,now);
+  const carnival=updateCarnival(get().p,p,carnivalNow(now));
   if(carnival)p.carnival=carnival;
   const run=realmRun(p);
   if(run&&p.encounter?.mode==='darkness'&&run.lastCombatId!==p.encounter.id){
