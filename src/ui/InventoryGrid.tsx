@@ -1,14 +1,16 @@
 import {useEffect,useRef,useState} from 'react';
-import balance from '../../config/test-balance.v1.json';
-const capacity=balance.loot_test_settings.starter_inventory_capacity;
 import type {CSSProperties,ReactNode} from 'react';
-import type {Item,Player,Slot} from '../core/types';
-import {canBulkSalvage,compareItem,salvageProtection} from '../core/store';
-import {itemPower} from '../core/formulas';
+import balance from '../../config/test-balance.v1.json';
+import type {Player,Slot} from '../core/types';
+import {bulkSalvageRestriction,canBulkSalvage,compareItem,previewBulkSalvage,salvageProtection} from '../core/store';
 import {inventoryItems,type LootFilter} from '../core/loot';
 import {slotNames,rarityNames,rarityColors} from '../data/catalog';
 import {Icon,gearIcon} from './Icon';
+import {CardDialog} from './SagaUI';
 import './bulkSalvage.css';
+
+const capacity=balance.loot_test_settings.starter_inventory_capacity;
+const TAP_GUARD_MS=350;
 
 interface Props {
  controls?:ReactNode;
@@ -19,81 +21,111 @@ interface Props {
  storage?:boolean;
  onClaim?:(ids?:string[])=>number;
  onSelect:(id:string)=>void;
- onBulkSalvage:(ids:string[])=>number;
+ onBulkSalvage:(ids:readonly string[],quote:string)=>number;
 }
+type Mode='salvage'|'transfer'|null;
 
-const keyOf=(items:Item[])=>items.map(i=>`${i.id}:${itemPower(i)}:${i.level}`).join('|');
-/** Shorter than a deliberate second tap, longer than a double tap. Matches App.tsx. */
-const TAP_GUARD_MS=350;
-
-/** Selection stays local to this panel; never changes inventory until final confirmation. */
 export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storage=false,onClaim,controls}:Props){
- const [multi,setMulti]=useState(false);
+ const [mode,setMode]=useState<Mode>(null);
  const [ids,setIds]=useState<string[]>([]);
- const [confirm,setConfirm]=useState(false);
- const armed=useRef<string|null>(null),modeAt=useRef(0);
+ const [confirmation,setConfirmation]=useState<string|null>(null);
+ const [savedCount,setSavedCount]=useState(0);
+ const armedAt=useRef(0);
  const source=storage?{...p,inventory:p.pendingLoot??[]}:p;
  const visible=inventoryItems(source,filter,slot,order);
- const eligible=visible.filter(i=>storage||canBulkSalvage(p,i));
- const weaker=storage?[]:eligible.filter(i=>compareItem(i,p)<0);
- // Only items the player can currently see may be destroyed: a filter or slot change drops hidden picks.
- const visibleById=new Map(visible.map(i=>[i.id,i]));
- const chosen=ids.map(id=>visibleById.get(id)).filter((i):i is Item=>!!i&&(storage||canBulkSalvage(p,i)));
- const chosenIds=new Set(chosen.map(i=>i.id));
- const gold=chosen.reduce((n,i)=>n+Math.round(itemPower(i)/3),0);
- const xp=chosen.reduce((n,i)=>n+10+i.level*2,0);
- const guarded=()=>performance.now()-modeAt.current<TAP_GUARD_MS;
- const toggle=(id:string)=>{setIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);setConfirm(false)};
- const cancel=()=>{setMulti(false);setIds([]);setConfirm(false);modeAt.current=performance.now()};
- const selectWeaker=()=>{if(guarded())return;setIds(prev=>[...new Set([...prev,...weaker.map(i=>i.id)])]);setConfirm(false)};
- /** «Очистить слабые»: preselect and show the confirmation. Nothing is removed until «Да, распылить». */
- const cleanWeak=()=>{if(!weaker.length)return;setIds(weaker.map(i=>i.id));setMulti(true);armed.current=keyOf(weaker);setConfirm(true);modeAt.current=performance.now()};
- const execute=()=>{if(!chosen.length)return;const count=storage?(onClaim?.(chosen.map(i=>i.id))??0):onBulkSalvage(chosen.map(i=>i.id));if(count>0)cancel();else setConfirm(false)};
- // Refill/autosave recreates p every 15s. It must not cancel a decision the player is reading.
- const selectionKey=keyOf(chosen);
- useEffect(()=>{setConfirm(armed.current!==null&&armed.current===selectionKey);armed.current=null},[filter,slot,order,selectionKey]);
- const hiddenPicks=ids.length-chosen.length;
+ const eligible=mode==='transfer'?visible:visible.filter(item=>canBulkSalvage(p,item));
+ const eligibleIds=new Set(eligible.map(item=>item.id));
+ const chosen=ids.filter(id=>eligibleIds.has(id));
+ const selected=new Set(chosen);
+ const plan=mode==='salvage'?previewBulkSalvage(p,chosen):null;
+ const weaker=storage?[]:eligible.filter(item=>!salvageProtection(p,item)&&compareItem(item,p)<0);
+ const room=capacity-p.inventory.length;
 
+ // Keep still-visible selections, and permanently drop picks that a filter hides.
+ const selectionKey=JSON.stringify(chosen);
+ useEffect(()=>{
+  const visibleSelection=JSON.parse(selectionKey) as string[];
+  setIds(previous=>previous.length===visibleSelection.length?previous:visibleSelection);
+ },[selectionKey]);
+ useEffect(()=>{
+  if(!savedCount)return;
+  // Keep the modal over the grid until the second half of a double tap has passed.
+  const timer=window.setTimeout(()=>{setSavedCount(0);setMode(null);setIds([]);setConfirmation(null)},TAP_GUARD_MS);
+  return ()=>clearTimeout(timer);
+ },[savedCount]);
+ const reset=(next:Mode=null)=>{setMode(next);setIds([]);setConfirmation(null)};
+ const arm=(quote:string)=>{armedAt.current=performance.now();setConfirmation(quote)};
+ const toggle=(id:string)=>setIds(previous=>previous.includes(id)?previous.filter(value=>value!==id):[...previous,id]);
+ const cleanWeak=()=>{
+  const weakIds=weaker.map(item=>item.id),preview=previewBulkSalvage(p,weakIds);
+  if(!preview)return;
+  setMode('salvage');setIds(weakIds);arm(preview.quote);
+ };
+ const confirm=()=>{
+  if(!plan||performance.now()-armedAt.current<TAP_GUARD_MS)return;
+  if(confirmation!==plan.quote){arm(plan.quote);return}
+  const count=onBulkSalvage(chosen,plan.quote);
+  if(count>0)setSavedCount(count);
+ };
+ const visibleCount=source.inventory.length;
+ const changed=confirmation!==plan?.quote;
+ const valuable=plan?.entries.filter(entry=>entry.warning).length??0;
  return <>
   <div className="bulk-toolbar">
-   {!multi&&controls}
-   {!multi&&!storage&&<button type="button" className="bulk-clean" disabled={!weaker.length} onClick={cleanWeak}>{weaker.length?`Очистить слабые · ${weaker.length}`:'Слабых нет'}</button>}
-   {multi&&!storage&&<button type="button" className="bulk-secondary" disabled={!weaker.length} onClick={selectWeaker}>Выбрать слабее</button>}
-   {multi&&<button type="button" className="bulk-secondary" disabled={!ids.length} onClick={()=>{if(guarded())return;setIds([]);setConfirm(false)}}>Снять выбор</button>}
-   {storage&&!multi&&<button className="bulk-secondary" disabled={!p.pendingLoot?.length||p.inventory.length>=capacity} onClick={()=>onClaim?.()}>Забрать доступные</button>}
-   <button type="button" className={multi?'bulk-mode active':'bulk-mode'} onClick={()=>{if(multi){if(!guarded())cancel()}else{setMulti(true);modeAt.current=performance.now()}}} aria-pressed={multi}>{multi?'Готово':'☑ Выбрать'}</button>
+   {!mode&&controls}
+   {!mode&&!storage&&<button type="button" className="bulk-clean" disabled={!weaker.length} onClick={cleanWeak}>
+    {weaker.length?`Очистить слабые · ${weaker.length}`:'Слабых нет'}
+   </button>}
+   {!mode&&storage&&<button type="button" className="bulk-mode" disabled={!visible.length} onClick={()=>reset('transfer')}>Забрать</button>}
+   {!mode&&<button type="button" className="bulk-mode" disabled={!eligible.length} onClick={()=>reset('salvage')}>
+    {storage?'Распылить':'Выбрать'}
+   </button>}
+   {mode&&<>
+    <button type="button" disabled={!eligible.length} onClick={()=>setIds(eligible.map(item=>item.id))}>Выбрать всё</button>
+    <button type="button" disabled={!chosen.length} onClick={()=>setIds([])}>Снять выбор</button>
+    <button type="button" onClick={()=>reset()}>Готово</button>
+   </>}
   </div>
-  {multi&&!storage&&<p className="bulk-rules">Отмечаются только простые вещи. <b>Не попадают</b>: от «Редкого» и выше, усиленные, именные, сеты, свойства, награды, крылья и надетое — их можно распылить по одной в карточке.</p>}
-  <div className="inventory-grid" role="group" aria-label={storage?"Предметы на хранении":"Предметы в рюкзаке"}>
-   {visible.map(i=>{
-    const allowed=storage||canBulkSalvage(p,i);
-    const checked=chosenIds.has(i.id);
-    const cp=compareItem(i,p);
-    const reason=multi&&!allowed?salvageProtection(p,i)??'Защищено от массового разбора':undefined;
-    return <button key={i.id} type="button"
-      className={multi?(checked?'bulk-gear chosen':allowed?'bulk-gear':'bulk-gear protected'):''}
-      onClick={()=>multi?allowed&&toggle(i.id):onSelect(i.id)}
-      disabled={multi&&!allowed}
-      aria-pressed={multi?checked:undefined}
-      aria-label={`${i.name} · ${rarityNames[i.rarity]}${multi?(allowed?checked?' · выбрано':' · отметить':' · '+reason):''}`}
-      style={{'--rarity':rarityColors[i.rarity]} as CSSProperties}>
-      {multi&&allowed&&<span className="bulk-tick" aria-hidden="true">{checked?'✓':'□'}</span>}
-      <Icon name={gearIcon(i.slot)}/>
-      <strong>{i.uniqueId||i.perk?'✦ ':i.set?'◆ ':''}{slotNames[i.slot]}</strong>
-      {reason?<small className="bulk-reason">{reason}</small>:<small>Ур. {i.level}{i.upgrade>0&&<em> +{i.upgrade}</em>}</small>}
-      {!multi&&cp>0&&<b className="pack-better" aria-label={`Сильнее на ${cp} CP`}>↑</b>}
-     </button>
+  <div className="inventory-grid" role="group" aria-label={storage?'Предметы на хранении':'Предметы в рюкзаке'}>
+   {visible.map(item=>{
+    const checked=selected.has(item.id),allowed=eligibleIds.has(item.id);
+    const cp=mode?0:compareItem(item,p);
+    const reason=mode==='salvage'&&!allowed?bulkSalvageRestriction(p,item):undefined;
+    return <button key={item.id} type="button" className={mode?(checked?'bulk-gear chosen':allowed?'bulk-gear':'bulk-gear protected'):''}
+      onClick={()=>mode?allowed&&toggle(item.id):onSelect(item.id)} disabled={!!mode&&!allowed}
+      aria-pressed={mode?checked:undefined}
+      aria-label={`${item.name} · ${rarityNames[item.rarity]}${mode?(allowed?checked?' · выбрано':' · отметить':' · '+reason):''}`}
+      style={{'--rarity':rarityColors[item.rarity]} as CSSProperties}>
+      {mode&&allowed&&<span className="bulk-tick" aria-hidden="true">{checked?'✓':'□'}</span>}
+      <Icon name={gearIcon(item.slot)}/>
+      <strong>{item.uniqueId||item.perk?'✦ ':item.set?'◆ ':''}{slotNames[item.slot]}</strong>
+      {reason?<small className="bulk-reason" title={reason}>{item.perk==='duskwings'?'Единственные крылья':'Решите судьбу награды'}</small>
+       :<small>Ур. {item.level}{item.upgrade>0&&<em> +{item.upgrade}</em>}</small>}
+      {cp>0&&<b className="pack-better" aria-label={`Сильнее на ${cp} CP`}>↑</b>}
+     </button>;
    })}
-  {!visible.length&&<p className="pack-empty">{source.inventory.length?'Нет вещей по выбранным фильтрам':storage?'Всё получено. Хранение пусто':'Ваши трофеи появятся здесь после боя'}</p>}
+   {!visible.length&&<p className="pack-empty">{visibleCount?'Нет вещей по выбранным фильтрам':storage?'Склад пуст':'Ваши трофеи появятся здесь после боя'}</p>}
   </div>
-  {multi&&<div className="bulk-action">
-   <div className="bulk-preview"><strong>Выбрано: {chosen.length}</strong><span hidden={storage}>+{gold.toLocaleString('ru')} золота · +{xp.toLocaleString('ru')} опыта</span>{hiddenPicks>0&&<small className="bulk-hidden">Скрытые фильтром ({hiddenPicks}) не затрагиваются</small>}</div>
-   {storage?<button className="action" disabled={!chosen.length||p.inventory.length>=capacity} onClick={execute}>{p.inventory.length>=capacity?'Рюкзак полон · освободите место':`Получить выбранные · до ${Math.max(0,capacity-p.inventory.length)}`}</button>:!confirm?<button type="button" className="action" disabled={!chosen.length} onClick={()=>setConfirm(true)}>Распылить выбранное</button>:
-    <div className="bulk-confirm" role="alert">
-     <strong>Распылить {chosen.length} {chosen.length===1?'вещь':chosen.length<5?'вещи':'вещей'}?</strong>
-     <p>Отмеченные ✓ исчезнут безвозвратно. Снимите отметку, чтобы оставить вещь.</p>
-     <div><button type="button" className="bulk-secondary" onClick={()=>setConfirm(false)}>Назад</button><button type="button" className="action" onClick={execute}>Да, распылить {chosen.length}</button></div>
-    </div>}
+  {mode&&<div className="bulk-action">
+   <div className="bulk-preview"><strong>Выбрано: {chosen.length}</strong>
+    {plan&&<span>+{plan.gold.toLocaleString('ru')} золота · +{plan.xp.toLocaleString('ru')} опыта</span>}
+    {mode==='salvage'&&chosen.length>0&&!plan&&<small>Оставьте хотя бы один экземпляр Крыльев Сумрака.</small>}
+   </div>
+   {mode==='transfer'?<button type="button" className="action" disabled={!chosen.length||room<=0}
+     onClick={()=>{if((onClaim?.(chosen)??0)>0)reset()}}>
+      {room<=0?'Рюкзак полон':`Забрать ${Math.min(chosen.length,room)}`}
+     </button>:<button type="button" className="action" disabled={!plan} onClick={()=>{if(plan)arm(plan.quote)}}>Распылить {chosen.length}</button>}
   </div>}
+  {confirmation&&<CardDialog className="bulk-confirm" title={savedCount?`Распылено вещей · ${savedCount}`:`Распылить выбранные вещи · ${chosen.length}`} onClose={()=>{if(!savedCount)setConfirmation(null)}}
+    actions={savedCount?undefined:<><button type="button" className="action secondary" onClick={()=>setConfirmation(null)}>Назад</button>
+     <button type="button" className="action" disabled={!plan} onClick={confirm}>
+      {changed?'Обновить подтверждение':`Да, распылить ${chosen.length}`}
+     </button></>}>
+    {savedCount?null:plan?<><p>+{plan.gold.toLocaleString('ru')} золота · +{plan.xp.toLocaleString('ru')} опыта</p>
+      {valuable>0&&<p role="status">Ценных вещей: {valuable}. Распылённые вещи исчезнут.</p>}
+      <ul className="bulk-confirm-items" aria-label="Выбранные вещи">
+       {plan.entries.map(({item,warning})=><li key={item.id}>{item.name} · ур. {item.level}{warning&&<small> · {warning}</small>}</li>)}
+      </ul></>:<p>Выбор изменился. Вернитесь к списку вещей.</p>}
+  </CardDialog>}
  </>;
 }

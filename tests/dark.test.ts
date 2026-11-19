@@ -32,8 +32,8 @@ test('damaged dark boxes never crash, duplicate or leak invalid values into stat
  assert.equal(realm.realmRun(p),undefined);assert.equal(R.relicLevel(p,'horn'),R.RELIC_MAX);assert.equal(R.relicLevel(p,'heart'),0);
  assert.ok(Object.values(stats(p)).every(Number.isFinite));
 });
-test('dark energy: equip, compare, unequip, upgrade, lock and salvage are single transactions with real stats',()=>{
- const sword=item({id:'sword',s:0,r:4,l:10,e:'reaper'}),old=item({id:'old',s:0,r:1,l:3}),heart=item({id:'heart',s:5,r:3,l:8,e:'veil'});
+test('dark energy: equip, compare, unequip, upgrade and salvage are single transactions with real stats',()=>{
+ const sword=item({id:'sword',s:0,r:4,l:10,e:'reaper'}),old=item({id:'old',s:0,r:1,l:3,k:true}),heart=item({id:'heart',s:5,r:3,l:8,e:'veil'});
  give(p=>{R.darkBox(p).inv.push(sword,old,heart);R.addRes(p,'ess',500);p.gold=100000});
  const base=stats(P());assert.ok(A.darkEquip('old'));const withOld=stats(P());assert.equal(withOld.attack-base.attack>0,true);
  assert.ok(A.darkEquip('sword'));assert.equal(A.darkEquip('sword'),false,'double tap must not equip twice');
@@ -44,7 +44,6 @@ test('dark energy: equip, compare, unequip, upgrade, lock and salvage are single
  assert.ok(A.darkUpgrade('sword'));assert.equal(R.resCount(P(),'ess'),ess-cost.ess);assert.equal(P().gold,gold-cost.gold);assert.ok(stats(P()).attack>attack);
  give(p=>{R.addRes(p,'ess',-R.resCount(p,'ess'))});assert.equal(A.darkUpgrade('sword'),false);assert.equal(R.darkState(P()).eq[0]!.u,1);
  assert.equal(A.darkSalvage('sword'),false,'equipped items cannot be dismantled');
- assert.ok(A.darkLock('old'));assert.equal(A.darkSalvage('old'),false);assert.ok(A.darkLock('old'));
  const value=R.darkSalvageValue(R.darkState(P()).inv.find(i=>i.id==='old')!);assert.ok(A.darkSalvage('old'));assert.equal(R.resCount(P(),'ess'),value);assert.equal(A.darkSalvage('old'),false);assert.equal(R.resCount(P(),'ess'),value);
  assert.ok(A.darkUnequip(0));assert.equal(R.darkState(P()).eq[0],null);
  d=R.darkState(reload());assert.equal(d.inv.find(i=>i.id==='sword')!.u,1);assert.equal(d.eq[5]!.id,'heart');
@@ -53,7 +52,7 @@ test('dark energy: equip, compare, unequip, upgrade, lock and salvage are single
 test('dark resonance and bulk salvage follow their rules; storage is capped',()=>{
  give(p=>{const box=R.darkBox(p);for(let s=0;s<12;s++)box.eq[s]=item({id:'e'+s,s,r:0});box.inv.push(item({id:'plain',r:0}),item({id:'up',r:0,u:2}),item({id:'locked',r:0,k:true}),item({id:'rare',r:3,e:'thorns'}))});
  assert.equal(R.darkResonance(12),.1);assert.ok(Math.abs(R.darkBonus(P()).atkPct-(R.darkValue(R.darkState(P()).eq[6]!)+.1))<1e-9);
- assert.deepEqual(A.darkBulkList(P(),1).map(i=>i.id),['plain']);assert.ok(A.darkSalvageMany(1));assert.deepEqual(R.darkState(P()).inv.map(i=>i.id).sort(),['locked','rare','up']);
+ assert.deepEqual(A.darkBulkList(P(),1).map(i=>i.id),['plain','locked']);assert.ok(A.darkSalvageMany(1));assert.deepEqual(R.darkState(P()).inv.map(i=>i.id).sort(),['rare','up']);
  for(let f=1;f<=40;f+=3){const rolled=R.rollDark(f);assert.ok(rolled.r>=0&&rolled.r<=5&&rolled.s<12&&(rolled.r<3||!!R.darkEffectOf(rolled)))}
  assert.ok(R.rollDark(1,()=>.999).r<5,'the top rarity needs floor 15');assert.equal(R.rollDark(30,()=>.9999).r,5);
 });
