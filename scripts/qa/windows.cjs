@@ -21,6 +21,8 @@ async function verifyRealmVictory(page,width){
   document.documentElement.style.setProperty('--tg-safe-area-inset-bottom','24px');
   const g=window.__lootborn.useGame.getState();
   g.mutate(p=>{
+   // The preceding warehouse scenario fills storage; this receipt exercises normal item delivery.
+   if(p.saga.box.dgear)p.saga.box.dgear.inv=[];
    const item={id:'qa-finale-armor',s:1,r:3,l:p.darkFloor,u:0};
    const totals={ess:36,gold:8765,xp:37,shard:3,dusk:1,seal:1,gems:25,loot:['Затменный · Панцирь Ночи','Рубин 2 ур.','Рубин 2 ур.']};
    p.saga.box.realm={last:{...totals,stage:'WIN_PENDING',resultId:'qa-finale',ack:false,f:p.darkFloor,win:true,rooms:6,first:true,
