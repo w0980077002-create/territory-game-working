@@ -54,7 +54,8 @@ function validItem(value:unknown):value is Item {if(!value||typeof value!=='obje
 export function parseSave(raw:string|null,strictEncounter=false):Player|null {if(!raw)return null;try{const p=JSON.parse(raw) as Player;if(p.version!==1)return null;const nonnegative=['level','xp','gold','gems','chaosite','tokens','horn','hornAt','stage','wave','kills','bosses','forge','blessing','mission','savedAt','arenaWins','darkFloor','mineAt','relic'] as const;if(nonnegative.some(k=>!Number.isFinite(p[k])||p[k]<0)||p.level<1||!Number.isInteger(p.level)||p.stage<1||!Number.isInteger(p.stage)||!Number.isInteger(p.wave)||p.wave<1||p.wave>5||p.horn>hornConfig.maximum_charges)return null;if(!['berserker','ranger','runologist'].includes(p.heroClass))return null;for(const [key,len] of [['skills',3],['runes',3],['talents',3],['companions',2]] as const){if(!Array.isArray(p[key])||p[key].length!==len||p[key].some(n=>!Number.isInteger(n)||n<0))return null}if(p.skills.some(n=>n<1)||p.companions.some(n=>n<1)||p.runes.some(n=>n>2))return null;if(!Array.isArray(p.inventory)||p.inventory.length>balance.loot_test_settings.starter_inventory_capacity||!p.inventory.every(validItem)||!p.equipment||typeof p.equipment!=='object'||Array.isArray(p.equipment))return null;if(p.pendingLoot!==undefined&&!Array.isArray(p.pendingLoot))return null;const ids=new Set<string>();for(const [slot,item] of Object.entries(p.equipment)){if(!validItem(item)||item.slot!==slot||ids.has(item.id))return null;ids.add(item.id)}for(const items of [p.inventory,p.pendingLoot]){if(!items)continue;for(const i of items){if(!validItem(i)||ids.has(i.id))return null;ids.add(i.id)}}for(const key of ['claimed','bought'] as const){if(!Array.isArray(p[key])||p[key].some(v=>typeof v!=='string'))return null}if(!Array.isArray(p.seasonClaims)||p.seasonClaims.some(n=>!Number.isInteger(n)||n<1||n>10)||typeof p.daily!=='string'||typeof p.wingVisible!=='boolean'||typeof p.sound!=='boolean')return null;if(p.reducedMotion!==undefined&&typeof p.reducedMotion!=='boolean')return null;if(p.redDiamonds!==undefined&&(!Number.isSafeInteger(p.redDiamonds)||p.redDiamonds<0||p.redDiamonds>1_000_000_000))return null;if(p.shipyard!==undefined&&!validShipyard(p.shipyard))return null;if(p.lastBattleReward!==undefined&&(typeof p.lastBattleReward!=='string'||p.lastBattleReward.length>120))return null;if(p.preferences&&(typeof p.preferences.auto!=='boolean'||![1,2].includes(p.preferences.speed)||(p.preferences.stopOnDeath!==undefined&&typeof p.preferences.stopOnDeath!=='boolean')||(p.preferences.continueOnVictory!==undefined&&typeof p.preferences.continueOnVictory!=='boolean')||(p.preferences.autoSalvageWeaker!==undefined&&typeof p.preferences.autoSalvageWeaker!=='boolean')))return null;if(p.rewardOffer){const r=p.rewardOffer;if(typeof r.encounterId!=='string'||typeof r.itemId!=='string'||typeof r.resolved!=='boolean')return null;if(!r.resolved&&!p.inventory.some(i=>i.id===r.itemId)&&!p.pendingLoot?.some(i=>i.id===r.itemId))delete p.rewardOffer;}if(p.encounter&&!validEncounter(p.encounter)){if(strictEncounter)return null;delete p.encounter;}if(p.world!==undefined)p.world=normalizeWorld(p.world);if(p.saga!==undefined)p.saga=normalizeSaga(p.saga);if(p.carnival!==undefined){const carnival=normalizeCarnival(p.carnival);if(carnival)p.carnival=carnival;else delete p.carnival;}if(p.volume!==undefined&&![1,2,3].includes(p.volume))delete p.volume;migrateRealm(p);const result=stats(p);if(Object.values(result).some(n=>!Number.isFinite(n)))return null;return p;}catch{return null}}
 
 let recoveryRequired=false;
-function read(){if(typeof localStorage==='undefined')return freshPlayer();try{const raw=localStorage.getItem(SAVE_KEY),saved=parseSave(raw,true);if(raw&&!saved){recoveryRequired=true;return freshPlayer()}return saved??freshPlayer()}catch{recoveryRequired=true;return freshPlayer()}}
+let observedRaw:string|null=null;
+function read(){if(typeof localStorage==='undefined')return freshPlayer();try{const raw=localStorage.getItem(SAVE_KEY),saved=parseSave(raw,true);if(raw&&!saved){recoveryRequired=true;return freshPlayer()}observedRaw=raw;return saved??freshPlayer()}catch{recoveryRequired=true;return freshPlayer()}}
 export function unreadableSave(){try{const raw=localStorage.getItem(SAVE_KEY);return raw&&!parseSave(raw,true)?raw:localStorage.getItem(SAVE_KEY+':unreadable-cloud')??raw??''}catch{return ''}}
 function xp(p:Player,amount:number){p.xp+=amount;while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++;}}
 export function hornRefillDue(p:Pick<Player,'horn'|'hornAt'>,now=Date.now()){
@@ -142,12 +143,19 @@ type Settings=Pick<Store,'auto'|'speed'|'stopOnDeath'|'continueOnVictory'|'autoS
 export const useGame=create<Store>((set,get)=>{
  const writable=()=>{
   if(get().recoveryRequired)return false;
-  if(realmSessionWritable())return true;
+  const ownsLock=realmSessionWritable();
+  if(typeof window==='undefined'&&ownsLock)return true;
   const player=get().p;
   try{
    const current=localStorage.getItem(SAVE_KEY);
    const carnival=!!player.carnival||carnivalRefreshDue(player)||current?.includes('"carnival"');
-   if(!carnival&&!player.saga?.box.realm&&!current?.includes('"realm"'))return true;
+   if(carnival&&current&&current!==observedRaw){
+    // Storage events can lag behind a transfer of the browser's profile lock.
+    // Never apply actions computed against the earlier in-memory profile.
+    if(!followProfileSave(current))set({storageError:true});
+    return false;
+   }
+   if(ownsLock||!carnival&&!player.saga?.box.realm&&!current?.includes('"realm"'))return true;
    get().notice(carnival?'Игра открыта в другой вкладке · продолжите там':'Поход открыт в другой вкладке · продолжите там');
    return false;
   }catch{set({storageError:true});return false}
@@ -167,6 +175,7 @@ export const useGame=create<Store>((set,get)=>{
   try{raw=JSON.stringify(p);localStorage.setItem(SAVE_KEY,raw)}
   catch{set({storageError:true});return false}
   observeLootSave(raw);
+  observedRaw=raw;
   observedPlayer=p;
   set({p,storageError:false,...changes});
   return true;
@@ -299,7 +308,7 @@ export const useGame=create<Store>((set,get)=>{
   };
   if(!commit({...g.p,...(encounterProvider?{encounter:encounterProvider()}:{})},{...g,...changes},changes))unsaved(get());
  },
- importSave:incoming=>{if(!realmSessionWritable()){get().notice('Закройте другую вкладку игры перед восстановлением');return false}const checked=parseSave(JSON.stringify(incoming),true);if(!checked){get().notice('Некорректное сохранение');return false}resumeAfterPanel=false;encounterPause?.();try{localStorage.setItem(SAVE_KEY+':before-import',get().recoveryRequired?unreadableSave():exportSave())}catch{get().notice('Не удалось создать резервную копию · импорт отменён');return false}const raw=JSON.stringify(checked);try{localStorage.setItem(SAVE_KEY,raw)}catch{get().notice('Не удалось записать сохранение · импорт отменён');return false}observeLootSave(raw,true);observedPlayer=checked;set({recoveryRequired:false,storageError:false,p:checked,auto:checked.preferences?.auto??true,speed:checked.preferences?.speed??1,stopOnDeath:checked.preferences?.stopOnDeath??true,continueOnVictory:checked.preferences?.continueOnVictory??true,autoSalvageWeaker:checked.preferences?.autoSalvageWeaker??false,selected:null});encounterRestore?.();get().notice('Импорт завершён · копия сохранена');return true},
+ importSave:incoming=>{if(!realmSessionWritable()){get().notice('Закройте другую вкладку игры перед восстановлением');return false}const checked=parseSave(JSON.stringify(incoming),true);if(!checked){get().notice('Некорректное сохранение');return false}resumeAfterPanel=false;encounterPause?.();try{localStorage.setItem(SAVE_KEY+':before-import',get().recoveryRequired?unreadableSave():exportSave())}catch{get().notice('Не удалось создать резервную копию · импорт отменён');return false}const raw=JSON.stringify(checked);try{localStorage.setItem(SAVE_KEY,raw)}catch{get().notice('Не удалось записать сохранение · импорт отменён');return false}observeLootSave(raw,true);observedRaw=raw;observedPlayer=checked;set({recoveryRequired:false,storageError:false,p:checked,auto:checked.preferences?.auto??true,speed:checked.preferences?.speed??1,stopOnDeath:checked.preferences?.stopOnDeath??true,continueOnVictory:checked.preferences?.continueOnVictory??true,autoSalvageWeaker:checked.preferences?.autoSalvageWeaker??false,selected:null});encounterRestore?.();get().notice('Импорт завершён · копия сохранена');return true},
  upgrade:(slot,expected)=>{const g=get(),i=g.p.equipment[slot];if(!i||expected&&(i.id!==expected.id||i.upgrade!==expected.upgrade))return;const plan=upgradePreview(i);if(!Number.isFinite(plan.cost)||g.p.gold<plan.cost){g.notice('Недостаточно золота');return}if(!g.mutate(p=>{p.gold-=plan.cost;p.equipment[slot]=plan.next;bumpCount(p,'upgrade')})){unsaved(get());return}g.notice('Усиление успешно!')},
  train:(type,index=0)=>{const g=get();if(type==='hero')return;let cost=0;const p=g.p;if(type==='forge')cost=100*p.forge;else if(type==='blessing')cost=150*p.blessing;else if(type==='companion')cost=120*p.companions[index];else if(type==='skill'){if(index===1&&p.skills[index]>=odinCallMaxLevel){g.notice('Клич достиг предела');return}cost=120*p.skills[index]}else if(type==='relic')cost=300*(p.relic+1);else if(type==='talent')cost=0;if(type==='talent'&&p.talents.reduce((a,b)=>a+b,0)>=p.level-1){g.notice('Нужно новое очко: повышайте уровень героя');return}if(p.gold<cost){g.notice('Недостаточно золота');return}if(!g.mutate(p=>{p.gold-=cost;if(type==='forge')p.forge++;if(type==='blessing')p.blessing++;if(type==='companion'){p.companions[index]++;bumpCount(p,'carnival:companion')}if(type==='skill'){p.skills[index]++;bumpCount(p,'carnival:skill')}if(type==='talent')p.talents[index]++;if(type==='relic')p.relic++})){unsaved(get());return}haptic(true);g.notice('Уровень повышен')},
  claim:id=>{const g=get(),p=g.p;let ok=true;const now=Date.now();if(id==='pending'){g.claimStored();return}if(id==='daily'||id.startsWith('season:')){
@@ -413,10 +422,16 @@ export function bestUpgrades(p:Player){const base=stats(p).cp;return slots.flatM
 
 export function claimRealmReward(){let done=false;const ok=useGame.getState().mutate(p=>{const ess=resCount(p,'ess'),gold=p.gold;done=realmClaim(p,{xp:n=>xp(p,n),trophies:(floor,first)=>{const out:string[]=[],named=namedDrop('darkness');if(named){const u=makeUnique(named,p.level,'Владыка Царства тьмы · этаж '+floor);addLoot(p,u);out.push(u.name)}for(const [at,perk] of [[10,'void'],[20,'duskwings']] as [number,PerkId][])if(first&&floor===at&&setFlag(p,'perk:'+perk)){const t=makePerkItem(perk,p.level+2,'Трофей Царства тьмы · этаж '+floor);addLoot(p,t);out.push(t.name)}return out}});if(done){bumpCount(p,'carnival:realmEss',resCount(p,'ess')-ess);bumpCount(p,'carnival:battleGold',p.gold-gold)}});return ok&&done}
 
-// A second tab follows the committed profile, never an in-memory copy from before the claim.
-if(typeof window!=='undefined')window.addEventListener('storage',event=>{
- if(event.key!==SAVE_KEY||!event.newValue||realmSessionWritable())return;
- const incoming=parseSave(event.newValue,true);if(!incoming)return;
- observeLootSave(event.newValue,true);observedPlayer=incoming;
+function followProfileSave(raw:string){
+ const incoming=parseSave(raw,true);if(!incoming)return false;
+ observeLootSave(raw,true);observedRaw=raw;observedPlayer=incoming;
  useGame.setState({p:incoming});encounterRestore?.();
+ return true;
+}
+
+// Ignore queued notifications after a later commit, including during lock handover.
+if(typeof window!=='undefined')window.addEventListener('storage',event=>{
+ if(event.key!==SAVE_KEY||!event.newValue||event.newValue===observedRaw)return;
+ if(realmSessionWritable()&&!event.newValue.includes('"carnival"'))return;
+ try{if(localStorage.getItem(SAVE_KEY)===event.newValue)followProfileSave(event.newValue)}catch{/* A blocked read leaves the last valid profile intact. */}
 });
