@@ -146,3 +146,36 @@
 .game[data-realm] .side-medal{width:65px;height:64px}
 .game[data-realm] .side-medal .icon{width:57px;height:57px;margin-top:0}
 .game[data-realm] .side{font-size:21px}
+
+.context-card.realm-victory-dialog{
+ width:min(410px,calc(100% - 24px));border-color:#c4a570;
+ background:radial-gradient(ellipse at 50% 10%,#48304c,#161c2c 65%);
+ box-shadow:inset 0 0 0 3px #1a1428,0 18px 70px #000b;
+}
+.realm-victory-dialog .context-body{padding:8px 12px 4px}
+.realm-victory-dialog .realm-victory-crest{background:radial-gradient(ellipse at center,#ac674d7d,transparent 72%);padding:2px}
+.realm-victory-title{
+ margin:5px 0 9px;text-align:center;color:#ffe5ac;font:700 17px/1.22 Georgia,serif;
+}
+.realm-loot-grid{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;
+ max-width:330px;margin:0 auto;padding:0;list-style:none;
+}
+.realm-loot-grid li{min-width:0}
+.realm-loot-tile{
+ display:grid;grid-template-rows:1fr auto;justify-items:center;align-items:center;gap:1px;
+ width:100%;min-height:65px;padding:5px 2px 4px;min-width:0;
+ border:1px solid color-mix(in srgb,var(--loot-tone) 76%,#766052);border-radius:8px;color:#fff6da;
+ background:radial-gradient(ellipse at 50% 24%,color-mix(in srgb,var(--loot-tone) 32%,#2a2038),#151827 75%);
+ box-shadow:inset 0 0 0 2px #131421,0 2px 4px #090c17;
+}
+.realm-loot-tile[aria-pressed="true"]{border-color:#ffe4a5;box-shadow:inset 0 0 0 2px #6c513b,0 0 6px #f3c56a70}
+.realm-loot-art{display:grid;place-items:center;height:41px}
+.realm-loot-art .icon{width:41px;height:41px;object-fit:contain;filter:drop-shadow(0 2px 2px #080a16)}
+.realm-loot-count{font:700 12px/1.15 system-ui;max-width:100%;overflow-wrap:anywhere;text-shadow:0 1px 3px #000}
+.realm-loot-detail,.realm-loot-empty{margin:7px 0 0;text-align:center;color:#e1cbaa;font:11px/1.3 system-ui;overflow-wrap:anywhere}
+.realm-loot-detail{min-height:15px}
+.realm-victory-dialog .context-actions .action{
+ width:100%;color:#302018;border-color:#f4d27c;background:linear-gradient(#ffe7ae,#d4a34a 62%,#b17930);
+ text-shadow:0 1px #fff6;box-shadow:inset 0 0 0 2px #664728;
+}

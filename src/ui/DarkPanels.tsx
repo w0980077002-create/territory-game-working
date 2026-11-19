@@ -16,7 +16,7 @@ import {resources,resCount,duskCount,type ResId,bonusLines,statNames,statText,
  gemTypes,gemSlots,gemState,parseGem,gemLabel,gemText,gemBonus,gemSynthGold,socketOpen,socketRules,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicIds,relicLevel,relicRarity,relicColors,relicUnlockCost,relicUpgradeCost,relicCollection,RELIC_MAX,type RelicId,
  squadBonus,companions,companionIds,companionRarity,companionColors,squadState,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,talentDefs,talentPoints,talentSpent,TALENT_MAX,summonTable,SUMMON,powerParts} from '../dark/rules';
-import {blessings,blessingIds,realmRun,realmLast,realmSelected,roomReward,floorName,lordFloor,floorBoss,roomTitles,REALM_COST,ROOMS,type BlessingId,type RealmTotals} from '../dark/realm';
+import {blessings,blessingIds,realmRun,realmLast,realmSelected,roomReward,floorName,lordFloor,floorBoss,roomTitles,REALM_COST,ROOMS,type BlessingId,type RealmLast,type RealmTotals} from '../dark/realm';
 import {collectRealmReward,realmSelect,realmStart,realmResume,realmAbandon,darkEquip,darkUnequip,darkUpgrade,darkSalvage,darkSalvageMany,darkBulkList,
  gemInsert,gemRemove,gemSynth,gemSynthAll,gemBuy,relicUnlock,relicUpgrade,summon,petLevel,petLevelCost,petStar,petAwaken,petTalent,petTalentReset,petActivate,type SummonResult} from '../dark/actions';
 import './dark.css';
@@ -50,10 +50,13 @@ export function RealmPanel({p}:{p:Player}){
  </div>;
  return <div className="realm">
   <div className="workspace-toolbar"><span className="realm-resource"><Icon name="rune"/> {fmt(p.chaosite)} Хаосита</span><button onClick={()=>setInfo(true)}>Награды и правила</button></div>
-  {last&&!last.ack&&<CardDialog title={last.win?'Победа':'Поражение'} onClose={()=>g.open(null)}><div className={`realm-result ${last.win?'win':'lose'}`}>{last.win?<div className="realm-victory-crest"><img src={art(floorBoss(last.f))} alt=""/><span>Владыка · {nameOf(floorBoss(last.f))}</span></div>:<small>ПОРАЖЕНИЕ</small>}<strong>{last.win?`Этаж ${last.f} пройден${last.first?' впервые':''}!`:`Этаж ${last.f} · пройдено комнат: ${last.rooms} из ${ROOMS}`}</strong>
-   <RewardList t={last}/>
-   {!last.win&&<p>Герой пал, но всё добытое в пройденных комнатах сохранено. Усильте Тёмную энергию, вставьте камни или развивайте спутников — и возвращайтесь.</p>}
-   <div className="realm-result-actions">{last.win?<Btn onClick={()=>{collectRealmReward()}}>Забрать</Btn>:<Btn onClick={()=>{realmSelect(last.f);collectRealmReward()}}>Забрать и к этажам</Btn>}</div></div></CardDialog>}
+  {last&&!last.ack&&(last.win
+   ?<RealmVictory key={last.resultId} last={last} onClose={()=>g.open(null)}/>
+   :<CardDialog title="Поражение" onClose={()=>g.open(null)}><div className="realm-result lose"><small>ПОРАЖЕНИЕ</small><strong>Этаж {last.f} · пройдено комнат: {last.rooms} из {ROOMS}</strong>
+    <RewardList t={last}/>
+    <p>Герой пал, но всё добытое в пройденных комнатах сохранено. Усильте Тёмную энергию, вставьте камни или развивайте спутников — и возвращайтесь.</p>
+    <div className="realm-result-actions"><Btn onClick={()=>{realmSelect(last.f);collectRealmReward()}}>Забрать и к этажам</Btn></div>
+   </div></CardDialog>)}
   <div className="realm-entry">
    <div className={`realm-banner realm-portal ${lordFloor(floor)?'lord':''}`}><div className="portal-light" aria-hidden="true"/><div className="portal-caption"><small>{first?'НОВЫЙ ЭТАЖ':'ПРОЙДЕН · ПОВТОР'}{lordFloor(floor)?' · ЭТАЖ ВЛАДЫКИ':''}</small><strong>Этаж {floor} · {floorName(floor)}</strong></div></div>
    <div ref={floorList} className="realm-floor-list" role="group" aria-label="Этажи Царства тьмы" tabIndex={0}>
@@ -76,6 +79,59 @@ export function RealmPanel({p}:{p:Player}){
  </div>;
 }
 function RewardList({t}:{t:RealmTotals}){return <div className="reward-list">{rewardRows(t).map(([n,label])=><span key={label}><b>+{fmt(n)}</b>{label}</span>)}{t.loot.map((name,i)=><span key={i} className="loot"><b>★</b>{name}</span>)}{!rewardRows(t).length&&!t.loot.length&&<span>Награды не получены</span>}</div>}
+
+type RealmLootTile={key:string;label:string;quantity:number;icon:string;tone:string;gem?:string};
+const realmCurrencies:Record<Exclude<keyof RealmTotals,'loot'>,{label:string;icon:string;tone:string}>={
+ ess:{label:resources.ess.name,icon:resources.ess.icon,tone:resources.ess.color},
+ gold:{label:'Золото',icon:'coins',tone:'#eabe62'},
+ xp:{label:'Опыт',icon:'book',tone:'#8bc9f7'},
+ shard:{label:resources.shard.name,icon:resources.shard.icon,tone:resources.shard.color},
+ dusk:{label:materials.dusk.name,icon:'dusk-stone',tone:materials.dusk.color},
+ seal:{label:resources.seal.name,icon:resources.seal.icon,tone:resources.seal.color},
+ gems:{label:'Самоцветы',icon:'gem',tone:'#8cebed'}
+};
+function RealmVictory({last,onClose}:{last:RealmLast;onClose:()=>void}){
+ const [selected,setSelected]=useState<string>();
+ const tiles:RealmLootTile[]=Object.entries(realmCurrencies).flatMap(([key,entry])=>{
+  const quantity=last[key as keyof typeof realmCurrencies];
+  return quantity>0?[{key,quantity,...entry}]:[];
+ });
+ const remaining=[...last.loot],stones=new Map<string,RealmLootTile>();
+ const consumeLabel=(label:string)=>{const index=remaining.indexOf(label);if(index>=0)remaining.splice(index,1)};
+ // Pending drops supply the same item and gem data that the reward transaction reads.
+ for(const [index,room] of (Array.isArray(last.pending)?last.pending:[]).entries()){
+  for(const [slot,item] of (Array.isArray(room?.items)?room.items:[]).entries()){
+   const def=darkSlots[item?.s];
+   if(!def)continue;
+   const label=darkName(item);
+   consumeLabel(label);
+   tiles.push({key:`item:${index}:${slot}`,label,quantity:1,icon:def.icon,tone:darkColors[item.r]??darkColors[0]});
+  }
+  const gem=parseGem(room?.gem);
+  if(!gem)continue;
+  const code=`${gem.type}:${gem.level}`,label=gemLabel(code),existing=stones.get(code);
+  consumeLabel(label);
+  if(existing)existing.quantity++;
+  else stones.set(code,{key:`gem:${code}`,label,quantity:1,icon:'gem',tone:gemTypes[gem.type].color,gem:code});
+ }
+ tiles.push(...stones.values());
+ // Older results and achievement receipts may contain only a display name.
+ remaining.forEach((label,i)=>tiles.push({key:`receipt:${i}`,label,quantity:1,icon:'medal',tone:'#c5a7f5'}));
+ const detail=tiles.find(tile=>tile.key===selected);
+ return <CardDialog title="Победа" onClose={onClose} className="realm-victory-dialog" actions={<Btn onClick={collectRealmReward}>Забрать</Btn>}>
+  <div className="realm-victory-crest"><img src={art(floorBoss(last.f))} alt=""/><span>Владыка · {nameOf(floorBoss(last.f))}</span></div>
+  <h4 className="realm-victory-title">Этаж {last.f} пройден{last.first?' впервые':''}</h4>
+  {tiles.length>0?<ul className="realm-loot-grid" aria-label="Награды похода">{tiles.map(tile=><li key={tile.key}>
+   <button type="button" className="realm-loot-tile" style={{'--loot-tone':tile.tone} as React.CSSProperties}
+    aria-label={`${tile.label} · ${tile.quantity.toLocaleString('ru')}`} aria-pressed={selected===tile.key}
+    onClick={()=>setSelected(selected===tile.key?undefined:tile.key)}>
+    <span className="realm-loot-art" aria-hidden="true">{tile.gem?<GemDot code={tile.gem} size={29}/>:<Icon name={tile.icon}/>}</span>
+    <b className="realm-loot-count">{tile.quantity.toLocaleString('ru')}</b>
+   </button>
+  </li>)}</ul>:<p className="realm-loot-empty">Награды не получены</p>}
+  <p className="realm-loot-detail" role="status">{detail?.label}</p>
+ </CardDialog>;
+}
 
 // ───────────────────────── Dark Energy ─────────────────────────
 function DarkCard({item,against,preview=false}:{item:DarkItem;against?:DarkItem|null;preview?:boolean}){
