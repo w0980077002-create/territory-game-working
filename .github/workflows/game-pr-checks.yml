@@ -1,6 +1,9 @@
 name: Game PR checks
 on:
   pull_request:
+    # codex-build PRs already run all these commands in window-ui.yml.
+    # Keep this workflow for other branches and manual dispatch.
+    branches-ignore: [codex-build]
     paths:
       - 'src/**'
       - 'tests/**'

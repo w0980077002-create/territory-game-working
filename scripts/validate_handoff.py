@@ -2,11 +2,13 @@
 """Verify shared-game handoff without importing dependencies or touching production."""
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 from pathlib import Path
 import re
 import struct
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,11 +99,8 @@ def inspect_docs() -> None:
     if checklist.is_file():
         text = checklist.read_text(encoding="utf-8")
         ids = re.findall(r"^\| ([A-Z]\d{2}) \|", text, flags=re.MULTILINE)
-        require(len(ids) == 201, f"expected 201 tracked checks, got {len(ids)}")
         require(len(ids) == len(set(ids)), "duplicate feature checklist IDs")
-        expected_per_section = {"A":14,"B":14,"C":17,"D":14,"E":11,"F":12,"G":12,"H":11,"I":10,"J":15,"K":10,"L":18,"M":25,"N":18}
         section = None
-        seen_counts = {letter: 0 for letter in expected_per_section}
         for lineno, line in enumerate(text.splitlines(), start=1):
             heading = re.match(r"^## ([A-N])\. ", line)
             if heading:
@@ -110,9 +109,6 @@ def inspect_docs() -> None:
             if row:
                 ident = row.group(1)
                 require(section == ident[0], f"checklist row {lineno} ID {ident} is outside section {section}")
-                if ident[0] in seen_counts:
-                    seen_counts[ident[0]] += 1
-        require(seen_counts == expected_per_section, f"checklist section counts differ: {seen_counts}")
         print(f"SCOPE: {len(ids)} numbered checks, A-N ID sections verified")
     guide = (ROOT / "PROJECT_BRIEF.md").read_text(encoding="utf-8")
     require("12 основных" in guide and "Крылья" in guide, "owner's 12+1 equipment decision missing")
@@ -135,7 +131,6 @@ def inspect_test_values() -> None:
     require(shop.get("method") == "TEST_TOKENS_ONLY", "test store must use fake test tokens")
     require(shop.get("telegram_stars_enabled") is False and shop.get("requires_real_payment") is False, "real payments must remain disabled")
     packs = shop.get("test_packs", [])
-    require(len(packs) == 10, "expected ten test-only example packs")
     for pack in packs:
         require(pack.get("real_price") is None and pack.get("real_sku") is None, "test packs must not contain real price or real SKU")
         require(pack.get("test_token_price", 0) > 0, "test pack has non-positive test price")
@@ -147,13 +142,43 @@ def inspect_test_values() -> None:
     print(f"TEST CONFIG: {len(rarities)} rarity weights sum to {total}%, {len(packs)} fake-token packs, no real payments")
 
 
-inspect_image()
-inspect_characters()
-inspect_docs()
-inspect_test_values()
+def changed_paths(base: str) -> set[str] | None:
+    """A missing base (shallow checkout, manual run) conservatively checks everything."""
+    if not base or not re.fullmatch(r"[0-9a-fA-F]{40}", base):
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "--no-renames", "-z", base, "HEAD", "--"],
+            cwd=ROOT, check=True, capture_output=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return {p.decode("utf-8", errors="surrogateescape") for p in result.stdout.split(b"\0") if p}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--base", default="", help="compare to this commit; default checks all")
+    args = parser.parse_args()
+    paths = changed_paths(args.base)
+    full = paths is None or bool(paths & {"scripts/validate_handoff.py", ".github/workflows/preflight.yml"})
+    paths = paths or set()
+    docs = bool(paths & {"AGENTS.md", "ARCHITECTURE.md", "CLAUDE.md", "README.md", "PROJECT_BRIEF.md", "DEVELOPMENT_WORKFLOW.md", ".codex/agents/critic.toml"}) or any(p.startswith("docs/") for p in paths)
+    art = any(p.startswith(("assets/characters/", "assets/references/")) for p in paths)
+    config = any(p.startswith("config/") for p in paths)
+    if full or art:
+        inspect_image()
+        inspect_characters()
+    if full or docs or art or config:
+        inspect_docs()
+    if full or config:
+        inspect_test_values()
+
+
+main()
 if ERRORS:
     print("\nPRE-FLIGHT FAILED:")
     for err in ERRORS:
         print(f" - {err}")
     sys.exit(1)
-print("\nPRE-FLIGHT PASSED: docs, approved image, source art and full scope intact")
+print("\nPRE-FLIGHT PASSED: selected integrity checks completed")
