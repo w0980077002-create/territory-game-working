@@ -70,6 +70,6 @@ test('cave render is deterministic, consumes no combat RNG and retains all art u
    assert.ok(sx>=0&&sy>=0&&sw>0&&sh>0&&sx+sw<=width&&sy+sh<=height,'atlas frames stay inside the loaded sheet');
   }
   const abyss=recorder();scene.drawBack(abyss.c,j,{...view,chamber:'abyss'});
-  assert.ok(abyss.calls.some(row=>row[0]==='createLinearGradient'),'the abyss has luminous fungi on its path');
+  assert.ok(art(abyss.calls).some(row=>String(row[1]).includes('dark/fungi')), 'the abyss uses its painted mushroom sprite');
  }finally{globalThis.Image=originalImage;Math.random=originalRandom}
 });

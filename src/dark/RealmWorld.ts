@@ -66,26 +66,8 @@ function rune(c:C,x:number,y:number,s:number,color:string,variant=0){
  c.beginPath();c.moveTo(0,-1);c.lineTo(0,1);c.moveTo(-.55,-.5);c.lineTo(0,0);c.lineTo(.55,-.5);
  if(variant%2){c.moveTo(0,.5);c.lineTo(.6,0);c.lineTo(0,-.5)}else{c.moveTo(-.5,.2);c.lineTo(0,.7);c.lineTo(.5,.2)}c.stroke();c.restore();
 }
-function fungi(c:C,delta:number,t:number){
- for(const [i,root] of [-830,-310,110,355,705,880].entries()){
-  const x=root+delta*.68;
-  if(x< -80||x>944)continue;
-  for(let j=0;j<3;j++){
-   const stem=44+noise(i*7+j)*112,w=stem*.38,y=730-j*9;
-   c.save();c.translate(x+(j-1)*39,y);c.rotate((j-1)*.28+Math.sin(t*.9+i+j)*.016);
-   c.strokeStyle='#7ca5a2';c.lineWidth=5+j*1.6;c.beginPath();c.moveTo(0,0);c.quadraticCurveTo(-9,-stem*.55,1,-stem);c.stroke();
-   const cap=c.createLinearGradient(0,-stem-w,0,-stem+w*.3);
-   cap.addColorStop(0,'#584477');cap.addColorStop(.76,'#413054');cap.addColorStop(1,'#d69689');
-   c.fillStyle=cap;c.beginPath();c.moveTo(-w,-stem);c.bezierCurveTo(-w*.66,-stem-w,w*.57,-stem-w,w,-stem);
-   c.quadraticCurveTo(0,-stem+w*.42,-w,-stem);c.fill();
-   c.strokeStyle='#e8a79770';c.lineWidth=1.4;
-   for(let k=-2;k<=2;k++){c.beginPath();c.moveTo(k*w*.32,-stem+2);c.lineTo(k*w*.2,-stem+w*.14);c.stroke()}
-   glow(c,0,-stem+w*.2,w*1.35,'#f5ae8258',.78+Math.sin(t*2+i)*.12);c.restore();
-  }
- }
-}
 export class RealmWorld {
- private chambers:HTMLImageElement;private props:HTMLImageElement;private road:HTMLImageElement;
+ private chambers:HTMLImageElement;private props:HTMLImageElement;private road:HTMLImageElement;private fungi?:HTMLImageElement;
  constructor(){
   const load=(id:string)=>sceneImage('dark/'+id);
   this.chambers=load('chambers');this.props=load('props');this.road=load('road');
@@ -112,7 +94,8 @@ export class RealmWorld {
   }
   // Subterranean falls shimmer inside the far plane, behind every creature.
   if(v.chamber==='crypt'&&!v.reduced){c.save();c.globalAlpha=.13*power;c.strokeStyle='#c9ffff';c.lineWidth=2;for(let i=0;i<5;i++){const x=48+i*34+delta*.16,y=490+(t*65+i*61)%170;c.beginPath();c.moveTo(x,y);c.lineTo(x-3,y+28);c.stroke()}c.restore()}
-  const opening=v.phase==='fight'&&v.chamber==='sanctum'?1-clamp(v.combatTime/1.2):0;
+  const sanctum=v.chamber==='sanctum';
+  const opening=sanctum?(v.phase==='walk'?1-clamp((j.targetX-j.worldX)/455):v.phase==='fight'?1-clamp(v.combatTime/1.2):0):0;
   glow(c,640+delta*.24,650,230,p.hot+'48',power+opening*.6);
   for(const o of realmDecorations(v.floor,v.chamber)){
    const x=o.x+delta*o.depth;this.prop(c,o.kind,x,o.y,o.height,o.flip);
@@ -134,15 +117,26 @@ export class RealmWorld {
     c.drawImage(this.road,0,276,1774,611,0,0,width+1,611*scale);c.restore();
    }
   }
-  if(v.chamber==='abyss')fungi(c,delta,t);
+  if(v.chamber==='abyss'){
+   this.fungi??=sceneImage('dark/fungi');
+   if(sceneImageReady(this.fungi)){
+    for(const [i,root] of [-1100,-650,-220,90,490,875].entries()){
+     const x=root+delta*(.58+i%2*.17),height=94+Math.floor(noise(i+11)*99),width=height*this.fungi.naturalWidth/this.fungi.naturalHeight;
+     if(x+width/2<0||x-width/2>864)continue;
+     c.save();c.translate(x,729-i%2*9);if(i%2)c.scale(-1,1);
+     c.drawImage(this.fungi,-width/2,-height,width,height);c.restore();
+     glow(c,x,729-height*.52,height*.49,'#7bddc74c',.74+Math.sin(t*1.7+i)*.13);
+    }
+   }
+  }
   // The boss's own rising rune seal is anchored to the arena, not the screen.
-  if(v.chamber==='sanctum'){
+  if(sanctum){
    c.save();c.translate(645+delta,807);c.scale(1,.18);c.strokeStyle=p.light;c.globalAlpha=.45+opening*.4;c.lineWidth=4;c.beginPath();c.arc(0,0,115,0,Math.PI*2);c.stroke();
    for(let n=0;n<8;n++){c.save();c.rotate(n*Math.PI/4);rune(c,0,-96,13,p.hot,n);c.restore()}c.restore();
   }
   if(opening>0){
    // Boss entrance: a luminous seal unfolds behind its silhouette, with no delay to combat.
-   const x=645+delta*.4,y=637,r=70+(1-opening)*110;
+   const x=645+delta*.72,y=636,r=117+(1-opening)*70;
    c.save();c.globalAlpha=opening*.65;c.strokeStyle=p.light;c.lineWidth=3;c.beginPath();c.ellipse(x,y,r,r*.75,0,0,Math.PI*2);c.stroke();
    for(let n=0;n<6;n++){const a=n*Math.PI/3;rune(c,x+Math.cos(a)*r,y+Math.sin(a)*r*.75,12,p.light,n)}c.restore();
   }
