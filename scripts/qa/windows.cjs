@@ -32,6 +32,11 @@ let browser;
    if(panel==='realm'){
     assert.equal(await page.locator('[data-panel="realm"] .modal-header button').count(),1,'one exit on direct entry');
     await page.getByText('7 врагов',{exact:true}).waitFor({state:'visible'});
+    const floors=page.getByRole('group',{name:'Этажи Царства тьмы'});
+    assert.equal(await floors.getByRole('button').count(),5,'five floors are visible at once');
+    assert.equal(await floors.getByRole('button',{name:/Этаж 13 Закрыт/}).isDisabled(),true);
+    const tenth=floors.getByRole('button',{name:/Этаж 10 Пройден/});
+    await tenth.click();assert.equal(await tenth.getAttribute('aria-pressed'),'true','unlocked floors can be picked directly');
     for(const selector of ['.floor-strip','.room-track','.bless-grid','.workspace-actions']){const box=await page.locator(selector).boundingBox();assert.ok(box.y>=geo.body.top&&box.y+box.height<=geo.body.bottom+1,`${width} ${selector} clipped`);}
     await page.locator('.bless-grid button').nth(1).click();assert.equal(await page.locator('.bless-grid button').nth(1).getAttribute('aria-pressed'),'true');await page.getByRole('button',{name:'Предыдущий этаж'}).click();
     await page.getByRole('button',{name:'Награды и правила'}).click();await assertCard(page);await closeCard(page);

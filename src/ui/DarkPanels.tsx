@@ -34,7 +34,8 @@ const rewardRows=(t:RealmTotals)=>[[t.ess,'Тёмная эссенция'],[t.go
 // ───────────────────────── Dark Realm ─────────────────────────
 export function RealmPanel({p}:{p:Player}){
  const g=useGame(),run=realmRun(p),last=realmLast(p),floor=realmSelected(p),[bless,setBless]=useState<BlessingId>('fury'),[info,setInfo]=useState(false);
- const first=floor===p.darkFloor,max=p.darkFloor,from=Math.max(1,Math.min(floor-1,max-2)),strip=Array.from({length:Math.min(3,max)},(_,i)=>from+i).filter(f=>f<=max);
+ const max=p.darkFloor,first=floor===max,from=max<=5?1:Math.max(1,floor-2);
+ const strip=Array.from({length:5},(_,i)=>from+i);
  if(run)return <div className="realm">
   <div className="workspace-toolbar"><span className="realm-resource"><Icon name="rune"/> {fmt(p.chaosite)} Хаосита</span><button onClick={()=>setInfo(true)}>Награды и правила</button></div>
   <div className="realm-banner live"><small>ПОХОД ИДЁТ</small><strong>Этаж {run.f} · {floorName(run.f)}</strong><span>{roomTitles[run.r-1]} · {run.stage.startsWith('CHOICE')?'Выбор портала':`${run.killed}/${run.total}`}</span><em style={{color:blessings[run.b].color}}>{blessings[run.b].name}: {blessings[run.b].text}</em></div>
@@ -52,7 +53,16 @@ export function RealmPanel({p}:{p:Player}){
    <div className="realm-result-actions">{last.win?<Btn onClick={()=>{collectRealmReward()}}>Забрать</Btn>:<Btn onClick={()=>{realmSelect(last.f);collectRealmReward()}}>Забрать и к этажам</Btn>}</div></div></CardDialog>}
   <div className="realm-entry">
    <div className={`realm-banner realm-portal ${lordFloor(floor)?'lord':''}`}><div className="portal-light" aria-hidden="true"/><div className="portal-caption"><small>{first?'НОВЫЙ ЭТАЖ':'ПРОЙДЕН · ПОВТОР'}{lordFloor(floor)?' · ЭТАЖ ВЛАДЫКИ':''}</small><strong>Этаж {floor} · {floorName(floor)}</strong></div></div>
-   <div className="floor-route"><button className="floor-prev" aria-label="Предыдущий этаж" disabled={floor<=1} onClick={()=>realmSelect(floor-1)}>‹</button><div className="floor-strip" aria-label="Доступные этажи">{strip.map(f=><button key={f} className={`${f===floor?'selected':''} ${f<max?'cleared':''} ${lordFloor(f)?'lord':''}`} aria-pressed={f===floor} onClick={()=>realmSelect(f)}><span>Этаж {f}</span><small>{f<max?'Пройден ✓':'Новый'}</small></button>)}</div><button className="floor-next" aria-label="Следующий этаж" disabled={floor>=max} onClick={()=>realmSelect(floor+1)}>›</button></div>
+   <div className="floor-route">
+    {max>5&&<div className="floor-browse">
+     <button className="floor-prev" aria-label="Предыдущий этаж" disabled={floor<=1} onClick={()=>realmSelect(floor-1)}>‹</button>
+     <span>Этажи</span>
+     <button className="floor-next" aria-label="Следующий этаж" disabled={floor>=max} onClick={()=>realmSelect(floor+1)}>›</button>
+    </div>}
+    <div className="floor-strip" role="group" aria-label="Этажи Царства тьмы">{strip.map(f=><button key={f} disabled={f>max} className={f===floor?'selected':''} aria-pressed={f===floor} onClick={()=>realmSelect(f)}>
+     <span>Этаж {f}</span><small>{f>max?'Закрыт':f<max?'Пройден':'Новый'}</small>
+    </button>)}</div>
+   </div>
   </div>
   <RoomTrack floor={floor} at={0}/>
   <h3 className="bless-title">Благословение похода</h3>
