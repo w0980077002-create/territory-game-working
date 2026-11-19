@@ -124,6 +124,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await filterType('Сапоги');assert.equal(await picks(),2);
   await filterType('Все типы');assert.equal(await picks(),2);
   await btn('Распылить 2').tap();await bulk.waitFor();
+  await bulk.locator('summary').tap();
   assert.equal(await bulk.getByRole('list',{name:'Выбранные вещи'}).getByRole('listitem').count(),2);
   assert.match(await bulk.innerText(),/Старая слабая вещь/);
   const dialogBounds=await bulk.boundingBox();
