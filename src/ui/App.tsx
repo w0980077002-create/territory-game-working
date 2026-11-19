@@ -324,9 +324,9 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
    <HeroPortrait p={p} compact/>
    <div className="hero-id"><h3>{classNames[p.heroClass]}</h3><b className="gold-text">Сила {fmt(s.cp)}</b><span>Уровень {p.level}</span><span className="hero-xp" role="progressbar" aria-label={`Опыт до уровня ${p.level+1}`} aria-valuemin={0} aria-valuemax={goal} aria-valuenow={Math.min(goal,p.xp)}><i style={{width:`${Math.min(100,p.xp/goal*100)}%`}}/></span><small>{fmt(p.xp)} / {fmt(goal)} XP · опыт за бои и распыление</small></div>
   </section>
-  <HonorEntry p={p} onOpen={()=>g.open('honor')}/>
   <button type="button" className="class-toggle" aria-expanded={classOpen} aria-controls="class-picker" onClick={()=>setClassOpen(v=>!v)}><span><small>Персонаж · {classNames[p.heroClass]}</small><strong>{classOpen?'Скрыть выбор':'Сменить персонажа'}</strong></span><b aria-hidden="true">{classOpen?'▴':'▾'}</b></button>
   {classOpen&&<ClassPicker p={p}/>}
+  <HonorEntry p={p} onOpen={()=>g.open('honor')}/>
   <div className="hero-stats">{[['Здоровье',fmt(s.hp)],['Атака',fmt(s.attack)],['Защита',fmt(s.defense)],['Крит',`${Math.round(s.crit*100)}%`],['Скорость',`${s.aspd}/с`],['Вампиризм',`${Math.round(s.lifesteal*100)}%`],['Крит. урон',`${Math.round(s.critDamage*100)}%`],['Уклонение',`${Math.round(s.dodge*100)}%`],['Снижение урона',`${Math.round(s.reduction*100)}%`]].map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div>
   <SpecChooser p={p}/>
   <details className="saga-disclosure"><summary>Комплекты</summary><SetSummary p={p}/></details>
