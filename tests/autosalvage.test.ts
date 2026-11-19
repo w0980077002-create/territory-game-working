@@ -54,7 +54,6 @@ test('valuable items, equipped items and old gear returned during replacement re
   {...weak,id:'trophy',origin:'Трофей Логова'},
   {...weak,id:'rare',rarity:3},
   {...weak,id:'upgraded',upgrade:2},
-  {...weak,id:'locked',locked:true},
   {...weak,id:'set',set:'frost'},
   {...weak,id:'perk',perk:'crown'},
   {...weak,id:'engrave',engrave:'might'},
@@ -63,6 +62,7 @@ test('valuable items, equipped items and old gear returned during replacement re
   {...weak,id:'wings',slot:'wings'},
  ];
  for(const item of protectedItems)assert.equal(shouldAutoSalvage(p,item),false,item.id);
+ assert.equal(shouldAutoSalvage(p,{...weak,locked:true}),true,'legacy lock is ignored by the new-drop rule');
  const empty={...structuredClone(p),equipment:{...p.equipment}};delete empty.equipment.weapon;
  assert.equal(shouldAutoSalvage(empty,weak),false,'empty slots must keep all new gear');
  const before=p.gold,original={...weak,id:'manual-return'};

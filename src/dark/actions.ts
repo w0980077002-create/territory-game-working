@@ -10,7 +10,7 @@ import {haptic} from '../core/telegram';
 import {matKey,matCount,materials} from '../saga/gear';
 import {bumpCount} from '../saga/save';
 import {realmRun,realmLast,realmBox,realmDefeat,newRealmRun,realmChoose,blessingIds,REALM_COST,type BlessingId} from './realm';
-import {resCount,addRes,duskCount,addDusk,darkState,darkBox,darkUpgradeCost,darkMaxUpgrade,darkSalvageValue,darkName,DARK_STORAGE,
+import {resCount,addRes,duskCount,addDusk,darkState,darkBox,darkUpgradeCost,darkMaxUpgrade,darkSalvageValue,darkEffectOf,darkName,DARK_STORAGE,
  gemState,gemBox,parseGem,gemCode,gemSynthGold,gemSlots,socketOpen,rollGem,gemLabel,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicLevel,relicUnlockCost,relicUpgradeCost,RELIC_MAX,type RelicId,
  companions,squadState,squadBox,legacyPet,starCost,STAR_MAX,AWAKEN,talentPoints,talentSpent,TALENT_MAX,rollSummon,SUMMON,resources} from './rules';
@@ -46,16 +46,15 @@ export function darkUpgrade(id:string){
  return tx(p=>{const i=findDark(p,id),c=cost(p);return !i||!c?'Предмет не найден':i.u>=darkMaxUpgrade(i.r)?'Достигнут предел усиления':resCount(p,'ess')<c.ess?`Нужно ${c.ess} Тёмной эссенции`:p.gold<c.gold?'Недостаточно золота':duskCount(p)<c.dusk?'Нужен Камень Сумрака':null},
   p=>{const box=darkBox(p),item=box.inv.find(i=>i.id===id)??box.eq.find(i=>i?.id===id)!,c=darkUpgradeCost(item);addRes(p,'ess',-c.ess);p.gold-=c.gold;if(c.dusk)addDusk(p,-c.dusk);item.u++;bumpCount(p,'dark:upgrade')},'Усиление успешно!');
 }
-export function darkLock(id:string){return tx(p=>findDark(p,id)?null:'Предмет не найден',p=>{const box=darkBox(p),item=box.inv.find(i=>i.id===id)??box.eq.find(i=>i?.id===id)!;item.k=!item.k})}
 export function darkSalvage(id:string){
- let gain=0;return tx(p=>{const i=darkState(p).inv.find(x=>x.id===id);return !i?'Разобрать можно только предмет со склада':i.k?'Предмет защищён · сначала снимите замок':null},
+ let gain=0;return tx(p=>{const i=darkState(p).inv.find(x=>x.id===id);return !i?'Разобрать можно только предмет со склада':null},
   p=>{const box=darkBox(p),at=box.inv.findIndex(i=>i.id===id),[item]=box.inv.splice(at,1);gain=darkSalvageValue(item);addRes(p,'ess',gain)})&&(G().notice(`Разобрано · +${gain} Тёмной эссенции`),true);
 }
-/** Bulk clean-up: only unlocked, never upgraded items up to the chosen rarity. */
-export const darkBulkList=(p:Player,maxRarity:number)=>darkState(p).inv.filter(i=>!i.k&&i.u===0&&i.r<=maxRarity);
-export function darkSalvageMany(maxRarity:number){
- let gain=0,n=0;return tx(p=>darkBulkList(p,maxRarity).length?null:'Нет подходящих предметов для разбора',
-  p=>{const ids=new Set(darkBulkList(p,maxRarity).map(i=>i.id)),box=darkBox(p);for(const i of box.inv)if(ids.has(i.id)){gain+=darkSalvageValue(i);n++}box.inv=box.inv.filter(i=>!ids.has(i.id));addRes(p,'ess',gain)})&&(G().notice(`Разобрано ${n} · +${gain} Тёмной эссенции`),true);
+/** Bulk clean-up: ordinary, unupgraded items up to the chosen rarity. */
+export const darkBulkList=(p:Player,maxRarity:number,slot:number|null=null)=>darkState(p).inv.filter(i=>(slot===null||i.s===slot)&&i.u===0&&!darkEffectOf(i)&&i.r<=maxRarity);
+export function darkSalvageMany(maxRarity:number,slot:number|null=null){
+ let gain=0,n=0;return tx(p=>darkBulkList(p,maxRarity,slot).length?null:'Нет подходящих предметов для разбора',
+  p=>{const ids=new Set(darkBulkList(p,maxRarity,slot).map(i=>i.id)),box=darkBox(p);for(const i of box.inv)if(ids.has(i.id)){gain+=darkSalvageValue(i);n++}box.inv=box.inv.filter(i=>!ids.has(i.id));addRes(p,'ess',gain)})&&(G().notice(`Разобрано ${n} · +${gain} Тёмной эссенции`),true);
 }
 // ── Gems ──
 export function gemInsert(slot:Slot,index:number,code:string){

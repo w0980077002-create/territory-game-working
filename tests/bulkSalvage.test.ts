@@ -1,6 +1,6 @@
 import {beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
-import {canBulkSalvage,freshPlayer,makeItem,parseSave,SAVE_KEY,useGame} from '../src/core/store';
+import {bulkSalvageRestriction,canBulkSalvage,freshPlayer,makeItem,makePerkItem,parseSave,previewBulkSalvage,SAVE_KEY,useGame} from '../src/core/store';
 import {itemPower} from '../src/core/formulas';
 import type {Item} from '../src/core/types';
 
@@ -10,66 +10,77 @@ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{
  setItem:(key:string,value:string)=>{storage.set(key,value)},
  removeItem:(key:string)=>storage.delete(key)
 }});
-
+const game=useGame.getState;
 beforeEach(()=>{
  storage.clear();
  useGame.setState({p:freshPlayer(),panel:null,selected:null,recoveryRequired:false,storageError:false});
 });
 
-test('manual bulk salvage selects existing ordinary items and pays exactly once',()=>{
- const a=makeItem('weapon',1,0),b=makeItem('helmet',2,1);
- const g=useGame.getState();
- g.mutate(p=>{p.inventory.push(a,b)});
- const before=useGame.getState().p;
- const paid=Math.round(itemPower(a)/3)+Math.round(itemPower(b)/3);
- assert.equal(canBulkSalvage(before,a),true);
- assert.equal(canBulkSalvage(before,b),true);
- assert.equal(useGame.getState().bulkSalvage([a.id,b.id,a.id,'missing']),2);
- const after=useGame.getState().p;
- assert.equal(after.inventory.length,0);
- assert.equal(after.gold,before.gold+paid);
- assert.equal(after.xp,before.xp+(10+a.level*2)+(10+b.level*2));
- assert.equal(useGame.getState().bulkSalvage([a.id,b.id]),0);
- assert.equal(useGame.getState().p.gold,after.gold);
- assert.ok(storage.has(SAVE_KEY+':before-bulk-salvage'));
- assert.ok(parseSave(storage.get(SAVE_KEY)??null));
-});
-
-test('rare, upgraded, named, set, purchased, locked and rewarded gear cannot be selected',()=>{
+test('mixed select from backpack and storage pays the exact approved reward once',()=>{
  const base=makeItem('weapon',1,0);
  const items:Item[]=[
-  {...base,id:'locked',locked:true},
+  {...base,id:'legacy',locked:true},
   {...base,id:'rare',rarity:3},
   {...base,id:'upgraded',upgrade:2},
   {...base,id:'named',uniqueId:'ice_silk'},
   {...base,id:'set',set:'frost'},
-  {...base,id:'perk',perk:'flame'},
+  {...base,id:'perk',perk:'belt'},
   {...base,id:'engrave',engrave:'might'},
   {...base,id:'percent',percent:{hp:5,attack:5,defense:5}},
   {...base,id:'reward',origin:'Награда босса'},
   {...base,id:'shop',origin:'Покупка'},
   {...base,id:'wings',slot:'wings'}
  ];
- const ordinary={...base,id:'ordinary'};
- const g=useGame.getState();
- g.mutate(p=>{p.inventory.push(...items,ordinary);p.pendingLoot=[{...base,id:'pending'}]});
- for(const i of items)assert.equal(canBulkSalvage(useGame.getState().p,i),false,i.id);
- assert.equal(canBulkSalvage(useGame.getState().p,{...base,id:'pending'}),false);
- assert.equal(useGame.getState().bulkSalvage([...items.map(i=>i.id),ordinary.id,'pending']),1);
- const p=useGame.getState().p;
- for(const i of items)assert.ok(p.inventory.some(x=>x.id===i.id),i.id);
- assert.ok(p.pendingLoot?.some(i=>i.id==='pending'));
- assert.equal(p.inventory.some(i=>i.id==='ordinary'),false);
- const backup=parseSave(storage.get(SAVE_KEY+':before-bulk-salvage')??null,true);
- assert.equal(backup?.inventory.find(i=>i.id==='locked')?.locked,true);
+ game().mutate(p=>{p.inventory.push(...items.slice(0,5));p.pendingLoot=items.slice(5)});
+ const before=game().p,ids=items.map(item=>item.id);
+ for(const item of items)assert.equal(canBulkSalvage(before,item),true,item.id);
+ const plan=previewBulkSalvage(before,[...ids,ids[0]])!;
+ assert.equal(plan.entries.length,items.length);
+ assert.equal(plan.entries[0].warning,undefined);
+ assert.ok(plan.entries.slice(1).every(entry=>entry.warning));
+ assert.equal(plan.gold,items.reduce((sum,item)=>sum+Math.round(itemPower(item)/3),0));
+ assert.equal(game().bulkSalvage(ids),0,'a quote is required');
+ assert.equal(game().bulkSalvage([...ids,'missing'],plan.quote),0,'a missing pick cancels the whole batch');
+ assert.deepEqual(game().p,before);
+ assert.equal(game().bulkSalvage(ids,plan.quote),items.length);
+ const after=parseSave(storage.get(SAVE_KEY)!,true)!;
+ assert.deepEqual(after.inventory,[]);
+ assert.deepEqual(after.pendingLoot,[]);
+ assert.deepEqual(after.equipment,before.equipment);
+ assert.equal(after.gold,before.gold+plan.gold);
+ assert.equal(game().bulkSalvage(ids,plan.quote),0);
+ assert.equal(game().p.gold,after.gold);
+ const backup=parseSave(storage.get(SAVE_KEY+':before-bulk-salvage')!,true)!;
+ assert.equal(backup.inventory[0].locked,true);
+ assert.deepEqual(backup.pendingLoot,before.pendingLoot);
 });
 
-test('no-op and recovery mode do not mutate the backpack',()=>{
- const item=makeItem('armor',1,0),g=useGame.getState();
- g.mutate(p=>{p.inventory.push(item);p.rewardOffer={itemId:item.id,encounterId:'boss',resolved:false}});
- assert.equal(canBulkSalvage(useGame.getState().p,item),false);
- assert.equal(useGame.getState().bulkSalvage([item.id]),0);
- useGame.setState({recoveryRequired:true});
- assert.equal(useGame.getState().bulkSalvage([item.id]),0);
- assert.ok(useGame.getState().p.inventory.some(i=>i.id===item.id));
+test('a changed quote, moved item, equipped item or active offer cannot be silently salvaged',()=>{
+ const item=makeItem('armor',1,0),another=makeItem('helmet',2,0);
+ game().mutate(p=>{p.inventory.push(item,another)});
+ const ids=[item.id,another.id],plan=previewBulkSalvage(game().p,ids)!;
+ game().mutate(p=>{p.inventory[0].upgrade++});
+ assert.equal(game().bulkSalvage(ids,plan.quote),0);
+ const updated=previewBulkSalvage(game().p,ids)!;
+ game().mutate(p=>{p.pendingLoot=[p.inventory.pop()!]});
+ assert.equal(game().bulkSalvage(ids,updated.quote),0);
+ game().mutate(p=>{p.rewardOffer={itemId:item.id,encounterId:'boss',resolved:false}});
+ assert.equal(previewBulkSalvage(game().p,ids),null);
+ assert.equal(previewBulkSalvage(game().p,[game().p.equipment.weapon!.id]),null);
+ assert.equal(game().p.inventory.length,1);
+ assert.equal(game().p.pendingLoot?.length,1);
+});
+
+test('only the last irreplaceable Wings of Dusk must be kept',()=>{
+ const one=makePerkItem('duskwings',12,'20-й этаж');
+ const two=makePerkItem('duskwings',12,'20-й этаж');
+ game().mutate(p=>{p.pendingLoot=[one]});
+ assert.match(bulkSalvageRestriction(game().p,one)!,/20-й этаж/);
+ game().salvage(one.id,true);
+ assert.deepEqual(game().p.pendingLoot,[one]);
+ game().mutate(p=>{p.inventory.push(two)});
+ assert.equal(previewBulkSalvage(game().p,[one.id,two.id]),null);
+ const plan=previewBulkSalvage(game().p,[two.id])!;
+ assert.equal(game().bulkSalvage([two.id],plan.quote),1);
+ assert.deepEqual(game().p.pendingLoot,[one]);
 });
