@@ -94,7 +94,7 @@ export function realmVictory(p:Player,combatId?:string,defeated=1,random:()=>num
  delete run.checkpoint;run.lastCombatId=combatId;const kills=Math.max(1,Math.min(3,Math.floor(defeated),run.total-run.killed));run.killed+=kills;p.kills+=kills;const box=realmBox(p);
  if(run.killed<run.total){box.run=run;return true}
  bumpCount(p,'win:darkness');const loot=rollRoom(p,run,random);run.pending.push(loot);mergeTotals(run.acc,loot.totals);
- if(run.r===ROOMS){box.last={...run.acc,stage:'WIN_PENDING',resultId:run.runId+':result',ack:false,f:run.f,win:true,rooms:ROOMS,first:run.f===p.darkFloor,pending:run.pending};delete box.run;return true}
+ if(run.r===ROOMS){bumpCount(p,'carnival:realm');box.last={...run.acc,stage:'WIN_PENDING',resultId:run.runId+':result',ack:false,f:run.f,win:true,rooms:ROOMS,first:run.f===p.darkFloor,pending:run.pending};delete box.run;return true}
  run.r++;run.killed=0;
  if(run.r===ROOMS){run.stage='FINAL_BOSS';run.total=1}else{run.stage=`CHOICE_${run.r-1}` as RealmStage;run.pair=portalPair(run.runId,run.r-1,random);run.total=0}
  box.run=run;return true;

@@ -33,6 +33,8 @@ import {resCount,resources,duskCount,type ResId} from '../dark/rules';
 import {materials,matCount,materialIds,hasPerk} from '../saga/gear';
 import {shopQuote} from '../saga/shop';
 import {dailyGift,seasonBadge} from '../saga/events';
+import {carnivalRefreshDue} from '../saga/carnival';
+import {bumpCount} from '../saga/save';
 import {DailyRewards,SeasonRewards} from './EventRewards';
 import {rewardText} from '../saga/rewards';
 import {PORTALS} from '../dark/portals';
@@ -174,7 +176,7 @@ export default function App(){
    idleId=undefined;
    if(!active||!cloudReady||document.hidden)return;
    const g=useGame.getState(),now=Date.now();
-   if(hornRefillDue(g.p,now)||questRefreshDue(g.p,now))g.mutate(p=>{refill(p,now);ensureQuests(p,now)});
+   if(hornRefillDue(g.p,now)||questRefreshDue(g.p,now)||carnivalRefreshDue(g.p,now))g.mutate(p=>{refill(p,now);ensureQuests(p,now)});
    if(telegramProfile)void backup();
   };
   const timer=setInterval(()=>{
@@ -324,7 +326,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  {panel==='item'&&item&&<>{isTrophy&&<><TrophyReveal key={item.id} item={item} encounter={p.rewardOffer!.encounterId}/><p className={`trophy-value ${compareItem(item,p)>=0?'positive':'negative'}`}>{compareItem(item,p)>=0?'+':''}{compareItem(item,p)} CP <small>к силе героя при экипировке</small></p></>}<StatDelta item={item} old={old} p={p}/><div className="comparison"><div><h3>Новая вещь</h3><ItemDetails item={item}/></div><div><h3>Надето</h3>{old?<ItemDetails item={old}/>:<p>Слот свободен</p>}</div></div><EffectComparison item={item} p={p}/></>}
  {panel==='loot'&&<><PanelIntro icon="horn" title={'Рог Трофеев · '+p.horn+'/'+balance.horn_test_settings.maximum_charges}>Один предмет за заряд. Заряд восстанавливается за {balance.horn_test_settings.recharge_one_charge_every_seconds/60} мин.</PanelIntro><Action disabled={p.horn<balance.horn_test_settings.chest_charge_cost} onClick={()=>g.hornLoot()}>Протрубить · {balance.horn_test_settings.chest_charge_cost} заряд.</Action><Action kind="secondary" onClick={()=>g.buy('horn',shopQuote({price:purchase.cost,reward:{horn:purchase.count}}))} disabled={purchase.count===0||p.gems<purchase.cost}>{purchase.count?`+${purchase.count} зарядов · ${purchase.cost} самоцветов`:'Рог заполнен'}</Action><Action kind="secondary" onClick={()=>g.open('source:horn:loot')}>Где получить заряды</Action><Action kind="secondary" onClick={()=>g.open('inventory')}>Рюкзак · {p.inventory.length}/80</Action><Action kind="secondary" onClick={()=>g.open('blessing')}>Улучшить качество добычи</Action></>}
  {panel==='wings'&&<><PanelIntro icon="wings" title="Крылья северного ветра">Отдельный слот. Крылья видны за спиной героя и повышают здоровье, атаку и защиту в процентах.</PanelIntro>{!p.claimed.includes('wings')?<Action onClick={()=>{g.claim('wings');g.open('gear:wings')}}>Получить первые крылья бесплатно</Action>:<Action onClick={()=>g.open('gear:wings')}>Мои крылья</Action>}</>}
- {panel==='skills'&&<>{skillData.map((skill,i)=><div className="skill-card" key={skill.name}><Row icon={i===1?'horn':i===2?'hammer':skill.icon} title={`${skill.name} · ур.${p.skills[i]}`} detail={`${i===1?'+30% к обычным ударам':skill.detail} · перезарядка ${skill.cd} сек`}/><div className="rune-options">{skill.runes.map((r,n)=><button key={r} className={p.runes[i]===n?'selected':''} aria-pressed={p.runes[i]===n} onClick={()=>{if(p.runes[i]===n)return;g.mutate(p=>{p.runes[i]=n});unlockAudio(p.sound);sound('rune',p.sound)}}><span className="rune-sign" aria-hidden="true">{['ᚠ','ᚦ','ᛟ'][n]}</span><Icon name="rune"/>{r}</button>)}</div>{i===1&&p.skills[i]>=odinCallMaxLevel?<p>Длительность: {odinCallSeconds(p.skills[i],hasPerk(p,'echo'))} сек · максимум</p>:<>
+ {panel==='skills'&&<>{skillData.map((skill,i)=><div className="skill-card" key={skill.name}><Row icon={i===1?'horn':i===2?'hammer':skill.icon} title={`${skill.name} · ур.${p.skills[i]}`} detail={`${i===1?'+30% к обычным ударам':skill.detail} · перезарядка ${skill.cd} сек`}/><div className="rune-options">{skill.runes.map((r,n)=><button key={r} className={p.runes[i]===n?'selected':''} aria-pressed={p.runes[i]===n} onClick={()=>{if(p.runes[i]===n)return;g.mutate(p=>{p.runes[i]=n;bumpCount(p,'carnival:rune')});unlockAudio(p.sound);sound('rune',p.sound)}}><span className="rune-sign" aria-hidden="true">{['ᚠ','ᚦ','ᛟ'][n]}</span><Icon name="rune"/>{r}</button>)}</div>{i===1&&p.skills[i]>=odinCallMaxLevel?<p>Длительность: {odinCallSeconds(p.skills[i],hasPerk(p,'echo'))} сек · максимум</p>:<>
   <p>{i===1?`Длительность: ${odinCallSeconds(p.skills[i],hasPerk(p,'echo'))} → ${odinCallSeconds(p.skills[i]+1,hasPerk(p,'echo'))} сек`:`Множитель урона навыка: ×${skillPowerMultiplier(p.skills[i]).toFixed(1)} → ×${skillPowerMultiplier(p.skills[i]+1).toFixed(1)}`}</p>
   <Action disabled={p.gold<120*p.skills[i]} onClick={()=>g.train('skill',i)}>Улучшить · {120*p.skills[i]} золота</Action></>}</div>)}<p className="hint">Одна руна на навык. Выбор меняет эффект в следующей атаке.</p></>}
  {panel==='companions'&&<SquadPanel p={p}/>}
