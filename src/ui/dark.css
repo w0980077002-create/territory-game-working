@@ -16,17 +16,6 @@
 .realm-banner.lord{border-color:#ffb343;background:radial-gradient(120% 140% at 85% -10%,#ff8a3d55,transparent 60%),linear-gradient(160deg,#3a1d22,#140f18 75%)}.realm-banner.lord small{color:#ffcf8a}
 .realm-banner.live{border-color:#ffda76}
 @keyframes realm-pulse{50%{opacity:.35}}
-.floor-strip{display:flex;gap:5px;align-items:stretch;margin:8px 0}
-.floor-strip button{flex:1 1 0;min-width:0;min-height:52px;border:1px solid #473a6b;border-radius:8px;background:#171427;color:#cfc6ea;font:700 18px Georgia,serif;display:grid;place-content:center;line-height:1.05}
-.floor-strip button small{font:400 9.5px system-ui;color:#8f87ad}.floor-strip button.cleared small{color:#8fe3a4}.floor-strip button.lord{border-color:#b5803a}
-.floor-strip button.selected{border-color:#ffda76;background:linear-gradient(#4a2f8a,#22163f);color:#fff3c7;box-shadow:0 0 0 2px #ffda7655,0 0 14px #9a5dff88}
-.floor-strip button:first-child,.floor-strip button:last-child{flex:0 0 38px;font-size:24px}.floor-strip button:disabled{opacity:.35}
-.room-track{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0}
-.room-track>div{position:relative;text-align:center;padding:8px 4px 7px;border:1px solid #3d3560;border-radius:10px;background:linear-gradient(#1c1830,#11121c);min-width:0}
-.room-track .room-art{display:grid;place-items:center;height:64px}.room-track img{max-height:64px;max-width:100%;object-fit:contain;filter:drop-shadow(0 4px 4px #000b) saturate(.9)}.room-track .icon{width:42px;height:42px}
-.room-track b{display:block;font-size:11.5px;color:#eadfff;line-height:1.2}.room-track small{display:block;font-size:10.5px;color:#9d97b8;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.room-track>div.done{border-color:#4f9b63;background:linear-gradient(#17301f,#11121c)}.room-track>div.done::after{content:'✓';position:absolute;top:4px;right:7px;color:#8fe3a4;font-weight:700}
-.room-track>div.now{border-color:#ffda76;box-shadow:0 0 12px #ffda7655}
 .realm-rewards{display:grid;gap:5px}.realm-rewards>div{padding:7px 10px;border-left:3px solid #7d5cd0;background:#171626;border-radius:0 7px 7px 0}.realm-rewards b{display:block;font-size:12.5px;color:#e4d4ff}.realm-rewards span{font-size:11.5px;color:#b6b3c9;line-height:1.35;display:block}
 .bless-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .bless-grid button{min-width:0;padding:9px 5px;border:1px solid #453f5e;border-radius:10px;background:linear-gradient(#1d1a2c,#12131c);color:#d7d3e6;display:grid;justify-items:center;gap:3px;text-align:center}
@@ -114,8 +103,6 @@
 .realm-progress{position:absolute;top:325px;left:200px;right:160px;text-align:center;color:#ffe3a2;text-shadow:0 2px 4px #000;font-size:26px;pointer-events:none}
 .realm-world-hit{position:absolute;top:550px;width:200px;height:280px;background:transparent;border:0;border-radius:45%;z-index:2;touch-action:manipulation}
 .realm-world-hit:focus-visible{outline:4px solid #ffe3a2;outline-offset:-12px}
-.realm .room-track{grid-template-columns:repeat(6,minmax(0,1fr))}
-.realm .room-track .room-art{height:30px}.realm .room-track .room-art img{max-height:30px}.realm .room-track .icon{height:24px;width:24px}
 
 /* Long Russian labels remain readable in the existing five compact navigation targets. */
 .dark-hub strong,.dark-hub small{min-width:0;max-width:100%;overflow-wrap:anywhere}
