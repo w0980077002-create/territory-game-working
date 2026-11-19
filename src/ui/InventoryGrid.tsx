@@ -121,11 +121,19 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
      <button type="button" className="action" disabled={!plan} onClick={confirm}>
       {changed?'Обновить подтверждение':`Да, распылить ${chosen.length}`}
      </button></>}>
-    {savedCount?null:plan?<><p>+{plan.gold.toLocaleString('ru')} золота · +{plan.xp.toLocaleString('ru')} опыта</p>
-      {valuable>0&&<p role="status">Ценных вещей: {valuable}. Распылённые вещи исчезнут.</p>}
-      <ul className="bulk-confirm-items" aria-label="Выбранные вещи">
-       {plan.entries.map(({item,warning})=><li key={item.id}>{item.name} · ур. {item.level}{warning&&<small> · {warning}</small>}</li>)}
-      </ul></>:<p>Выбор изменился. Вернитесь к списку вещей.</p>}
+    {savedCount?null:plan?<>
+      <p className="bulk-confirm-reward"><Icon name="coins"/>+{plan.gold.toLocaleString('ru')} золота <Icon name="star"/>+{plan.xp.toLocaleString('ru')} опыта</p>
+      {valuable>0&&<p className="bulk-confirm-warn" role="status">Ценных вещей: {valuable}. Распылённые вещи исчезнут.</p>}
+      <div className="bulk-confirm-strip" aria-hidden="true">
+       {plan.entries.slice(0,7).map(({item})=><span key={item.id} style={{'--rarity':rarityColors[item.rarity]} as CSSProperties}><Icon name={gearIcon(item.slot)}/></span>)}
+       {plan.entries.length>7&&<b>+{plan.entries.length-7}</b>}
+      </div>
+      <details className="bulk-confirm-list">
+       <summary>Показать все выбранные · {plan.entries.length}</summary>
+       <ul className="bulk-confirm-items" aria-label="Выбранные вещи">
+        {plan.entries.map(({item,warning})=><li key={item.id}>{item.name} · ур. {item.level}{warning&&<small> · {warning}</small>}</li>)}
+       </ul>
+      </details></>:<p>Выбор изменился. Вернитесь к списку вещей.</p>}
   </CardDialog>}
  </>;
 }

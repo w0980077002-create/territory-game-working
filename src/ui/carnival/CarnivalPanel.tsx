@@ -195,23 +195,27 @@ function PeriodPanel({period,active,now,hero}:{period:Period;active:boolean;now:
         <PrizeButton prize={tier} claim={()=>claim(tier)}/></div>
       {hornFull&&tier.partiallyClaimed&&<button className="carnival-btn go" onClick={()=>open('loot')}>К Рогу Трофеев</button>}
     </article>}
-    <div className="carnival-days" role="tablist" aria-label="Дни карнавала">
+    <div className="carnival-daybook">
+    <div className="carnival-days" role="tablist" aria-orientation="vertical" aria-label="Дни карнавала">
       {period.days.map(entry=>{
         const ready=entry.tasks.some(task=>task.status==='claimable'),complete=entry.tasks.every(task=>task.status==='claimed');
         return <button key={entry.day} type="button" role="tab" aria-selected={day.day===entry.day}
           className={'carnival-day'+(entry.day===today&&active?' today':'')+(entry.unlocked?'':' locked')+(complete?' complete':'')}
           aria-label={'День '+entry.day+(ready?' · есть награды':complete?' · всё получено':entry.unlocked?'':' · откроется позже')}
           onClick={()=>setSelection(current=>({...current,day:entry.day}))}>
-          <small>День</small><b>{entry.day}</b>
+          <b>{entry.day}</b><small>DAY</small>
           {ready?<i className="day-badge">!</i>:complete?<i className="day-check">✓</i>:!entry.unlocked?<i className="day-lock" aria-hidden="true"/>:null}
         </button>;
       })}
     </div>
+    <div className="carnival-daypage">
     <div className="carnival-day-head" role="tabpanel" aria-label={'Задания дня '+day.day}>
       <strong>{day.title}</strong>
       <small>{day.unlocked?'Выполнено '+done+' из '+day.tasks.length:'Откроется через '+shortCountdown(day.unlockAt-now)}</small>
     </div>
     <div className="carnival-tasks">{day.tasks.map(task=><TaskCard key={task.id} task={task} claim={()=>claim(task)} go={go}/>)}</div>
+    </div>
+    </div>
     <Finale period={period} tier={finalTier} hero={hero} claim={slot=>claim(finalTier,slot)}/>
   </>;
 }

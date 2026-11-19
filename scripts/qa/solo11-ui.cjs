@@ -63,7 +63,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await btn('Карта').tap();await page.locator('.harbor-scene').waitFor();
   await page.screenshot({path:`${out}/${width}-harbor.png`});
   await page.locator('.harbor-building',{hasText:'Рюкзак'}).tap();await page.getByRole('dialog',{name:'Рюкзак'}).waitFor();
-  assert.match(await page.locator('.pack-capacity').innerText(),/80 \/ 80[\s\S]*Полон/);
+  assert.match(await page.getByRole('group',{name:'Место хранения'}).getByRole('button',{name:/^Рюкзак/}).innerText(),/80\/80/);assert.match(await page.locator('.pack-full').innerText(),/полон/);
   await page.getByRole('button',{name:/^Фильтр качества:/}).tap();assert.equal(await page.getByRole('option',{name:/замк/i}).count(),0,'no lock filter');await page.keyboard.press('Escape');await page.waitForTimeout(200);
   await btn('Ранги').tap();const shown=(await page.locator('.pack-ranks li').allInnerTexts()).map(s=>s.trim());assert.deepEqual(shown,ranks);await btn('Ранги').tap();
   await btn('Как работает авторазбор').tap();assert.match(await page.locator('.pack-explain').innerText(),/новую/);await btn('Как работает авторазбор').tap();
@@ -83,7 +83,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   }
   await btn('Распылить 2').tap();await bulk.waitFor();
   assert.match(await bulk.innerText(),/Ценных вещей: 1/);
-  assert.match(await bulk.innerText(),/Старая вещь со склада/);
+  await bulk.locator('summary').tap();assert.match(await bulk.innerText(),/Старая вещь со склада/);
   const beforeBatch=await state();
   assert.equal(beforeBatch.inventory.length,80);
   await guard();

@@ -8,7 +8,7 @@
 .saga-modal .bulk-preview strong{color:#ffe5a2}.saga-modal .bulk-preview span{font-size:12px;color:#c6d9a8}.saga-modal .bulk-preview [hidden]{display:none}
 .saga-modal .bulk-action .action{margin:0;min-height:44px;background:linear-gradient(#91331988,#3e130a88),var(--saga-iron);border-color:#d0a05a}
 .saga-modal[data-panel="inventory"] .bulk-toolbar,.saga-modal[data-panel="inventory"] .bulk-action{margin:0}
-@media(max-height:650px){.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-auto,.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-capacity{display:none}}
+@media(max-height:650px){.saga-modal[data-panel="inventory"]:has(.bulk-confirm) .pack-auto{display:none}}
 .saga-modal .bulk-toolbar .bulk-clean{flex:1.4;font-weight:700;border-color:#e4ad43;color:#ffe9a6;background:linear-gradient(#b0592438,#0003),var(--saga-oak)}
 .saga-modal .bulk-toolbar .bulk-clean:disabled{border-color:#6d5a3d;color:#a3967c;background:var(--saga-iron)}
 .saga-modal .bulk-hidden{flex-basis:100%;font-size:11px;color:#c6b48c}
@@ -17,9 +17,17 @@
 .context-card.bulk-confirm { padding:0; }
 .context-card.bulk-confirm .context-body { display:grid; gap:6px; }
 .context-card.bulk-confirm p { margin:0; }
-.bulk-confirm-items { margin:0; padding:0 0 0 1.15em; max-height:25vh; overflow-y:auto; overscroll-behavior:contain; }
+.bulk-confirm-items { margin:6px 0 0; padding:0 0 0 1.15em; max-height:30vh; overflow-y:auto; overscroll-behavior:contain; }
 .bulk-confirm-items li { padding:3px 0; overflow-wrap:anywhere; }
 .bulk-confirm-items small { color:#d4ba86; }
 .saga-modal[data-panel="inventory"] .bulk-action { padding-bottom:max(8px,env(safe-area-inset-bottom)); }
 .saga-modal .bulk-confirm .context-actions { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:6px; }
 .saga-modal .bulk-confirm .context-actions .action { width:100%; margin:0; }
+.bulk-confirm-reward { display:flex; align-items:center; flex-wrap:wrap; gap:3px 5px; font-weight:700; color:#c6d9a8; }
+.bulk-confirm-reward .icon { width:20px; height:20px; }
+.bulk-confirm-warn { color:#ffcf9a; font-size:13px; }
+.bulk-confirm-strip { display:flex; align-items:center; gap:4px; min-width:0; }
+.bulk-confirm-strip span { display:grid; place-items:center; width:32px; height:32px; flex:none; border:2px solid var(--rarity); border-radius:6px; background:#0008; }
+.bulk-confirm-strip .icon { width:26px; height:26px; }
+.bulk-confirm-strip b { font-size:13px; color:#ffe1a0; padding-left:2px; }
+.bulk-confirm-list summary { min-height:36px; display:flex; align-items:center; cursor:pointer; color:#ffe1a0; font-size:13px; text-decoration:underline dotted; }
