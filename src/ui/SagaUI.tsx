@@ -31,7 +31,8 @@ export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel
   return()=>{if(background)background.inert=false;previous?.focus({preventScroll:true})};
  },[]);
  useEffect(()=>{ref.current?.focus({preventScroll:true});if(body.current)body.current.scrollTop=0},[panel]);
- const dismiss=()=>close(panel==='carnival'?'events':null);
+ const realmBack=panel==='realm'?onBack:undefined;
+ const dismiss=()=>{if(realmBack)realmBack();else close(panel==='carnival'?'events':null)};
  const keyDown=(e:React.KeyboardEvent)=>{
   if((e.target as HTMLElement).closest('dialog'))return;
   if(dismissible&&e.key==='Escape'&&!document.querySelector(':popover-open')){e.stopPropagation();dismiss()}
@@ -46,7 +47,7 @@ export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel
  const workspace=['realm','darkgear','companions','relic','port'].includes(panel);
  return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClick={e=>{if(dismissible&&e.target===e.currentTarget)dismiss()}} onKeyDown={keyDown}>
   <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} data-layout={workspace?'workspace':undefined} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
-   <header className="modal-header">{(onBack||harborBack)?<button className="harbor-back" aria-label={backLabel??'‹ В гавань'} title={backLabel??'В гавань'} onClick={onBack??(()=>close('port'))}>‹</button>:<div className="header-seal"><Icon name={panelIcon(panel,kind)}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&<button className="close" onClick={dismiss} aria-label="Закрыть">×</button>}</header>
+   <header className="modal-header">{(onBack||harborBack)?<button className="harbor-back" aria-label={backLabel??'‹ В гавань'} title={backLabel??'В гавань'} onClick={onBack??(()=>close('port'))}>‹</button>:<div className="header-seal"><Icon name={panelIcon(panel,kind)}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&!realmBack&&<button className="close" onClick={dismiss} aria-label="Закрыть">×</button>}</header>
    <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status">{toast}</div>}</div>
    <div className="modal-body" ref={body} key={panel}><div className="panel-content">{children}</div></div>
    {!workspace&&footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/>

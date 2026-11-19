@@ -30,6 +30,8 @@ let browser;
    if(before)continue;
    assert.ok(geo.outerOverflow<=1,`${width} ${panel} outer scroll: ${geo.outerOverflow}`);
    if(panel==='realm'){
+    assert.equal(await page.locator('[data-panel="realm"] .modal-header button').count(),1,'one exit on direct entry');
+    await page.getByText('7 врагов',{exact:true}).waitFor({state:'visible'});
     for(const selector of ['.floor-strip','.room-track','.bless-grid','.workspace-actions']){const box=await page.locator(selector).boundingBox();assert.ok(box.y>=geo.body.top&&box.y+box.height<=geo.body.bottom+1,`${width} ${selector} clipped`);}
     await page.locator('.bless-grid button').nth(1).click();assert.equal(await page.locator('.bless-grid button').nth(1).getAttribute('aria-pressed'),'true');await page.getByRole('button',{name:'Предыдущий этаж'}).click();
     await page.getByRole('button',{name:'Награды и правила'}).click();await assertCard(page);await closeCard(page);
@@ -65,7 +67,7 @@ let browser;
     await assertSigns(page);const harbor=page.getByRole('navigation',{name:'Постройки гавани'});
     for(const label of ['Кузница','Верфь','Рюкзак','Спутники','Реликвии'])assert.equal(await harbor.getByRole('button',{name:label,exact:true}).count(),1);
     await harbor.getByRole('button',{name:'Кузница',exact:true}).click();await page.getByRole('button',{name:'Создание',exact:true}).click();await page.getByRole('button',{name:'Экипировка',exact:true}).click();await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();
-    for(const [label,target] of [['Спутники','companions'],['Реликвии','relic'],['Царство тьмы','realm'],['Тёмная энергия','darkgear'],['Камни','gems'],['Благословение','blessing'],['Таланты','talents']]){await harbor.getByRole('button',{name:label,exact:true}).click();await page.locator(`[data-panel="${target}"]`).waitFor();await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();}
+    for(const [label,target] of [['Спутники','companions'],['Реликвии','relic'],['Царство тьмы','realm'],['Тёмная энергия','darkgear'],['Камни','gems'],['Благословение','blessing'],['Таланты','talents']]){await harbor.getByRole('button',{name:label,exact:true}).click();await page.locator(`[data-panel="${target}"]`).waitFor();if(target==='realm')assert.equal(await page.locator('[data-panel="realm"] .modal-header button').count(),1,'one return to the harbor');await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();}
     await harbor.getByRole('button',{name:'Верфь',exact:true}).click();assert.ok(await page.getByRole('button',{name:/Построить драккар/}).isVisible());await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();
    }
    await page.getByRole('button',{name:'Закрыть',exact:true}).click();assert.equal(await page.locator('.saga-modal').count(),0);await open(page,panel);
