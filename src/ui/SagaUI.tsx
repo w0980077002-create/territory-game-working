@@ -42,7 +42,7 @@ export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel
   if(e.shiftKey&&(active===first||active===ref.current||!ref.current?.contains(active))){e.preventDefault();last?.focus()}
   else if(!e.shiftKey&&(active===last||active===ref.current||!ref.current?.contains(active))){e.preventDefault();first.focus()}
  };
- const harborBack=['shipyard','forge','blessing','talents','realm','darkgear','gems','relic','companions'].includes(panel);
+ const harborBack=['shipyard','forge','blessing','talents','darkgear','gems','relic','companions'].includes(panel);
  const workspace=['realm','darkgear','companions','relic','port'].includes(panel);
  return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClick={e=>{if(dismissible&&e.target===e.currentTarget)dismiss()}} onKeyDown={keyDown}>
   <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} data-layout={workspace?'workspace':undefined} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>

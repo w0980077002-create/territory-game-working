@@ -8,12 +8,12 @@ import {planLeg} from '../game/WorldEvents';
 import {districts} from '../game/Journey';
 import './world.css';
 export function toggleSound(){const g=useGame.getState(),next=!g.p.sound;unlockAudio(next);g.mutate(p=>{p.sound=next});battle?.audioFrame()}
-export function WorldHud(){
+export function WorldHud({hideRoad=false}:{hideRoad?:boolean}){
  const w=useWorld(),panel=useGame(s=>s.panel),sound=useGame(s=>s.p.sound),card=w.card;
  if(panel)return null;
  return <>
   <button className={`sound-chip ${sound?'on':''}`} onClick={toggleSound} aria-label={sound?'Выключить звук':'Включить звук'} aria-pressed={sound}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9Z" fill="currentColor"/>{sound?<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>:<path d="m16.5 9.5 5 5m0-5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>}</svg></button>
-  {card&&<section className={`world-card kind-${card.kind}`} aria-label={card.title}>
+  {!hideRoad&&card&&<section className={`world-card kind-${card.kind}`} aria-label={card.title}>
    <header><small>{card.tag}</small><strong>{card.title}</strong><span>{card.text}</span></header>
    {(card.options.length>0||card.pass)&&<div className="world-options">
     {card.options.map(o=><button key={o.id} style={o.color?{'--tone':o.color} as React.CSSProperties:undefined} onClick={()=>battle?.director.choose(o.id)}><b>{o.label}</b><i>{o.detail}</i></button>)}
