@@ -85,6 +85,7 @@ const ids=p=>[...Object.values(p.equipment).filter(Boolean).map(i=>i.id),...p.in
    }
    // 3. Manual backup: copy (clipboard + visible text), paste back, confirm.
    await page.getByRole('button',{name:'Меню',exact:true}).tap();await page.getByRole('dialog').waitFor();await page.waitForTimeout(400);
+   await page.getByRole('button',{name:'Сохранение и восстановление',exact:true}).tap();
    const copyBtn=page.getByRole('button',{name:'Скопировать резервную копию',exact:true});await copyBtn.scrollIntoViewIfNeeded();await copyBtn.tap();
    const box=page.locator('[role=dialog] textarea[readonly]');await box.waitFor();
    const text=await box.inputValue();const clip=await page.evaluate(()=>navigator.clipboard.readText());

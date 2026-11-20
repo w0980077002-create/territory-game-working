@@ -13,14 +13,7 @@ import './mail.css';
 const dateFormat = new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'});
 const monthFormat = new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'});
 
-export function MailEntry({unread, onOpen}: {unread:number; onOpen:()=>void}) {
-  return <button type="button" className="mail-entry" onClick={onOpen}>
-    <Icon name="mail"/><strong>Почта</strong>
-    {unread > 0 && <span aria-label={`Непрочитанных писем: ${unread}`}>{unread}</span>}
-  </button>;
-}
-
-export function MailPanel({p, onBack}: {p:Player; onBack:()=>void}) {
+export function MailPanel({p}: {p:Player}) {
   const action = useGame(state => state.mailAction);
   const [selected,setSelected] = useState<string>();
   const [slot,setSlot] = useState<Slot>();
@@ -33,7 +26,7 @@ export function MailPanel({p, onBack}: {p:Player; onBack:()=>void}) {
     <button type="button" className="action mail-gold" disabled={!letters.some(entry => entry.pending)}
       onClick={()=>action({kind:'claimAll'})}>Забрать всё</button>
   </footer>;
-  return <DialogShell panel="mail" title="Почта" footer={footer} onBack={onBack} backLabel="К меню">
+  return <DialogShell panel="mail" title="Почта" footer={footer}>
     {letters.length ? <ul className="mail-list">{letters.map(entry => <li key={entry.id}>
       <button type="button" className="mail-letter" data-unread={!entry.read} onClick={()=>{
         if(!entry.read)action({kind:'read',id:entry.id});

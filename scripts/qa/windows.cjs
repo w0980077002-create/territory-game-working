@@ -27,8 +27,7 @@ async function verifyMail(page,width) {
  await page.clock.setFixedTime(Date.UTC(2027,0,8,12));
  await persist();
  const openMail = async () => {
-  await page.getByRole('button',{name:'Меню',exact:true}).tap();
-  await page.locator('.mail-entry').tap();
+  await page.getByRole('button',{name:'Почта',exact:true}).tap();
   await page.getByRole('dialog',{name:'Почта',exact:true}).waitFor();
  };
  await page.setViewportSize({width,height:568});
@@ -37,7 +36,41 @@ async function verifyMail(page,width) {
   document.documentElement.style.setProperty('--tg-safe-area-inset-bottom','24px');
  });
  const menu = page.getByRole('button',{name:'Меню',exact:true});
- assert.equal(await menu.locator('.side-medal i').count(),1);
+ const envelope = page.getByRole('button',{name:'Почта',exact:true});
+ await page.waitForFunction(() => {
+  const box=document.querySelector('.hud-mail').getBoundingClientRect();
+  return box.width>=43.9 && box.height>=43.9;
+ });
+ assert.equal(await envelope.evaluate(button => {
+  const box=button.getBoundingClientRect();
+  const controls=document.querySelectorAll('.side-menu,.stage,.enter,.side-right:not(.side-menu),.hud');
+  return box.right<=innerWidth+1 && box.top>=26
+    && document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)?.closest('button')===button
+    && Array.from(controls).every(control=>{
+      const rect=control.getBoundingClientRect();
+      return box.right<=rect.left || box.left>=rect.right || box.bottom<=rect.top || box.top>=rect.bottom;
+    });
+ }),true,`the envelope has a separate touch area at ${width}px`);
+ assert.equal(await envelope.locator('i').textContent(),'2');
+ assert.equal(await menu.locator('.side-medal i').count(),0);
+ await envelope.locator('img').evaluate(img=>img.decode());
+ await page.screenshot({path:`${output}/mail-entry-${width}.png`});
+ await menu.tap();
+ const settings = page.getByRole('dialog',{name:'Меню',exact:true});
+ for(const label of ['Почта','Герой','Рюкзак','Альбом','Экспорт сохранения','Импорт сохранения'])
+  assert.equal(await settings.getByRole('button',{name:label,exact:true}).count(),0);
+ assert.equal(await settings.getByRole('button',{name:'Экипировка',exact:true}).count(),1);
+ assert.ok((await geometry(page)).outerOverflow<=1);
+ await page.screenshot({path:`${output}/menu-${width}.png`});
+ await settings.getByRole('button',{name:'Сохранение и восстановление',exact:true}).tap();
+ const tools = page.getByRole('dialog',{name:'Сохранение и восстановление',exact:true});
+ await tools.getByRole('button',{name:'Экспорт сохранения',exact:true}).waitFor();
+ await tools.getByRole('button',{name:'К меню',exact:true}).tap();
+ await settings.getByRole('button',{name:'Закрыть',exact:true}).tap();
+ await settings.waitFor({state:'detached'});
+ // The close button and the envelope are close on short screens. Start a new tap
+ // after the viewport's deliberate protection against a double tap through a closing dialog.
+ await page.waitForTimeout(350);
  await openMail();
  const inbox = page.getByRole('dialog',{name:'Почта',exact:true});
  const letters = inbox.locator('.mail-letter');
@@ -65,18 +98,22 @@ async function verifyMail(page,width) {
  assert.equal((await read(page)).gold,balance+38);
  await closeCard(page);
  assert.equal(await unread.count(),1);
+ assert.equal(await page.locator('.hud-mail i').textContent(),'1');
  await remove.tap();
  assert.equal(await letters.count(),1);
  await all.evaluate(button=>{button.click();button.click()});
  assert.equal((await read(page)).gold,balance+76);
  await page.reload();
  await page.waitForFunction(() => window.__lootborn?.battle);
- assert.equal(await menu.locator('.side-medal i').count(),0);
+ assert.equal(await envelope.locator('i').count(),0);
  await openMail();
  assert.equal(await all.isDisabled(),true);
  await remove.tap();
  await inbox.getByText('Писем пока нет').waitFor();
  assert.equal((await read(page)).gold,balance+76);
+ await inbox.getByRole('button',{name:'Закрыть',exact:true}).tap();
+ await envelope.waitFor();
+ assert.equal(await settings.count(),0);
 }
 async function verifyManualCry(page) {
  await page.goto((process.env.BASE_URL || 'http://localhost:5173/') + '?hero=cry-qa');

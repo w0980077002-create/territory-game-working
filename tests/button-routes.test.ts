@@ -23,7 +23,7 @@ test('currency plus buttons open an honest "where to get" window with working ac
 test('«Новый герой» asks for confirmation and lists heroes saved on the device',()=>{
  assert.doesNotMatch(app,/<Action onClick=\{newHero\}>Новый герой/,'the menu entry must not leave the current hero in one tap');
  assert.match(app,/onClick=\{\(\)=>setConfirmHero\(true\)\}>Новый герой/);
- assert.match(app,/confirmHero&&<div[^>]*>.*<Action onClick=\{newHero\}>Начать нового героя<\/Action><Action kind="secondary" onClick=\{\(\)=>setConfirmHero\(false\)\}>Отмена/s);
+ assert.match(app,/confirmHero&&<div[^>]*>.*<Action onClick=\{newHero\}>Начать нового героя<\/Action>\s*<Action kind="secondary" onClick=\{\(\)=>setConfirmHero\(false\)\}>Отмена/s);
  assert.match(app,/<SavedHeroes onOpen=\{openHero\}\/>/);
 });
 test('«Войти» never pauses a chapter fight already running',()=>{
