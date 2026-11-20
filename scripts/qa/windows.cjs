@@ -34,23 +34,34 @@ async function verifyMail(page,width) {
  await page.evaluate(() => {
   document.documentElement.style.setProperty('--tg-content-safe-area-inset-top','26px');
   document.documentElement.style.setProperty('--tg-safe-area-inset-bottom','24px');
+  // Recalculate the game scale after applying the simulated insets.
+  window.dispatchEvent(new Event('resize'));
  });
  const menu = page.getByRole('button',{name:'Меню',exact:true});
  const envelope = page.getByRole('button',{name:'Почта',exact:true});
  await page.waitForFunction(() => {
   const box=document.querySelector('.hud-mail').getBoundingClientRect();
-  return box.width>=43.9 && box.height>=43.9;
+  const game=document.querySelector('.game').getBoundingClientRect();
+  return game.top>=25.9 && game.bottom<=544.1 && box.width>=43.9 && box.height>=43.9;
  });
- assert.equal(await envelope.evaluate(button => {
+ const envelopeLayout = await envelope.evaluate(button => {
   const box=button.getBoundingClientRect();
-  const controls=document.querySelectorAll('.side-menu,.stage,.enter,.side-right:not(.side-menu),.hud');
-  return box.right<=innerWidth+1 && box.top>=26
-    && document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)?.closest('button')===button
-    && Array.from(controls).every(control=>{
+  const counter=document.querySelector('.currency.chaosite').getBoundingClientRect();
+  const menu=document.querySelector('.side-menu').getBoundingClientRect();
+  const controls=document.querySelectorAll('.side,.stage,.enter,.hud button,.hud .name');
+  return {
+   aligned:box.right<=innerWidth+1 && box.top>=25.9 && box.top>=counter.bottom && box.top-counter.bottom<6
+     && Math.abs((box.left+box.right)-(counter.left+counter.right))<4,
+   envelopeTap:document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)?.closest('button')===button,
+   menuTap:document.elementFromPoint(menu.x+menu.width/2,menu.y+menu.height/2)?.closest('button')?.matches('.side-menu'),
+   overlaps:Array.from(controls).filter(control=>{
       const rect=control.getBoundingClientRect();
-      return box.right<=rect.left || box.left>=rect.right || box.bottom<=rect.top || box.top>=rect.bottom;
-    });
- }),true,`the envelope has a separate touch area at ${width}px`);
+      return box.right>rect.left && box.left<rect.right && box.bottom>rect.top && box.top<rect.bottom;
+    }).map(control=>control.className),
+  };
+ });
+ assert.deepEqual(envelopeLayout,{aligned:true,envelopeTap:true,menuTap:true,overlaps:[]},
+  `the envelope is directly below Chaosite with a separate touch area at ${width}px`);
  assert.equal(await envelope.locator('i').textContent(),'2');
  assert.equal(await menu.locator('.side-medal i').count(),0);
  await envelope.locator('img').evaluate(img=>img.decode());
