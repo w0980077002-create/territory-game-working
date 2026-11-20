@@ -37,7 +37,7 @@ export function rewardParts(reward: Reward) {
 
 export function RewardArt({reward, names = false}: {reward: Reward; names?: boolean}) {
   return <span className={`reward-art${names ? ' named' : ''}`}>
-    {rewardParts(reward).map(part => <span className="reward-piece" key={part.key} title={part.name}
+    {rewardParts(reward).map(part => <span className="reward-piece" role="img" key={part.key} title={part.name}
       aria-label={`${part.name} × ${part.count}`}>
       <Icon name={part.icon}/><strong>{part.count.toLocaleString('ru')}</strong>
       {names && <small>{part.name}</small>}
@@ -50,4 +50,9 @@ export function RewardDetails({reward,extra}:{reward:Reward;extra?:string}){
   <summary aria-label="Состав награды"><RewardArt reward={reward}/>{extra&&<Icon name="chest"/>}</summary>
   <ul>{rewardParts(reward).map(part=><li key={part.key}>{part.name} × {part.count.toLocaleString('ru')}</li>)}{extra&&<li>{extra}</li>}</ul>
  </details>;
+}
+
+export function RewardNotice({message,reward}:{message:string;reward?:Reward}){
+ const parts=reward&&rewardParts(reward);
+ return parts?.length ? <span className="reward-notice">{message}<RewardArt reward={reward!}/></span> : message;
 }

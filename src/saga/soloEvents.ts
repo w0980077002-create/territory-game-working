@@ -6,7 +6,7 @@ import {type Reward,grant} from './rewards';
 import {balanceOf,grantSolo} from './soloEconomy';
 import {peekBox,sagaOf} from './save';
 import {eventPeriod,eventSchedule,eventWindow,putPeriod,savedEventKeys,windowFromKey,type SoloEventId} from './soloCalendar';
-import {runeState,grantRuneChest} from './runes';
+import {runeState,grantRuneChest,runeName} from './runes';
 
 type Chest='epic'|'legendary'|'rune';
 type Prize={at:number;reward:Reward;chest?:Chest;after?:boolean};
@@ -77,14 +77,19 @@ export function savedChests(p:Player){
 export function openChest(p:Player,key:string,species?:string,random=Math.random){
  const chests=peekBox<Record<string,Chest>>(p,'soloChests'),chest=chests?.[key];
  if(!chest||!Object.hasOwn(chestNames,chest))return false;
- if(chest==='rune')grantRuneChest(p,runeState(p),random);
+ let received:string;
+ if(chest==='rune'){
+  const {id,dust}=grantRuneChest(p,runeState(p),random);
+  received=dust?`Рунная пыль +${dust} · повтор «${runeName(id)}»`:`Руна «${runeName(id)}» · ранг 1`;
+ }
  else {
   const options=chestOptions(chest);
   const chosen=chest==='legendary'?species:options[Math.min(options.length-1,Math.floor(random()*options.length))];
   if(!chosen||!options.includes(chosen)||!grantFollower(p,chosen))return false;
+  received=companions[chosen].name+' × 1';
  }
  delete chests![key];
- return true;
+ return received;
 }
 export function eligiblePrizes(p:Player,key:string){
  const window=windowFromKey(key);

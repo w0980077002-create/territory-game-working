@@ -1,6 +1,7 @@
 import {recordSprintSpend} from '../saga/soloCalendar';
 import {carnivalNow} from '../core/profile';
 import type {Player} from '../core/types';
+import {skillData} from '../data/catalog';
 import {peekBox,sagaOf,bumpCount} from './save';
 import {balanceOf,grantSolo} from './soloEconomy';
 
@@ -22,6 +23,7 @@ export const runeRules={
  upgradeEffect:.04,
 } as const;
 const maxRank=runeRules.rankCosts.length;
+export const runeName=(id:number)=>skillData[Math.floor(id/3)].runes[id%3].split(' · ')[0];
 const runeIds=Array.from({length:9},(_,i)=>i);
 interface RuneSave {v:1;revision:number;ranks:number[];dust:number;passive:number|null;last:number|null}
 const validInt=(value:unknown,min:number,max:number):value is number=>typeof value==='number'&&Number.isSafeInteger(value)&&value>=min&&value<=max;
@@ -90,7 +92,9 @@ function rollRune(state:RuneSave,random:()=>number){
  else state.ranks[id]=1;
 }
 export function grantRuneChest(p:Player,state:RuneSave,random=Math.random){
+ const dust=state.dust;
  rollRune(state,random);
  state.revision++;
  sagaOf(p).box.runes=state;
+ return {id:state.last!,dust:state.dust-dust};
 }

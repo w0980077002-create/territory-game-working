@@ -1,6 +1,8 @@
 import {beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {freshPlayer,makeItem,parseSave,SAVE_KEY,useGame,bestUpgrade} from '../src/core/store';
+import {blessingEffects,blessingCanImprove} from '../src/saga/gear';
+import {chapterReward} from '../src/saga/rewards';
 import {upgradePreview} from '../src/core/forge';
 import {xpNeeded,stats} from '../src/core/formulas';
 // First play hour outside the Dark Realm: victory → loot → backpack → equip → forge → quests → reload.
@@ -29,7 +31,7 @@ test('training, quest claims, unequip and class change never claim success on a 
   useGame.setState({toast:'',storageError:false});run();
   assert.deepEqual(P(),before);assert.match(G().toast,/Не удалось сохранить/,'honest failure message');
  }
- failKey='';G().claim('mission');assert.equal(P().mission,1);assert.equal(P().gems,before.gems+15);assert.match(G().toast,/Награда получена/);
+ failKey='';G().claim('mission');assert.equal(P().mission,1);assert.equal(P().gems,before.gems+15);assert.match(G().toast,/Получено/);assert.deepEqual(G().toastReward,chapterReward);
  G().claim('mission');assert.equal(P().mission,1,'a double tap grants the chapter reward once');assert.equal(P().gems,before.gems+15);
  assert.equal(reload().mission,1);
 });
@@ -39,6 +41,7 @@ test('first boss trophy: kept in the backpack, flagged as an upgrade, equipped o
  assert.equal(g.win('campaign','enc-first-boss'),true);
  assert.equal(G().win('campaign','enc-first-boss'),false,'the same victory cannot pay twice');
  const p=P(),trophy=p.inventory.find(i=>i.id===p.rewardOffer!.itemId)!;
+ assert.ok(p.rewardOffer?.bossReward);assert.deepEqual(reload().rewardOffer?.bossReward,p.rewardOffer.bossReward);
  assert.equal(p.stage,2);assert.equal(p.bosses,1);assert.equal(trophy.name,'Клинок ледяного шёлка');
  assert.equal(bestUpgrade(p,'weapon',true)?.item.id,trophy.id,'the main screen marks the weapon slot');
  G().keepReward();assert.equal(P().rewardOffer!.resolved,true);
@@ -64,4 +67,53 @@ test('not enough gold changes nothing and says so',()=>{
  G().train('forge');assert.deepEqual(P(),before);assert.match(G().toast,/Недостаточно золота/);
  G().upgrade('weapon');assert.deepEqual(P(),before);assert.match(G().toast,/Недостаточно золота/);
  assert.equal(xpNeeded(3)>0,true);
+});
+
+test('chapter claim checks its own sequence and preserves the whole queue on a failed write',()=>{
+ G().claim('mission',0);
+ assert.equal(P().mission,0);
+ G().mutate(p=>{p.bosses=3});
+ const {gold,gems}=P();
+ G().claim('mission',0);
+ G().claim('mission',0);
+ assert.equal(P().mission,1);
+ failKey=SAVE_KEY;
+ G().claim('mission',1);
+ assert.equal(P().mission,1);
+ assert.equal(G().toastReward,undefined);
+ failKey='';
+ useGame.setState({p:reload()});
+ G().claim('mission',1);
+ G().claim('mission',2);
+ G().claim('mission',3);
+ assert.equal(P().mission,3);
+ assert.equal(P().gold,gold+3*chapterReward.gold);
+ assert.equal(P().gems,gems+3*chapterReward.gems);
+});
+
+test('Blessing caps each existing effect independently and blocks only a useless purchase',()=>{
+ const caps={rarity:1,craft:.5,boss:.6,regular:.6,horn:.6} as const;
+ for(const [effect,level] of [['boss',50],['rarity',67],['regular',120],['horn',130]] as const){
+  assert.ok(blessingEffects(level-1)[effect]<caps[effect]);
+  assert.equal(blessingEffects(level)[effect],caps[effect]);
+ }
+ for(const level of [49,50,66,67,119,120,129]){
+  assert.ok(blessingCanImprove(level));
+  G().mutate(p=>{p.blessing=level;p.gold=100_000});
+  assert.equal(G().train('blessing'),true);
+  assert.equal(P().blessing,level+1);
+  assert.equal(P().gold,100_000-150*level);
+ }
+ for(const level of [130,200]){
+  G().mutate(p=>{p.blessing=level;p.gold=100_000});
+  assert.equal(G().train('blessing'),false);
+  assert.equal(P().gold,100_000);
+  assert.equal(reload().blessing,level);
+  assert.deepEqual(blessingEffects(level),caps);
+ }
+ G().mutate(p=>{p.blessing=129});
+ failKey=SAVE_KEY;
+ assert.equal(G().train('blessing'),false);
+ assert.equal(P().blessing,129);
+ assert.equal(P().gold,100_000);
 });

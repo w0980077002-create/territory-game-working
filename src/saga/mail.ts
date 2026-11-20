@@ -1,9 +1,9 @@
 import {eventMail,claimEvent,chestNames} from './soloEvents';
 import {eventSchedule,windowFromKey} from './soloCalendar';
-import type {SoloResource} from './soloEconomy';
 import type {Player, Slot} from '../core/types';
 import {carnivalMailPeriods, carnivalMailPrizes, prepareCarnivalClaim} from './carnival';
-import type {Reward} from './rewards';
+import {combineRewards,type Reward} from './rewards';
+import {actualReward} from './events';
 import {boxOf, peekBox} from './save';
 
 // Store read letters only. Actual attachments and their receipts live in carnival saves.
@@ -18,6 +18,7 @@ interface MailLetter {
   reward: Reward;
   title?: string;
   chests?: string[];
+  pendingHorn?: number;
   gear?: ReturnType<typeof carnivalMailPrizes>[number]['gear'];
 }
 
@@ -27,39 +28,16 @@ export function unreadMail(p: Player, now: number) {
     +eventMail(p,now).filter(letter=>read?.[letter.id]!==letter.date).length;
 }
 
-function totalReward(prizes: {reward:Reward}[]): Reward {
-  const total: Reward = {};
-  for (const {reward} of prizes) {
-    for (const key of ['gold','gems','horn','chaosite','tokens','xp'] as const) {
-      if (reward[key]) total[key] = (total[key] ?? 0) + reward[key];
-    }
-    if (reward.mats) {
-      total.mats ??= {};
-      for (const [id, amount] of Object.entries(reward.mats)) total.mats[id] = (total.mats[id] ?? 0) + amount;
-    }
-    if(reward.solo){
-      total.solo??={};
-      for(const key of Object.keys(reward.solo) as SoloResource[])total.solo[key]=(total.solo[key]??0)+(reward.solo[key]??0);
-    }
-    if (reward.res) {
-      total.res ??= {};
-      for (const id of Object.keys(reward.res) as (keyof NonNullable<Reward['res']>)[]) {
-        total.res[id] = (total.res[id] ?? 0) + (reward.res[id] ?? 0);
-      }
-    }
-  }
-  return total;
-}
-
-export function mailbox(p: Player, now: number): MailLetter[] {
+export function mailbox(p: Player, now: number, rewardNow=Date.now()): MailLetter[] {
   const read = readLetters(p);
   const pending:MailLetter[] = carnivalMailPeriods(p, now).map(period => {
     const prizes = carnivalMailPrizes(period);
+    const total=combineRewards(prizes.map(prize=>prize.reward)), reward=actualReward(p,total,rewardNow);
     return {id:period.id, date:period.endAt, read:read?.[period.id] === period.endAt, pending:true,
-      reward:totalReward(prizes), gear:prizes.find(prize => prize.gear)?.gear};
+      reward, pendingHorn:(total.horn??0)-(reward.horn??0), gear:prizes.find(prize => prize.gear)?.gear};
   });
   pending.push(...eventMail(p,now).map(({id,date,title,prizes})=>({id,date,title,read:read?.[id]===date,pending:true,
-    reward:totalReward(prizes),chests:prizes.flatMap(prize=>prize.chest?[chestNames[prize.chest]]:[])})));
+    reward:combineRewards(prizes.map(prize=>prize.reward)),chests:prizes.flatMap(prize=>prize.chest?[chestNames[prize.chest]]:[])})));
   const ids = new Set(pending.map(letter => letter.id));
   const history = Object.entries(read ?? {}).flatMap(([id,date]) =>
     !ids.has(id) && (/^\d{4}-\d{2}$/.test(id)||windowFromKey(id)) && Number.isSafeInteger(date) && date > 0 && date < 8.64e15
@@ -73,7 +51,7 @@ export type MailAction =
   | {kind:'claimAll'}
   | {kind:'deleteRead'};
 
-export function applyMail(p: Player, action: MailAction, now: number, rewardNow: number) {
+export function applyMail(p: Player, action: MailAction, now: number, rewardNow: number, onReward?:(reward:Reward)=>void) {
   const pending = carnivalMailPeriods(p, now);
   const solo=eventMail(p,now);
   if (action.kind === 'deleteRead') {
@@ -96,6 +74,7 @@ export function applyMail(p: Player, action: MailAction, now: number, rewardNow:
     if (period||local) boxOf<ReadLetters>(p, 'mail', () => ({}))[action.id] = period?.endAt??local!.date;
     return;
   }
+  const rewards:Reward[]=[], items:string[]=[];
   let delivered = false, needsSlot = false, needsHorn = false, sentToStorage = false;
   for (const period of selected) {
     for (const prize of carnivalMailPrizes(period)) {
@@ -105,6 +84,8 @@ export function applyMail(p: Player, action: MailAction, now: number, rewardNow:
       if (claim.status !== 'payable') continue;
       const result = claim.apply(p);
       if (result.status !== 'claimed' && result.status !== 'partial') continue;
+      rewards.push(result.reward);
+      if(result.item)items.push(result.item.name);
       needsHorn ||= result.status === 'partial';
       sentToStorage ||= result.item?.destination === 'storage';
       if (result.status === 'claimed' || Object.values(result.reward).some(Boolean)) {
@@ -117,12 +98,16 @@ export function applyMail(p: Player, action: MailAction, now: number, rewardNow:
     if(action.kind==='claim'&&action.id!==letter.id)continue;
     for(const prize of letter.prizes){
       if(!claimEvent(p,letter.id,prize.index,'mail',now))continue;
+      rewards.push(prize.reward);
+      if(prize.chest)items.push(chestNames[prize.chest]);
       delivered=true;
       boxOf<ReadLetters>(p,'mail',()=>({}))[letter.id]=letter.date;
     }
   }
+  if(delivered)onReward?.(combineRewards(rewards));
   const messages = [
     delivered && 'Вложения получены',
+    ...items,
     sentToStorage && 'Предмет на хранении',
     needsSlot && 'Выберите слот для снаряжения в письме',
     needsHorn && 'Остаток зарядов ждёт места в Роге',

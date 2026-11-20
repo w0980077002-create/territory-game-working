@@ -140,7 +140,12 @@ test('calendar uses UTC windows; old months and event/mail claims share one rece
  assert.equal(claimEvent(p,id,25,'event',time(13)),false);
  assert.ok(mailbox(p,time(1,1)).some(x=>x.id===id&&x.pending));
  const input=parseSave(JSON.stringify(p),true)!;
- assert.match(applyMail(input,{kind:'claimAll'},time(1,1),time(1,1))!,/Вложения/);
+ const gold=input.gold;
+ assert.match(applyMail(input,{kind:'claimAll'},time(1,1),time(1,1),reward=>{
+  assert.equal(reward.solo?.soul,545);
+  assert.equal(reward.gold,input.gold-gold);
+  assert.ok(reward.gold!>0);
+ })!,/Вложения/);
  assert.equal(balanceOf(input,'soul'),545);
  assert.equal(claimEvent(input,id,0,'mail',time(1,1)),false);
  assert.equal(applyMail(input,{kind:'claimAll'},time(1,1),time(1,1)),undefined);

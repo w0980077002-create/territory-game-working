@@ -195,3 +195,92 @@ test('a failed save import leaves the previous running profile and disk save int
  assert.equal(saves.get(SAVE_KEY),saved);
  assert.match(game().toast,/импорт отменён/);
 });
+
+test('paid healing commits HP, cooldown and gold together, survives reload and rejects a double tap',()=>{
+ const b=scene();
+ b.stage=31;
+ useGame.getState().mutate(p=>{p.stage=31;p.gold=30_000});
+ b.spawn();
+ b.phase='fight';
+ const expectedCost=b.potionCost(),max=b.maxHp;
+ assert.ok(expectedCost>15);
+ b.hp=max*.2;
+ b.heal();
+ const saved=parseSave(saves.get(SAVE_KEY)!,true)!;
+ assert.equal(saved.gold,30_000-expectedCost);
+ assert.equal(saved.encounter?.hp,max*.65);
+ assert.equal(saved.encounter?.potionCd,4);
+ assert.equal(saved.encounter?.defensePressure,1);
+ b.heal();
+ assert.match(useGame.getState().toast,/через 4 с/);
+ assert.equal(useGame.getState().p.gold,saved.gold);
+ b.destroy();
+ useGame.setState({p:saved});
+ const restored=scene(false);
+ assert.equal(restored.hp,saved.encounter?.hp);
+ assert.equal(restored.potionCd,4);
+ restored.heal();
+ assert.match(useGame.getState().toast,/Бой остановлен/);
+ restored.running=true;
+ restored.phase='walk';
+ for(const u of restored.units)u.cd=100;
+ restored.update(4);
+ assert.equal(restored.potionCd,0);
+ restored.hp=max*.9;
+ restored.heal();
+ assert.equal(restored.hp,max);
+ assert.equal(useGame.getState().p.gold,saved.gold-expectedCost);
+ restored.destroy();
+});
+
+test('healing failure leaves gold, HP, cooldown, pressure and effects unchanged',()=>{
+ const b=scene();
+ useGame.getState().mutate(p=>{p.gold=100});
+ b.hp=b.maxHp*.2;
+ const snapshot=b.snapshot(),gold=useGame.getState().p.gold,fx=b.fx.length;
+ failWrites=true;
+ b.heal();
+ assert.equal(useGame.getState().storageError,true);
+ assert.equal(useGame.getState().p.gold,gold);
+ assert.deepEqual(b.snapshot(),snapshot);
+ assert.equal(b.fx.length,fx);
+ failWrites=false;
+ const original=b.snapshot;
+ b.snapshot=()=>{throw new DOMException('Cannot clone', 'DataCloneError')};
+ b.heal();
+ b.snapshot=original;
+ assert.match(useGame.getState().toast,/Не удалось сохранить лечение/);
+ assert.equal(useGame.getState().p.gold,gold);
+ assert.deepEqual(b.snapshot(),snapshot);
+ assert.equal(b.fx.length,fx);
+ useGame.getState().mutate(p=>{p.gold=0});
+ b.heal();
+ assert.match(useGame.getState().toast,/Недостаточно золота/);
+ b.hp=b.maxHp;
+ b.heal();
+ assert.match(useGame.getState().toast,/Здоровье полное/);
+ b.hp=0;
+ b.heal();
+ assert.match(useGame.getState().toast,/не оживляет/);
+ assert.equal(b.hp,0);
+ b.destroy();
+});
+
+test('legacy encounter cooldown defaults to zero, invalid values are rejected, and paid modes keep it',()=>{
+ const b=scene(false);
+ const old=b.snapshot();
+ delete old.potionCd;
+ for(const mode of ['campaign','farm','arena','dungeon','darkness']){
+  useGame.setState({p:{...useGame.getState().p,encounter:{...old,mode,potionCd:2.5}}});
+  b.restorePlayer();
+  assert.equal(b.mode,mode);
+  assert.equal(b.potionCd,2.5);
+ }
+ useGame.setState({p:{...useGame.getState().p,encounter:old}});
+ b.restorePlayer();
+ assert.equal(b.potionCd,0);
+ for(const potionCd of [-1,4.01,'4',null]){
+  assert.equal(parseSave(JSON.stringify({...useGame.getState().p,encounter:{...old,potionCd}}),true),null);
+ }
+ b.destroy();
+});

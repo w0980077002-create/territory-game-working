@@ -4,7 +4,7 @@ import type {Player} from '../core/types';
 import {useGame} from '../core/store';
 import {odinCallSeconds,odinCallMaxLevel,skillPowerMultiplier,stats} from '../core/formulas';
 import {skillData} from '../data/catalog';
-import {applyRuneAction,runeBonuses,runeRules,runeState,runeUpgradeCost,runeMultiplier} from '../saga/runes';
+import {runeName,applyRuneAction,runeBonuses,runeRules,runeState,runeUpgradeCost,runeMultiplier} from '../saga/runes';
 import {balanceOf,dailyVictoryRewards} from '../saga/soloEconomy';
 import {soloAction} from '../saga/soloAction';
 import {bumpCount} from '../saga/save';
@@ -19,7 +19,6 @@ import {useRepeatAction} from './useRepeatAction';
 const groups=[['skills','Навыки'],['runes','Руны'],['passives','Пассивы'],['resonance','Резонанс']] as const;
 const skillIcons=['axe','horn','lightning'],runeIcons=['fire','lightning','potion','crown','shield','refresh','axe','lightning','coins'];
 const passiveIcons=['heart','axes','armor'],resonanceIcons=['axes','heart','lightning','shield','rune','armor'];
-const runeName=(id:number)=>skillData[Math.floor(id/3)].runes[id%3].split(' · ')[0];
 const number=(value:number)=>value.toLocaleString('ru',{maximumFractionDigits:1});
 type Detail={kind:'skill'|'rune'|'passive'|'resonance';id:number}|{kind:'summon'|'dust'};
 

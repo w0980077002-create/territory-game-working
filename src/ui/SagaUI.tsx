@@ -6,6 +6,7 @@ import {xpNeeded} from '../core/formulas';
 import {art,heroArt,classNames,rarityColors,rarityNames,slotNames} from '../data/catalog';
 import {Icon,gearIcon} from './Icon';
 import {sound,unlockAudio} from '../game/Sound';
+import {RewardNotice} from './RewardArt';
 
 export type Material='chest'|'forge'|'rune'|'sea'|'roman'|'moon'|'gold';
 const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',mail:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',realm:'rune',darkgear:'moon',gems:'chest',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',honor:'gold',companions:'moon',shop:'chest',rewards:'gold',events:'gold',carnival:'gold',collection:'moon'};
@@ -23,7 +24,7 @@ export function panelMaterial(panel:string):Material{return panel==='gear:wings'
 function panelIcon(panel:string,kind:Material){return panelIcons[panel]??materialIcons[kind]}
 
 export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel,dismissible=true}:{panel:string;title:string;children:React.ReactNode;footer:React.ReactNode;rarity?:number;onBack?:()=>void;backLabel?:string;dismissible?:boolean}){
- const toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError),close=useGame(s=>s.open),reduced=useGame(s=>s.p.reducedMotion);
+ const toast=useGame(s=>s.toast),toastReward=useGame(s=>s.toastReward),storageError=useGame(s=>s.storageError),close=useGame(s=>s.open),reduced=useGame(s=>s.p.reducedMotion);
  const scrollPositions=useRef(new Map<string,number>());
  const kind=panelMaterial(panel),ref=useRef<HTMLElement>(null),body=useRef<HTMLDivElement>(null);
  useLayoutEffect(()=>{
@@ -49,7 +50,7 @@ export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel
  return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClick={e=>{if(dismissible&&e.target===e.currentTarget)dismiss()}} onKeyDown={keyDown}>
   <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} data-layout={workspace?'workspace':undefined} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
    <header className="modal-header">{(onBack||harborBack)?<button className="harbor-back" aria-label={backLabel??'‹ В гавань'} title={backLabel??'В гавань'} onClick={onBack??(()=>close('port'))}>‹</button>:<div className="header-seal"><Icon name={panelIcon(panel,kind)}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&!realmBack&&<button className="close" onClick={dismiss} aria-label="Закрыть">×</button>}</header>
-   <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status">{toast}</div>}</div>
+   <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status"><RewardNotice message={toast} reward={toastReward}/></div>}</div>
    <div className="modal-body" ref={body} key={panel} onScroll={event=>scrollPositions.current.set(panel,event.currentTarget.scrollTop)}><div className="panel-content">{children}</div></div>
    {!workspace&&footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/>
   </section>
@@ -79,7 +80,7 @@ export function LevelUpFeedback(){
 /** Native top layer keeps the catalog mounted while its input is locked. */
 export function CardDialog({title,onClose,children,actions,className=''}:{title:string;onClose:()=>void;children:React.ReactNode;actions?:React.ReactNode;className?:string}){
  const openingToastId=useRef(useGame.getState().toastId);
- const ref=useRef<HTMLDialogElement>(null),id=useId(),toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError);
+ const ref=useRef<HTMLDialogElement>(null),id=useId(),toast=useGame(s=>s.toast),toastReward=useGame(s=>s.toastReward),storageError=useGame(s=>s.storageError);
  useLayoutEffect(()=>{
   const previous=document.activeElement as HTMLElement|null,dialog=ref.current!;
   useGame.getState().dismissNotice(openingToastId.current);
@@ -89,7 +90,7 @@ export function CardDialog({title,onClose,children,actions,className=''}:{title:
  return <dialog ref={ref} className={`context-card ${className}`} aria-labelledby={id} onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose()}}}>
   <header className="context-header"><h3 id={id}>{title}</h3><button autoFocus className="context-close" aria-label="Закрыть карточку" onClick={onClose}>×</button></header>
   <div className="context-body">{children}</div>
-  <div className="context-status" role={storageError?'alert':'status'}>{storageError?'Не удалось сохранить. Освободите место в браузере.':toast}</div>
+  <div className="context-status" role={storageError?'alert':'status'}>{storageError?'Не удалось сохранить. Освободите место в браузере.':toast&&<RewardNotice message={toast} reward={toastReward}/>}</div>
   {actions&&<footer className="context-actions">{actions}</footer>}
  </dialog>;
 }

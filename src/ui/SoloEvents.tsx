@@ -43,7 +43,13 @@ export function SoloEvents({p}:{p:Player}){
  const active=selected&&eventWindow(selected,now).active?selected:null;
  const jackpot=balanceOf(p,'jackpot'),season=Math.min(SEASON_STEPS,p.bosses);
  const seasonReady=p.seasonClaims.filter(id=>id<=season).length<season||seasonGoals(p).some(goal=>!goal.claimed&&goal.progress>=goal.goal);
- const openReward=(key:string)=>{if(soloAction(draft=>openChest(draft,key,species),'Сундук открыт')){setChest(null);setSpecies('')}};
+ const openReward=(key:string)=>{
+  let received:string|false=false;
+  if(soloAction(draft=>!!(received=openChest(draft,key,species)))){
+   useGame.getState().notice('Получено · '+received);
+   setChest(null);setSpecies('');
+  }
+ };
  const showEvent=(id:SoloEventId)=>{setSelected(id);setRound(null);setFocus(null);setRules(false);setPlayed(0)};
 
  return <section className="solo-events">
@@ -84,7 +90,11 @@ export function SoloEvents({p}:{p:Player}){
    const tickets=boardEvent?balanceOf(p,boardEvent):0;
    const selectedCell=focus!==null?board[focus]:null;
    const roll=()=>{
-    if(boardEvent&&repeat(()=>soloAction(draft=>rollEvent(draft,boardEvent,period.revision),'Награда сохранена'))){setPlayed(n=>n+1);setFocus(null)}
+    if(boardEvent&&repeat(()=>soloAction(draft=>rollEvent(draft,boardEvent,period.revision)))){
+     const game=useGame.getState(),cell=board[eventPeriod(game.p,window.key).position];
+     if(cell)game.notice('Получено',rewardParts(cell.reward).length?cell.reward:{solo:{jackpot:1}});
+     setPlayed(n=>n+1);setFocus(null);
+    }
    };
    return <CardDialog className="game-detail event-detail" title={eventSchedule[active].name} onClose={()=>setSelected(null)}>
     <div className="event-top"><small>{timeLeft(window.end-now)}</small><button className="game-metric" onClick={()=>{setRules(!rules);setFocus(null)}}>Правила</button></div>
@@ -118,7 +128,7 @@ export function SoloEvents({p}:{p:Player}){
      const index=sprint?round*5+i:i,claimed=wasClaimed(period.claims,index),ready=!claimed&&period.progress>=prize.at;
      return <div key={prize.at} className="event-threshold" data-ready={ready||undefined}>
       <b>{prize.at}</b><RewardDetails reward={prize.reward} extra={prize.chest?chestNames[prize.chest]:undefined}/>
-      {ready?<button className="action secondary" onClick={()=>soloAction(draft=>claimEvent(draft,window.key,index,'event'),'Награда получена')}>Забрать</button>:<small>{claimed?'✓ Получено':'Закрыто'}</small>}
+      {ready?<button className="action secondary" onClick={()=>soloAction(draft=>claimEvent(draft,window.key,index,'event'),prize.chest?'Получено · '+chestNames[prize.chest]:'Получено',prize.reward)}>Забрать</button>:<small>{claimed?'✓ Получено':'Закрыто'}</small>}
      </div>;
     })}</div>
    </CardDialog>;

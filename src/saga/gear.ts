@@ -66,3 +66,18 @@ export const matCount=(p:Player,id:string)=>p.saga?.n[matKey(id)]??0;
 /** Chances are shown to the player as-is (see GearGuide in the UI). */
 export const dropRules={setChanceRegular:.12,setChanceBoss:.4,setChanceHorn:.08,blessingPerLevel:.004,setChanceCap:.6,lairPerkChance:.15,lairPity:8,legendFinalePerk:.25,materialWave:.5,materialBoss:3,materialFinale:8} as const;
 export const setChance=(base:number,blessing:number)=>Math.min(dropRules.setChanceCap,base+blessing*dropRules.blessingPerLevel);
+export const rarityBoostChance=(blessing:number)=>Math.min(1,blessing*.015);
+export const craftRarityBoostChance=(blessing:number)=>Math.min(.5,rarityBoostChance(blessing));
+export function blessingEffects(level:number){
+ return {
+  rarity:rarityBoostChance(level),
+  craft:craftRarityBoostChance(level),
+  regular:setChance(dropRules.setChanceRegular,level),
+  boss:setChance(dropRules.setChanceBoss,level),
+  horn:setChance(dropRules.setChanceHorn,level),
+ };
+}
+export function blessingCanImprove(level:number){
+ const now=blessingEffects(level),next=blessingEffects(level+1);
+ return next.rarity>now.rarity||next.craft>now.craft||next.regular>now.regular||next.boss>now.boss||next.horn>now.horn;
+}
