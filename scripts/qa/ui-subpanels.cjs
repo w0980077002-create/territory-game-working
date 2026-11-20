@@ -39,7 +39,12 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   assert.equal(craft.material,0);
   assert.equal(craft.item.slot,'ring1');
   assert.equal(craft.item.masterwork,true);
-  await open('skills');for(const card of await page.locator('.skill-card').all()){await card.locator('.rune-options button').last().tap()}await page.locator('.skill-card').last().scrollIntoViewIfNeeded();await check('runes-selected');
+  await open('skills');
+  const activeSkills=page.locator('.skill-card:has(> .rune-options)');
+  assert.equal(await activeSkills.count(),3);
+  for(const card of await activeSkills.all())await card.locator('.rune-options button').last().tap();
+  await activeSkills.last().scrollIntoViewIfNeeded();
+  await check('runes-selected');
   await open('companions');await page.locator('.squad-grid button').last().scrollIntoViewIfNeeded();await check('companion-evolved');
   await open('rewards');const gold=await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold);await page.getByRole('button',{name:'Забрать подарок',exact:true}).tap();assert.equal(await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold),gold+200);await check('daily-claimed');
   const read=()=>page.evaluate(()=>window.__lootborn.useGame.getState().p);
