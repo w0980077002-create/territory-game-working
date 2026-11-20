@@ -1,4 +1,4 @@
-import {useEffect,useId,useRef,useState} from 'react';
+import {useEffect,useLayoutEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import type {Item,Player} from '../core/types';
 import {useGame} from '../core/store';
@@ -10,7 +10,7 @@ import {sound,unlockAudio} from '../game/Sound';
 export type Material='chest'|'forge'|'rune'|'sea'|'roman'|'moon'|'gold';
 const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',mail:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',realm:'rune',darkgear:'moon',gems:'chest',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',honor:'gold',companions:'moon',shop:'chest',rewards:'gold',events:'gold',carnival:'gold',collection:'moon'};
 const panelIcons:Record<string,string>={
- adventure:'map',arena:'arena',carnival:'event',collection:'book',equipment:'armor',events:'banner',
+ 'gear:wings':'wings',season:'banner',lair:'lair-keeper',adventure:'map',arena:'arena',carnival:'event',collection:'book',equipment:'armor',events:'banner',
  friends:'handshake',honor:'crown',invite:'handshake',inventory:'chest',loot:'horn',mail:'mail',port:'ship',
  quests:'scroll',rewards:'gift',shop:'market',skills:'skill',wings:'wings',
 };
@@ -19,18 +19,19 @@ const materialIcons:Record<Material,string>={chest:'chest',forge:'hammer',rune:'
 function Atmosphere({kind}:{kind:Material}){
  return <div className={`ambient ambient-${kind}`} aria-hidden="true">{Array.from({length:5},(_,i)=><i key={i} style={{'--n':i} as React.CSSProperties}/>)}</div>;
 }
-export function panelMaterial(panel:string):Material{return panel.startsWith('gear:')?'forge':themes[panel]??'sea'}
+export function panelMaterial(panel:string):Material{return panel==='gear:wings'?'moon':panel.startsWith('gear:')?'forge':themes[panel]??'sea'}
 function panelIcon(panel:string,kind:Material){return panelIcons[panel]??materialIcons[kind]}
 
 export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel,dismissible=true}:{panel:string;title:string;children:React.ReactNode;footer:React.ReactNode;rarity?:number;onBack?:()=>void;backLabel?:string;dismissible?:boolean}){
  const toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError),close=useGame(s=>s.open),reduced=useGame(s=>s.p.reducedMotion);
+ const scrollPositions=useRef(new Map<string,number>());
  const kind=panelMaterial(panel),ref=useRef<HTMLElement>(null),body=useRef<HTMLDivElement>(null);
  useEffect(()=>{
   const previous=document.activeElement as HTMLElement|null,background=document.querySelector<HTMLElement>('.viewport');
   if(background)background.inert=true;
   return()=>{if(background)background.inert=false;previous?.focus({preventScroll:true})};
  },[]);
- useEffect(()=>{ref.current?.focus({preventScroll:true});if(body.current)body.current.scrollTop=0},[panel]);
+ useLayoutEffect(()=>{ref.current?.focus({preventScroll:true});if(body.current)body.current.scrollTop=scrollPositions.current.get(panel)??0},[panel]);
  const realmBack=panel==='realm'?onBack:undefined;
  const dismiss=()=>{if(realmBack)realmBack();else close(panel==='carnival'?'events':null)};
  const keyDown=(e:React.KeyboardEvent)=>{
@@ -49,7 +50,7 @@ export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel
   <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} data-layout={workspace?'workspace':undefined} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
    <header className="modal-header">{(onBack||harborBack)?<button className="harbor-back" aria-label={backLabel??'‹ В гавань'} title={backLabel??'В гавань'} onClick={onBack??(()=>close('port'))}>‹</button>:<div className="header-seal"><Icon name={panelIcon(panel,kind)}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&!realmBack&&<button className="close" onClick={dismiss} aria-label="Закрыть">×</button>}</header>
    <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status">{toast}</div>}</div>
-   <div className="modal-body" ref={body} key={panel}><div className="panel-content">{children}</div></div>
+   <div className="modal-body" ref={body} key={panel} onScroll={event=>scrollPositions.current.set(panel,event.currentTarget.scrollTop)}><div className="panel-content">{children}</div></div>
    {!workspace&&footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/>
   </section>
  </div>,document.body);

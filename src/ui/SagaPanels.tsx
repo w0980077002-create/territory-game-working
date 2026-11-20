@@ -42,7 +42,7 @@ import {sets,setIds,setOf,setCounts,perkOf,perks,perkIds,engravings,engraveOf,ma
 import {specs,specIndex} from '../saga/specs';
 import {branches,branchOf,evoName,evoPower,nextEvolution,BRANCH_LEVEL,combos} from '../saga/companions';
 import {reforge,reforgePlan,engrave,engravePlan,craftSet,craftPlan,setUnlocked,trade,pickSpec,pickBranch,buildsOf,saveBuild,applyBuild,forgeLevel} from '../saga/actions';
-import {dailyView,weeklyView,storyQuests,activeStory,masteryView,masteryTiers,masteryGems,claimBoard,claimStory,claimMastery,goals,ensureQuests,type QuestView} from '../saga/quests';
+import {dailyView,weeklyView,storyQuests,activeStory,masteryView,masteryTiers,masteryGems,claimBoard,claimStory,claimMastery,ensureQuests,type QuestView} from '../saga/quests';
 import {actualReward} from '../saga/events';
 import {rewardText,type Reward} from '../saga/rewards';
 import {Icon,gearIcon} from './Icon';
@@ -149,10 +149,17 @@ function questActivity(keys:readonly string[]) {
 
 function QuestRow({q,onClaim,onGo}:{q:{text:string;progress:number;goal:number;done:boolean;claimed:boolean;reward:Reward};onClaim:()=>void;onGo:()=>void}){
  return <div className={`quest-row ${q.claimed?'claimed':q.done?'ready':''}`}><div><strong>{q.text}</strong>
-  <div className="quest-prizes"><RewardArt reward={q.reward}/></div><small className="quest-progress">{short(Math.min(q.progress,q.goal))}/{short(q.goal)}</small>
+  <div className="quest-prizes"><RewardArt reward={q.reward}/><small className="quest-progress">{short(Math.min(q.progress,q.goal))}/{short(q.goal)}</small></div>
   <i><b style={{width:`${Math.min(100,q.progress/q.goal*100)}%`}}/></i></div>
-  <button className="action" disabled={q.claimed} onClick={q.done?onClaim:onGo}>{q.claimed?'Получено':q.done?'Забрать':'Перейти'}</button>
+  {q.claimed?<span aria-label="Получено">✓</span>:<button className="action" onClick={q.done?onClaim:onGo}>{q.done?'Забрать':'Перейти'}</button>}
  </div>;
+}
+function QuestRows({rows}:{rows:{id:string;q:Parameters<typeof QuestRow>[0]['q'];onGo:()=>void;onClaim:()=>void}[]}){
+ const claimed=rows.filter(row=>row.q.claimed);
+ const render=({id,...row}:typeof rows[number])=><QuestRow key={id} {...row}/>;
+ return <>{rows.filter(row=>!row.q.claimed).map(render)}
+  {claimed.length>0&&<details className="saga-disclosure"><summary>Получено · {claimed.length}</summary>{claimed.map(render)}</details>}
+ </>;
 }
 const boardRow=(q:QuestView)=>({text:q.def.text,progress:q.progress,goal:q.def.goal,done:q.done,claimed:q.claimed,reward:q.reward});
 /** Quest board: daily, weekly, story chain and mastery. All progress comes from saved counters. */
@@ -171,11 +178,14 @@ export function QuestBoard({p,tab,setTab,onGo}:{p:Player;tab:QuestTab;setTab:(ta
  };
  const count=(list:{done:boolean;claimed:boolean}[])=>list.filter(q=>q.done&&!q.claimed).length,story=activeStory(p),m=masteryView(p);
  return <div className="quest-board">
-  <div className="goal-strip">{goals(p,now).map(v=><div key={v.span}><small>{v.span}</small><span>{v.text}</span></div>)}</div>
-  <div className="tabs">{([['day','День',count(daily)],['week','Неделя',count(weekly)],['story','Сага',count(story)],['mastery','Мастерство',m.filter(v=>v.ready).length]] as const).map(([id,name,n])=><button key={id} className={tab===id?'selected':''} onClick={()=>setTab(id)}>{name}{n?<em>{n}</em>:null}</button>)}</div>
-  {tab==='day'&&<>{daily.map(q=><QuestRow key={q.def.id} q={boardRow(q)} onGo={()=>onGo(questActivity(q.def.keys))} onClaim={()=>claim(p=>claimBoard(p,'day',q.def.id))}/>)}<p className="hint">Шесть заданий из большого набора каждый день. Пропущенный день ничего не отнимает — завтра появится новый набор.</p></>}
-  {tab==='week'&&<>{weekly.map(q=><QuestRow key={q.def.id} q={boardRow(q)} onGo={()=>onGo(questActivity(q.def.keys))} onClaim={()=>claim(p=>claimBoard(p,'week',q.def.id))}/>)}<p className="hint">Недельные цели рассчитаны на несколько спокойных вечеров.</p></>}
-  {tab==='story'&&<>{story.map(q=><QuestRow key={q.id} q={q} onGo={()=>onGo('campaign')} onClaim={()=>claim(p=>claimStory(p,q.id))}/>)}<p className="hint">Сюжетная цепочка текущего региона: {regions[Math.min(5,regionIndex(p.stage))].name}. Выполнено всего: {storyQuests(p).filter(q=>q.claimed).length}/{storyQuests(p).length}.</p></>}
-  {tab==='mastery'&&<>{[...new Set(m.map(v=>v.def.group))].map(group=><section key={group}><h3>{group}</h3>{m.filter(v=>v.def.group===group).map(v=><QuestRow key={v.def.id} q={{text:`${v.def.name} · ступень ${v.claimed}/4`,progress:v.value,goal:v.next,done:v.ready,claimed:v.claimed>=masteryTiers.length,reward:{gems:masteryGems[Math.min(3,v.claimed)],horn:Math.min(4,v.claimed+1)}}} onGo={()=>onGo(questActivity(v.def.keys))} onClaim={()=>claim(p=>claimMastery(p,v.def.id))}/>)}</section>)}<p className="hint">Мастерство копится всю игру и никогда не сбрасывается.</p></>}
+  {tab!=='mastery'&&<div className="tabs compact-tabs">{([['day','День',count(daily)],['week','Неделя',count(weekly)],['story','Сага',count(story)]] as const).map(([id,name,n])=><button key={id} className={tab===id?'selected':''} aria-pressed={tab===id} onClick={()=>setTab(id)}>{name}{n?<em>{n}</em>:null}</button>)}</div>}
+  {tab==='day'&&<QuestRows rows={daily.map(q=>({id:q.def.id,q:boardRow(q),onGo:()=>onGo(questActivity(q.def.keys)),onClaim:()=>claim(p=>claimBoard(p,'day',q.def.id))}))}/>}
+  {tab==='week'&&<QuestRows rows={weekly.map(q=>({id:q.def.id,q:boardRow(q),onGo:()=>onGo(questActivity(q.def.keys)),onClaim:()=>claim(p=>claimBoard(p,'week',q.def.id))}))}/>}
+  {tab==='story'&&<>{p.stage>STORY_STAGES&&<small>Награды завершённой кампании</small>}<QuestRows rows={story.map(q=>({id:q.id,q,onGo:()=>onGo('campaign'),onClaim:()=>claim(p=>claimStory(p,q.id))}))}/></>}
+  {tab==='mastery'&&[...new Set(m.map(v=>v.def.group))].map(group=><details className="saga-disclosure" key={group}><summary>{group} · {m.filter(v=>v.def.group===group&&v.ready).length} готово</summary><QuestRows rows={m.filter(v=>v.def.group===group).map(v=>({
+   id:v.def.id,q:{text:v.def.name+' · '+v.claimed+'/4',progress:v.value,goal:v.next,done:v.ready,claimed:v.claimed>=masteryTiers.length,reward:{gems:masteryGems[Math.min(3,v.claimed)],horn:Math.min(4,v.claimed+1)}},
+   onGo:()=>onGo(questActivity(v.def.keys)),onClaim:()=>claim(p=>claimMastery(p,v.def.id)),
+  }))}/></details>)}
+
  </div>;
 }

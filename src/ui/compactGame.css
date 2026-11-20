@@ -1,0 +1,74 @@
+.game-tiles{display:grid;grid-template-columns:repeat(var(--tile-columns,3),minmax(0,1fr));gap:6px}
+.game-tiles.columns-2{--tile-columns:2}
+.game-tiles.columns-4{--tile-columns:4}
+.game-tiles.columns-5{--tile-columns:5}
+.game-tile{position:relative;display:grid;justify-items:center;align-content:center;gap:3px;min-width:0;min-height:46px;padding:6px 3px;text-align:center;color:#f8eacb;border:1px solid #887350;border-radius:7px;background:linear-gradient(#8f6d4338,#18161bbe),var(--saga-oak,#352b28);overflow-wrap:anywhere}
+.game-tile img,.game-tile>.icon{width:40px;height:40px;object-fit:contain}
+.game-tile strong{font-size:12px;line-height:1.15}
+.game-tile small{font-size:11px;color:#e5ce9e;line-height:1.1}
+.game-tile[aria-pressed=true]{border-color:#e8ba6d;box-shadow:inset 0 0 0 1px #e8ba6d}
+.game-tile[data-locked=true]{background:#24262ccc}
+.game-tile[data-locked=true] img,.game-tile[data-locked=true]>.icon{filter:saturate(.35)}
+.game-tile>i{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:100%;background:#fa665c}
+.compact-tabs{margin:0 0 8px}
+.compact-tabs button{min-height:42px;min-width:0;padding-inline:4px}
+.game-metrics,.game-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:6px 0}
+.game-actions>.action{width:auto;flex:1 1 auto;min-width:0;min-height:44px;margin:0}
+.game-metric{display:inline-flex;align-items:center;gap:4px;min-height:42px;padding:4px 7px;border:1px solid #806f51;border-radius:6px;background:#252327;color:#f7e3ba;font-size:13px}
+.game-metric>.icon{width:25px;height:25px}
+.active-skill-list{display:grid;gap:6px}
+.skill-card.active-skill{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px;padding:5px 6px}
+.active-skill>.game-metric{border:0;background:none;padding-inline:0;text-align:left}
+.active-skill .rune-options{display:flex;gap:3px;margin:0}
+.active-skill .rune-options>button{width:42px;min-width:42px;min-height:44px;padding:2px;display:grid;place-items:center;gap:0}
+.active-skill .rune-options>button>.icon{width:24px;height:24px}
+@media (max-width:350px){.active-skill .rune-options>button{width:40px;min-width:40px}}
+.game-progress{accent-color:#e9b960;width:100%;height:7px}
+.rune-emblem{display:grid;justify-items:center;margin:8px auto;gap:4px}
+.rune-emblem>.icon{width:54px;height:54px}
+.context-card.game-detail{background:linear-gradient(#261b1ad1,#17171bf2),var(--saga-oak,#312623);border-color:#b28a50}
+.game-detail .context-body>p{margin:5px 0 9px}
+.game-detail .context-header{background:linear-gradient(180deg,#6b4a2f,#2d211e)}
+.game-detail .context-actions>.action{min-height:44px}
+.compact-pet{min-height:0;margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.compact-pet .pet-portrait{width:52px;height:52px;flex:none}
+.compact-pet .pet-portrait img{width:100%;height:100%;object-fit:contain}
+.merge-line{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:7px 0}
+.merge-line span{display:grid;justify-items:center;gap:2px;background:#292632;border:1px solid #795e41;border-radius:6px;padding:4px;text-align:center;overflow-wrap:anywhere}
+.merge-line img{width:36px;height:36px;object-fit:contain}
+.merge-line b,.merge-line small{font-size:11px}
+.wear-summary{display:flex;align-items:center;gap:9px;min-width:0;margin:3px 0 7px}
+.wear-summary img{width:58px;height:58px;object-fit:contain}
+.wear-summary small{display:block;color:#e5ce9e}
+.quest-row .quest-prizes{display:flex;align-items:center;gap:5px}
+.quest-row .quest-prizes .reward-art{width:auto}
+.quest-row .quest-prizes .reward-piece{gap:2px}
+.quest-row .action{min-height:42px}
+.chapter-claim{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.chapter-claim>.action{width:auto;min-height:44px;margin:0}
+.game .stage h1{margin:8px 110px 0 0;white-space:normal;overflow-wrap:break-word}
+.game .stage .enter{top:1px;right:0}
+.game .toast{top:112px;left:154px;right:154px;padding:4px 8px;min-height:32px;max-height:46px;font-size:21px;line-height:1.05;text-wrap:balance}
+.game .trophy-ribbon{top:277px;left:170px;right:170px;min-height:max(72px,calc(44px / var(--game-scale,1)));padding:6px 13px;gap:10px}
+.game .trophy-ribbon .icon{width:55px;height:55px;flex:none}
+.game .trophy-ribbon strong{font-size:24px;margin:2px 0}
+.game .trophy-ribbon small{font-size:17px;letter-spacing:0}
+.game .trophy-ribbon span{min-width:0;overflow-wrap:anywhere}
+.gem-catalog{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.gem-catalog .game-tile{min-height:49px}
+.gems .sockets .socket{padding:5px 3px;min-height:70px}
+.gems .sockets .socket small{font-size:11px}
+.event-threshold .reward-details{min-width:0}
+.reward-details summary{display:flex;align-items:center;gap:4px;list-style:none;min-height:40px;cursor:pointer}
+.reward-details summary::-webkit-details-marker{display:none}
+.reward-details summary>.icon{width:25px;height:25px}
+.reward-details summary .reward-art{width:auto}
+.reward-details ul{list-style:none;padding:2px 0;margin:0;font-size:11px;overflow-wrap:anywhere}
+.saga-modal .tabs.compact-tabs:has(>button:nth-child(4)):not(:has(>button:nth-child(5))),
+.context-card .tabs.growth-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.saga-modal .tabs.compact-tabs:has(>button:nth-child(4))>button,
+.context-card .tabs.growth-tabs>button{min-width:0;min-height:42px;padding:3px 2px;overflow-wrap:anywhere}
+@media(max-width:350px),(max-height:620px){
+ .game-tiles .game-tile{padding-block:4px}
+ .game-tiles .game-tile>img,.game-tiles .game-tile>.icon{width:37px;height:37px}
+}

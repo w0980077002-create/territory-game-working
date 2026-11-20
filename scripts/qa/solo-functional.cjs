@@ -1,12 +1,21 @@
 /* Mobile acceptance of the new Solo systems. Run against the local game with isolated profiles. */
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
 const {chromium}=require('playwright');
-const base=process.env.BASE_URL||'http://localhost:5173/';
+const base=process.env.BASE_URL||'http://localhost:5173/',output=process.env.OUT;
+if(output)fs.mkdirSync(output,{recursive:true});
+async function checkHud(page){
+ assert.equal(await page.evaluate(()=>{
+  const enter=document.querySelector('.stage .enter').getBoundingClientRect();
+  const title=document.querySelector('.stage h1').getBoundingClientRect();
+  return title.right<=enter.left||title.top>=enter.bottom;
+ }),true,'chapter title does not overlap the enter button');
+}
 const fixed=(day,month=0)=>new Date(Date.UTC(2027,month,day,12));
 (async()=>{
  const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox']});
  try{
-  for(const width of [320,360,390,430]){
+  for(const width of (process.env.WIDTHS||'320,360,390,430').split(',').map(Number)){
    const context=await browser.newContext({viewport:{width,height:width===320?568:width*2},isMobile:true,hasTouch:true,timezoneId:'Pacific/Honolulu'});
    const page=await context.newPage(),errors=[];
    page.on('pageerror',error=>errors.push(error.message));
@@ -22,6 +31,7 @@ const fixed=(day,month=0)=>new Date(Date.UTC(2027,month,day,12));
     const box=dialog?.getBoundingClientRect();
     return document.documentElement.scrollWidth<=innerWidth&&!!box&&box.x>=0&&box.right<=innerWidth+1&&box.top>=0&&box.bottom<=innerHeight+1&&dialog.scrollWidth<=dialog.clientWidth+1;
    }),true,'dialog fits '+width);
+   const capture=async section=>{if(output)await page.screenshot({path:output+'/'+width+'-'+section+'.png'})};
    const state=()=>page.evaluate(()=>window.__lootborn.useGame.getState().p);
    const boot=()=>page.waitForFunction(()=>window.__lootborn?.battle);
    // Exercise the shortest mobile view with the Telegram safe-area variables supplied by the host.
@@ -58,24 +68,27 @@ const fixed=(day,month=0)=>new Date(Date.UTC(2027,month,day,12));
     await other.close();
    }
    await tap('Спутники');await page.locator('.squad-grid button').first().tap();
-   await tap('Таланты');await tap('Изучить Мастерство 4');
+   await tap('Таланты');assert.equal(await card().locator('.game-tile').count(),8);await capture('talents');await card().locator('.game-tile').nth(3).tap();await tap(/Изучить Мастерство 4/);
    assert.equal((await state()).saga.box.squad.instances['follower:goose_aviator'].talents[3].rank,1);
-   await tap('Звёзды');await card().getByRole('combobox',{name:'Материал'}).selectOption('follower:copy:1');
+   await tap('Звёзды');await tap('Выбрать донора');await tap(/^Материал:/);await card().getByRole('option',{name:/^№2/}).tap();
    await tap('Объединить');await tap('Подтвердить расход');
    assert.equal((await state()).saga.box.squad.instances['follower:goose_aviator'].st,1);
    assert.equal((await state()).saga.box.squad.instances['follower:copy:1'],undefined);
    await closeCard();
-   await open('skills');await tap(/Призвать руну/);
+   await open('skills');await tap('Руны');assert.equal(await panel('skills').locator('.game-tile').count(),9);assert.equal(await panel('skills').locator('.game-tile').last().evaluate(tile=>tile.getBoundingClientRect().bottom<=tile.closest('.modal-body').getBoundingClientRect().bottom+2),true,'all nine runes are in view');await capture('runes');await tap('Призвать руну');await tap(/Призвать руну ·/);await closeCard();
    assert.equal((await state()).saga.n['solo:scroll'],180);
-   await tap('Пассивы');await tap('Выбрать');await check();await tap('Подтвердить');
-   await tap('Резонанс');assert.match(await panel('skills').innerText(),/Уровень резонанса · 1/);
-   await open('events');await tap('Спринт последователей');await check();
+   await tap('Пассивы');await tap(/^Стойкость/);await tap('Выбрать');await check();await tap('Подтвердить');
+   await tap('Резонанс');assert.match(await panel('skills').innerText(),/Резонанс · 1/);
+   await open('events');await tap(/^Спринт последователей/);await check();
    assert.match(await card().innerText(),/Потрачено · 300/);
    await tap('Забрать');assert.equal((await state()).saga.box.soloEvents['followers:2027-01'].claims,1);
    await closeCard();
    await page.clock.setFixedTime(fixed(14));await page.waitForTimeout(1100);
-   await tap('Морская монополия');await check();
-   await card().getByRole('checkbox').check();
+   await tap(/^Морская монополия/);await check();await capture('monopoly');
+   assert.equal(await card().locator('.board-cell .icon').count(),20);
+   await card().locator('.board-cell').nth(2).tap();assert.match(await card().locator('.board-inspect').innerText(),/Самоцветы/);
+   await tap('Правила',card());
+   await card().getByRole('checkbox').check();await tap('Правила',card());
    await button(/Бросить кубик/,card()).dblclick();
    assert.equal((await state()).saga.n['solo:monopoly'],2);
    const roll=(await state()).saga.box.soloEvents['monopoly:2027-01'];
@@ -84,22 +97,28 @@ const fixed=(day,month=0)=>new Date(Date.UTC(2027,month,day,12));
    assert.deepEqual((await state()).saga.box.soloEvents['monopoly:2027-01'],roll);
    await open('events');
    await page.clock.setFixedTime(fixed(19));await page.waitForTimeout(1100);
-   await tap('СчастТайна');await check();await tap(/Разыграть приз/);
+   await tap(/^СчастТайна/);await check();await capture('fortune');assert.equal(await card().locator('.board-cell .icon').count(),12);await tap(/Разыграть приз/);
    assert.equal((await state()).saga.n['solo:fortune'],2);
    await closeCard();
    await page.clock.setFixedTime(fixed(22));await page.waitForTimeout(1100);
-   await tap('Рунный спринт');await check();await closeCard();
+   await tap(/^Рунный спринт/);await check();await closeCard();
    await page.clock.setFixedTime(fixed(1,1));
    await open('mail');await check();await tap(/Спринт последователей/);
    await tap('Забрать',card());await closeCard();
    assert.equal((await state()).saga.box.soloEvents['followers:2027-01'].claims,127);
-   await open('wings');await tap('Получить первые крылья бесплатно');await tap(/Усилить · 4 перьев/);
-   assert.equal((await state()).saga.box.wings.rank,1);
+   assert.equal(await page.locator('select').count(),0);
+   await open('wings');await tap('Получить первые крылья бесплатно',panel('wings'));
+   await page.waitForFunction(()=>!!window.__lootborn.useGame.getState().p.equipment.wings);
+   await tap('Рост',panel('wings'));
+   await button('Рост',panel('wings')).and(page.locator('[aria-pressed=true]')).waitFor();
+   await page.waitForTimeout(360); // Keep this deliberate tap outside the existing double-tap guard after equipping.
+   await tap(/Усилить · 4 перьев/,panel('wings'));
+   await page.waitForFunction(()=>window.__lootborn.useGame.getState().p.saga?.box.wings?.rank===1);
    await open('hero-path');await check();
-   await panel('hero-path').locator('summary').first().tap();await tap('Забрать');
+   await tap(/^Трактат опыта/);await tap('Забрать');await closeCard();
    assert.ok((await state()).saga.flags.includes('solo:track:xp:0'));
    await open('adventure');await tap(/Логово мини-босса/);await panel('lair').waitFor();await check();
-   await panel('lair').locator('summary').first().tap();await tap('Совершить рейд');
+   await tap(/^Капибара-Громила/);await card().locator('summary').first().tap();await tap('Совершить рейд');
    assert.equal((await state()).saga.box.raidDay.total,1);
    await tap('Выбрать бой');await page.locator('button.central').tap();
    assert.equal((await state()).encounter.mode,'dungeon');
@@ -111,6 +130,23 @@ const fixed=(day,month=0)=>new Date(Date.UTC(2027,month,day,12));
    assert.equal((await state()).encounter.lairRevives,0);
    await tap(/Возродиться/);await tap(/Подтвердить ·/);
    assert.equal((await state()).encounter.lairRevives,1);
+   if(width===320)await page.evaluate(()=>{
+    const g=window.__lootborn.useGame.getState();
+    g.mutate(p=>{p.stage=70});
+   });
+   await checkHud(page);
+   if(width===320){
+    await page.evaluate(()=>{
+     const game=window.__lootborn.useGame.getState();
+     game.mutate(p=>{p.rewardOffer={encounterId:p.encounter.id,itemId:p.inventory[0].id,resolved:false}});
+     game.notice('Трофей ожидает выбора');
+    });
+    const trophy=button('Трофей босса · открыть добычу');
+    assert.ok((await trophy.boundingBox()).height>=43.9);
+    assert.equal(await page.locator('.game .toast').count(),0);
+    await trophy.tap();
+    await panel('item').waitFor();
+   }
    assert.deepEqual(errors,[]);
    await context.close();
    console.log(width+' px: followers, runes, sprints, boards, mail, wings, tracks, lair and reload OK');

@@ -13,6 +13,10 @@ const currencies = [
   ['xp','star','Опыт'],
 ] as const;
 
+export const soloIcons:Record<SoloResource,string>={
+ soul:'soul',awake:'awake',awakeShard:'awake-shard',scroll:'scroll',monopoly:'ship',
+ fortune:'banner',jackpot:'jackpot',wing:'wings',
+};
 export const materialIcon = (id: string) => id === 'dusk' ? 'dusk-stone' : `mat-${id}`;
 
 export function rewardParts(reward: Reward) {
@@ -26,7 +30,7 @@ export function rewardParts(reward: Reward) {
     if (materials[key] && count) parts.push({key, count, icon:materialIcon(key), name:materials[key].name});
   }
   for(const [key,count] of Object.entries(reward.solo??{})){
-    if(count)parts.push({key,count,icon:key==='wing'?'wings':key==='scroll'?'scroll':'star',name:soloResources[key as SoloResource].name});
+    if(count)parts.push({key,count,icon:soloIcons[key as SoloResource],name:soloResources[key as SoloResource].name});
   }
   return parts;
 }
@@ -39,4 +43,11 @@ export function RewardArt({reward, names = false}: {reward: Reward; names?: bool
       {names && <small>{part.name}</small>}
     </span>)}
   </span>;
+}
+
+export function RewardDetails({reward,extra}:{reward:Reward;extra?:string}){
+ return <details className="reward-details">
+  <summary aria-label="Состав награды"><RewardArt reward={reward}/>{extra&&<Icon name="chest"/>}</summary>
+  <ul>{rewardParts(reward).map(part=><li key={part.key}>{part.name} × {part.count.toLocaleString('ru')}</li>)}{extra&&<li>{extra}</li>}</ul>
+ </details>;
 }

@@ -1,4 +1,6 @@
-import {useEffect,useId,useState} from 'react';
+import {CompactFilter} from '../CompactFilter';
+import {gearIcon} from '../Icon';
+import {useEffect,useState} from 'react';
 import type {Slot} from '../../core/types';
 import {art,heroArt,rarityNames,slotNames} from '../../data/catalog';
 import {carnivalNow} from '../../core/profile';
@@ -126,7 +128,6 @@ function TaskCard({task,claim,go}:{task:Task;claim:()=>void;go:(route:CarnivalRo
 
 function Finale({period,tier,hero,claim}:{period:Period;tier:Milestone;hero:string;claim:(slot:Slot)=>void}){
   const gear=tier.gear;
-  const id=useId();
   const [slot,setSlot]=useState<Slot>('weapon');
   const fill=Math.min(100,period.points/tier.points*100);
   if(!gear)return null;
@@ -142,10 +143,7 @@ function Finale({period,tier,hero,claim}:{period:Period;tier:Milestone;hero:stri
       </div>
       {tier.status==='claimed'&&<span className="carnival-btn done">✓ Приз получен</span>}
       {tier.status==='claimable'&&<>
-        <label htmlFor={id}>Место экипировки</label>
-        <select id={id} value={slot} onChange={e=>{const choice=gear.slots.find(value=>value===e.target.value);if(choice)setSlot(choice)}}>
-          {gear.slots.map(value=><option key={value} value={value}>{slotNames[value]}</option>)}
-        </select>
+        <CompactFilter label="Место экипировки" value={slot} options={gear.slots.map(value=>({value,label:slotNames[value],icon:gearIcon(value)}))} onChange={value=>{const choice=gear.slots.find(slot=>slot===value);if(choice)setSlot(choice)}}/>
         <button type="button" className="carnival-btn claim big" onClick={()=>claim(slot)}>Забрать главный приз</button>
       </>}
     </div>
@@ -229,12 +227,7 @@ export function CarnivalPanel(){
   const active=!!event.period&&period===event.period&&event.remainingMs!==null;
   return <section className="reward-window carnival-window">
     <Hero timer={timerText(event,now,!!(period&&period!==event.period))} active={active} hero={hero}/>
-    {event.past.length>0&&<label className="carnival-period">Период
-      <select value={period?.id??''} onChange={e=>selectHistory(e.target.value)}>
-        {event.period&&<option value={event.period.id}>{event.period.id} · текущий</option>}
-        {event.past.map(previous=><option key={previous.id} value={previous.id}>{previous.id} · награды</option>)}
-      </select>
-    </label>}
+    {event.past.length>0&&<CompactFilter label="Период" value={period?.id??''} options={[...(event.period?[{value:event.period.id,label:event.period.id+' · текущий'}]:[]),...event.past.map(previous=>({value:previous.id,label:previous.id+' · награды'}))]} onChange={selectHistory}/>}
     {period?<PeriodPanel key={period.id} period={period} active={active} now={now} hero={hero}/>
       :<p className="carnival-note">Следующий карнавал — {nextDate(event.nextStartAt)}, 00:00 UTC.</p>}
   </section>;
