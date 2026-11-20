@@ -47,7 +47,7 @@ async function scenario(browser,width,height){
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     if(out){fs.mkdirSync(out,{recursive:true});await dlg.screenshot({path:`${out}/${width}-live.png`});}
     await dlg.getByRole('button',{name:'Закрыть',exact:true}).tap();
-    await page.getByRole('dialog',{name:'Северный сезон'}).waitFor();
+    await page.getByRole('dialog',{name:'События'}).waitFor();
 
     if(width===390){
       // Real game mutations publish wins, inventory changes and Horn results to the same profile.
