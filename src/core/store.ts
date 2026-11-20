@@ -146,7 +146,7 @@ function lootNotice(p:Player,item:Item,disposition:ReturnType<typeof placeLoot>,
 }
 
 export const initialBattle:BattleView={hp:1,maxHp:1,enemyHp:1,enemyMax:1,phase:'walk',boss:false,timer:30,cooldowns:[0,0,0],enemyName:'',mode:'campaign',running:false,bossPhase:1,ability:''};
-interface Store {p:Player;panel:string|null;selected:string|null;back:string|null;leaveItem:()=>void;equipBest:()=>number;toast:string;toastId:number;dismissNotice:(expectedId:number)=>void;auto:boolean;speed:number;stopOnDeath:boolean;continueOnVictory:boolean;autoSalvageWeaker:boolean;battle:BattleView;storageError:boolean;recoveryRequired:boolean;open:(s:string|null)=>void;notice:(s:string)=>void;select:(id:string|null)=>void;mutate:(fn:(p:Player)=>void)=>boolean;persist:()=>void;hornLoot:()=>void;equip:(id:string)=>void;salvage:(id:string,confirmed?:boolean)=>void;bulkSalvage:(ids:readonly string[],quote?:string)=>number;claimStored:(ids?:string[])=>number;keepReward:()=>void;configure:(settings:{auto?:boolean;speed?:1|2;stopOnDeath?:boolean;continueOnVictory?:boolean;autoSalvageWeaker?:boolean})=>void;importSave:(p:Player)=>boolean;upgrade:(slot:Slot,expected?:{id:string;upgrade:number})=>void;train:(type:string,index?:number)=>void;claim:(id:string)=>void;claimHonor:(expectedRank:number)=>boolean;mailAction:(action:MailAction)=>boolean;buy:(id:string,quote?:string,equipmentSlot?:Slot)=>boolean;shipAction:(action:'claim'|'buy'|'upgrade'|'trade',id?:string)=>void;win:(mode:string,encounterId?:string,snapshot?:EncounterSnapshot,tally?:Record<string,number>)=>boolean;unequip:(slot:Slot)=>void;setClass:(c:HeroClass)=>void}
+interface Store {p:Player;panel:string|null;selected:string|null;back:string|null;leaveItem:()=>void;equipBest:()=>number;toast:string;toastId:number;dismissNotice:(expectedId:number)=>void;auto:boolean;speed:number;stopOnDeath:boolean;continueOnVictory:boolean;autoSalvageWeaker:boolean;battle:BattleView;storageError:boolean;recoveryRequired:boolean;open:(s:string|null)=>void;notice:(s:string)=>void;select:(id:string|null)=>void;mutate:(fn:(p:Player)=>void)=>boolean;persist:()=>boolean;hornLoot:()=>void;equip:(id:string)=>void;salvage:(id:string,confirmed?:boolean)=>void;bulkSalvage:(ids:readonly string[],quote?:string)=>number;claimStored:(ids?:string[])=>number;keepReward:()=>void;configure:(settings:{auto?:boolean;speed?:1|2;stopOnDeath?:boolean;continueOnVictory?:boolean;autoSalvageWeaker?:boolean})=>void;importSave:(p:Player)=>boolean;upgrade:(slot:Slot,expected?:{id:string;upgrade:number})=>void;train:(type:string,index?:number)=>void;claim:(id:string)=>void;claimHonor:(expectedRank:number)=>boolean;mailAction:(action:MailAction)=>boolean;buy:(id:string,quote?:string,equipmentSlot?:Slot)=>boolean;shipAction:(action:'claim'|'buy'|'upgrade'|'trade',id?:string)=>void;win:(mode:string,encounterId?:string,snapshot?:EncounterSnapshot,tally?:Record<string,number>)=>boolean;unequip:(slot:Slot)=>void;setClass:(c:HeroClass)=>void}
 // A message produced in the same synchronous operation may follow its automatic redirect.
 // The flag expires before the next user interaction; it is never part of a player save.
 let activeNoticeId:number|undefined;
@@ -219,9 +219,9 @@ export const useGame=create<Store>((set,get)=>{
   return commit(draft,g);
  },
  persist:()=>{
-  if(!writable())return;
+  if(!writable())return false;
   const g=get();
-  commit({...g.p,...(encounterProvider?{encounter:encounterProvider()}:{})},g);
+  return commit({...g.p,...(encounterProvider?{encounter:encounterProvider()}:{})},g);
  },
  claimHonor:expectedRank=>{
   const g=get();

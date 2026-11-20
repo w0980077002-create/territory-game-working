@@ -288,15 +288,34 @@ export function companionPower(id:string,pet:Pet){
  const power=(def.base+pet.lv*def.perLevel)*(legacy?evoPower(pet.lv):1+Math.min(3,Math.floor(pet.lv/10))*.12)*(1+pet.st*.1)*(1+talents[0]*.08)*(pet.aw?1.25:1);
  return {power,interval:def.interval*(1-talents[1]*.04)*(pet.aw?.85:1)};
 }
-export interface SquadCombat {striker:{id:string;power:number;interval:number;fly:boolean;awake:boolean};guardian:{id:string;power:number;interval:number;awake:boolean};heroDamage:number}
-export function squadCombat(p:Player):SquadCombat{
- const s=squadState(p),[main,guard]=s.formation,[a,b]=s.act;
- const pa=followerProgress(s.instances[main],s.shards[a]),pb=followerProgress(s.instances[guard],s.shards[b]);
- const ca=companionPower(a,pa),cb=companionPower(b,pb),boost=1+(relicLevel(p,'ravens')?(6+3*relicLevel(p,'ravens'))/100:0);
- return {striker:{id:a,power:ca.power*boost,interval:ca.interval,fly:!!companions[a].fly,awake:pa.aw},guardian:{id:b,power:cb.power*boost,interval:cb.interval,awake:pb.aw},heroDamage:pa.t[2]*.015};
+export interface CombatFollower {
+ id:string;instanceId:string;role:CompanionRole;power:number;interval:number;fly:boolean;awake:boolean;teamTalent:number
 }
-/** Every star of every owned companion supports the hero, in or out of the active pair. */
-export function squadBonus(p:Player){const b=zeroBonus(),s=squadState(p);let stars=0;for(const id of s.owned)stars+=s.own[id].st+(s.own[id].aw?2:0);b.hpPct+=stars*.005;b.atkPct+=stars*.005;b.reduction+=s.instances[s.formation[1]].talents[2].rank*.01;return b}
+export interface SquadCombat {striker:CombatFollower;guardian:CombatFollower;reserve:CombatFollower|null;heroDamage:number}
+
+function combatFollower(squad:SquadState,instanceId:string,boost:number):CombatFollower{
+ const instance=squad.instances[instanceId],id=instance.species,def=companions[id];
+ const {power,interval}=companionPower(id,followerProgress(instance,squad.shards[id]));
+ return {id,instanceId,role:def.role,power:power*boost,interval,fly:!!def.fly,awake:instance.aw,teamTalent:instance.talents[2].rank};
+}
+export function squadCombat(p:Player):SquadCombat{
+ const squad=squadState(p),[main,guard,third]=squad.formation,ravens=relicLevel(p,'ravens');
+ const boost=1+(ravens?(6+3*ravens)/100:0);
+ const striker=combatFollower(squad,main,boost),guardian=combatFollower(squad,guard,boost);
+ const reserve=third?combatFollower(squad,third,boost):null;
+ const heroDamage=(striker.teamTalent+(reserve?.role==='striker'?reserve.teamTalent:0))*.015;
+ return {striker,guardian,reserve,heroDamage};
+}
+/** Collection bonuses count each owned species once. Active guardians contribute their own talent. */
+export function squadBonus(p:Player){
+ const b=zeroBonus(),s=squadState(p);let stars=0;
+ for(const id of s.owned)stars+=s.own[id].st+(s.own[id].aw?2:0);
+ b.hpPct+=stars*.005;b.atkPct+=stars*.005;
+ const primary=s.instances[s.formation[1]],third=s.formation[2]?s.instances[s.formation[2]]:null;
+ const protection=primary.talents[2].rank+(third&&companions[third.species].role==='guardian'?third.talents[2].rank:0);
+ b.reduction+=protection*.01;
+ return b;
+}
 export const SUMMON={gems:80,seal:1};
 const summonWeights:[string,number,number][]=[['08_armored_boar',30,5],['moss_eater',30,5],['senior_driller',13,3],['capybara_bruiser',13,3],['brown_white_dog',9,3],['goose_aviator',5,2]];
 export const summonTable=summonWeights.map(([id,weight,shards])=>({id,chance:weight/100,shards}));
@@ -312,9 +331,9 @@ export function powerBonus(p:Player):Bonus{
 export const powerParts=(p:Player)=>[['Тёмная энергия',darkBonus(p)],['Драгоценные камни',gemBonus(p)],['Реликвии',relicBonus(p)],['Спутники',squadBonus(p)]] as [string,Bonus][];
 /** Fight-wide special effects of all systems, computed once per encounter by the battle engine. */
 export interface Aura {execute30:number;execute35:number;boss:number;opening:number;thorns:number;veil:number;killHeal:number;regen:number;firstBlock:boolean;boltEvery:number;boltPower:number;rally:number;cooldownRate:number;foeHpCut:number;heroDamage:number}
-export function combatAura(p:Player):Aura{
+export function combatAura(p:Player,team=squadCombat(p)):Aura{
  const e=darkEffectTotals(p),lv=(id:RelicId)=>relicLevel(p,id);
  return {execute30:e.reaper,execute35:lv('fang')?(6+2.4*lv('fang'))/100:0,boss:e.bossbane,opening:e.eclipse,thorns:e.thorns,veil:e.veil,killHeal:e.hunger,regen:lv('leaf')?(.3+.07*lv('leaf'))/100:0,firstBlock:lv('aegis')>0,
-  boltEvery:lv('mjolnir')?6:0,boltPower:(60+12*lv('mjolnir'))/100,rally:lv('horn')?(10+2*lv('horn'))/100:0,cooldownRate:1+(lv('gjallar')?(2+lv('gjallar'))/100:0),foeHpCut:lv('gap')?(3+.7*lv('gap'))/100:0,heroDamage:squadCombat(p).heroDamage};
+  boltEvery:lv('mjolnir')?6:0,boltPower:(60+12*lv('mjolnir'))/100,rally:lv('horn')?(10+2*lv('horn'))/100:0,cooldownRate:1+(lv('gjallar')?(2+lv('gjallar'))/100:0),foeHpCut:lv('gap')?(3+.7*lv('gap'))/100:0,heroDamage:team.heroDamage};
 }
 export const lootBonus=(p:Player)=>relicLevel(p,'draupnir')?(4+2*relicLevel(p,'draupnir'))/100:0;

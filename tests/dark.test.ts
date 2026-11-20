@@ -299,7 +299,10 @@ test('formation saves individual copies, protects the combat pair, and rolls bac
  assert.equal(A.petActivate(goose,2),false);
  assert.equal(A.petClearReserve(goose),false);
  assert.ok(A.petActivate(extra,2));
- assert.deepEqual(R.squadCombat(P()),base);
+ const extended=R.squadCombat(P());
+ assert.deepEqual([extended.striker,extended.guardian],[base.striker,base.guardian]);
+ assert.equal(extended.reserve?.instanceId,extra);
+ assert.equal(extended.heroDamage,base.heroDamage+.03);
  assert.equal(R.squadState(P()).formation[2],extra);
  assert.deepEqual(R.relics.ravens.need(P()),collection);
  const raw=exportSave(),storage=localStorage.setItem;

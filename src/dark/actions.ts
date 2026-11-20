@@ -157,11 +157,13 @@ export function petActivate(id:string,position?:0|1|2){
   if(box.formation[2]===key)box.formation[2]=null;
   box.formation[slot]=key;
  },'Состав дружины сохранён');
- if(ok&&position!==2)battle?.tuneTeam();
+ if(ok)battle?.tuneTeam();
  return ok;
 }
 export function petClearReserve(id:string){
- return tx(p=>squadState(p).formation[2]===id?null:'Позиция уже свободна',
+ const ok=tx(p=>squadState(p).formation[2]===id?null:'Позиция уже свободна',
   p=>{squadBox(p).formation[2]=null},'Позиция освобождена');
+ if(ok)battle?.tuneTeam();
+ return ok;
 }
 export {darkName};

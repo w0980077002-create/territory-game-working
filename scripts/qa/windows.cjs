@@ -338,13 +338,14 @@ let browser;
     await page.reload();await page.waitForFunction(()=>window.__lootborn?.battle);
     await open(page,'companions');
     await formation.getByRole('button',{name:'Сопровождение II · Броненосный вепрь',exact:true}).waitFor();
-    assert.equal(await formation.getByText('Вне боя',{exact:true}).count(),1);
+    assert.match(await formation.getByRole('button',{name:'Сопровождение II · Броненосный вепрь',exact:true}).innerText(),/ур\.100/);
     assert.equal(await formation.evaluate(group=>{
      const boxes=[...group.children].map(cell=>cell.getBoundingClientRect());
      return boxes.every((box,i)=>box.width>=44&&box.height>=44&&(i===0||box.left>=boxes[i-1].right));
     }),true);
     await page.screenshot({path:`${output}/follower-formation-${width}.png`});
     await formation.getByRole('button',{name:'Сопровождение II · Броненосный вепрь',exact:true}).tap();
+    await page.getByText('Базовое действие',{exact:true}).waitFor();
     await page.getByRole('button',{name:'Освободить сопровождение II',exact:true}).tap();
     assert.equal((await read(page)).saga.box.squad.formation[2],null);
     await closeCard(page);
