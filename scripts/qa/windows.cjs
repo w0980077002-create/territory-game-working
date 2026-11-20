@@ -14,6 +14,54 @@ async function closeCard(page){await page.getByRole('button',{name:'Закрыт
 async function geometry(page){return page.evaluate(()=>{const body=document.querySelector('.modal-body'),r=body.getBoundingClientRect();const local=document.querySelector('.local-scroll');return {outerOverflow:body.scrollHeight-body.clientHeight,horizontal:document.documentElement.scrollWidth-innerWidth,body:{top:r.top,bottom:r.bottom},local:local?{height:local.clientHeight,scroll:local.scrollHeight}:null};});}
 async function assertCard(page){assert.equal(await page.locator('dialog[open]').count(),1);assert.equal(await page.evaluate(()=>{const d=document.querySelector('dialog[open]');const r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth+1&&d.contains(document.activeElement)}),true);}
 async function assertSigns(page){assert.equal(await page.locator('.harbor-links button').evaluateAll(es=>{for(let i=0;i<es.length;i++){const a=es[i].getBoundingClientRect();if(a.width<76||a.height<44||document.elementFromPoint(a.x+a.width/2,a.y+a.height/2)?.closest('button')!==es[i])return false;for(let j=i+1;j<es.length;j++){const b=es[j].getBoundingClientRect();if(Math.min(a.right,b.right)>Math.max(a.left,b.left)&&Math.min(a.bottom,b.bottom)>Math.max(a.top,b.top))return false}}return true}),true,'All city signs have separate reachable touch areas');}
+async function verifyHonor(page, width, height) {
+ await page.goto((process.env.BASE_URL || 'http://localhost:5173/') + '?hero=honor-qa');
+ await page.waitForFunction(() => window.__lootborn?.battle);
+ const enter = async () => {
+  await page.getByRole('button', {name:'Герой', exact:true}).tap();
+  await page.getByRole('button', {name:/^Почётные звания/}).tap();
+ };
+ await enter();
+ const dialog = page.getByRole('dialog', {name:'Почётные звания'});
+ const claim = dialog.getByRole('button', {name:'Получить звание · 100 золота'});
+ assert.equal(await claim.isDisabled(), true);
+ await page.evaluate(() => window.__lootborn.useGame.getState().mutate(p => {
+  p.stage = 61;
+  p.level = 25;
+  p.gold = 100000;
+ }));
+ assert.equal(await dialog.locator('.honor-requirements li[data-done="true"]').count(), 3);
+ assert.equal(await claim.isEnabled(), true);
+ const preview = await dialog.locator('.honor-stat-gain strong').allTextContents();
+ const hp = Number(preview[1].replace(/\s/g, ''));
+ await page.setViewportSize({width, height:568});
+ await page.evaluate(() => {
+  document.documentElement.style.setProperty('--tg-content-safe-area-inset-top', '26px');
+  document.documentElement.style.setProperty('--tg-safe-area-inset-bottom', '24px');
+ });
+ await dialog.locator('.honor-crest').evaluateAll(images => Promise.all(images.map(image => image.decode())));
+ await page.locator('.level-award').waitFor({state:'hidden'});
+ assert.equal((await geometry(page)).horizontal, 0);
+ const box = await claim.boundingBox();
+ assert.ok(box && box.height >= 44 && box.y + box.height <= 544, `promotion reachable in the short ${width}px window: ${JSON.stringify(box)}`);
+ await page.screenshot({path:`${output}/honor-${width}.png`});
+ await claim.evaluate(button => {button.click(); button.click()});
+ await dialog.getByText('Звание «Дружинник» получено').waitFor();
+ assert.equal((await read(page)).saga.box.honor.rank, 1);
+ assert.equal((await read(page)).gold, 99900);
+ await page.waitForFunction(value => window.__lootborn.battle.maxHp === value, hp);
+ assert.deepEqual(await dialog.locator('.honor-stats tbody td:nth-child(2)').allTextContents(), preview);
+ await dialog.getByRole('button', {name:'Готово'}).tap();
+ await page.getByRole('button', {name:/^Почётные звания Дружинник/}).waitFor();
+ await page.reload();
+ await page.waitForFunction(() => window.__lootborn?.battle);
+ await enter();
+ assert.equal(await dialog.getByRole('button', {name:'Получить звание · 350 золота'}).isEnabled(), true);
+ const restored = await read(page);
+ assert.equal(restored.gold, 99900);
+ assert.equal(restored.saga.box.honor.rank, 1);
+ await page.setViewportSize({width, height});
+}
 async function verifyRealmVictory(page,width){
  await page.setViewportSize({width,height:568});
  await page.evaluate(()=>{
@@ -61,6 +109,7 @@ let browser;
 (async()=>{browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':chromium.executablePath()),args:['--no-sandbox']});const report=[];
  for(const [width,height] of [[320,640],[360,740],[390,780],[430,932]]){
   const context=await browser.newContext({viewport:{width,height},deviceScaleFactor:1,hasTouch:true,isMobile:true,reducedMotion:'reduce'});const page=await context.newPage();const errors=[];page.on('response',r=>{if(r.status()>=400&&/\.(webp|svg|png|js|css)(\?|$)/.test(r.url()))errors.push(r.status()+' '+r.url())});page.on('pageerror',e=>errors.push(e.message));
+  if(!before)await verifyHonor(page,width,height);
   await page.goto((process.env.BASE_URL||'http://localhost:5173/')+'?hero=windows-qa');await page.waitForFunction(()=>window.__lootborn&&document.querySelector('.viewport'));await seed(page);
   // Finish normal quest initialization before comparing the complete Saga across reload.
   // Otherwise its regular 15s initialization can race the readback on a slow runner.

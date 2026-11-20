@@ -14,6 +14,7 @@ import {SHIP_RULES,starterShipyard,previewShips,shipRate,shipCapacity,shipBuyCos
 import {TreasureShop} from './TreasureShop';
 import {HarborScene} from './HarborScene';
 import {ClassPicker} from './ClassPicker';
+import {HonorEntry,HonorPanel} from './HonorPanel';
 import './windowContent.css';
 import {stats,xpNeeded,stageLabel,skillPowerMultiplier,odinCallSeconds,odinCallMaxLevel} from '../core/formulas';
 import {setupTelegram,readCloud} from '../core/telegram';
@@ -314,6 +315,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   }catch{setShareAddress(INVITE_URL)}
  };
  if(panel==='inventory')return <Backpack storage={storage} setStorage={setStorage}/>;
+ if(panel==='honor')return <HonorPanel p={p} onBack={()=>g.open('hero')}/>;
  return <DialogShell panel={panel} onBack={returnToHarbor?()=>{setRealmFromHarbor(false);g.open('port')}:panel==='carnival'?()=>g.open('events'):sourceBack?()=>g.open(sourceBack):returnToQuest?()=>{setQuestDestination(null);g.open('quests')}:undefined} backLabel={returnToHarbor?'‹ В гавань':panel==='carnival'?'К событиям':sourceBack?'Назад':returnToQuest?'К заданию':undefined} title={slot?slotNames[slot]:titles[panel]??(panel.startsWith('source:')?sourceTitle(panel.split(':')[1]):panel)} rarity={item?.rarity} footer={<footer className={`modal-footer ${panel==='item'&&item?'item-footer':''}`}>{panel==='item'&&item&&<ItemDecisions key={item.id} item={item} p={p} isTrophy={isTrophy} onRewardResolved={finish}/>}<div className="footer-wallet"><span><Icon name="coins"/>{fmt(p.gold)}</span><span><Icon name="gem"/>{fmt(p.gems)}</span><button onClick={()=>g.open(null)}>К бою</button></div></footer>}><ForgeEcho/>
  {panel==='controls'&&<><p>Нажмите топоры для запуска путешествия. По умолчанию герой сам идёт после победы и ждёт топоры после смерти. Скорость, навыки и условия остановки настраиваются через кнопку автобоя. Меню временно ставит активный бой на паузу.</p><Action onClick={()=>{battle?.toggle();g.open(null)}}>{g.battle.running?'Остановить':'Продолжить'} бой</Action><Action onClick={()=>g.configure({auto:!g.auto})}>Auto навыков: {g.auto?'ВКЛ':'ВЫКЛ'}</Action><Action onClick={()=>g.configure({speed:g.speed===1?2:1})}>Скорость: x{g.speed}</Action><Action onClick={()=>g.open('autobattle')}>Настройки автобоя</Action>{skillData.map((skill,i)=><Action key={skill.name} disabled={!g.battle.running||g.battle.cooldowns[i]>0} onClick={()=>battle?.skill(i)}>{skill.name} {g.battle.cooldowns[i]>0?Math.ceil(g.battle.cooldowns[i])+' сек':''}</Action>)}</>}
  {panel==='equipment'&&<><HeroPortrait p={p} compact/>{(()=>{const plan=bestUpgrades(p);return plan.length?<><Action onClick={()=>g.equipBest()}>Надеть лучшее · {plan.length} {plan.length===1?'вещь':plan.length<5?'вещи':'вещей'}</Action><p className="hint">Берёт из рюкзака самые сильные вещи. Старые возвращаются в рюкзак; именные трофеи не заменяются.</p></>:<p className="hint">Сила героя {fmt(s.cp)} · в рюкзаке нет вещей сильнее надетых.</p>})()}<div className="equipment-ledger">{slots.map(slot=>{const worn=p.equipment[slot],better=bestUpgrade(p,slot);return <Row key={slot} icon={gearIcon(slot)} title={slotNames[slot]} detail={worn?`${rarityNames[worn.rarity]} · ур.${worn.level} · +${worn.upgrade}${better?` · ↑ в рюкзаке +${better.gain} силы`:''}`:better?`Не надето · ↑ в рюкзаке +${better.gain} силы`:'Не надето'}><Action kind={better?'':'secondary'} onClick={()=>g.open(slot==='wings'&&!p.equipment.wings&&!better?'wings':`gear:${slot}`)}>{better?'Заменить':'Открыть'}</Action></Row>})}</div></>}
@@ -324,6 +326,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   </section>
   <button type="button" className="class-toggle" aria-expanded={classOpen} aria-controls="class-picker" onClick={()=>setClassOpen(v=>!v)}><span><small>Персонаж · {classNames[p.heroClass]}</small><strong>{classOpen?'Скрыть выбор':'Сменить персонажа'}</strong></span><b aria-hidden="true">{classOpen?'▴':'▾'}</b></button>
   {classOpen&&<ClassPicker p={p}/>}
+  <HonorEntry p={p} onOpen={()=>g.open('honor')}/>
   <div className="hero-stats">{[['Здоровье',fmt(s.hp)],['Атака',fmt(s.attack)],['Защита',fmt(s.defense)],['Крит',`${Math.round(s.crit*100)}%`],['Скорость',`${s.aspd}/с`],['Вампиризм',`${Math.round(s.lifesteal*100)}%`],['Крит. урон',`${Math.round(s.critDamage*100)}%`],['Уклонение',`${Math.round(s.dodge*100)}%`],['Снижение урона',`${Math.round(s.reduction*100)}%`]].map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div>
   <SpecChooser p={p}/>
   <details className="saga-disclosure"><summary>Комплекты</summary><SetSummary p={p}/></details>
