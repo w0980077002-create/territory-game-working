@@ -1,3 +1,6 @@
+import {eventMail,claimEvent,chestNames} from './soloEvents';
+import {eventSchedule,windowFromKey} from './soloCalendar';
+import type {SoloResource} from './soloEconomy';
 import type {Player, Slot} from '../core/types';
 import {carnivalMailPeriods, carnivalMailPrizes, prepareCarnivalClaim} from './carnival';
 import type {Reward} from './rewards';
@@ -13,15 +16,18 @@ interface MailLetter {
   read: boolean;
   pending: boolean;
   reward: Reward;
+  title?: string;
+  chests?: string[];
   gear?: ReturnType<typeof carnivalMailPrizes>[number]['gear'];
 }
 
 export function unreadMail(p: Player, now: number) {
   const read = readLetters(p);
-  return carnivalMailPeriods(p, now).filter(period => read?.[period.id] !== period.endAt).length;
+  return carnivalMailPeriods(p, now).filter(period => read?.[period.id] !== period.endAt).length
+    +eventMail(p,now).filter(letter=>read?.[letter.id]!==letter.date).length;
 }
 
-function totalReward(prizes: ReturnType<typeof carnivalMailPrizes>): Reward {
+function totalReward(prizes: {reward:Reward}[]): Reward {
   const total: Reward = {};
   for (const {reward} of prizes) {
     for (const key of ['gold','gems','horn','chaosite','tokens','xp'] as const) {
@@ -30,6 +36,10 @@ function totalReward(prizes: ReturnType<typeof carnivalMailPrizes>): Reward {
     if (reward.mats) {
       total.mats ??= {};
       for (const [id, amount] of Object.entries(reward.mats)) total.mats[id] = (total.mats[id] ?? 0) + amount;
+    }
+    if(reward.solo){
+      total.solo??={};
+      for(const key of Object.keys(reward.solo) as SoloResource[])total.solo[key]=(total.solo[key]??0)+(reward.solo[key]??0);
     }
     if (reward.res) {
       total.res ??= {};
@@ -43,15 +53,17 @@ function totalReward(prizes: ReturnType<typeof carnivalMailPrizes>): Reward {
 
 export function mailbox(p: Player, now: number): MailLetter[] {
   const read = readLetters(p);
-  const pending = carnivalMailPeriods(p, now).map(period => {
+  const pending:MailLetter[] = carnivalMailPeriods(p, now).map(period => {
     const prizes = carnivalMailPrizes(period);
     return {id:period.id, date:period.endAt, read:read?.[period.id] === period.endAt, pending:true,
       reward:totalReward(prizes), gear:prizes.find(prize => prize.gear)?.gear};
   });
+  pending.push(...eventMail(p,now).map(({id,date,title,prizes})=>({id,date,title,read:read?.[id]===date,pending:true,
+    reward:totalReward(prizes),chests:prizes.flatMap(prize=>prize.chest?[chestNames[prize.chest]]:[])})));
   const ids = new Set(pending.map(letter => letter.id));
   const history = Object.entries(read ?? {}).flatMap(([id,date]) =>
-    !ids.has(id) && /^\d{4}-\d{2}$/.test(id) && Number.isSafeInteger(date) && date > 0 && date < 8.64e15
-      ? [{id, date, read:true, pending:false, reward:{}, gear:undefined}] : []);
+    !ids.has(id) && (/^\d{4}-\d{2}$/.test(id)||windowFromKey(id)) && Number.isSafeInteger(date) && date > 0 && date < 8.64e15
+      ? [{id, date, read:true, pending:false, reward:{}, title:windowFromKey(id)?eventSchedule[windowFromKey(id)!.id].name:undefined}] : []);
   return [...pending, ...history].sort((a,b) => b.date-a.date);
 }
 
@@ -63,8 +75,9 @@ export type MailAction =
 
 export function applyMail(p: Player, action: MailAction, now: number, rewardNow: number) {
   const pending = carnivalMailPeriods(p, now);
+  const solo=eventMail(p,now);
   if (action.kind === 'deleteRead') {
-    const ids = new Set(pending.map(period => period.id));
+    const ids = new Set([...pending,...solo].map(period => period.id));
     const read = readLetters(p);
     let removed = 0;
     for (const id of Object.keys(read ?? {})) {
@@ -79,7 +92,8 @@ export function applyMail(p: Player, action: MailAction, now: number, rewardNow:
   const selected = action.kind === 'claimAll' ? pending : pending.filter(period => period.id === action.id);
   if (action.kind === 'read') {
     const period = selected[0];
-    if (period) boxOf<ReadLetters>(p, 'mail', () => ({}))[period.id] = period.endAt;
+    const local=solo.find(letter=>letter.id===action.id);
+    if (period||local) boxOf<ReadLetters>(p, 'mail', () => ({}))[action.id] = period?.endAt??local!.date;
     return;
   }
   let delivered = false, needsSlot = false, needsHorn = false, sentToStorage = false;
@@ -97,6 +111,14 @@ export function applyMail(p: Player, action: MailAction, now: number, rewardNow:
         boxOf<ReadLetters>(p, 'mail', () => ({}))[period.id] = period.endAt;
         delivered = true;
       }
+    }
+  }
+  for(const letter of solo){
+    if(action.kind==='claim'&&action.id!==letter.id)continue;
+    for(const prize of letter.prizes){
+      if(!claimEvent(p,letter.id,prize.index,'mail',now))continue;
+      delivered=true;
+      boxOf<ReadLetters>(p,'mail',()=>({}))[letter.id]=letter.date;
     }
   }
   const messages = [

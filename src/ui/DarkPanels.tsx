@@ -1,3 +1,4 @@
+import {useRepeatAction} from './useRepeatAction';
 /**
  * Windows of the five dark systems: Dark Realm, Dark Energy gear, gems, relics and companions.
  * Rendered inside the shared DialogShell. Every button calls a real transaction from dark/actions.
@@ -15,10 +16,12 @@ import {resources,resCount,duskCount,type ResId,bonusLines,statNames,statText,
  darkSlots,darkRarity,darkColors,darkState,darkValue,darkEffectOf,darkName,darkScore,darkUpgradeCost,darkMaxUpgrade,darkSalvageValue,darkBonus,darkEffectTotals,darkEffects,darkEffectIds,darkResonance,DARK_STORAGE,type DarkItem,
  gemTypes,gemSlots,gemState,parseGem,gemLabel,gemText,gemBonus,gemSynthGold,socketOpen,socketRules,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicIds,relicLevel,relicRarity,relicColors,relicUnlockCost,relicUpgradeCost,relicCollection,RELIC_MAX,type RelicId,
- squadBonus,companions,companionIds,companionRarity,companionColors,squadState,followerProgress,followerId,FOLLOWER_MAX_LEVEL,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,talentDefs,talentPoints,talentSpent,TALENT_MAX,summonTable,SUMMON,powerParts} from '../dark/rules';
+ squadBonus,companions,companionIds,companionRarity,companionColors,squadState,followerProgress,followerId,FOLLOWER_MAX_LEVEL,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,followerStarCap,talentDefs,talentPoints,TALENT_MAX,powerParts} from '../dark/rules';
 import {blessings,blessingIds,realmRun,realmLast,realmSelected,roomReward,floorName,lordFloor,floorBoss,roomTitles,REALM_COST,ROOMS,type BlessingId,type RealmLast,type RealmTotals} from '../dark/realm';
 import {collectRealmReward,realmSelect,realmStart,realmResume,realmAbandon,darkEquip,darkUnequip,darkUpgrade,darkSalvage,darkSalvageMany,darkBulkList,
- gemInsert,gemRemove,gemSynth,gemSynthAll,gemBuy,relicUnlock,relicUpgrade,summon,petLevel,petLevelCost,petStar,petAwaken,petTalent,petTalentReset,petActivate,petClearReserve,type SummonResult} from '../dark/actions';
+ gemInsert,gemRemove,gemSynth,gemSynthAll,gemBuy,relicUnlock,relicUpgrade,petLevel,petLevelCost,petStar,petAwaken,petTalent,petTalentReset,petActivate,petClearReserve,totalFollowerTalent} from '../dark/actions';
+import {followerEconomy as followerRules,balanceOf} from '../saga/soloEconomy';
+import {followerMarket,freeRefresh,refreshFollowers,buyFollower,exchangeSeal,exchangeFollowerShards,redeemFollowerShards,offerOdds,exchangeAwakeningShards,nextAwakening,advanceAwakening,protectFollower,followerMerge,mergeFollower} from '../dark/followerMarket';
 import './dark.css';
 const fmt=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
 const nameOf=(id:string)=>characters.find(c=>c.id===id)?.name.split(',')[0]??id;
@@ -212,21 +215,32 @@ export function RelicsPanel({p}:{p:Player}){
 
 // ───────────────────────── Companions ─────────────────────────
 export function SquadPanel({p}:{p:Player}){
+ const repeat=useRepeatAction();
  const s=squadState(p);
- const [picked,setPicked]=useState(s.formation[0]),[results,setResults]=useState<SummonResult[]|null>(null);
+ const [picked,setPicked]=useState(s.formation[0]);
+ const [donor,setDonor]=useState(''),[mergeTalent,setMergeTalent]=useState<number|null>(null),[confirm,setConfirm]=useState('');
  const [detail,setDetail]=useState(false),[summoning,setSummoning]=useState(false),[tab,setTab]=useState('level');
  const instance=s.instances[picked];
  const species=instance?.species??(Object.hasOwn(companions,picked)?picked:s.act[0]);
  const def=companions[species],pet=instance?followerProgress(instance,s.shards[species]):s.own[species];
  const own=!!instance,position=s.formation.indexOf(picked),power=companionPower(species,{...pet,lv:Math.max(1,pet.lv)});
- const points=talentPoints(pet)-talentSpent(pet),legacy=picked===followerId(species)?legacyPet(species):-1;
+ const spent=instance?totalFollowerTalent(instance):0,points=Math.max(0,talentPoints(pet)-spent),legacy=picked===followerId(species)?legacyPet(species):-1;
  const attack=stats(p).attack,labels=['Главный','Сопровождение I','Сопровождение II'];
- const inspect=(id:string)=>{setPicked(id);setDetail(true);setTab('level')};
+ const inspect=(id:string)=>{setPicked(id);setDetail(true);setTab('level');setConfirm('');setDonor('');setMergeTalent(null)};
  const roster=companionIds.flatMap(species=>{
   const entries=Object.entries(s.instances).filter(([,pet])=>pet.species===species);
   return entries.length?entries.map(([id],i)=>({id,species,copy:entries.length>1?i+1:0})): [{id:species,species,copy:0}];
  });
- const call=(times:1|10,pay:'seal'|'gems')=>{const r=summon(times,pay);if(r)setResults(r)};
+ const market=followerMarket(p),souls=balanceOf(p,'soul'),seals=resCount(p,'seal');
+ const awake=instance&&nextAwakening(instance),stones=balanceOf(p,'awake'),fragments=balanceOf(p,'awakeShard');
+ const candidates=Object.entries(s.instances).filter(([id,member])=>id!==picked&&member.species===species);
+ const merge=donor?followerMerge(p,picked,donor,mergeTalent):null;
+ const stars=(value:number)=>value?'★ '+value:'без звёзд';
+ const describeTalents=(slots:readonly {rank:number}[])=>slots.map((slot,i)=>slot.rank?'Ячейка '+(i+1)+' · ранг '+slot.rank:null).filter(Boolean).join(', ')||'без талантов';
+ const shards=pet.sh>0&&<div className="bonus-card">
+   <span>Старые осколки · {pet.sh}. Можно потратить на развитие или обменять остаток на {pet.sh*followerRules.shardSouls} Душ.</span>
+   {confirm==='shards'?<div className="squad-placement"><Btn onClick={()=>{if(exchangeFollowerShards(species,pet.sh))setConfirm('')}}>Подтвердить обмен</Btn><Btn onClick={()=>setConfirm('')}>Отмена</Btn></div>:<Btn kind="secondary" onClick={()=>setConfirm('shards')}>Обменять осколки</Btn>}
+  </div>;
  const job=(id:string,pw:{power:number;interval:number})=>companions[id].role==='striker'?`Удар ${fmt(attack*pw.power)} каждые ${pw.interval.toFixed(1).replace('.',',')} сек`:`Лечит ${(Math.min(.45,pw.power)*100).toFixed(0)}% здоровья каждые ${pw.interval.toFixed(1).replace('.',',')} сек`;
  return <div className="squad">
   <DarkWallet p={p} show={['seal']} from="companions"/>
@@ -234,7 +248,7 @@ export function SquadPanel({p}:{p:Player}){
    const member=id?s.instances[id]:null;
    return id&&member?<button key={i} className={picked===id?'selected':''} onClick={()=>inspect(id)} aria-label={`${labels[i]} · ${companions[member.species].name}`}>
     <img src={art(member.species)} alt=""/><small>{labels[i]}</small><strong>{companions[member.species].name}</strong>
-    <span>ур.{member.lv} · {'★'.repeat(member.st)||'без звёзд'}</span>
+    <span>ур.{member.lv} · {stars(member.st)}</span>
    </button>:<div key={i} className="squad-vacancy"><small>{labels[i]}</small><strong>Свободно</strong><span>Выберите в каталоге</span></div>;
   })}</div>
   <div className="squad-bonus">Бонус дружины: {bonusLines(squadBonus(p)).join(' · ')||'звёзды и таланты ещё не развиты'}</div>
@@ -242,7 +256,7 @@ export function SquadPanel({p}:{p:Player}){
   <div className="local-scroll"><div className="squad-grid">{roster.map(({id,species,copy})=>{
    const d=companions[species],o=s.instances[id];
    return <button key={id} className={`${picked===id?'selected':''} ${o?'':'locked'}`} style={{'--rarity':companionColors[d.rarity]} as React.CSSProperties} aria-pressed={picked===id} aria-label={copy?`${d.name}, экземпляр ${copy}`:d.name} onClick={()=>inspect(id)}>
-    <img src={art(species)} alt=""/><small>{o?`ур.${o.lv}${copy?` · №${copy}`:''}`:`${s.shards[species]}/${d.shards}`}</small>{o&&o.st>0&&<em>{'★'.repeat(o.st)}</em>}{s.formation.includes(id)&&<i aria-label="в строю">✓</i>}
+    <img src={art(species)} alt=""/><small>{o?`ур.${o.lv}${copy?` · №${copy}`:''}`:`${s.shards[species]}/${d.shards}`}</small>{o&&o.st>0&&<em>{stars(o.st)}</em>}{s.formation.includes(id)&&<i aria-label="в строю">✓</i>}
    </button>;
   })}</div>
   </div>{detail&&<CardDialog title={def.name} onClose={()=>setDetail(false)} actions={own?<>
@@ -251,30 +265,63 @@ export function SquadPanel({p}:{p:Player}){
      {position===2?<Btn kind="secondary" onClick={()=>petClearReserve(picked)}>Освободить сопровождение II</Btn>:<Btn kind="secondary" onClick={()=>petActivate(picked,2)}>В сопровождение II</Btn>}
     </div>}
     {tab==='level'&&(pet.lv>=FOLLOWER_MAX_LEVEL?<p className="hint">Предел повышения · {FOLLOWER_MAX_LEVEL}</p>:<Btn disabled={p.gold<petLevelCost(pet.lv)} onClick={()=>petLevel(picked)}>Повысить уровень · {fmt(petLevelCost(pet.lv))} золота <small>→ {job(species,companionPower(species,{...pet,lv:pet.lv+1}))}</small></Btn>)}
-    {tab==='stars'&&<Btn kind="secondary" disabled={pet.st>=STAR_MAX||pet.sh<starCost[pet.st]} onClick={()=>petStar(picked)}>{pet.st>=STAR_MAX?'Все 5 звёзд получены':`Звезда ${pet.st+1} · осколки ${pet.sh}/${starCost[pet.st]} · ${job(species,companionPower(species,{...pet,st:pet.st+1}))}`}</Btn>}{tab==='awake'&&(!pet.aw?<><div className="awaken-list"><b>Пробуждение</b><span className={pet.st>=AWAKEN.stars?'ok':''}>Звёзды {pet.st}/{AWAKEN.stars}</span><span className={pet.lv>=AWAKEN.level?'ok':''}>Уровень {pet.lv}/{AWAKEN.level}</span><span className={duskCount(p)>=AWAKEN.dusk?'ok':''}>Камни Сумрака {duskCount(p)}/{AWAKEN.dusk}</span><span className={p.gold>=AWAKEN.gold?'ok':''}>Золото {fmt(AWAKEN.gold)}</span></div><Btn kind="secondary" disabled={pet.st<AWAKEN.stars||pet.lv<AWAKEN.level||duskCount(p)<AWAKEN.dusk||p.gold<AWAKEN.gold} onClick={()=>petAwaken(picked)}>Пробудить · {job(species,companionPower(species,{...pet,aw:true}))}</Btn></>:<p>✓ Спутник пробуждён · +25% силы</p>)}</>:undefined}><div className="pet-card" style={{'--rarity':companionColors[def.rarity]} as React.CSSProperties}>
+    {tab==='stars'&&pet.st<STAR_MAX&&<Btn kind="secondary" disabled={pet.sh<starCost[pet.st]} onClick={()=>petStar(picked)}>Звезда {pet.st+1} · осколки {pet.sh}/{starCost[pet.st]}</Btn>}
+    {tab==='awake'&&!!instance&&awake&&<Btn disabled={pet.st<awake.stars||pet.lv<awake.lv||stones<awake.cost} onClick={()=>advanceAwakening(picked,instance.step)}>Открыть ступень {instance.step+1} · {awake.cost} камней</Btn>}
+    </>:undefined}><div className="pet-card" style={{'--rarity':companionColors[def.rarity]} as React.CSSProperties}>
    {tab!=='talents'&&<>
-   <div className="pet-head"><div className={`pet-portrait ${pet.aw?'awake':''}`}><img src={art(species)} alt={def.name}/></div><div><small>{companionRarity[def.rarity]} · {def.role==='striker'?'боец':'хранитель'}</small><h3>{def.name}{own?` · ур.${pet.lv}`:''}</h3><b className="stars">{'★'.repeat(pet.st)}{'☆'.repeat(STAR_MAX-pet.st)}</b><p>{def.lore}</p></div></div>
+   <div className="pet-head"><div className={`pet-portrait ${pet.aw?'awake':''}`}><img src={art(species)} alt={def.name}/></div><div><small>{companionRarity[def.rarity]} · {def.role==='striker'?'боец':'хранитель'}</small><h3>{def.name}{own?` · ур.${pet.lv}`:''}</h3><b className="stars">{stars(pet.st)}</b><p>{def.lore}</p></div></div>
    <div className="bonus-card">{position===2&&<span><b>Сопровождение II</b> {def.role==='striker'?'Атакует':'Лечит'} по своему интервалу.</span>}
     {!(position===2&&['goose_aviator','brown_white_dog'].includes(species))&&<span><b>{def.traitName}</b> {def.trait}</span>}
     <span><b>{position===2?'Базовое действие':'В бою'}</b> {job(species,power)}</span>{pet.aw&&<span className="on"><b>Пробуждение</b> {def.role==='striker'?'Каждая третья атака бьёт всех врагов на 50%.':'Каждое лечение даёт герою +15% урона на 3 секунды.'}</span>}</div>
    </>}
-   {!own?<><div className="relic-progress"><b>Осколки: {pet.sh}/{def.shards}</b><i><span style={{width:`${Math.min(100,pet.sh/def.shards*100)}%`}}/></i><small>Спутник присоединится, когда наберётся {def.shards} осколков из Призыва.</small></div></>:<>
-    <div className="growth-tabs tabs">{[['level','Уровень'],['stars','Звёзды'],['talents','Таланты'],['awake','Пробуждение']].map(([id,label])=><button key={id} className={tab===id?'selected':''} aria-pressed={tab===id} onClick={()=>setTab(id)}>{label}</button>)}</div>
+   {!own?<><p>Можно приобрести в призыве или использовать сохранённые осколки этого вида.</p>
+    {!!def.shards&&pet.sh>=def.shards&&<Btn onClick={()=>{if(redeemFollowerShards(species,pet.sh))setDetail(false)}}>Призвать за {def.shards} старых осколков</Btn>}{shards}</>:<>
+    <div className="growth-tabs tabs">{[['level','Уровень'],['stars','Звёзды'],['talents','Таланты'],['awake','Пробуждение']].map(([id,label])=><button key={id} className={tab===id?'selected':''} aria-pressed={tab===id} onClick={()=>{setTab(id);setConfirm('')}}>{label}</button>)}</div>
+    {tab==='stars'&&instance&&<div className="bonus-card">
+     <span>Звёзды {pet.st}/{followerStarCap(instance.step)} · объединение с экземпляром того же вида.</span>
+     {legacy<0&&<Btn kind="secondary" onClick={()=>protectFollower(picked,!instance.locked)}>{instance.locked?'Снять защиту':'Защитить от объединения'}</Btn>}
+     {!!candidates.length&&<label>Материал <select value={donor} onChange={e=>{setDonor(e.target.value);setMergeTalent(null);setConfirm('')}}><option value="">Выберите спутника</option>{candidates.map(([id,member],i)=><option key={id} value={id}>Экземпляр {i+1} · ур. {member.lv} · {member.st} зв.</option>)}</select></label>}
+     {donor&&(!merge?<span>Экземпляр в строю, защищён или результат превышает предел звёзд.</span>:<>
+      <span>Расходуется спутник ур. {merge.donor.lv}, {merge.donor.st} зв. · {describeTalents(merge.donor.talents)}.</span>
+      <label>Перенос <select value={mergeTalent??''} onChange={e=>{setMergeTalent(e.target.value===''?null:Number(e.target.value));setConfirm('')}}><option value="">Только звёзды</option>{merge.donor.talents.map((slot,i)=>slot.rank>0&&<option key={i} value={i}>Ячейка {i+1} · ранг {slot.rank}</option>)}</select></label>
+      <span>Результат · ур. {merge.result.lv}, {merge.result.st}/{merge.cap} зв., ступень {merge.result.step} · {describeTalents(merge.result.talents)}.</span>
+      {(merge.donor.lv>1||merge.donor.talents.some(slot=>slot.rank>0))&&<strong>Уровень материала и неперенесённые таланты исчезнут.</strong>}
+      {confirm===merge.quote?<div className="squad-placement"><Btn onClick={()=>{if(mergeFollower(picked,donor,mergeTalent,merge.quote)){setDonor('');setConfirm('')}}}>Подтвердить расход</Btn><Btn onClick={()=>setConfirm('')}>Отмена</Btn></div>:<Btn onClick={()=>setConfirm(merge.quote)}>Объединить</Btn>}
+     </>)}{shards}
+    </div>}
+    {tab==='awake'&&instance&&<div className="bonus-card">
+     <span>Ступень {instance.step}/{followerRules.awakening.length} · открыто {instance.talents.filter(slot=>slot.open).length} ячеек.</span>
+     {awake&&<span>Требуется · ур. {pet.lv}/{awake.lv}, звёзды {pet.st}/{awake.stars}, камни {stones}/{awake.cost}. После повышения · предел {followerStarCap(instance.step+1)} звёзд, {4+Math.floor((instance.step+1)/2)} ячеек.</span>}
+     <Btn kind="secondary" disabled={fragments<followerRules.shardExchange} onClick={()=>exchangeAwakeningShards(fragments)}>Обменять {followerRules.shardExchange} из {fragments} осколков на 1 камень</Btn>
+     {fragments>=followerRules.shardExchange*2&&<Btn kind="secondary" onClick={()=>exchangeAwakeningShards(fragments,Math.floor(fragments/followerRules.shardExchange))}>Обменять на {Math.floor(fragments/followerRules.shardExchange)} камней</Btn>}
+     <details className="saga-disclosure"><summary>Боевой дар спутника {pet.aw?'· открыт':''}</summary>
+      <p>{def.role==='striker'?'Каждая третья атака задевает всех врагов.':'Лечение усиливает урон героя на три секунды.'} Боевой дар даёт +25% силы спутника.</p>
+      {!pet.aw&&<Btn kind="secondary" disabled={pet.lv<AWAKEN.level||pet.st<AWAKEN.stars||duskCount(p)<AWAKEN.dusk||p.gold<AWAKEN.gold} onClick={()=>petAwaken(picked)}>Открыть боевой дар · ур. {AWAKEN.level}, ★ {AWAKEN.stars}, {AWAKEN.dusk} Камней Сумрака, {fmt(AWAKEN.gold)} золота</Btn>}
+     </details>
+    </div>}
     {tab==='talents'&&<><h3>Таланты · свободно очков: {points}</h3>
     <ol className="follower-talents" aria-label="Ячейки талантов">{instance?.talents.map((slot,i)=>{
-     const current=talentDefs[def.role][i];
-     return <li key={i} className={slot.open?'':'locked'}>{current?<div className="talent-row"><div><strong>{current.name} · {slot.rank}/{TALENT_MAX}</strong><small>{current.text}</small></div><button className="action" aria-label={`Изучить ${current.name}`} disabled={points<=0||slot.rank>=TALENT_MAX} onClick={()=>petTalent(picked,i)}>+</button></div>:<span>{slot.open?'Свободная ячейка':`Ячейка ${i+1} закрыта`}</span>}</li>;
+     const current=talentDefs[def.role][i]??{name:'Мастерство '+(i+1),text:def.role==='striker'?'+2,5% силы удара за ранг':'+2,5% силы лечения за ранг'};
+     return <li key={i} className={slot.open?'':'locked'}>{slot.open?<div className="talent-row"><div><strong>{current.name} · {slot.rank}/{TALENT_MAX}</strong><small>{current.text}</small></div><button className="action" aria-label={`Изучить ${current.name}`} disabled={points<=0||slot.rank>=TALENT_MAX} onClick={()=>petTalent(picked,i)}>+</button></div>:<span>{`Ячейка ${i+1} закрыта`}</span>}</li>;
     })}</ol>
-    <p className="hint">Одно очко таланта за каждые 5 уровней спутника.{talentSpent(pet)>0&&<> <button className="link" onClick={()=>petTalentReset(picked)}>Сбросить за 200 золота</button></>}</p>
+    <p className="hint">Одно очко таланта за каждые 5 уровней спутника.{spent>0&&<> <button className="link" onClick={()=>petTalentReset(picked)}>Сбросить за 200 золота</button></>}</p>
     </>}{tab==='level'&&legacy>=0&&<details className="saga-disclosure"><summary>Эволюция и боевая ветвь</summary><CompanionGrowth p={p} pet={legacy as 0|1}/></details>}
    </>}
   </div>
-  </CardDialog>}{summoning&&<CardDialog title="Призыв спутников" onClose={()=>setSummoning(false)} actions={<div className="summon-actions"><Btn disabled={resCount(p,'seal')<SUMMON.seal} onClick={()=>call(1,'seal')}>Призыв · 1 печать</Btn><Btn disabled={resCount(p,'seal')<SUMMON.seal*10} onClick={()=>call(10,'seal')}>×10 · 10 печатей</Btn><Btn kind="secondary" disabled={p.gems<SUMMON.gems} onClick={()=>call(1,'gems')}>Призыв · {SUMMON.gems} самоцветов</Btn><Btn kind="secondary" disabled={p.gems<SUMMON.gems*10} onClick={()=>call(10,'gems')}>×10 · {SUMMON.gems*10} самоцветов</Btn></div>}>
-  <div className="summon"><p>Призыв приносит осколки спутников: новые соратники присоединяются к дружине, а лишние осколки превращаются в звёзды.</p>
-
-   {results&&<div className="summon-results" role="status">{results.map((r,i)=><span key={i} className={r.unlocked?'new':''} style={{'--rarity':companionColors[companions[r.id].rarity],animationDelay:`${i*60}ms`} as React.CSSProperties}><img src={art(r.id)} alt=""/><b>{r.unlocked?'Новый спутник!':`+${r.shards} оск.`}</b><small>{companions[r.id].name}</small></span>)}</div>}
-   <details className="saga-disclosure"><summary>Шансы призыва</summary><div className="bonus-card">{summonTable.map(r=><span key={r.id}><b>{companions[r.id].name}</b> {Math.round(r.chance*100)}% · {r.shards} осколков</span>)}</div></details></div>
-  </CardDialog>}<p className="hint squad-passive">Звёзды и пробуждение каждого спутника усиливают героя, даже когда спутник не в строю: +0,5% здоровья и атаки за звезду.</p>
+  </CardDialog>}{summoning&&<CardDialog title="Призыв спутников" onClose={()=>{setSummoning(false);setConfirm('')}}>
+   <div className="summon">
+    <p>Звёздные души · {fmt(souls)}. Печати · {fmt(seals)}.</p>
+    {confirm==='seal'?<div className="squad-placement"><Btn onClick={()=>{if(exchangeSeal(seals))setConfirm('')}}>Получить {followerRules.sealSouls} Душ за 1 печать</Btn>{seals>1&&<Btn onClick={()=>{if(exchangeSeal(seals,seals))setConfirm('')}}>Обменять все · {fmt(seals*followerRules.sealSouls)} Душ</Btn>}<Btn onClick={()=>setConfirm('')}>Отмена</Btn></div>:<Btn kind="secondary" disabled={!seals} onClick={()=>setConfirm('seal')}>Обменять печать</Btn>}
+    <div className="summon-results">{market.offers.map((offer,i)=>offer?<span key={i} style={{'--rarity':companionColors[companions[offer.species].rarity]} as React.CSSProperties}>
+     <img src={art(offer.species)} alt=""/><b>{companions[offer.species].name}</b><small>{companionRarity[companions[offer.species].rarity]}{offer.guarantee?' · гарантия':''}</small>
+     <Btn disabled={souls<followerRules.prices[companions[offer.species].rarity]||Object.keys(s.instances).length>=followerRules.maxOwned} onClick={()=>buyFollower(i,market.revision)}>{followerRules.prices[companions[offer.species].rarity]} Душ</Btn>
+    </span>:<span key={i}>Куплено</span>)}</div>
+    <p>Легендарное предложение {market.legendary}/{followerRules.legendary}. Мифическое {market.mythic}/{followerRules.mythic} · ожидает новых видов.</p>
+    <p>Бесплатно · {followerRules.freeDaily-market.daily} сегодня, {followerRules.freeWeekly-market.weekly} на этой неделе.</p>
+    {confirm==='refresh'?<div className="squad-placement"><Btn onClick={()=>{if(repeat(()=>refreshFollowers(market.revision,true)))setConfirm('')}}>Отказаться от гарантии и обновить</Btn><Btn onClick={()=>setConfirm('')}>Отмена</Btn></div>:<Btn disabled={!!market.offers.length&&!freeRefresh(market)&&souls<followerRules.refresh} onClick={()=>market.offers.some(offer=>offer?.guarantee)?setConfirm('refresh'):repeat(()=>refreshFollowers(market.revision))}>{!market.offers.length?'Открыть предложения':freeRefresh(market)?'Обновить бесплатно':'Обновить за '+followerRules.refresh+' Душ'}</Btn>}
+    <details className="saga-disclosure"><summary>Шансы обычных предложений</summary><div className="bonus-card">{followerRules.weights.map((_,i)=><span key={i}><b>Место {i+1}</b> {offerOdds(i).map(({id,chance})=>companions[id].name+' '+(chance*100).toFixed(2)+'%').join(' · ')}</span>)}</div></details>
+   </div>
+  </CardDialog>}<p className="hint squad-passive">Лучший экземпляр каждого вида усиливает здоровье и атаку героя на 0,5% за звезду, включая запасных.</p>
  </div>;
 }
 

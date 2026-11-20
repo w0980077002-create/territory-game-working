@@ -1,0 +1,8 @@
+.solo-events { display: grid; gap: .5rem; }
+.solo-board { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: .25rem; padding: 0; list-style: none; }
+.solo-board.fortune { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.solo-board li { display: grid; place-items: center; min-height: 2.25rem; border: 1px solid #a98b58; border-radius: .25rem; background: #183644; color: #f3dcb7; }
+.solo-board li.current { border: 2px solid #f4cd73; background: #423917; }
+.solo-roll { animation: solo-token .3s ease-out; }
+@keyframes solo-token { from { transform: translateY(-.35rem) scale(.8); } }
+@media (prefers-reduced-motion: reduce) { .solo-roll { animation: none; } }

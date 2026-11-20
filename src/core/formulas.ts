@@ -1,3 +1,4 @@
+import {wingRank,wingBonuses} from '../saga/soloProgress';
 import type {Player,Stats,Item} from './types';
 import balance from '../../config/test-balance.v1.json';
 import economy from '../../config/solo-economy.v1.json';
@@ -12,7 +13,8 @@ export function stats(p:Player,rank=honorRank(p)):Stats {
  // Dark Energy, gems, relics and companions: one aggregated bonus, so no percent is ever counted twice.
  const dark=powerBonus(p);hp+=dark.hp;attack+=dark.attack;defense+=dark.defense;
  const wings=p.equipment.wings?.percent;
- hp*=1+(wings?.hp??0)/100; attack*=1+(wings?.attack??0)/100;defense*=1+(wings?.defense??0)/100;
+ const growth=wingBonuses(p.equipment.wings?wingRank(p):0);
+ hp*=1+((wings?.hp??0)+growth.hp)/100;attack*=1+((wings?.attack??0)+growth.attack)/100;defense*=1+((wings?.defense??0)+growth.defense)/100;
  // Saga layer: set bonuses, engravings, named perks and the chosen class build. Old saves have none of them.
  const n=setCounts(p),eng=engraveTotals(p),spec=specId(p);
  hp*=1+p.talents[1]*.05+(p.heroClass==='berserker'?.25:0)+p.companions[0]*.02+(n.stone>=2?.08:0)+eng.vigor*.025+dark.hpPct;

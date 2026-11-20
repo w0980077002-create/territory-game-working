@@ -1,7 +1,6 @@
 import {useState} from 'react';
 import type {Player} from '../core/types';
 import {useGame} from '../core/store';
-import {battle} from '../game/Battle';
 import {actualReward, dailyCalendar, dailyGift, SEASON_STEPS, seasonGoals, seasonTierReward} from '../saga/events';
 import {Icon} from './Icon';
 import {RewardArt, rewardParts} from './RewardArt';
@@ -103,7 +102,7 @@ export function SeasonRewards({p}: {p: Player}) {
           <div><strong>{goal.text}</strong><small>{goal.progress} / {goal.goal}</small></div>
           <RewardArt reward={goal.reward}/>
           <button className={'action' + (complete ? '' : ' secondary')} disabled={goal.claimed}
-            onClick={() => complete ? claim('season:goal:'+goal.id) : goal.route === 'dungeon' ? battle?.startMode('dungeon') : open(goal.route)}>
+            onClick={() => complete ? claim('season:goal:'+goal.id) : open(goal.route==='dungeon'?'lair':goal.route)}>
             {goal.claimed ? 'Получено' : complete ? 'Забрать' : 'Перейти'}
           </button>
         </article>;

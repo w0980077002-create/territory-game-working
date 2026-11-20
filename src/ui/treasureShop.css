@@ -131,8 +131,9 @@
 }
 .reward-piece .icon { width: 39px; height: 39px; filter: drop-shadow(0 3px 3px #151019af); }
 .reward-piece strong { padding: 0 3px; font-size: 11px; line-height: 1.1; white-space: nowrap; text-shadow: 0 1px 2px #150d0d; }
-.reward-art.named .reward-piece { flex: 1 1 0; max-width: 90px; text-align: center; }
-.reward-art.named .reward-piece small { font-size: 10px; color: #eadac1; line-height: 1.16; }
+.reward-art.named { flex-wrap: wrap; }
+.reward-art.named .reward-piece { flex: 1 1 68px; max-width: 90px; text-align: center; }
+.reward-art.named .reward-piece small { max-width: 100%; overflow-wrap: anywhere; font-size: 10px; color: #eadac1; line-height: 1.16; }
 .shop-item-picture .reward-art { align-items: end; gap: 1px; }
 .shop-item-picture .reward-piece { flex: 1 1 0; max-width: 43px; }
 .shop-item-picture .reward-piece .icon { width: min(100%,34px); height: 33px; }

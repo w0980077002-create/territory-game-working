@@ -15,6 +15,7 @@ const featured = ['travel-stipend','region-supplies','expedition-kit','mine-rese
 const compactCoins = new Intl.NumberFormat('ru', {notation:'compact',maximumFractionDigits:1});
 const priceText = (offer: ShopOffer) => `${offer.price.toLocaleString('ru')} ${shopCurrencies[offer.currency].unit}`;
 const limitText = (offer: ShopOffer) => offer.limit === 'daily' ? 'Одна покупка в сутки · обновление в 00:00 UTC'
+  : offer.limit === 'weekly' ? 'Одна покупка в неделю · с понедельника 00:00 UTC'
   : offer.limit === 'once' ? 'Одна покупка на героя' : 'Количество зависит от свободного места в Роге';
 
 export function TreasureShop({p, source, sources}: {

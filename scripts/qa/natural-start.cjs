@@ -71,10 +71,14 @@ const heights={320:568,360:740,390:844,430:932};
   s=await st();assert.ok(s.gold>d0.gold&&s.horn>=d0.horn,'daily gift paid');log('daily gift',d0.gold,'→',s.gold);await page.screenshot({path:`${out}/gift-${W}.png`});
   await closeAll();await tap('Спутники');const c0=await st();
   const seals=async()=>+((await page.locator('body').innerText()).match(/(\d+)\s*Печати/)||[0,0])[1];
-  const sl0=await seals();await tap('Призыв');const one=page.getByRole('button',{name:'Призыв · 1 печать',exact:true});
-  if(sl0>0){await one.dblclick();await page.waitForTimeout(700);assert.match(await page.locator('.summon-results').innerText(),/Новый спутник|оск\./,'summon shows what arrived');
-   await closeAll();await tap('Спутники');assert.equal(await seals(),sl0-1,'a double tap spends one seal');log('summon spent 1 seal')}
-  else{assert.equal(await one.isDisabled(),true,'summon without seals is disabled');log('no seals yet')}
+  const sl0=await seals();await tap('Призыв');
+  const exchange=page.getByRole('button',{name:'Обменять печать',exact:true});
+  if(sl0>0){
+   await exchange.tap();await page.getByRole('button',{name:/Получить 10 Душ за 1 печать/}).dblclick();
+   assert.equal(await seals(),sl0-1,'a double tap exchanges one seal');
+  }else assert.equal(await exchange.isDisabled(),true,'exchange without seals is disabled');
+  await tap('Открыть предложения');
+  assert.equal(await page.locator('.summon-results > span').count(),3);
   assert.equal(c0.panel,'companions');
   // 7. Closing a window resumes only what the window paused; a paused fight stays paused.
   await closeAll();s=await until(s=>s.running,4000,'march resumes after the windows closed');

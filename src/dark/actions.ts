@@ -13,13 +13,13 @@ import {realmRun,realmLast,realmBox,realmDefeat,newRealmRun,realmChoose,blessing
 import {resCount,addRes,duskCount,addDusk,darkState,darkBox,darkUpgradeCost,darkMaxUpgrade,darkSalvageValue,darkEffectOf,darkName,DARK_STORAGE,
  gemState,gemBox,parseGem,gemCode,gemSynthGold,gemSlots,socketOpen,rollGem,gemLabel,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicLevel,relicUnlockCost,relicUpgradeCost,RELIC_MAX,type RelicId,
- companions,squadState,squadBox,followerId,followerProgress,newFollower,raiseFollowerLevel,FOLLOWER_MAX_LEVEL,starCost,STAR_MAX,AWAKEN,talentPoints,talentSpent,TALENT_MAX,rollSummon,SUMMON,resources} from './rules';
+ companions,squadState,squadBox,followerId,followerProgress,newFollower,raiseFollowerLevel,FOLLOWER_MAX_LEVEL,starCost,STAR_MAX,AWAKEN,talentPoints,TALENT_MAX} from './rules';
 const G=()=>useGame.getState();
 const fail=(text:string)=>{G().notice(text);return false};
 /** Validate → mutate (validated again on the fresh clone) → report. */
-function tx(check:(p:Player)=>string|null,apply:(p:Player)=>void,ok?:string){
+function tx(check:(p:Player)=>string|null,apply:(p:Player)=>void,ok?:string,exclusive=false){
  const error=check(G().p);if(error)return fail(error);let done=false;
- if(!G().mutate(p=>{if(check(p))return;apply(p);done=true})||!done)return fail('Не удалось сохранить · попробуйте ещё раз');
+ if(!G().mutate(p=>{if(check(p))return false;apply(p);done=true},exclusive)||!done)return fail('Не удалось сохранить · попробуйте ещё раз');
  haptic(true);if(ok)G().notice(ok);return true;
 }
 // ── Dark Realm ──
@@ -86,42 +86,21 @@ export function relicUpgrade(id:RelicId){
   p=>{const lv=relicLevel(p,id),c=relicUpgradeCost(id,lv);addRes(p,'shard',-c.shard);p.gold-=c.gold;if(c.mats)p.saga!.n[matKey(c.material)]=matCount(p,c.material)-c.mats;relicBoxOf(p).lv[id]=lv+1;bumpCount(p,'relic:up')},'Реликвия усилена');
 }
 // ── Companions ──
-export interface SummonResult {id:string;shards:number;unlocked:boolean}
-export function summon(times:1|10,pay:'seal'|'gems'){
- const cost=pay==='seal'?SUMMON.seal*times:SUMMON.gems*times,results:SummonResult[]=[];
- const ok=tx(p=>pay==='seal'?resCount(p,'seal')<cost?`Нужно ${cost} × ${resources.seal.name}`:null:p.gems<cost?'Недостаточно самоцветов':null,
-  p=>{if(pay==='seal')addRes(p,'seal',-cost);else p.gems-=cost;const box=squadBox(p);
-   const owned=new Set(Object.values(box.instances).map(pet=>pet.species));
-   for(let n=0;n<times;n++){
-    const roll=rollSummon(),def=companions[roll.id];
-    box.shards[roll.id]+=roll.shards;
-    const unlocked=!owned.has(roll.id)&&box.shards[roll.id]>=def.shards;
-    if(unlocked){
-     box.shards[roll.id]-=def.shards;
-     box.instances[followerId(roll.id)]=newFollower(roll.id);
-     owned.add(roll.id);
-    }
-    results.push({...roll,unlocked});
-   }
-   bumpCount(p,'summon',times)});
- return ok?results:null;
-}
-
 const instanceId=(id:string)=>Object.hasOwn(companions,id)?followerId(id):id;
-function petAction(id:string,check:(pet:ReturnType<typeof followerProgress>,p:Player)=>string|null,
+function petAction(id:string,check:(pet:ReturnType<typeof followerProgress>,p:Player,instance:ReturnType<typeof newFollower>)=>string|null,
  apply:(box:ReturnType<typeof squadBox>,id:string,p:Player)=>void,message?:string){
  const key=instanceId(id);
  return tx(p=>{
   const box=squadState(p);
   const pet=Object.hasOwn(box.instances,key)?box.instances[key]:undefined;
-  return pet?check(followerProgress(pet,box.shards[pet.species]),p):'Спутник ещё не призван';
- },p=>apply(squadBox(p),key,p),message);
+  return pet?check(followerProgress(pet,box.shards[pet.species]),p,pet):'Спутник ещё не призван';
+ },p=>apply(squadBox(p),key,p),message,true);
 }
 
 export const petLevelCost=(level:number)=>120*level;
 export function petLevel(id:string){
  return petAction(id,(pet,p)=>pet.lv>=FOLLOWER_MAX_LEVEL?'Достигнут предел уровня':p.gold<petLevelCost(pet.lv)?'Недостаточно золота':null,
-  (box,key,p)=>{const cost=petLevelCost(box.instances[key].lv);if(raiseFollowerLevel(p,key,box))p.gold-=cost},'Уровень спутника повышен');
+  (box,key,p)=>{const cost=petLevelCost(box.instances[key].lv);if(raiseFollowerLevel(p,key,box)){p.gold-=cost;bumpCount(p,'carnival:companion')}},'Уровень спутника повышен');
 }
 export function petStar(id:string){
  return petAction(id,pet=>pet.st>=STAR_MAX?'Достигнуто 5 звёзд':pet.sh<starCost[pet.st]?`Нужно ${starCost[pet.st]} осколков спутника`:null,
@@ -131,14 +110,15 @@ export function petAwaken(id:string){
  return petAction(id,(pet,p)=>pet.aw?'Спутник уже пробуждён':pet.st<AWAKEN.stars?`Нужно ${AWAKEN.stars} звезды`:pet.lv<AWAKEN.level?`Нужен ${AWAKEN.level} уровень спутника`:duskCount(p)<AWAKEN.dusk?`Нужно ${AWAKEN.dusk} × Камень Сумрака`:p.gold<AWAKEN.gold?'Недостаточно золота':null,
   (box,key,p)=>{addDusk(p,-AWAKEN.dusk);p.gold-=AWAKEN.gold;box.instances[key].aw=true;bumpCount(p,'pet:awaken')},'Пробуждение свершилось!');
 }
+export const totalFollowerTalent=(instance:ReturnType<typeof newFollower>)=>instance.talents.reduce((sum,slot)=>sum+slot.rank,0);
 export function petTalent(id:string,index:number){
- if(!Number.isInteger(index)||index<0||index>2)return false;
- return petAction(id,pet=>pet.t[index]>=TALENT_MAX?'Талант изучен полностью':talentSpent(pet)>=talentPoints(pet)?'Нет свободных очков · очко за каждые 5 уровней':null,
-  (box,key)=>{box.instances[key].talents[index].rank++});
+ if(!Number.isInteger(index)||index<0||index>7)return false;
+ return petAction(id,(pet,_p,instance)=>!instance.talents[index].open?'Ячейка закрыта':instance.talents[index].rank>=TALENT_MAX?'Талант изучен полностью':totalFollowerTalent(instance)>=talentPoints(pet)?'Нет свободных очков · очко за каждые 5 уровней':null,
+  (box,key)=>{const slot=box.instances[key].talents[index];if(index>=3)slot.type='growth:'+index;slot.rank++});
 }
 export function petTalentReset(id:string){
- return petAction(id,(pet,p)=>!talentSpent(pet)?'Очки не распределены':p.gold<200?'Нужно 200 золота':null,
-  (box,key,p)=>{p.gold-=200;for(const slot of box.instances[key].talents.slice(0,3))slot.rank=0},'Таланты сброшены');
+ return petAction(id,(_pet,p,instance)=>!totalFollowerTalent(instance)?'Очки не распределены':p.gold<200?'Нужно 200 золота':null,
+  (box,key,p)=>{p.gold-=200;for(const slot of box.instances[key].talents)slot.rank=0},'Таланты сброшены');
 }
 export function petActivate(id:string,position?:0|1|2){
  const key=instanceId(id);
