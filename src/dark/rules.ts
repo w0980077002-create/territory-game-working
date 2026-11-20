@@ -252,6 +252,7 @@ export function squadBox(p:Player):FollowerSave{
  return squad;
 }
 export function migrateSquad(p:Player){
+ if(!p.saga)return;
  if(peekBox(p,'squad')||p.companions.some(level=>level>1))squadBox(p);
 }
 

@@ -24,6 +24,23 @@ test('old saves without dark data keep exactly the same hero and read as empty s
  assert.deepEqual(R.darkState(legacy).inv,[]);assert.equal(R.darkState(legacy).eq.length,12);assert.deepEqual(R.squadState(legacy).act,['goose_aviator','brown_white_dog']);assert.equal(realm.realmRun(legacy),undefined);
  assert.equal(before.reduction,0);
 });
+test('legacy follower levels without Saga do not activate relic bonuses on read or import',()=>{
+ const old=freshPlayer();
+ old.companions=[2,3];
+ old.relic=5;
+ const snapshot=(p:ReturnType<typeof freshPlayer>)=>({
+  stats:stats(p),combat:R.squadCombat(p),aura:R.combatAura(p),formation:R.squadState(p).formation,
+ });
+ const original=snapshot(old);
+ const parsed=parseSave(JSON.stringify(old),true)!;
+ const reread=parseSave(JSON.stringify(parsed),true)!;
+ assert.ok(G().importSave(old));
+ const imported=reload();
+ for(const p of [parsed,reread,imported]){
+  assert.deepEqual(snapshot(p),original);
+  assert.equal(p.saga,undefined);
+ }
+});
 test('damaged dark boxes never crash, duplicate or leak invalid values into stats',()=>{
  give(p=>{sagaOf(p).box.dgear={inv:[item({id:'a'}),item({id:'a'}),{id:'x',s:99,r:1,l:1,u:0},'junk',item({id:'b',u:999})],eq:[item({id:'a',s:0}),item({id:'c',s:5})]};sagaOf(p).box.gems={bag:{'ruby:1':-4,'ruby:99':3,'bogus:1':2,'topaz:2':2},sock:{weapon:['ruby:1','ruby:2','nope'],wings:['ruby:1']}};sagaOf(p).box.squad={own:{goose_aviator:{st:77,t:['x',9,1]},ghost:{lv:5}},act:['brown_white_dog','ghost']};sagaOf(p).box.realm={run:{f:50,r:1,b:'fury'},last:'bad'};sagaOf(p).box.relics={lv:{horn:400,heart:3,nope:2}}});
  const p=reload(),d=R.darkState(p);assert.deepEqual(d.eq.filter(Boolean).map(i=>i!.id),['a']);assert.deepEqual(d.inv,[]);
