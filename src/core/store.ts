@@ -6,7 +6,8 @@ import {slots,slotNames,rarityNames} from '../data/catalog';
 import {itemPower,stats,xpNeeded,odinCallMaxLevel} from './formulas';
 import {cloudSave,haptic,readCloud} from './telegram';
 import {lootStorageNotice,observeLootSave} from './lootStorage';
-import {SAVE_KEY,telegramProfile,carnivalNow} from './profile';
+import {SAVE_KEY,telegramProfile,carnivalNow,mailAcceptanceProfile} from './profile';
+import {acceptedMailCarnival} from '../qa/mailAcceptance';
 export {SAVE_KEY,isolatedProfile} from './profile';
 import {validEncounter} from '../game/snapshot';
 import {uniques,uniqueOf,namedDrop,gearRules} from './gear';
@@ -57,7 +58,7 @@ export function parseSave(raw:string|null,strictEncounter=false):Player|null {if
 
 let recoveryRequired=false;
 let observedRaw:string|null=null;
-function read(){if(typeof localStorage==='undefined')return freshPlayer();try{const raw=localStorage.getItem(SAVE_KEY),saved=parseSave(raw,true);if(raw&&!saved){recoveryRequired=true;return freshPlayer()}observedRaw=raw;return saved??freshPlayer()}catch{recoveryRequired=true;return freshPlayer()}}
+function read(){if(typeof localStorage==='undefined')return freshPlayer();try{const raw=localStorage.getItem(SAVE_KEY),saved=parseSave(raw,true);if(raw&&!saved){recoveryRequired=true;return freshPlayer()}observedRaw=raw;if(saved)return saved;const player=freshPlayer();if(mailAcceptanceProfile)player.carnival=acceptedMailCarnival(player);return player}catch{recoveryRequired=true;return freshPlayer()}}
 export function unreadableSave(){try{const raw=localStorage.getItem(SAVE_KEY);return raw&&!parseSave(raw,true)?raw:localStorage.getItem(SAVE_KEY+':unreadable-cloud')??raw??''}catch{return ''}}
 function xp(p:Player,amount:number){p.xp+=amount;while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++;}}
 export function hornRefillDue(p:Pick<Player,'horn'|'hornAt'>,now=Date.now()){

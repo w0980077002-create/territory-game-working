@@ -15,10 +15,13 @@ const inviteUrl = 'https://t.me/VikingRomeGame';
   const context = await browser.newContext({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
   await context.route('https://telegram.org/**', route => route.fulfill({ body: '', contentType: 'application/javascript' }));
   await context.addInitScript(() => {
-   if (!new URLSearchParams(location.search).has('miniapp')) return;
+   const params = new URLSearchParams(location.search);
+   if (!params.has('miniapp')) return;
+   const initData = new URLSearchParams({user:JSON.stringify({id:1234567})});
+   if(params.has('mail-acceptance'))initData.set('start_param','mail_acceptance');
    window.mockCloud = { reads: 0, writes: 0 };
    window.Telegram = { WebApp: {
-    initData: new URLSearchParams({ user: JSON.stringify({id:1234567}) }).toString(),
+    initData: initData.toString(),
     ready() {}, expand() {},
     CloudStorage: {
      getItem(key, done) {
@@ -153,8 +156,40 @@ const inviteUrl = 'https://t.me/VikingRomeGame';
   await page.evaluate(() => window.__lootborn.useGame.getState().open('friends'));
   await page.getByRole('dialog', {name:'Поделиться игрой'}).waitFor();
   await verifyInvite();
+
+  const acceptanceKey = browserKey + ':test:mail-acceptance';
+  const ownerCopy = await read(telegramKey);
+  const ownerBrowser = await read(browserKey);
+  const ownerCloud = await page.evaluate(() => Object.entries(localStorage).filter(([key])=>key.startsWith('mock:save_')).sort());
+  await page.goto(base + '?miniapp=1&mail-acceptance=1');
+  await page.waitForFunction(() => window.__lootborn?.battle);
+  await tap('Меню');
+  await page.locator('.mail-entry').tap();
+  const inbox = page.getByRole('dialog',{name:'Почта',exact:true});
+  const letter = inbox.locator('.mail-letter');
+  assert.equal(await letter.count(), 1);
+  assert.equal(await letter.getAttribute('data-unread'), 'true');
+  await letter.tap();
+  const attachment = page.getByRole('dialog',{name:'Награды карнавала',exact:true});
+  assert.ok(await attachment.locator('.reward-piece').count() >= 4, 'the archived carnival provides varied attachments');
+  const beforeClaim = await read(acceptanceKey);
+  await attachment.getByRole('button',{name:'Забрать',exact:true}).tap();
+  await attachment.locator('.mail-delivered').waitFor();
+  const afterClaim = await read(acceptanceKey);
+  assert.ok(afterClaim.gold > beforeClaim.gold && afterClaim.gems > beforeClaim.gems);
+  const noCloud = () => page.evaluate(() => window.mockCloud);
+  assert.deepEqual(await noCloud(), {reads:0,writes:0}, 'the acceptance hero bypasses the production Telegram cloud');
+  await page.reload();
+  await page.waitForFunction(() => window.__lootborn?.battle);
+  await tap('Меню');
+  await page.locator('.mail-entry').tap();
+  assert.equal(await inbox.getByRole('button',{name:'Забрать всё'}).isDisabled(), true);
+  assert.deepEqual(await read(telegramKey), ownerCopy);
+  assert.deepEqual(await read(browserKey), ownerBrowser);
+  assert.deepEqual(await page.evaluate(() => Object.entries(localStorage).filter(([key])=>key.startsWith('mock:save_')).sort()), ownerCloud);
+  assert.deepEqual(await noCloud(), {reads:0,writes:0});
   assert.deepEqual(errors, []);
-  console.log('Telegram bridge: restore, backup, reload, isolated Chrome progress, conflict and offline protection; both invitation routes');
+  console.log('Telegram bridge: restore, backup, reload, conflict and offline protection, invitation routes and isolated mail acceptance');
  } finally {
   await browser.close();
  }
