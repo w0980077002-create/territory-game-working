@@ -67,6 +67,10 @@ async function verifyMail(page,width) {
  await tools.getByRole('button',{name:'Экспорт сохранения',exact:true}).waitFor();
  await tools.getByRole('button',{name:'К меню',exact:true}).tap();
  await settings.getByRole('button',{name:'Закрыть',exact:true}).tap();
+ await settings.waitFor({state:'detached'});
+ // The close button and the envelope are close on short screens. Start a new tap
+ // after the viewport's deliberate protection against a double tap through a closing dialog.
+ await page.waitForTimeout(350);
  await openMail();
  const inbox = page.getByRole('dialog',{name:'Почта',exact:true});
  const letters = inbox.locator('.mail-letter');
