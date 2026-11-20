@@ -89,9 +89,9 @@
 .awaken-list{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:8px}.awaken-list b{flex-basis:100%;font:700 14px Georgia,serif;color:#f0dfb0}.awaken-list span{padding:3px 8px;border-radius:12px;border:1px solid #6b4a45;background:#1d1414;font-size:11px;color:#ffb1a5}.awaken-list span.ok{border-color:#4f9b63;background:#132018;color:#9fe9b2}
 .talent-row{display:grid;grid-template-columns:1fr 52px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #ffffff12}.talent-row strong{display:block;font-size:13px;color:#efe6cf}.talent-row small{font-size:11px;color:#a8b3ad}.saga-modal .talent-row .action{margin:0;padding:6px;font-size:18px}
 .summon{padding:4px 10px 8px;border:1px solid #3f7f78;border-radius:11px;background:radial-gradient(100% 70% at 50% 0,#9ff3e01f,transparent),#11171a}
-.summon-results{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:8px 0}
-.summon-results span{min-width:0;padding:4px 2px;border-radius:9px;border:2px solid var(--rarity);background:#0e1216;display:grid;justify-items:center;animation:summon-pop .4s cubic-bezier(.2,1.5,.4,1) both}
-.summon-results img{height:44px;max-width:100%;object-fit:contain}.summon-results b{font-size:10.5px;color:#ffe08a}.summon-results small{font-size:9px;color:#aab5b5;line-height:1.1;text-align:center}.summon-results .new{box-shadow:0 0 14px var(--rarity)}
+.summon-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:8px 0}
+.summon-results span{min-width:0;padding:4px 2px;border-radius:9px;border:2px solid var(--rarity,#624e36);background:#0e1216;display:grid;justify-items:center;align-content:start;text-align:center;overflow-wrap:anywhere;animation:summon-pop .4s cubic-bezier(.2,1.5,.4,1) both}
+.summon-results img{height:44px;max-width:100%;object-fit:contain}.summon-results b{font-size:10.5px;color:#ffe08a}.summon-results small{font-size:9px;color:#aab5b5;line-height:1.1;text-align:center}.summon-results .action{min-width:0;padding-inline:3px;font-size:11px}
 @keyframes summon-pop{from{transform:scale(.4) rotate(-12deg);opacity:0}}
 /* Hub tiles */
 .dark-hub{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:8px 0}
