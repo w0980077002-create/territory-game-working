@@ -7,6 +7,15 @@ import {boxOf, peekBox} from './save';
 type ReadLetters = Record<string, number>;
 const readLetters = (p: Player) => peekBox<ReadLetters>(p, 'mail');
 
+interface MailLetter {
+  id: string;
+  date: number;
+  read: boolean;
+  pending: boolean;
+  reward: Reward;
+  gear?: ReturnType<typeof carnivalMailPrizes>[number]['gear'];
+}
+
 export function unreadMail(p: Player, now: number) {
   const read = readLetters(p);
   return carnivalMailPeriods(p, now).filter(period => read?.[period.id] !== period.endAt).length;
@@ -32,7 +41,7 @@ function totalReward(prizes: ReturnType<typeof carnivalMailPrizes>): Reward {
   return total;
 }
 
-export function mailbox(p: Player, now: number) {
+export function mailbox(p: Player, now: number): MailLetter[] {
   const read = readLetters(p);
   const pending = carnivalMailPeriods(p, now).map(period => {
     const prizes = carnivalMailPrizes(period);
