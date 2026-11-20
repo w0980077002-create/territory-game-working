@@ -2,6 +2,7 @@
  * Player actions of the saga systems. Every action validates, then changes the save in ONE store mutation
  * and reports the result, so a double tap or a reload can never pay or charge twice.
  */
+import {forgeLevel} from '../core/forge';
 import {useGame,makeItem,asSetItem,addLoot,mayStartLoot,salvageYield} from '../core/store';
 import type {Item,Player,Slot,HeroClass} from '../core/types';
 import balance from '../../config/test-balance.v1.json';
@@ -18,7 +19,7 @@ const saveFailed=()=>fail('Не удалось сохранить · попро�
 /** The material a forge job uses: the current region's first, otherwise the fullest stock that can pay. */
 export function payMaterial(p:Player,need:number){const own=materialIds[regionIndex(p.stage)%6];if(matCount(p,own)>=need)return own;return [...materialIds].sort((a,b)=>matCount(p,b)-matCount(p,a)).find(id=>matCount(p,id)>=need)??own}
 const spend=(p:Player,id:string,n:number)=>{p.saga!.n[matKey(id)]=matCount(p,id)-n};
-export const forgeLevel=(p:Player)=>Math.max(1,p.level+Math.floor(p.forge/3));
+export {forgeLevel} from '../core/forge';
 /** Reforging raises an item to the forge's current level and keeps its name, rarity, upgrades, set and perk. */
 export function reforgePlan(item:Item,p:Player){
  const target=forgeLevel(p);if(item.slot==='wings'||item.level>=target)return null;

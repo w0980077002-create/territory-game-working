@@ -15,9 +15,11 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await open('hero');await page.locator('summary').filter({hasText:/^Сохранённые сборки$/}).tap();
   for(let i=0;i<3;i++)await page.getByRole('button',{name:'Сохранить',exact:true}).nth(i).tap();
   await page.getByRole('button',{name:'Надеть',exact:true}).last().scrollIntoViewIfNeeded();await check('saved-builds');
-  await open('quests');for(const name of ['День','Неделя','Сага','Мастерство']){await page.locator('.quest-board .tabs').getByRole('button',{name:new RegExp('^'+name)}).tap();await check('quests-'+name)}
+  await open('quests');for(const name of ['День','Неделя','Сага']){await page.locator('.quest-board .tabs').getByRole('button',{name:new RegExp('^'+name)}).tap();await check('quests-'+name)}
   await page.locator('summary').filter({hasText:/^Цели охоты и источники добычи$/}).tap();await page.locator('.hunt-goals').scrollIntoViewIfNeeded();await check('hunt-sources');
   await page.locator('summary').filter({hasText:/^Именные трофеи саги$/}).tap();await page.locator('.hunt-item').last().scrollIntoViewIfNeeded();await check('trophy-guide');
+  await page.getByRole('button',{name:'Достижения',exact:true}).tap();await check('quests-mastery');
+  await page.getByRole('button',{name:'Путь героя',exact:true}).tap();await check('quests-hero-path');
   await open('forge');await page.getByRole('button',{name:'Создание',exact:true}).tap();
   const sets=page.getByRole('group',{name:'Комплекты для ковки'}),masters=page.getByRole('group',{name:'Мастера кузницы'});
   for(const [i,name] of ['frost','storm','rune','stone','legion','ember'].entries()){await sets.getByRole('button').nth(i).tap();await page.locator('.material-row').scrollIntoViewIfNeeded();await check('recipe-'+name)}
@@ -130,7 +132,7 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await offer('summon-seal').getByText('Сегодня куплено').waitFor();
   await category('Материалы');
   await offer('forge-parcel').getByText('Сегодня куплено').waitFor();
-  await open('events');await check('event-rewards-ready');await page.getByRole('button',{name:'Забрать награду',exact:true}).tap();await check('event-reward-claimed');
+  await open('events');await check('event-showcase');await page.getByRole('button',{name:/^Северный сезон/}).tap();await check('event-rewards-ready');await page.getByRole('button',{name:'Забрать награду',exact:true}).tap();await check('event-reward-claimed');
   await page.getByRole('button',{name:/Этап 10/}).tap();
   await page.getByText('Финальная награда',{exact:true}).waitFor();
   await page.evaluate(()=>window.__lootborn.useGame.getState().mutate(p=>{p.inventory.pop()}));

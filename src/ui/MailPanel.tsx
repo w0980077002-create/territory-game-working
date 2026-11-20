@@ -1,3 +1,4 @@
+import {CompactFilter} from './CompactFilter';
 import {useState} from 'react';
 import {carnivalNow} from '../core/profile';
 import {useGame} from '../core/store';
@@ -55,14 +56,11 @@ export function MailPanel({p}: {p:Player}) {
       {letter.pending && <div className="mail-attachments">
         <RewardArt reward={letter.reward}/>
         {letter.chests?.map((name,i)=><p key={i}>{name} · сундук появится в Событиях</p>)}
-        {gear && <label className="mail-gear" style={{'--item-trim':rarityColors[gear.rarity]} as React.CSSProperties}>
+        {gear && <div className="mail-gear" style={{'--item-trim':rarityColors[gear.rarity]} as React.CSSProperties}>
           <Icon name={slot ? gearIcon(slot) : 'chest'}/>
           <span><strong>{sets[gear.set].name} × 1</strong><small>{rarityNames[gear.rarity]} · ур. {gear.level}</small></span>
-          <select aria-label="Слот награды" value={slot ?? ''} onChange={event=>setSlot(event.target.value as Slot || undefined)}>
-            <option value="">Выберите слот</option>
-            {gear.slots.map(value => <option key={value} value={value}>{slotNames[value]}</option>)}
-          </select>
-        </label>}
+          <CompactFilter label="Слот награды" value={slot??''} options={[{value:'',label:'Выберите слот',icon:'chest'},...gear.slots.map(value=>({value,label:slotNames[value],icon:gearIcon(value)}))]} onChange={value=>setSlot((value||undefined) as Slot|undefined)}/>
+        </div>}
       </div>}
     </CardDialog>}
   </DialogShell>;

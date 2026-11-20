@@ -61,6 +61,7 @@ const heights={320:568,360:740,390:844,430:932};
   }else log('no unprotected weak item to salvage yet');
   // 6. Hero growth with earned gold: skill upgrade, quest reward (double tap), daily gift, summon.
   await closeAll();await tap('Навыки');const sk0=(await st()).skills,g1=(await st()).gold;
+  await tap(/^Сокрушительный удар/,{exact:false});
   await page.getByRole('button',{name:/^Улучшить · \d+ золота/}).first().tap();await page.waitForTimeout(400);
   s=await st();assert.ok(s.skills[0]===sk0[0]+1&&s.gold<g1,'skill level paid with gold');
   await closeAll();await tap('Задания');const q0=await st();
@@ -107,7 +108,7 @@ const heights={320:568,360:740,390:844,430:932};
    assert.equal((await st()).panel,'realm','claim returns to the floor list');await closeAll();
    // A gem from the realm: a double tap on «Вставить» must not hit the «Извлечь» that replaces it.
    await tap('Карта');await tap('Камни');const insert=page.getByRole('button',{name:'Вставить',exact:true}).first();
-   if(await insert.count()){await insert.dblclick();await page.waitForTimeout(500);assert.match((await st()).toast,/Камень вставлен/,'gem stays socketed after a double tap');log('gem socketed')}
+   if(await page.locator('.gem-catalog button').count()){await page.locator('.gem-catalog button').first().tap();await insert.dblclick();await page.waitForTimeout(500);assert.match((await st()).toast,/Камень вставлен/,'gem stays socketed after a double tap');log('gem socketed')}
    await closeAll();
   }
   // 10. Reload keeps everything earned and does not restart the fight on its own.

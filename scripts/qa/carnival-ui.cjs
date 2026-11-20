@@ -70,8 +70,8 @@ async function scenario(browser,width,height){
       }
       dlg=await carnival(page);
       const final=dlg.getByRole('region',{name:'Главный приз карнавала'});
-      const select=final.getByLabel('Место экипировки');
-      await select.selectOption('ring1');
+      await final.getByRole('button',{name:/Место экипировки:/}).tap();
+      await dlg.getByRole('option',{name:'Кольцо I',exact:true}).tap();
       const gems=(await read(page)).gems;
       await final.getByRole('button',{name:'Забрать главный приз'}).dblclick();
       assert.match(await final.innerText(),/Приз получен/);
@@ -86,7 +86,7 @@ async function scenario(browser,width,height){
       await page.clock.setFixedTime(Date.UTC(2027,0,1,12));
       await page.reload();
       dlg=await carnival(page);
-      await dlg.getByLabel('Период').selectOption('2026-12');
+      await dlg.getByRole('button',{name:/^Период:/}).tap();await dlg.getByRole('option',{name:/2026-12/}).tap();
       assert.match(await dlg.getByRole('timer').innerText(),/Награды прошлых карнавалов/);
       await dlg.getByRole('button',{name:/Порог 200/}).tap();
       await dlg.locator('.carnival-tier').getByRole('button',{name:'Забрать',exact:true}).tap();

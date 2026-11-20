@@ -81,7 +81,7 @@ export function relicUnlock(id:RelicId){
 }
 function relicBoxOf(p:Player){const lv:Record<string,number>={};for(const id of Object.keys(relics) as RelicId[])if(id!=='heart'&&relicLevel(p,id)>0)lv[id]=relicLevel(p,id);p.saga??={v:1,seen:[],trophies:[],n:{},flags:[],box:{}};p.saga.box.relics={lv};return p.saga.box.relics as {lv:Record<string,number>}}
 export function relicUpgrade(id:RelicId){
- if(id==='heart'){G().train('relic');return true}
+ if(id==='heart')return G().train('relic');
  return tx(p=>{const lv=relicLevel(p,id),c=relicUpgradeCost(id,lv);return lv<=0?'Сначала откройте реликвию':lv>=RELIC_MAX?'Реликвия на высшем уровне':resCount(p,'shard')<c.shard?`Нужно ${c.shard} осколков реликвий`:p.gold<c.gold?'Недостаточно золота':matCount(p,c.material)<c.mats?`Нужно ${c.mats} × ${materials[c.material].name}`:null},
   p=>{const lv=relicLevel(p,id),c=relicUpgradeCost(id,lv);addRes(p,'shard',-c.shard);p.gold-=c.gold;if(c.mats)p.saga!.n[matKey(c.material)]=matCount(p,c.material)-c.mats;relicBoxOf(p).lv[id]=lv+1;bumpCount(p,'relic:up')},'Реликвия усилена');
 }

@@ -341,3 +341,23 @@ test('both level entry points enforce 100 without reducing veteran levels or cha
  assert.deepEqual(P().companions,[100,137]);
  assert.equal(R.squadState(reload()).instances[dog].lv,137);
 });
+
+test('Heart of the Glacier reports insufficiency and failed saves without altering a veteran relic',()=>{
+ give(p=>{p.relic=420;p.gold=126_299});
+ const power=stats(P()).attack;
+ assert.equal(A.relicUpgrade('heart'),false);
+ assert.equal(P().gold,126_299);
+ assert.equal(P().relic,420);
+ give(p=>{p.gold=126_300});
+ const write=localStorage.setItem;
+ try{
+  localStorage.setItem=()=>{throw new Error('quota')};
+  assert.equal(A.relicUpgrade('heart'),false);
+  assert.equal(P().gold,126_300);
+  assert.equal(P().relic,420);
+  assert.equal(stats(P()).attack,power);
+ }finally{localStorage.setItem=write}
+ assert.equal(A.relicUpgrade('heart'),true);
+ assert.equal(P().gold,0);
+ assert.equal(reload().relic,421);
+});

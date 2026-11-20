@@ -1,8 +1,29 @@
-.solo-events { display: grid; gap: .5rem; }
-.solo-board { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: .25rem; padding: 0; list-style: none; }
-.solo-board.fortune { grid-template-columns: repeat(4,minmax(0,1fr)); }
-.solo-board li { display: grid; place-items: center; min-height: 2.25rem; border: 1px solid #a98b58; border-radius: .25rem; background: #183644; color: #f3dcb7; }
-.solo-board li.current { border: 2px solid #f4cd73; background: #423917; }
-.solo-roll { animation: solo-token .3s ease-out; }
-@keyframes solo-token { from { transform: translateY(-.35rem) scale(.8); } }
-@media (prefers-reduced-motion: reduce) { .solo-roll { animation: none; } }
+.solo-events{display:grid;gap:7px}
+.solo-board{--edge:6;display:grid;grid-template-columns:repeat(var(--edge),minmax(0,1fr));grid-auto-rows:minmax(40px,auto);gap:3px;padding:0;margin:5px 0 8px}
+.solo-board.fortune{--edge:4;grid-auto-rows:minmax(49px,auto)}
+.board-cell{position:relative;display:grid;justify-items:center;align-content:center;gap:0;min-width:0;min-height:40px;padding:1px;border:1px solid #a98b58;border-radius:5px;background:#19333a;color:#f3dcb7}
+.board-cell>.icon{width:23px;height:23px}
+.board-cell>.board-marker{position:absolute;top:0;right:0;width:17px;height:17px;background:#22303a;border:1px solid #ebc77c;border-radius:50%}
+.board-cell.current,.board-cell[aria-pressed=true]{border:2px solid #f4cd73;background:#44391e}
+.board-cell>small{font-size:10px}
+.board-centre{grid-area:2/2/6/6;display:grid;place-content:center;justify-items:center;gap:2px;text-align:center;border-radius:5px;background:linear-gradient(#164657a6,#162930),var(--saga-iron);padding:4px;min-width:0;overflow-wrap:anywhere}
+.fortune .board-centre{grid-area:2/2/4/4;background:#372623}
+.board-centre>.icon{width:40px;height:40px}
+.board-centre>div{display:flex;align-items:center;gap:3px;font-size:11px}
+.board-centre>div>.icon{width:17px;height:17px}
+.board-centre .action{min-height:40px;padding:3px 5px;margin:0;font-size:12px;width:auto}
+.board-centre small{font-size:10px}
+.board-inspect{display:flex;align-items:center;gap:6px;font-size:12px;padding:5px;border:1px solid #856d4c;border-radius:5px}
+.board-inspect .reward-art{flex:1}
+.event-top{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:13px}
+.event-top>.game-metric{font-size:12px;min-height:40px}
+.event-thresholds{display:grid;gap:4px;margin-top:7px}
+.event-threshold{display:grid;grid-template-columns:42px 1fr auto auto;align-items:center;gap:4px;min-height:44px;padding:3px 5px;border:1px solid #725c42;border-radius:6px;background:#302726}
+.event-threshold[data-ready=true]{border-color:#dcab5a}
+.event-threshold .reward-art{grid-column:2;justify-content:flex-start;min-width:0}
+.event-threshold>.action,.event-threshold>small{grid-column:4;margin:0}
+.event-threshold>.action{min-height:40px;padding:3px 6px}
+.event-threshold .reward-piece>.icon,.event-threshold .chest-reward>.icon{width:23px;height:23px}
+.solo-roll{animation:solo-token .3s ease-out}
+@keyframes solo-token{from{transform:translateY(-.35rem) scale(.8)}}
+@media(prefers-reduced-motion:reduce){.solo-roll{animation:none}}

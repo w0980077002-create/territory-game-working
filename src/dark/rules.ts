@@ -140,7 +140,7 @@ export const RELIC_MAX=10;
 const lairWins=(p:Player)=>p.saga?.n['win:dungeon']??0;
 const goal=(have:number,need:number,text:string)=>({ok:have>=need,text:`${text} · ${Math.min(have,need)}/${need}`});
 export const relics:Record<RelicId,RelicDef>={
- heart:{name:'Сердце ледника',rarity:0,icon:'gem',material:'ice',lore:'Первая реликвия Севера. Растёт без предела.',ability:lv=>`+${lv*3}% атаки героя`,need:()=>({ok:true,text:'Получена в начале пути'})},
+ heart:{name:'Сердце ледника',rarity:0,icon:'gem',material:'ice',lore:'Первая реликвия Севера. Растёт без предела.',ability:lv=>`Вклад в множитель атаки +${(lv*.03).toLocaleString('ru',{maximumFractionDigits:2})}`,need:()=>({ok:true,text:'Получена в начале пути'})},
  horn:{name:'Рог Вальхаллы',rarity:0,icon:'horn',material:'harbor',lore:'Его зов поднимает дружину в первый натиск.',ability:lv=>`Первые 8 секунд боя: +${10+2*lv}% урона героя`,passive:['atkPct',.005],need:p=>goal(p.bosses,3,'Победить боссов главы')},
  mjolnir:{name:'Осколок Мьёльнира',rarity:1,icon:'lightning',material:'forest',lore:'Искра молота, что помнит гром.',ability:lv=>`Каждый 6-й удар героя бьёт цель молнией на ${60+12*lv}% атаки`,passive:['crit',.003],need:p=>goal(p.stage-1,10,'Пройти этапов главы')},
  leaf:{name:'Лист Иггдрасиля',rarity:1,icon:'heart',material:'forest',lore:'Живой лист Мирового древа не вянет.',ability:lv=>`В бою герой восстанавливает ${(.3+.07*lv).toFixed(2).replace('.',',')}% здоровья в секунду`,passive:['hpPct',.01],need:p=>goal(p.darkFloor-1,2,'Пройти этажей Царства тьмы')},

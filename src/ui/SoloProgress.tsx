@@ -1,3 +1,7 @@
+import {useState,type ReactNode} from 'react';
+import {GameTabs,GameTile,GameTiles} from './CompactGame';
+import {CardDialog} from './SagaUI';
+import {Icon} from './Icon';
 import type {Player} from '../core/types';
 import {stats} from '../core/formulas';
 import {useGame} from '../core/store';
@@ -5,44 +9,46 @@ import {art} from '../data/catalog';
 import {balanceOf,soloResources} from '../saga/soloEconomy';
 import {heroTracks,trackClaimed,claimTrack,wingRank,wingRules,wingBonuses,growWings,wingLooks} from '../saga/soloProgress';
 import {soloAction} from '../saga/soloAction';
-import {RewardArt} from './RewardArt';
+import {RewardDetails} from './RewardArt';
 
-export function HeroTracks({p}:{p:Player}){
- const open=useGame(s=>s.open);
- return <section>
-  <p>Награды за развитие героя. Все дорожки доступны за игровой прогресс.</p>
-  {heroTracks.map(track=><details className="saga-disclosure" key={track.id}><summary>{track.name} · {track.value(p)}</summary>
-   <button className="action secondary" onClick={()=>open(track.route)}>Перейти к условию</button>
-   <div className="bonus-card">{track.targets.map((target,i)=>{
+export function HeroTracks({p,onGo}:{p:Player;onGo?:(route:string)=>void}){
+ const open=useGame(s=>s.open),[selected,setSelected]=useState<string|null>(null);
+ const icons=['book','gem','crown','map','arena','wings'];
+ const track=heroTracks.find(track=>track.id===selected);
+ return <>
+  <GameTiles columns={2}>{heroTracks.map((track,i)=>{
+   const progress=track.value(p),next=track.targets.findIndex((_,i)=>!trackClaimed(p,track.id,i));
+   return <GameTile key={track.id} label={track.name} icon={icons[i]} ready={next>=0&&progress>=track.targets[next]} value={next<0?'✓ Получено':Math.min(track.targets[next],progress)+'/'+track.targets[next]} onClick={()=>setSelected(track.id)}/>;
+  })}</GameTiles>
+  {track&&<CardDialog className="game-detail" title={track.name} onClose={()=>setSelected(null)} actions={<button className="action secondary" onClick={()=>{setSelected(null);(onGo??open)(track.route)}}>Перейти к условию</button>}>
+   <div className="event-thresholds">{track.targets.map((target,i)=>{
     const filled=track.value(p)>=target,claimed=trackClaimed(p,track.id,i);
-    return <div className="skill-card" key={target}><b>{Math.min(track.value(p),target)} / {target}</b> <RewardArt reward={track.reward(i)} names/>
-     <button className="action secondary" disabled={!filled||claimed} onClick={()=>soloAction(draft=>claimTrack(draft,track.id,i),'Награда получена')}>{claimed?'Получено':'Забрать'}</button>
+    return <div className="event-threshold" key={target} data-ready={filled&&!claimed||undefined}><b>{Math.min(track.value(p),target)}/{target}</b><RewardDetails reward={track.reward(i)}/>
+     {filled&&!claimed?<button className="action secondary" onClick={()=>soloAction(draft=>claimTrack(draft,track.id,i),'Награда получена')}>Забрать</button>:<small>{claimed?'✓':'Закрыто'}</small>}
     </div>;
    })}</div>
-  </details>)}
- </section>;
+  </CardDialog>}
+ </>;
 }
-export function WingGrowth({p}:{p:Player}){
+const wingTabs=[['gear','Экипировка'],['grow','Рост'],['looks','Внешность']] as const;
+export function WingGrowth({p,gear}:{p:Player;gear:ReactNode}){
  const open=useGame(s=>s.open),claim=useGame(s=>s.claim);
+ const [tab,setTab]=useState<typeof wingTabs[number][0]>('gear');
  const rank=wingRank(p),value=balanceOf(p,'wing'),cost=wingRules.cost[rank],current=wingBonuses(rank),next=wingBonuses(rank+(cost?1:0));
+ const wings=p.equipment.wings;
+ const labels=['Здоровье','Атака','Защита'],icons=['heart','axe','shield'];
  return <section>
-  {!p.claimed.includes('wings')&&<button className="action" onClick={()=>claim('wings')}>Получить первые крылья бесплатно</button>}
-  <button className="action secondary" onClick={()=>open('gear:wings')}>Открыть слот крыльев</button>
-  {p.equipment.wings&&<>
-   <div className="bonus-card"><b>{p.equipment.wings.name} · рост {rank}/{wingRules.cost.length}</b>
-    {(['hp','attack','defense'] as const).map((key,i)=>{
-     const base=p.equipment.wings?.percent?.[key]??0;
-     return <span key={key}>{['Здоровье','Атака','Защита'][i]} · +{(base+current[key]).toFixed(1)}%{cost?' → +'+(base+next[key]).toFixed(1)+'%':''}</span>;
-    })}
-   </div>
-   <p>{soloResources.wing.name} · {value}. {soloResources.wing.source}.</p>
-   {!!cost&&<button className="action" disabled={value<cost} onClick={()=>soloAction(draft=>growWings(draft,rank),'Крылья усилены')}>Усилить · {cost} перьев</button>}
-   <details className="saga-disclosure"><summary>Внешний вид</summary>
-    <p>Выбор видимости сохраняет характеристики.</p>
-    <div className="rune-options">{wingLooks.map((name,i)=><button key={name} aria-pressed={p.wingVisible===(i===0)} className={p.wingVisible===(i===0)?'selected':''} onClick={()=>soloAction(draft=>{draft.wingVisible=i===0;return true})}>{i===0&&<img width="42" height="42" src={art('ui-wings')} alt=""/>}{name}</button>)}</div>
-   </details>
-  </>}
-  <button className="action secondary" onClick={()=>open('hero-path')}>Награды за рост</button>
+  <div className="wear-summary"><img src={art('ui-wings')} alt=""/><div><strong>{wings?.name??'Слот свободен'}</strong><small>{wings?'Ур. '+wings.level+' · +'+wings.upgrade+' · '+(p.wingVisible?'видны':'скрыты'):'Крылья'}</small></div></div>
+  {wings&&<div className="game-metrics">{(['hp','attack','defense'] as const).map((key,i)=><span className="game-metric" key={key} aria-label={labels[i]}><Icon name={icons[i]}/> +{((wings.percent?.[key]??0)+current[key]).toLocaleString('ru',{maximumFractionDigits:1})}%</span>)}</div>}
+  <GameTabs label="Развитие крыльев" value={tab} items={wingTabs} onChange={setTab}/>
+  {tab==='gear'&&<>{!p.claimed.includes('wings')&&<button className="action" onClick={()=>claim('wings')}>Получить первые крылья бесплатно</button>}{gear}</>}
+  {tab==='grow'&&(wings?<><div className="game-metrics"><span className="game-metric"><Icon name="wings"/>{value} перьев</span><span>Рост {rank}/{wingRules.cost.length}</span></div>
+   <div className="bonus-card">{(['hp','attack','defense'] as const).map((key,i)=>{const base=wings.percent?.[key]??0;return <span key={key}>{labels[i]} · +{(base+current[key]).toFixed(1)}%{cost?' → +'+(base+next[key]).toFixed(1)+'%':''}</span>})}</div>
+   <div className="game-actions">{!!cost&&<button className="action" disabled={value<cost} onClick={()=>soloAction(draft=>growWings(draft,rank),'Крылья усилены')}>Усилить · {cost} перьев</button>}<button className="action secondary" onClick={()=>open('hero-path')}>Награды за рост</button></div>
+   <details className="saga-disclosure"><summary>Где получить перья</summary><p>{soloResources.wing.source}.</p></details>
+   {!!cost&&value<cost&&<small>Не хватает {cost-value} перьев.</small>}
+  </>:<p>Наденьте крылья, чтобы открыть рост.</p>)}
+  {tab==='looks'&&(wings?<><GameTiles columns={2}>{wingLooks.map((name,i)=><GameTile key={name} label={name} icon={i===0?'wings':'cloak'} active={p.wingVisible===(i===0)} onClick={()=>soloAction(draft=>{draft.wingVisible=i===0;return true})}/>)}</GameTiles><small>Внешний вид сохраняется отдельно от силы.</small></>:<p>Сначала наденьте крылья.</p>)}
  </section>;
 }
 

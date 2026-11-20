@@ -1,6 +1,7 @@
 import {art} from '../data/catalog';
 import './iconArt.css';
 const paths:Record<string,React.ReactNode>={
+ fire:<path fill="#ff793e" d="M34 3c8 19-4 20 3 29 6-2 9-8 10-14 13 19 10 39-13 42C9 59 8 38 18 23c0 8 4 12 8 14C22 23 29 13 34 3Z"/>,
  axe:<><path fill="#a97442" d="m19 6 5-3 23 48-7 4Z"/><path fill="#b8d8ea" d="M24 11 11 7 3 20 10 31 27 22Z"/><path fill="#edfaff" d="m11 7-8 13 7 11 4-6-5-6 5-10Z"/></>,
  axes:<><g transform="rotate(-44 32 32)"><path fill="#a67c45" d="M28 10h8v49h-8Z"/><path fill="#c2d6de" d="M29 10 13 5 8 15 10 28 29 23Z"/><path fill="#fff" d="m13 5-5 10 2 13 5-3-1-10 4-8Z"/></g><g transform="rotate(44 32 32)"><path fill="#a67c45" d="M28 10h8v49h-8Z"/><path fill="#c2d6de" d="M35 10 51 5 56 15 54 28 35 23Z"/><path fill="#fff" d="m51 5 5 10-2 13-5-3 1-10-4-8Z"/></g></>,
  crown:<><path fill="#ffbe32" d="m7 18 13 9 12-17 12 17 13-9-7 33H14Z"/><path fill="#fff297" d="M14 41h36v9H14Z"/><circle cx="32" cy="34" r="5" fill="#f24b48"/></>,
@@ -43,6 +44,10 @@ const pictureIcons:Record<string,{asset:string; filter?:string}>={
  'mat-ember':{asset:'materials/ember'},
  'lair-keeper':{asset:'capybara_bruiser'},
  'red-diamond':{asset:'ui-extra2',filter:'hue-rotate(160deg) saturate(1.7)'},
+ soul:{asset:'ui-extra1',filter:'hue-rotate(310deg) saturate(1.65)'},
+ awake:{asset:'ui-extra2',filter:'hue-rotate(300deg) saturate(1.7)'},
+ 'awake-shard':{asset:'materials/ice',filter:'hue-rotate(285deg) saturate(1.65)'},
+ jackpot:{asset:'ui-medal',filter:'saturate(1.6)'},
  essence:{asset:'ui-extra1',filter:'hue-rotate(65deg) saturate(1.2)'},
  'dusk-stone':{asset:'ui-extra2',filter:'hue-rotate(75deg)'},
  'relic-shard':{asset:'ui-extra2',filter:'hue-rotate(215deg) saturate(1.4)'},
