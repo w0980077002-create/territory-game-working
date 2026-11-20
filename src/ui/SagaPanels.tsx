@@ -67,7 +67,7 @@ export function SetSummary({p}:{p:Player}){
 export function SpecChooser({p}:{p:Player}){
  const current=specIndex(p),list=specs[p.heroClass],chosen=list[current],[open,setOpen]=useState(false);
  return <div className="spec-compact">
-  <button type="button" className="spec-toggle" aria-expanded={open} onClick={()=>setOpen(v=>!v)}><span><small>Сборка класса</small><strong>{chosen.name}</strong><em>{chosen.tag}</em></span><b aria-hidden="true">{open?'▴':'▾'}</b></button>
+  <button type="button" className="spec-toggle" aria-expanded={open} onClick={()=>setOpen(v=>!v)}><Icon name="skill"/><span><small>Сборка класса</small><strong>{chosen.name}</strong></span><b aria-hidden="true">{open?'▴':'▾'}</b></button>
   {open&&<div className="spec-panel">
    <div className="spec-options" role="group" aria-label="Сборка класса">{list.map((s,i)=><button key={s.id} type="button" className={current===i?'selected':''} aria-pressed={current===i} onClick={()=>pickSpec(i)}><strong>{s.name}</strong><small>{s.tag}</small></button>)}</div>
    <ul className="spec-lines">{chosen.lines.map(l=><li key={l}>{l}</li>)}</ul>
@@ -147,14 +147,17 @@ function questActivity(keys:readonly string[]) {
  return 'campaign';
 }
 
-function QuestRow({q,onClaim,onGo}:{q:{text:string;progress:number;goal:number;done:boolean;claimed:boolean;reward:Reward};onClaim:()=>void;onGo:()=>void}){
- return <div className={`quest-row ${q.claimed?'claimed':q.done?'ready':''}`}><div><strong>{q.text}</strong>
+const questIcons:Record<string,string>={loot:'horn',equipment:'armor',forge:'hammer',dungeon:'lair-keeper',arena:'arena',realm:'portal',hero:'helmet',campaign:'scroll'};
+const masteryIcons:Record<string,string>={'Классы':'helmet','Навыки':'skill','Спутники':'companion','Испытания':'arena','Мир':'map'};
+
+function QuestRow({q,route,onClaim,onGo}:{route:string;q:{text:string;progress:number;goal:number;done:boolean;claimed:boolean;reward:Reward};onClaim:()=>void;onGo:()=>void}){
+ return <div className={`quest-row ${q.claimed?'claimed':q.done?'ready':''}`}><Icon name={questIcons[route]}/><div><strong>{q.text}</strong>
   <div className="quest-prizes"><RewardArt reward={q.reward}/><small className="quest-progress">{short(Math.min(q.progress,q.goal))}/{short(q.goal)}</small></div>
   <i><b style={{width:`${Math.min(100,q.progress/q.goal*100)}%`}}/></i></div>
-  {q.claimed?<span aria-label="Получено">✓</span>:<button className="action" onClick={q.done?onClaim:onGo}>{q.done?'Забрать':'Перейти'}</button>}
+  {q.claimed?<span aria-label="Получено">✓</span>:<button className={q.done?"action claim-reward":"action secondary"} onClick={q.done?onClaim:onGo}>{q.done?'Забрать':'Перейти'}</button>}
  </div>;
 }
-function QuestRows({rows}:{rows:{id:string;q:Parameters<typeof QuestRow>[0]['q'];onGo:()=>void;onClaim:()=>void}[]}){
+function QuestRows({rows}:{rows:{id:string;route:string;q:Parameters<typeof QuestRow>[0]['q'];onGo:()=>void;onClaim:()=>void}[]}){
  const claimed=rows.filter(row=>row.q.claimed);
  const render=({id,...row}:typeof rows[number])=><QuestRow key={id} {...row}/>;
  return <>{rows.filter(row=>!row.q.claimed).map(render)}
@@ -179,11 +182,11 @@ export function QuestBoard({p,tab,setTab,onGo}:{p:Player;tab:QuestTab;setTab:(ta
  const count=(list:{done:boolean;claimed:boolean}[])=>list.filter(q=>q.done&&!q.claimed).length,story=activeStory(p),m=masteryView(p);
  return <div className="quest-board">
   {tab!=='mastery'&&<div className="tabs compact-tabs">{([['day','День',count(daily)],['week','Неделя',count(weekly)],['story','Сага',count(story)]] as const).map(([id,name,n])=><button key={id} className={tab===id?'selected':''} aria-pressed={tab===id} onClick={()=>setTab(id)}>{name}{n?<em>{n}</em>:null}</button>)}</div>}
-  {tab==='day'&&<QuestRows rows={daily.map(q=>({id:q.def.id,q:boardRow(q),onGo:()=>onGo(questActivity(q.def.keys)),onClaim:()=>claim(p=>claimBoard(p,'day',q.def.id))}))}/>}
-  {tab==='week'&&<QuestRows rows={weekly.map(q=>({id:q.def.id,q:boardRow(q),onGo:()=>onGo(questActivity(q.def.keys)),onClaim:()=>claim(p=>claimBoard(p,'week',q.def.id))}))}/>}
-  {tab==='story'&&<>{p.stage>STORY_STAGES&&<small>Награды завершённой кампании</small>}<QuestRows rows={story.map(q=>({id:q.id,q,onGo:()=>onGo('campaign'),onClaim:()=>claim(p=>claimStory(p,q.id))}))}/></>}
-  {tab==='mastery'&&[...new Set(m.map(v=>v.def.group))].map(group=><details className="saga-disclosure" key={group}><summary>{group} · {m.filter(v=>v.def.group===group&&v.ready).length} готово</summary><QuestRows rows={m.filter(v=>v.def.group===group).map(v=>({
-   id:v.def.id,q:{text:v.def.name+' · '+v.claimed+'/4',progress:v.value,goal:v.next,done:v.ready,claimed:v.claimed>=masteryTiers.length,reward:{gems:masteryGems[Math.min(3,v.claimed)],horn:Math.min(4,v.claimed+1)}},
+  {tab==='day'&&<QuestRows rows={daily.map(q=>({id:q.def.id,route:questActivity(q.def.keys),q:boardRow(q),onGo:()=>onGo(questActivity(q.def.keys)),onClaim:()=>claim(p=>claimBoard(p,'day',q.def.id))}))}/>}
+  {tab==='week'&&<QuestRows rows={weekly.map(q=>({id:q.def.id,route:questActivity(q.def.keys),q:boardRow(q),onGo:()=>onGo(questActivity(q.def.keys)),onClaim:()=>claim(p=>claimBoard(p,'week',q.def.id))}))}/>}
+  {tab==='story'&&<>{p.stage>STORY_STAGES&&<small>Награды завершённой кампании</small>}<QuestRows rows={story.map(q=>({id:q.id,route:'campaign',q,onGo:()=>onGo('campaign'),onClaim:()=>claim(p=>claimStory(p,q.id))}))}/></>}
+  {tab==='mastery'&&[...new Set(m.map(v=>v.def.group))].map(group=><details className="saga-disclosure" key={group}><summary><Icon name={masteryIcons[group]}/><span>{group} · {m.filter(v=>v.def.group===group&&v.ready).length} готово</span></summary><QuestRows rows={m.filter(v=>v.def.group===group).map(v=>({
+   id:v.def.id,route:questActivity(v.def.keys),q:{text:v.def.name+' · '+v.claimed+'/4',progress:v.value,goal:v.next,done:v.ready,claimed:v.claimed>=masteryTiers.length,reward:{gems:masteryGems[Math.min(3,v.claimed)],horn:Math.min(4,v.claimed+1)}},
    onGo:()=>onGo(questActivity(v.def.keys)),onClaim:()=>claim(p=>claimMastery(p,v.def.id)),
   }))}/></details>)}
 

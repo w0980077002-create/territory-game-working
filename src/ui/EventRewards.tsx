@@ -44,7 +44,7 @@ export function DailyRewards({p}: {p: Player}) {
         <div className="daily-bonus"><span>Бонус дня</span><RewardArt reward={selected.extra} names/></div>
       </div>
       {selected.current && !selected.claimed && !base.horn && <p>Рог заполнен. Остальные ресурсы можно забрать.</p>}
-      {selected.current && <button className="action" disabled={selected.claimed}
+      {selected.current && <button className="action claim-reward" disabled={selected.claimed}
         onClick={() => claim('daily')}>{selected.claimed ? 'Сегодня уже получено' : 'Забрать подарок'}</button>}
       {selected.day < today.day && !selected.claimed && <p>Для этой даты в сохранении нет отметки.</p>}
       {selected.day > today.day && <p>Будет доступен с 00:00 UTC в этот день.</p>}
@@ -92,7 +92,7 @@ export function SeasonRewards({p}: {p: Player}) {
         <small>{claimed ? '✓ Получено' : ready ? 'Можно забрать' : 'Победы · ' + progress + '/' + tier}</small>
       </div>
       <RewardArt reward={ready && !claimed ? actualReward(p,reward) : reward} names/>
-      {ready && !claimed && <button className="action" onClick={() => {select(tier);claim('season:'+tier)}}>Забрать награду</button>}
+      {ready && !claimed && <button className="action claim-reward" onClick={() => {select(tier);claim('season:'+tier)}}>Забрать награду</button>}
     </article>
     <h3>Дополнительные испытания</h3>
     <div className="season-goals">
@@ -101,7 +101,7 @@ export function SeasonRewards({p}: {p: Player}) {
         return <article key={goal.id} className="reward-plaque season-goal">
           <div><strong>{goal.text}</strong><small>{goal.progress} / {goal.goal}</small></div>
           <RewardArt reward={goal.reward}/>
-          <button className={'action' + (complete ? '' : ' secondary')} disabled={goal.claimed}
+          <button className={complete ? 'action claim-reward' : 'action secondary'} disabled={goal.claimed}
             onClick={() => complete ? claim('season:goal:'+goal.id) : open(goal.route==='dungeon'?'lair':goal.route)}>
             {goal.claimed ? 'Получено' : complete ? 'Забрать' : 'Перейти'}
           </button>

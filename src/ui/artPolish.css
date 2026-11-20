@@ -1,0 +1,199 @@
+:is(.saga-modal,.context-card:not(.fund-detail),.fantasy-filter-options) {
+  --carved-oak: url('../../public/art/saga/walnut.webp');
+  --hammered-iron: url('../../public/art/saga/forged.webp');
+  --art-wood: linear-gradient(115deg,#23150d18,#1b0e0870),var(--carved-oak) 50% 38% / 310px auto;
+  --art-iron: linear-gradient(#2b27227a,#0b1013c2),var(--hammered-iron) center / 230px auto;
+  --art-panel: radial-gradient(ellipse at 45% 0%,#9d61322e,transparent 73%),linear-gradient(#35201799,#160f0dea),var(--carved-oak) 50% 44% / 360px auto;
+  --art-gold: linear-gradient(#f2d394,#d7a450 48%,#ad6c2f);
+  --art-green: linear-gradient(#4c662b,#283e17 51%,#182a10);
+  --art-rim: #9c7048;
+  --art-light: #ffebc6;
+  --art-muted: #ddcbac;
+  --art-bevel: inset 0 1px #fff3c14a,inset 0 0 0 2px #1009058a,inset 0 -3px #0c06054a,0 2px 3px #0b060a80;
+}
+.saga-modal {
+  border-color: #a47a51;
+  box-shadow: inset 0 0 0 2px #261a13,0 0 0 2px #20140f,0 10px 36px #000c;
+}
+.saga-modal[data-panel] .modal-header,
+.saga-modal[data-panel] .modal-footer {
+  background: var(--art-wood);
+  box-shadow: inset 0 2px #f1c08245,inset 0 -3px #130b0880,0 1px #bc85514f;
+  border-color: #29190f;
+}
+.saga-modal .modal-header h2 { color: var(--art-light); text-shadow: 0 2px 2px #160b06; }
+.saga-modal .modal-header small { color: #efd39b; }
+.saga-modal .header-seal {
+  background: var(--art-iron);
+  border-color: #b19b7d;
+  box-shadow: var(--art-bevel);
+}
+.saga-modal .modal-header :is(.close,.harbor-back) {
+  min-width: 44px;
+  min-height: 44px;
+  background: var(--art-iron);
+  color: #fff1d5;
+  border-color: #aa967b;
+  box-shadow: var(--art-bevel);
+}
+.saga-modal .footer-wallet > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 99px;
+  white-space: nowrap;
+}
+.saga-modal .footer-wallet > button .icon { width: 22px; height: 22px; flex: none; }
+
+.saga-modal :is(.action,.game-tile,.filter-trigger,.class-toggle,.spec-toggle,.tabs > button):not(.fund-detail *),
+.saga-modal .saga-disclosure > summary,
+.fantasy-filter-options [role="option"] {
+  background: var(--art-wood);
+  border-color: var(--art-rim);
+  color: var(--art-light);
+  box-shadow: var(--art-bevel);
+}
+.saga-modal .saga-disclosure {
+  border-color: #765432;
+  background: var(--art-panel);
+}
+.saga-modal .saga-disclosure > summary { border-radius: 5px; }
+.saga-modal .saga-disclosure > summary:has(> .icon) {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px;
+  overflow: clip;
+}
+.saga-modal .saga-disclosure > summary:has(> .icon)::after {
+  content: '›';
+  color: #edc48a;
+  flex: 0 0 20px;
+  height: 20px;
+  font-size: 20px;
+  line-height: 20px;
+  text-align: center;
+  margin-left: auto;
+}
+.saga-modal .saga-disclosure > summary > span { min-width: 0; overflow-wrap: anywhere; }
+.saga-modal .saga-disclosure[open] > summary:has(> .icon)::after { transform: rotate(90deg); }
+.saga-modal :is(.saga-disclosure > summary,.class-toggle,.spec-toggle) > .icon {
+  width: 29px;
+  height: 29px;
+  flex: none;
+  object-fit: contain;
+  background: none;
+}
+.saga-modal :is(.action.secondary,.filter-trigger,.game-tile[data-locked=true]):not(.fund-detail *) {
+  background: var(--art-iron);
+  color: var(--art-light);
+}
+.saga-modal .modal-footer .footer-wallet > button,
+.saga-modal .action:not(.secondary,.danger,.warn,.claim-reward,.mail-gold,.fund-detail *):enabled {
+  background: var(--art-green);
+  border-color: #b49756;
+  color: #fff0cf;
+  box-shadow: var(--art-bevel);
+}
+.saga-modal .action:is(.claim-reward,.mail-gold):enabled,
+.context-card:not(.fund-detail) .action:is(.claim-reward,.mail-gold):enabled {
+  background: var(--art-gold);
+  border-color: #edc37e;
+  color: #29160a;
+  box-shadow: var(--art-bevel);
+}
+.saga-modal .action:is(.danger,.warn):not(.fund-detail *):enabled {
+  background: linear-gradient(#773e2e,#411916);
+  border-color: #b18463;
+  color: #ffedcf;
+}
+.saga-modal :is(.game-tile,.tabs > button):is(.selected,[aria-pressed=true]),
+.fantasy-filter-options [role="option"][aria-selected=true] {
+  background: linear-gradient(#865822eb,#513516f2),var(--art-wood);
+  border-color: #e7b86e;
+  color: #fff1d2;
+  box-shadow: inset 0 0 0 2px #eec67d66,inset 0 -3px #4e2c14;
+}
+.saga-modal .action:disabled:not(.fund-detail *) { background: var(--art-iron); color: #ddc8ad; box-shadow: var(--art-bevel); }
+.saga-modal .game-tile > small { color: var(--art-muted); }
+.saga-modal :is(.game-tile,.tabs > button,.class-toggle,.spec-toggle,.filter-trigger):enabled:active,
+.fantasy-filter-options [role="option"]:active {
+  box-shadow: inset 0 3px 6px #080503b8,inset 0 0 0 1px #e6bc7760;
+}
+.saga-modal :is(button,a,summary):focus-visible:not(.fund-detail *),
+.context-card:not(.fund-detail) :is(button,a,summary):focus-visible,
+.fantasy-filter-options [role="option"]:focus-visible,
+.game .gear:focus-visible { outline: 2px solid #c6ecf1; outline-offset: -3px; }
+
+.context-card:not(.fund-detail) {
+  background: linear-gradient(#39251ad9,#151217f5),var(--carved-oak) 50% / 430px auto;
+  color: #ffebc6;
+  border-color: #ba8a55;
+  box-shadow: inset 0 0 0 2px #281913,0 10px 30px #000c;
+}
+.context-card:not(.fund-detail) .context-header { background: var(--art-wood); border-color: #8e6843; }
+.context-card:not(.fund-detail) .context-close,
+.context-card:not(.fund-detail) :is(.action.secondary,.action:disabled,.filter-trigger) {
+  background: var(--art-iron);
+  border-color: #a58c6c;
+  color: #ffedcd;
+  box-shadow: var(--art-bevel);
+}
+.context-card:not(.fund-detail) .action:not(.secondary,.danger,.warn,.claim-reward,.mail-gold):enabled {
+  background: var(--art-green);
+  border-color: #b49756;
+  color: #fff0cf;
+  box-shadow: var(--art-bevel);
+}
+.context-card:not(.fund-detail) .context-close,
+.context-card:not(.fund-detail) .context-actions > .action { min-height: 44px; }
+.context-card:not(.fund-detail) .context-close { min-width: 44px; }
+.fantasy-filter-options { background: var(--art-iron); border-color: #bd955d; }
+.fantasy-filter-options [role="option"] { margin-bottom: 3px; }
+
+.game .gear {
+  background: radial-gradient(ellipse at 50% 33%,color-mix(in srgb,var(--rarity) 23%,#24232a),#141319 77%);
+  border-color: color-mix(in srgb,var(--rarity) 61%,#3a302b);
+  box-shadow: inset 0 0 0 2px #0b0b10,inset 0 -9px 12px #0a080eb0,0 2px 0 #0a090a;
+}
+.game .gear.empty { filter: none; background: radial-gradient(ellipse at 50% 33%,#353438,#141319 78%); }
+.game .gear > span {
+  background: linear-gradient(90deg,transparent,#100d12ea 18%,#100d12ea 82%,transparent);
+  color: #fff0d6;
+}
+.game .gear.empty > span { color: #e3d3bd; }
+.game .gear .illustrated { filter: drop-shadow(0 3px 2px #070509bb); }
+
+.saga-modal:is([data-panel="hero"],[data-panel="quests"],[data-panel="hero-path"],[data-panel="equipment"]) .modal-body {
+  background: radial-gradient(ellipse at 45% 0%,#b58a552e,transparent 67%),linear-gradient(#34271ee8,#201916f5),var(--carved-oak) center / 470px auto;
+}
+.saga-modal .hero-sheet,
+.saga-modal .hero-stats > div,
+.saga-modal .equipment-ledger .row,
+.saga-modal .quest-row {
+  background: var(--art-panel);
+  border: 1px solid #835f3d;
+  box-shadow: var(--art-bevel);
+}
+.saga-modal .hero-sheet {
+  background: radial-gradient(ellipse at 22% 64%,#b8884861,transparent 65%),var(--art-panel);
+  padding-block: 2px;
+}
+.saga-modal .hero-id small,.saga-modal .hero-id > span:not(.hero-xp),
+.saga-modal .hero-stats small,.saga-modal .spec-toggle small { color: var(--art-muted); }
+.saga-modal .hero-stats > div {
+  display: grid;
+  grid-template-columns: auto minmax(0,auto);
+  justify-content: center;
+  column-gap: 3px;
+  padding: 5px 2px;
+}
+.saga-modal .hero-stats .icon { grid-row: span 2; width: 19px; height: 19px; align-self: center; }
+.saga-modal .hero-stats strong { font-size: 14px; }
+.saga-modal .quest-row { margin-block: 4px; border-radius: 6px; gap: 5px; padding: 5px; }
+.saga-modal .quest-row > .icon { width: 24px; height: 24px; flex: none; }
+.saga-modal .quest-row > .action { min-height: 44px; }
+.saga-modal .quest-row .quest-prizes,
+.saga-modal .quest-row .quest-prizes .reward-art { flex-wrap: wrap; max-width: 100%; }
+.saga-modal .quest-row .reward-piece .icon { width: 19px; height: 19px; }

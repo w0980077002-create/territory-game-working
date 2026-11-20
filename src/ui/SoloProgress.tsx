@@ -20,7 +20,7 @@ export function HeroTracks({p,onGo}:{p:Player;onGo?:(route:string)=>void}){
    const progress=track.value(p),next=track.targets.findIndex((_,i)=>!trackClaimed(p,track.id,i));
    return <GameTile key={track.id} label={track.name} icon={icons[i]} ready={next>=0&&progress>=track.targets[next]} value={next<0?'✓ Получено':Math.min(track.targets[next],progress)+'/'+track.targets[next]} onClick={()=>setSelected(track.id)}/>;
   })}</GameTiles>
-  {track&&<CardDialog className="game-detail" title={track.name} onClose={()=>setSelected(null)} actions={<button className="action secondary" onClick={()=>{setSelected(null);(onGo??open)(track.route)}}>Перейти к условию</button>}>
+  {track&&<CardDialog className="game-detail fund-detail" title={track.name} onClose={()=>setSelected(null)} actions={<button className="action secondary" onClick={()=>{setSelected(null);(onGo??open)(track.route)}}>Перейти к условию</button>}>
    <div className="event-thresholds">{track.targets.map((target,i)=>{
     const filled=track.value(p)>=target,claimed=trackClaimed(p,track.id,i);
     return <div className="event-threshold" key={target} data-ready={filled&&!claimed||undefined}><b>{Math.min(track.value(p),target)}/{target}</b><RewardDetails reward={track.reward(i)}/>
@@ -55,7 +55,7 @@ export function WingGrowth({p,gear}:{p:Player;gear:ReactNode}){
 export function DetailedStats({p}:{p:Player}){
  const s=stats(p);
  const percent=(value:number)=>(value*100).toLocaleString('ru',{maximumFractionDigits:1})+'%';
- return <details className="saga-disclosure"><summary>Основные и вторичные характеристики</summary>
+ return <details className="saga-disclosure"><summary><Icon name="chart"/><span>Характеристики</span></summary>
   <div className="bonus-card">
    <b>Основные</b>
    <span>Здоровье {s.hp} · уровень, снаряжение, стойкость, крылья и дружина.</span>
