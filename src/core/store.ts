@@ -1,3 +1,5 @@
+import {noteLairWin,payRaid,lairRules,lairTrophy} from '../saga/lair';
+import {grant} from '../saga/rewards';
 import {create} from 'zustand';
 import {SHIP_RULES,starterShipyard,validShipyard,shipClaimable,shipBuyCost,shipUpgradeCost,claimShips,buyShip,upgradeShip} from './shipyard';
 import type {Player,Item,Slot,HeroClass,BattleView,EncounterSnapshot} from './types';
@@ -24,7 +26,8 @@ import {rewardText} from '../saga/rewards';
 import {claimDailyGift,claimSeason} from '../saga/events';
 import {applyHonor,canClaimHonor} from '../saga/honor';
 import {applyMail,type MailAction} from '../saga/mail';
-import {carnivalRefreshDue,normalizeCarnival,prepareCarnivalClaim,updateCarnival,type CarnivalClaimResult} from '../saga/carnival';
+import {normalizeCarnival,prepareCarnivalClaim,updateCarnival,type CarnivalClaimResult} from '../saga/carnival';
+import {soloVictory} from '../saga/soloEconomy';
 import {realmSessionWritable} from '../dark/session';
 import {realmRun,realmVictory,realmClaim,migrateRealm,realmBox} from '../dark/realm';
 import {lootBonus,addRes,rollGem,gemBox,gemLabel,resCount,migrateSquad,raiseFollowerLevel,followerId,FOLLOWER_MAX_LEVEL} from '../dark/rules';
@@ -41,8 +44,6 @@ export function makeItem(slot:Slot,level:number,rarity:number):Item {const quali
 export function makeUnique(id:UniqueId,level:number,origin:string):Item {const def=uniques[id];return {...makeItem(def.slot,level,def.rarity),name:def.name,uniqueId:id,origin}}
 /** A piece of a region set: ordinary stats, plus it counts towards the 2/4/6 bonuses. Never wings. */
 export function asSetItem(item:Item,set:SetId):Item {if(item.slot==='wings'||item.uniqueId||item.perk)return item;item.set=set;item.rarity=Math.max(item.rarity,2);const fresh=makeItem(item.slot,item.level,item.rarity);item.attack=fresh.attack;item.hp=fresh.hp;item.defense=fresh.defense;item.name=`${sets[set].name} · ${slotNames[item.slot]}`;return item}
-/** Each lair keeper's named trophy (see the saga trophy guide): granted once, on the first victory over that keeper. */
-const lairPerks:Record<string,PerkId>={capybara_bruiser:'belt',senior_driller:'boots',moss_eater:'moss'};
 /** Every victory leaves a `battle:<id>` receipt so a reward cannot be paid twice. Only the active encounter (always the newest id)
  * can still be won, so the newest receipts are kept and the oldest ones are dropped; other claims are never touched. */
 export const BATTLE_RECEIPTS=500;
@@ -146,7 +147,7 @@ function lootNotice(p:Player,item:Item,disposition:ReturnType<typeof placeLoot>,
 }
 
 export const initialBattle:BattleView={hp:1,maxHp:1,enemyHp:1,enemyMax:1,phase:'walk',boss:false,timer:30,cooldowns:[0,0,0],enemyName:'',mode:'campaign',running:false,bossPhase:1,ability:''};
-interface Store {p:Player;panel:string|null;selected:string|null;back:string|null;leaveItem:()=>void;equipBest:()=>number;toast:string;toastId:number;dismissNotice:(expectedId:number)=>void;auto:boolean;speed:number;stopOnDeath:boolean;continueOnVictory:boolean;autoSalvageWeaker:boolean;battle:BattleView;storageError:boolean;recoveryRequired:boolean;open:(s:string|null)=>void;notice:(s:string)=>void;select:(id:string|null)=>void;mutate:(fn:(p:Player)=>void)=>boolean;persist:()=>boolean;hornLoot:()=>void;equip:(id:string)=>void;salvage:(id:string,confirmed?:boolean)=>void;bulkSalvage:(ids:readonly string[],quote?:string)=>number;claimStored:(ids?:string[])=>number;keepReward:()=>void;configure:(settings:{auto?:boolean;speed?:1|2;stopOnDeath?:boolean;continueOnVictory?:boolean;autoSalvageWeaker?:boolean})=>void;importSave:(p:Player)=>boolean;upgrade:(slot:Slot,expected?:{id:string;upgrade:number})=>void;train:(type:string,index?:number)=>void;claim:(id:string)=>void;claimHonor:(expectedRank:number)=>boolean;mailAction:(action:MailAction)=>boolean;buy:(id:string,quote?:string,equipmentSlot?:Slot)=>boolean;shipAction:(action:'claim'|'buy'|'upgrade'|'trade',id?:string)=>void;win:(mode:string,encounterId?:string,snapshot?:EncounterSnapshot,tally?:Record<string,number>)=>boolean;unequip:(slot:Slot)=>void;setClass:(c:HeroClass)=>void}
+interface Store {p:Player;panel:string|null;selected:string|null;back:string|null;leaveItem:()=>void;equipBest:()=>number;toast:string;toastId:number;dismissNotice:(expectedId:number)=>void;auto:boolean;speed:number;stopOnDeath:boolean;continueOnVictory:boolean;autoSalvageWeaker:boolean;battle:BattleView;storageError:boolean;recoveryRequired:boolean;open:(s:string|null)=>void;notice:(s:string)=>void;select:(id:string|null)=>void;mutate:(fn:(p:Player)=>unknown,exclusive?:boolean)=>boolean;persist:()=>boolean;hornLoot:()=>void;equip:(id:string)=>void;salvage:(id:string,confirmed?:boolean)=>void;bulkSalvage:(ids:readonly string[],quote?:string)=>number;claimStored:(ids?:string[])=>number;keepReward:()=>void;configure:(settings:{auto?:boolean;speed?:1|2;stopOnDeath?:boolean;continueOnVictory?:boolean;autoSalvageWeaker?:boolean})=>void;importSave:(p:Player)=>boolean;upgrade:(slot:Slot,expected?:{id:string;upgrade:number})=>void;train:(type:string,index?:number)=>void;claim:(id:string)=>void;claimHonor:(expectedRank:number)=>boolean;mailAction:(action:MailAction)=>boolean;buy:(id:string,quote?:string,equipmentSlot?:Slot)=>boolean;shipAction:(action:'claim'|'buy'|'upgrade'|'trade',id?:string)=>void;win:(mode:string,encounterId?:string,snapshot?:EncounterSnapshot,tally?:Record<string,number>)=>boolean;unequip:(slot:Slot)=>void;setClass:(c:HeroClass)=>void}
 // A message produced in the same synchronous operation may follow its automatic redirect.
 // The flag expires before the next user interaction; it is never part of a player save.
 let activeNoticeId:number|undefined;
@@ -167,22 +168,19 @@ export function mayStartLoot(){
 }
 type Settings=Pick<Store,'auto'|'speed'|'stopOnDeath'|'continueOnVictory'|'autoSalvageWeaker'>;
 export const useGame=create<Store>((set,get)=>{
- const writable=(exclusive=false)=>{
+ const writable=()=>{
   if(get().recoveryRequired)return false;
   const ownsLock=realmSessionWritable();
   if(typeof window==='undefined'&&ownsLock)return true;
-  const player=get().p;
   try{
    const current=localStorage.getItem(SAVE_KEY);
-   const carnival=!!player.carnival||carnivalRefreshDue(player,carnivalNow())||current?.includes('"carnival"');
-   if((exclusive||carnival)&&current&&current!==observedRaw){
-    // Storage events can lag behind a transfer of the browser's profile lock.
-    // Never apply actions computed against the earlier in-memory profile.
+   if(current&&current!==observedRaw){
+    // A browser storage event may arrive after the profile lock changes hands.
     if(!followProfileSave(current))set({storageError:true});
     return false;
    }
-   if(ownsLock||!exclusive&&!carnival&&!player.saga?.box.realm&&!current?.includes('"realm"'))return true;
-   get().notice(exclusive||carnival?'Игра открыта в другой вкладке · продолжите там':'Поход открыт в другой вкладке · продолжите там');
+   if(ownsLock)return true;
+   get().notice('Игра открыта в другой вкладке · продолжите там');
    return false;
   }catch{set({storageError:true});return false}
  };
@@ -211,11 +209,11 @@ export const useGame=create<Store>((set,get)=>{
  notice:toast=>{const toastId=get().toastId+1;activeNoticeId=toastId;set({toast,toastId});queueMicrotask(()=>{if(activeNoticeId===toastId)activeNoticeId=undefined});setTimeout(()=>{if(get().toastId===toastId&&get().toast)set({toast:''})},3200)},
  dismissNotice:expectedId=>{if(get().toast&&get().toastId===expectedId&&activeNoticeId!==expectedId)set({toast:''})},
  select:selected=>{if(selected){if(!get().panel&&get().battle.running)resumeAfterPanel=true;encounterPause?.()}{const from=get().panel;set({selected,panel:selected?'item':null,back:selected?(from&&from!=='item'?from:get().back):null,...((from!==(selected?'item':null)||selected!==get().selected)&&activeNoticeId!==get().toastId?{toast:''}:{})})}if(!selected&&resumeAfterPanel){resumeAfterPanel=false;encounterResume?.()}},
- mutate:fn=>{
+ mutate:(fn,exclusive)=>{
   if(!writable())return false;
   const g=get(),draft=structuredClone(g.p);
   if(encounterProvider)draft.encounter=encounterProvider();
-  fn(draft);
+  if(fn(draft)===false&&exclusive)return false;
   return commit(draft,g);
  },
  persist:()=>{
@@ -225,7 +223,7 @@ export const useGame=create<Store>((set,get)=>{
  },
  claimHonor:expectedRank=>{
   const g=get();
-  if(!canClaimHonor(g.p,expectedRank)||!writable(true))return false;
+  if(!canClaimHonor(g.p,expectedRank)||!writable())return false;
   let applied=false;
   if(!g.mutate(p=>{applied=applyHonor(p,expectedRank)})){unsaved(get());return false;}
   if(applied)haptic(true);
@@ -233,7 +231,7 @@ export const useGame=create<Store>((set,get)=>{
  },
  mailAction:action=>{
   const g=get(),now=Date.now();
-  if(!writable(true))return false;
+  if(!writable())return false;
   let message:string|undefined;
   if(!g.mutate(p=>{message=applyMail(p,action,carnivalNow(now),now)})){unsaved(get());return false}
   if(message)g.notice(message);
@@ -309,7 +307,7 @@ export const useGame=create<Store>((set,get)=>{
   g.notice('Предмет распылён: золото и опыт получены');
  },
  bulkSalvage:(ids,quote)=>{
-   if(!Array.isArray(ids)||!ids.length||!writable(true))return 0;
+   if(!Array.isArray(ids)||!ids.length||!writable())return 0;
    const g=get(),plan=previewBulkSalvage(g.p,ids);
    if(!quote||!plan||plan.quote!==quote){
     g.notice('Состав или награда изменились · проверьте выбранные вещи и подтвердите заново');
@@ -418,10 +416,10 @@ export const useGame=create<Store>((set,get)=>{
   if(id==='horn')lastHornPurchase=performance.now();
   haptic(true);g.notice('Получено: '+title);return true;
  },
- win:(mode,encounterId,snapshot,tally)=>{const g=get();let extra='';if(mode==='darkness'){const run=realmRun(g.p);if(!run||encounterId&&run.lastCombatId===encounterId)return false;let won=false;return g.mutate(p=>{won=realmVictory(p,encounterId,snapshot?.units.length??1)})&&won;}if(encounterId&&(g.p.lastBattleReward===encounterId||g.p.claimed.includes('battle:'+encounterId)))return false;let loot:Item|undefined,disposition:ReturnType<typeof placeLoot>|undefined;if(!g.mutate(p=>{const goldBefore=p.gold;if(tally)for(const [key,amount] of Object.entries(tally))if(Number.isFinite(amount)&&amount>0)bumpCount(p,key,amount);if(encounterId){p.lastBattleReward=encounterId;p.claimed.push('battle:'+encounterId);trimBattleReceipts(p)}if(snapshot){p.encounter=snapshot;markSeen(p,snapshot.units.map(u=>u.id));for(const u of snapshot.units)bumpCount(p,'kill:'+u.id)}bumpCount(p,'win:'+mode);bumpCount(p,'cls:'+p.heroClass);p.kills++;if(mode==='campaign'){const boss=p.wave===5;p.gold+=Math.round(stageGold(p.stage,boss)*(1+p.talents[2]*.05)*goldBonus(p));xp(p,stageXp(p.stage,boss));const material=materialIds[regionIndex(p.stage)%6],finale=boss&&stageInRegion(p.stage)===10;if(boss)grantMaterial(p,material,finale?dropRules.materialFinale:dropRules.materialBoss);else if(Math.random()<dropRules.materialWave*(branchOf(p,0)===1?1.5:1))grantMaterial(p,material,1);if(boss){p.bosses++;p.gems+=balance.test_rewards.boss_win_gems;const named=namedDrop(mode);loot=named?makeUnique(named,p.level,'Босс основной главы · этап '+p.stage):rollItem(p,undefined,dropRules.setChanceBoss);
+ win:(mode,encounterId,snapshot,tally)=>{const g=get();let extra='';if(mode==='darkness'){const run=realmRun(g.p);if(!run||encounterId&&run.lastCombatId===encounterId)return false;let won=false;return g.mutate(p=>{won=realmVictory(p,encounterId,snapshot?.units.length??1);if(won)soloVictory(p,carnivalNow())})&&won;}if(encounterId&&(g.p.lastBattleReward===encounterId||g.p.claimed.includes('battle:'+encounterId)))return false;let loot:Item|undefined,disposition:ReturnType<typeof placeLoot>|undefined;if(!g.mutate(p=>{const goldBefore=p.gold;if(tally)for(const [key,amount] of Object.entries(tally))if(Number.isFinite(amount)&&amount>0)bumpCount(p,key,amount);if(encounterId){p.lastBattleReward=encounterId;p.claimed.push('battle:'+encounterId);trimBattleReceipts(p)}if(snapshot){p.encounter=snapshot;markSeen(p,snapshot.units.map(u=>u.id));for(const u of snapshot.units)bumpCount(p,'kill:'+u.id)}bumpCount(p,'win:'+mode);soloVictory(p,carnivalNow());bumpCount(p,'cls:'+p.heroClass);p.kills++;if(mode==='campaign'){const boss=p.wave===5;p.gold+=Math.round(stageGold(p.stage,boss)*(1+p.talents[2]*.05)*goldBonus(p));xp(p,stageXp(p.stage,boss));const material=materialIds[regionIndex(p.stage)%6],finale=boss&&stageInRegion(p.stage)===10;if(boss)grantMaterial(p,material,finale?dropRules.materialFinale:dropRules.materialBoss);else if(Math.random()<dropRules.materialWave*(branchOf(p,0)===1?1.5:1))grantMaterial(p,material,1);if(boss){p.bosses++;p.gems+=balance.test_rewards.boss_win_gems;const named=namedDrop(mode);loot=named?makeUnique(named,p.level,'Босс основной главы · этап '+p.stage):rollItem(p,undefined,dropRules.setChanceBoss);
     // Region finale: the first victory always gives the region's named trophy (or a guaranteed set piece in region 1).
     if(finale){const region=regionIndex(p.stage)%6,perk=([undefined,'cutlass','crown','echo','aquila','heart'] as (PerkId|undefined)[])[region],first=setFlag(p,'finale:'+regionIndex(p.stage));if(perk&&(setFlag(p,'perk:'+perk)||!first&&Math.random()<dropRules.legendFinalePerk))loot=makePerkItem(perk,p.level+2,'Трофей владыки · '+perks[perk].source);else if(first&&!perk){loot=asSetItem(makeItem('armor',p.level+2,4),'frost');loot.origin='Трофей Королевы паутины'}if(p.stage===60)setFlag(p,'story:done')}
-    if(p.stage===1&&!p.claimed.includes('first-boss-relic')){loot=makeItem('weapon',p.level+balance.first_chapter_test.boss_reward_level_bonus,balance.first_chapter_test.boss_reward_min_rarity);loot.name='Клинок ледяного шёлка';loot.origin='Трофей Матриарха';loot.uniqueId='ice_silk';p.claimed.push('first-boss-relic')}loot.origin??='Босс основной главы · этап '+p.stage;disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false};p.stage++;p.wave=1;grantHorn(p,2)}else{p.wave++;if(Math.random()<gearRules.regular_equipment_chance){loot=rollItem(p,undefined,dropRules.setChanceRegular);loot.origin='Встреча основной главы · этап '+p.stage;disposition=placeLoot(p,loot,true)}}}else if(mode==='farm'){p.gold+=Math.round(stageGold(p.stage,false)*.8*(1+p.talents[2]*.05)*goldBonus(p));if(Math.random()<.25)grantMaterial(p,materialIds[regionIndex(p.stage)%6],1);xp(p,Math.round(stageXp(p.stage,false)*.6))}else if(mode==='arena'){p.arenaWins++;p.tokens+=10;p.gold+=100;xp(p,30);if(p.arenaWins%3===0)addRes(p,'seal',1)}else{if(mode==='dungeon'){addRes(p,'shard',2);if(Math.random()<.35){const gem=rollGem(),bag=gemBox(p).bag;bag[gem]=(bag[gem]??0)+1;extra='Камень: '+gemLabel(gem)}if(Math.random()<.1)addRes(p,'seal',1)}p.gold+=150;p.gems+=5;xp(p,50);const keeper=mode==='dungeon'?snapshot?.units.map(u=>lairPerks[u.id]).find(Boolean):undefined,trophy=keeper&&setFlag(p,'perk:'+keeper)?keeper:undefined,named=trophy?undefined:namedDrop(mode);loot=trophy?makePerkItem(trophy,p.level+2,'Трофей Логова · '+perks[trophy].source):named?makeUnique(named,p.level,mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы'):rollItem(p);loot.origin??=mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы';disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false}}bumpCount(p,'carnival:battleGold',p.gold-goldBefore)}))return false;if(loot&&disposition&&disposition!=='duplicate'){
+    if(p.stage===1&&!p.claimed.includes('first-boss-relic')){loot=makeItem('weapon',p.level+balance.first_chapter_test.boss_reward_level_bonus,balance.first_chapter_test.boss_reward_min_rarity);loot.name='Клинок ледяного шёлка';loot.origin='Трофей Матриарха';loot.uniqueId='ice_silk';p.claimed.push('first-boss-relic')}loot.origin??='Босс основной главы · этап '+p.stage;disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false};p.stage++;p.wave=1;grantHorn(p,2)}else{p.wave++;if(Math.random()<gearRules.regular_equipment_chance){loot=rollItem(p,undefined,dropRules.setChanceRegular);loot.origin='Встреча основной главы · этап '+p.stage;disposition=placeLoot(p,loot,true)}}}else if(mode==='farm'){p.gold+=Math.round(stageGold(p.stage,false)*.8*(1+p.talents[2]*.05)*goldBonus(p));if(Math.random()<.25)grantMaterial(p,materialIds[regionIndex(p.stage)%6],1);xp(p,Math.round(stageXp(p.stage,false)*.6))}else if(mode==='arena'){p.arenaWins++;p.tokens+=10;p.gold+=100;xp(p,30);if(p.arenaWins%3===0)addRes(p,'seal',1)}else{if(mode==='dungeon'){if(snapshot?.units[0])noteLairWin(p,snapshot.units[0].id);addRes(p,'shard',2);if(Math.random()<.35){const gem=rollGem(),bag=gemBox(p).bag;bag[gem]=(bag[gem]??0)+1;extra='Камень: '+gemLabel(gem)}if(Math.random()<.1)addRes(p,'seal',1)}p.gold+=150;p.gems+=5;xp(p,50);const keeper=mode==='dungeon'?snapshot?.units.map(u=>lairTrophy(u.id)).find(Boolean):undefined,trophy=keeper&&setFlag(p,'perk:'+keeper)?keeper:undefined,named=trophy?undefined:namedDrop(mode);loot=trophy?makePerkItem(trophy,p.level+2,'Трофей Логова · '+perks[trophy].source):named?makeUnique(named,p.level,mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы'):rollItem(p);loot.origin??=mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы';disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false}}bumpCount(p,'carnival:battleGold',p.gold-goldBefore)}))return false;if(loot&&disposition&&disposition!=='duplicate'){
     const player=get().p,hasOffer=!!encounterId&&player.rewardOffer?.encounterId===encounterId;
     if(!hasOffer||disposition==='stored'||player.preferences?.autoSalvageWeaker)g.notice(lootNotice(player,loot,disposition,'Добыча: '+loot.name));
    }else if(extra)g.notice(extra);
@@ -495,3 +493,19 @@ if(typeof window!=='undefined')window.addEventListener('storage',event=>{
  if(realmSessionWritable()&&!event.newValue.includes('"carnival"'))return;
  try{if(localStorage.getItem(SAVE_KEY)===event.newValue)followProfileSave(event.newValue)}catch{/* A blocked read leaves the last valid profile intact. */}
 });
+
+export function raidLair(id:string,expected:number,now=carnivalNow()){
+ const g=useGame.getState();
+ if(!mayStartLoot())return false;
+ const ok=g.mutate(p=>{
+  if(!payRaid(p,id,expected,now))return false;
+  grant(p,lairRules.raidReward);
+  const loot=rollItem(p);
+  loot.origin='Дневной рейд Логова';
+  addLoot(p,loot);
+  bumpCount(p,'lair:raid');
+  return true;
+ },true);
+ if(ok){haptic(true);g.notice('Рейд завершён · добыча в рюкзаке или на хранении')}
+ return ok;
+}

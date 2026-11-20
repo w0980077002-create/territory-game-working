@@ -100,13 +100,15 @@ test('relics: conditions, costs, levels, collection bonus and the old «Серд
  assert.equal(A.relicUpgrade('aegis'),false);assert.equal(R.relicLevel(reload(),'horn'),5);
  for(const id of R.relicIds){assert.ok(R.relics[id].ability(1).length>8);assert.ok(typeof R.relics[id].need(P()).ok==='boolean')}
 });
-test('companions: summon pays once, shards unlock, stars, awakening, talents and the active pair',()=>{
- assert.equal(A.summon(1,'seal'),null);give(p=>{R.addRes(p,'seal',10);p.gold=1e6});
- seedRandom(11);const results=A.summon(10,'seal')!;restoreRandom();assert.equal(results.length,10);assert.equal(R.resCount(P(),'seal'),0);assert.equal(A.summon(1,'seal'),null);
- const total=results.reduce((a,r)=>a+r.shards,0),s=R.squadState(P()),spent=R.companionIds.reduce((a,id)=>a+(R.legacyPet(id)<0&&s.own[id].lv>0?R.companions[id].shards:0),0);
- assert.equal(R.companionIds.reduce((a,id)=>a+s.own[id].sh,0)+spent,total,'every shard is accounted for');
- give(p=>{const box=R.squadBox(p);box.instances[R.followerId('08_armored_boar')]=R.newFollower('08_armored_boar');box.shards['08_armored_boar']=200;box.instances[R.followerId('moss_eater')]=R.newFollower('moss_eater')});
- assert.equal(A.petActivate('senior_driller')||R.squadState(P()).own.senior_driller.lv>0,R.squadState(P()).own.senior_driller.lv>0);
+test('companions: saved shards, legacy awakening, talents and the active pair',()=>{
+ give(p=>{
+  p.gold=1e6;
+  const box=R.squadBox(p);
+  box.instances[R.followerId('08_armored_boar')]=R.newFollower('08_armored_boar');
+  box.shards['08_armored_boar']=200;
+  box.instances[R.followerId('moss_eater')]=R.newFollower('moss_eater');
+ });
+ assert.equal(A.petActivate('senior_driller'),false);
  const goose=battle!.gooseDamage(),p0=P();assert.equal(goose,Math.round(stats(p0).attack*(.25+p0.companions[0]*.04)*evoPower(p0.companions[0])),'the goose keeps its approved formula');
  assert.ok(A.petActivate('08_armored_boar'));assert.equal(battle!.squad.striker.id,'08_armored_boar');assert.equal(A.petActivate('08_armored_boar'),false);assert.equal(R.squadState(P()).act[1],'brown_white_dog');
  const power=battle!.gooseDamage();assert.ok(A.petLevel('08_armored_boar'));battle!.tuneTeam();assert.ok(battle!.gooseDamage()>power);
@@ -117,7 +119,6 @@ test('companions: summon pays once, shards unlock, stars, awakening, talents and
  assert.equal(R.talentPoints(R.squadState(P()).own['08_armored_boar']),4);for(let n=0;n<4;n++)assert.ok(A.petTalent('08_armored_boar',2));assert.equal(A.petTalent('08_armored_boar',0),false,'no free points');
  assert.equal(R.combatAura(P()).heroDamage,.06);assert.ok(A.petTalentReset('08_armored_boar'));assert.equal(R.combatAura(P()).heroDamage,0);
  const saved=R.squadState(reload());assert.equal(saved.act[0],'08_armored_boar');assert.equal(saved.own['08_armored_boar'].aw,true);
- assert.ok(Math.abs(R.summonTable.reduce((a,r)=>a+r.chance,0)-1)<1e-9);
 });
 const clearRealmFoe=()=>{const b=battle!;b.phase='fight';b.units.forEach(u=>u.hp=0);b.victory()};
 const finishSection=()=>{const section=realm.realmRun(P())!.r;while(realm.realmRun(P())?.r===section&&!realm.realmRun(P())?.stage.startsWith('CHOICE'))clearRealmFoe()};

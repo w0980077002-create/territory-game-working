@@ -314,9 +314,16 @@ let browser;
    }
    if(panel==='companions'){
     const initial=await page.locator('.squad-grid').boundingBox();await page.locator('.squad-grid button').first().click();await assertCard(page);
-    await page.getByRole('button',{name:'Звёзды',exact:true}).click();await page.getByRole('button',{name:'Таланты',exact:true}).click();await page.getByRole('button',{name:'Пробуждение',exact:true}).click();assert.equal(await page.getByRole('button',{name:/Пробудить ·/}).isDisabled(),true);await page.getByRole('button',{name:'Уровень',exact:true}).click();
+    await page.getByRole('button',{name:'Звёзды',exact:true}).click();await page.getByRole('button',{name:'Таланты',exact:true}).click();await page.getByRole('button',{name:'Пробуждение',exact:true}).click();assert.equal(await page.getByRole('button',{name:/Открыть ступень/}).isDisabled(),true);await page.getByRole('button',{name:'Уровень',exact:true}).click();
     const lv=(await read(page)).companions[0];await page.getByRole('button',{name:/Повысить уровень/}).click();assert.equal((await read(page)).companions[0],lv+1);assert.match(await page.locator('.context-status').innerText(),/Уровень спутника повышен/);await page.screenshot({path:`${output}/notice-live-${width}.png`});await page.screenshot({path:`${output}/companion-${width}.png`});await closeCard(page);assert.deepEqual(await page.locator('.squad-grid').boundingBox(),initial);await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();assert.equal(await page.locator('.dialog-notice').count(),0);await page.screenshot({path:`${output}/notice-destination-${width}.png`});await page.getByRole('navigation',{name:'Постройки гавани'}).getByRole('button',{name:'Спутники',exact:true}).click();
-    await page.getByRole('button',{name:'Призыв',exact:true}).click();await assertCard(page);assert.equal(await page.locator('.context-status').innerText(),'');const seals=(await read(page)).saga.n['res:seal'];await page.getByRole('button',{name:'Призыв · 1 печать',exact:true}).click();assert.equal((await read(page)).saga.n['res:seal'],seals-1);await closeCard(page);
+    await page.getByRole('button',{name:'Призыв',exact:true}).click();await assertCard(page);assert.equal(await page.locator('.context-status').innerText(),'');const seals=(await read(page)).saga.n['res:seal'];
+    await page.getByRole('button',{name:'Обменять печать',exact:true}).click();
+    await page.getByRole('button',{name:/Получить 10 Душ за 1 печать/}).click();
+    assert.equal((await read(page)).saga.n['res:seal'],seals-1);
+    assert.equal((await read(page)).saga.n['solo:soul'],10);
+    await page.getByRole('button',{name:'Открыть предложения',exact:true}).click();
+    assert.equal((await read(page)).saga.box.followerMarket.offers.length,3);
+    await closeCard(page);
     const formation=page.getByRole('group',{name:'Состав дружины'});
     assert.equal(await formation.locator(':scope > *').count(),3);
     await page.evaluate(()=>window.__lootborn.useGame.getState().mutate(p=>{

@@ -35,7 +35,7 @@ export function MailPanel({p}: {p:Player}) {
       }}>
         <Icon name="mail"/>
         <span>
-          <strong>Награды карнавала</strong>
+          <strong>{entry.title??'Награды карнавала'}</strong>
           <small><time dateTime={new Date(entry.date).toISOString()}>{dateFormat.format(entry.date)}</time> · {entry.pending ? 'Вложения' : 'Получено'}</small>
         </span>
         {!entry.read && <span className="mail-unread" aria-label="Непрочитанное письмо"/>}
@@ -43,17 +43,18 @@ export function MailPanel({p}: {p:Player}) {
       </button>
     </li>)}</ul> : <div className="mail-empty">
       <Icon name="mail"/><strong>Писем пока нет</strong>
-      <small>Сюда приходят незабранные награды завершённых карнавалов.</small>
+      <small>Сюда приходят незабранные награды завершённых событий.</small>
     </div>}
-    {letter && <CardDialog key={letter.id} title="Награды карнавала" className="mail-detail" onClose={()=>setSelected(undefined)}
+    {letter && <CardDialog key={letter.id} title={letter.title??'Награды карнавала'} className="mail-detail" onClose={()=>setSelected(undefined)}
       actions={letter.pending ? <button type="button" className="action mail-gold"
         onClick={()=>action({kind:'claim',id:letter.id,slot})}>Забрать</button> : <span className="mail-delivered">✓ Вложения получены</span>}>
       <div className="mail-message">
-        <span>Карнавал · {monthFormat.format(letter.date)}</span>
+        <span>{letter.title??'Карнавал'} · {monthFormat.format(letter.date)}</span>
         <time dateTime={new Date(letter.date).toISOString()}>{dateFormat.format(letter.date)}</time>
       </div>
       {letter.pending && <div className="mail-attachments">
         <RewardArt reward={letter.reward}/>
+        {letter.chests?.map((name,i)=><p key={i}>{name} · сундук появится в Событиях</p>)}
         {gear && <label className="mail-gear" style={{'--item-trim':rarityColors[gear.rarity]} as React.CSSProperties}>
           <Icon name={slot ? gearIcon(slot) : 'chest'}/>
           <span><strong>{sets[gear.set].name} × 1</strong><small>{rarityNames[gear.rarity]} · ур. {gear.level}</small></span>

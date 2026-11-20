@@ -6,6 +6,8 @@
  */
 import type {Player,Slot} from '../core/types';
 import {peekBox,boxOf,sagaOf} from '../saga/save';
+import {runeBonuses} from '../saga/runes';
+import {followerEconomy} from '../saga/soloEconomy';
 import {evoPower} from '../saga/companions';
 
 // ───────────────────────── shared resources ─────────────────────────
@@ -160,8 +162,8 @@ export function relicBonus(p:Player){const b=zeroBonus();for(const id of relicId
 // ───────────────────────── Companions ─────────────────────────
 export type CompanionRole='striker'|'guardian';
 export interface CompanionDef {name:string;role:CompanionRole;rarity:number;base:number;perLevel:number;interval:number;fly?:boolean;trait:string;traitName:string;shards:number;lore:string}
-export const companionRarity=['Добротный','Редкий','Эпический','Легендарный'];
-export const companionColors=['#56be75','#48bafa','#c97aff','#ffb343'];
+export const companionRarity=['Добротный','Редкий','Эпический','Легендарный','Мифический'];
+export const companionColors=['#56be75','#48bafa','#c97aff','#ffb343','#ff749c'];
 export const companions:Record<string,CompanionDef>={
  goose_aviator:{name:'Гусь-Обнимусь',role:'striker',rarity:3,base:.25,perLevel:.04,interval:2.4,fly:true,traitName:'Пике',trait:'Срывает выстрел стрелка или мага, когда удар героя на перезарядке.',shards:0,lore:'Легендарный лётчик Севера.'},
  brown_white_dog:{name:'Верный пёс',role:'guardian',rarity:2,base:.12,perLevel:.01,interval:7,traitName:'Заслон',trait:'Принимает на себя часть тяжёлого удара и спешит с лечением.',shards:0,lore:'Не бросит хозяина ни в одном походе.'},
@@ -179,30 +181,34 @@ export const talentDefs:Record<CompanionRole,{name:string;text:string}[]>={
  striker:[{name:'Острые когти',text:'+8% урона спутника за очко'},{name:'Боевой темп',text:'Атакует на 4% чаще за очко'},{name:'Метка добычи',text:'+1,5% урона героя за очко, пока спутник в строю'}],
  guardian:[{name:'Целитель',text:'+8% силы лечения за очко'},{name:'Быстрая лапа',text:'Лечит на 4% чаще за очко'},{name:'Оберег',text:'+1% снижения урона героя за очко, пока спутник в строю'}]
 };
-export const TALENT_MAX=5;
+export const TALENT_MAX=10;
+const LEGACY_TALENT_MAX=5;
 export const FOLLOWER_MAX_LEVEL=100;
 export const followerId=(species:string)=>`follower:${species}`;
 interface FollowerTalent {rank:number;type:string|null;open:boolean}
-interface FollowerInstance {species:string;lv:number;st:number;aw:boolean;talents:FollowerTalent[]}
-export interface Pet {lv:number;st:number;sh:number;aw:boolean;t:number[]}
+export interface FollowerInstance {species:string;lv:number;st:number;aw:boolean;step:number;locked:boolean;talents:FollowerTalent[]}
+export interface Pet {lv:number;st:number;sh:number;aw:boolean;t:number[];extra?:number}
 type Formation=[string,string,string|null];
-interface FollowerSave {v:1;instances:Record<string,FollowerInstance>;shards:Record<string,number>;formation:Formation}
+interface FollowerSave {v:2;instances:Record<string,FollowerInstance>;shards:Record<string,number>;formation:Formation}
 interface LegacySquad {own?:Record<string,Partial<Pet>>;act?:unknown[]}
 export interface SquadState extends FollowerSave {own:Record<string,Pet>;act:[string,string];owned:string[]}
 const int=(v:unknown,min:number,max:number,fallback:number)=>typeof v==='number'&&Number.isInteger(v)&&v>=min&&v<=max?v:fallback;
 
 export function newFollower(species:string,lv=1,ranks:readonly number[]=[],st=0,aw=false):FollowerInstance{
- return {species,lv,st,aw,talents:Array.from({length:8},(_,i)=>({
-  rank:i<3?int(ranks[i],0,TALENT_MAX,0):0,
-  type:i<3?`legacy:${companions[species].role}:${i}`:null,
+ return {species,lv,st,aw,step:0,locked:false,talents:Array.from({length:8},(_,i)=>({
+  rank:i<3?int(ranks[i],0,LEGACY_TALENT_MAX,0):0,
+  type:i<3?`legacy:${companions[species].role}:${i}`:`growth:${i}`,
   open:i<4,
  }))};
 }
 
+export const followerStarCap=(step:number)=>followerEconomy.baseStars+Math.floor(step/2)*followerEconomy.starsPerUnlock;
+export const followerExtraRank=(pet:FollowerInstance)=>pet.talents.slice(3).reduce((sum,slot)=>sum+(slot.open&&slot.type?.startsWith('growth:')?slot.rank:0),0);
+
 function readFollowers(p:Player):FollowerSave{
- const saved=peekBox<FollowerSave & LegacySquad>(p,'squad');
+ const saved=peekBox<Omit<FollowerSave,'v'> & {v?:number} & LegacySquad>(p,'squad');
  const instances:Record<string,FollowerInstance>={},shards:Record<string,number>={};
- const current=saved?.v===1;
+ const current=saved?.v===1||saved?.v===2;
  if(current){
   for(const [id,entry] of Object.entries(saved.instances??{})){
    if(!/^follower:[\w:.-]{1,55}$/.test(id)||!entry||!Object.hasOwn(companions,entry.species))continue;
@@ -210,11 +216,17 @@ function readFollowers(p:Player):FollowerSave{
    const lv=int(entry.lv,1,Number.MAX_SAFE_INTEGER,0);
    if(!lv)continue;
    const slots=Array.isArray(entry.talents)?entry.talents:[];
-   const follower=newFollower(entry.species,lv,slots.map(slot=>slot?.rank),int(entry.st,0,STAR_MAX,0),entry.aw===true);
+   const step=saved.v===2?int(entry.step,0,followerEconomy.awakening.length,0):0;
+   const follower=newFollower(entry.species,lv,slots.map(slot=>slot?.rank),int(entry.st,0,saved.v===2?followerStarCap(step):STAR_MAX,0),entry.aw===true);
+   follower.step=step;
+   follower.locked=entry.locked===true;
    follower.talents.forEach((slot,i)=>{
-    if(i<3)return;
     const previous=slots[i];
-    slot.open=i===3||previous?.open===true;
+    if(i<3){
+     if(saved.v===2)slot.rank=int(previous?.rank,0,10,slot.rank);
+     return;
+    }
+    slot.open=i<4+Math.floor(step/2)||previous?.open===true;
     if(slot.open&&typeof previous?.type==='string'&&/^[\w:.-]{1,48}$/.test(previous.type)){
      slot.type=previous.type;
      slot.rank=int(previous.rank,0,100,0);
@@ -242,7 +254,7 @@ function readFollowers(p:Player):FollowerSave{
  };
  const main=pick(0,'striker','goose_aviator'),guard=pick(1,'guardian','brown_white_dog');
  const reserve=requested?.[2];
- return {v:1,instances,shards,formation:[main,guard,
+ return {v:2,instances,shards,formation:[main,guard,
   typeof reserve==='string'&&Object.hasOwn(instances,reserve)&&reserve!==main&&reserve!==guard?reserve:null]};
 }
 
@@ -257,7 +269,8 @@ export function migrateSquad(p:Player){
 }
 
 export function followerProgress(instance:FollowerInstance,sh:number):Pet{
- return {lv:instance.lv,st:instance.st,sh,aw:instance.aw,t:instance.talents.slice(0,3).map(slot=>slot.rank)};
+ const extra=followerExtraRank(instance);
+ return {lv:instance.lv,st:instance.st,sh,aw:instance.aw,t:instance.talents.slice(0,3).map(slot=>slot.rank),...(extra?{extra}:{})};
 }
 export function squadState(p:Player):SquadState{
  const save=readFollowers(p),own:Record<string,Pet>={};
@@ -285,7 +298,7 @@ export const talentSpent=(pet:Pet)=>pet.t.reduce((a,b)=>a+b,0);
 /** Own power of one companion: its job multiplier, action interval and the awakened ability. */
 export function companionPower(id:string,pet:Pet){
  const def=companions[id],talents=pet.t,legacy=legacyPet(id)>=0;
- const power=(def.base+pet.lv*def.perLevel)*(legacy?evoPower(pet.lv):1+Math.min(3,Math.floor(pet.lv/10))*.12)*(1+pet.st*.1)*(1+talents[0]*.08)*(pet.aw?1.25:1);
+ const power=(def.base+pet.lv*def.perLevel)*(legacy?evoPower(pet.lv):1+Math.min(3,Math.floor(pet.lv/10))*.12)*(1+pet.st*.1)*(1+talents[0]*.08)*(pet.aw?1.25:1)*(1+(pet.extra??0)*.025);
  return {power,interval:def.interval*(1-talents[1]*.04)*(pet.aw?.85:1)};
 }
 export interface CombatFollower {
@@ -309,26 +322,28 @@ export function squadCombat(p:Player):SquadCombat{
 /** Collection bonuses count each owned species once. Active guardians contribute their own talent. */
 export function squadBonus(p:Player){
  const b=zeroBonus(),s=squadState(p);let stars=0;
- for(const id of s.owned)stars+=s.own[id].st+(s.own[id].aw?2:0);
+ const best=new Map<string,number>();
+ for(const pet of Object.values(s.instances))best.set(pet.species,Math.max(best.get(pet.species)??0,pet.st+(pet.aw?2:0)));
+ for(const value of best.values())stars+=value;
  b.hpPct+=stars*.005;b.atkPct+=stars*.005;
  const primary=s.instances[s.formation[1]],third=s.formation[2]?s.instances[s.formation[2]]:null;
  const protection=primary.talents[2].rank+(third&&companions[third.species].role==='guardian'?third.talents[2].rank:0);
  b.reduction+=protection*.01;
  return b;
 }
-export const SUMMON={gems:80,seal:1};
-const summonWeights:[string,number,number][]=[['08_armored_boar',30,5],['moss_eater',30,5],['senior_driller',13,3],['capybara_bruiser',13,3],['brown_white_dog',9,3],['goose_aviator',5,2]];
-export const summonTable=summonWeights.map(([id,weight,shards])=>({id,chance:weight/100,shards}));
-export function rollSummon(random:()=>number=Math.random){let roll=random()*100;for(const [id,weight,shards] of summonWeights){roll-=weight;if(roll<0)return {id,shards}}return {id:summonWeights[0][0],shards:summonWeights[0][2]}}
-
 // ───────────────────────── the single aggregator ─────────────────────────
 /** Dark gear + gems + relics + companions, each counted exactly once. Read by `stats()`. */
 export function powerBonus(p:Player):Bonus{
  const total=zeroBonus();if(!p.saga)return total;
- for(const part of [darkBonus(p),gemBonus(p),relicBonus(p),squadBonus(p)])for(const k of Object.keys(total) as StatKey[])total[k]+=part[k];
+ for(const part of [darkBonus(p),gemBonus(p),relicBonus(p),squadBonus(p),runeBonus(p)])for(const k of Object.keys(total) as StatKey[])total[k]+=part[k];
  return total;
 }
-export const powerParts=(p:Player)=>[['Тёмная энергия',darkBonus(p)],['Драгоценные камни',gemBonus(p)],['Реликвии',relicBonus(p)],['Спутники',squadBonus(p)]] as [string,Bonus][];
+function runeBonus(p:Player){
+ const bonus=zeroBonus();
+ for(const {key,amount} of runeBonuses(p).bonuses)bonus[key]+=amount;
+ return bonus;
+}
+export const powerParts=(p:Player)=>[['Тёмная энергия',darkBonus(p)],['Драгоценные камни',gemBonus(p)],['Реликвии',relicBonus(p)],['Спутники',squadBonus(p)],['Руны и пассивы',runeBonus(p)]] as [string,Bonus][];
 /** Fight-wide special effects of all systems, computed once per encounter by the battle engine. */
 export interface Aura {execute30:number;execute35:number;boss:number;opening:number;thorns:number;veil:number;killHeal:number;regen:number;firstBlock:boolean;boltEvery:number;boltPower:number;rally:number;cooldownRate:number;foeHpCut:number;heroDamage:number}
 export function combatAura(p:Player,team=squadCombat(p)):Aura{

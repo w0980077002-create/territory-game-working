@@ -1,3 +1,4 @@
+import {utcWeek} from './soloEconomy';
 import balance from '../../config/test-balance.v1.json';
 import economy from '../../config/solo-economy.v1.json';
 import type {Player,Slot} from '../core/types';
@@ -37,7 +38,7 @@ export interface ShopOffer {
   currency: ShopCurrency;
   reward: Reward;
   equipment?: {slot:Slot;level:number};
-  limit?: 'daily' | 'once';
+  limit?: 'daily' | 'weekly' | 'once';
 }
 
 const hornConfig = balance.horn_test_settings;
@@ -84,7 +85,10 @@ export function shopOffers(p: Player, now = Date.now(), equipmentSlot:Slot='weap
   const material = regionMaterial(p);
   const previousIndex = (materialIds.indexOf(material) + materialIds.length - 1) % materialIds.length;
   const previous = materialIds[previousIndex];
-  const offers = [
+  const offers:ShopOffer[] = [
+    {id:'rune-scrolls',category:'daily',name:'Рунические свитки',icon:'scroll',description:'На призыв и развитие рун. Бесплатная смена вариантов по-прежнему доступна в Навыках.',currency:'gold',price:450,reward:{solo:{scroll:20}},limit:'daily'},
+    {id:'weekly-growth',category:'supplies',name:'Недельное снаряжение дружины',icon:'chest',description:'Осколки для Камней пробуждения, свитки для рун и перья для роста крыльев.',currency:'tokens',price:45,reward:{solo:{scroll:45,awakeShard:10,wing:8}},limit:'weekly'},
+
     dailyOffer('travel-stipend','daily','Кошель разведчика','coins','Золото на первые усиления и обучение навыкам.','tokens',{gold:stock['travel-stipend'].amount}),
     dailyOffer('guard-stones','daily','Камни караула','rune','Хаосит для одного похода в Логово или Царство тьмы.','tokens',{chaosite:stock['guard-stones'].amount}),
     dailyOffer('blacksmith-coins','resources','Казна кузнеца','coins','Золото на экипировку, навыки и развитие спутников.','gems',{gold:stock['blacksmith-coins'].amount}),
@@ -95,8 +99,8 @@ export function shopOffers(p: Player, now = Date.now(), equipmentSlot:Slot='weap
     dailyOffer('forge-parcel','materials','Посылка кузнеца','hammer','Золото и материал текущего региона для изготовления и улучшения вещей.','gems',
       {gold:stock['forge-parcel'].gold,mats:{[material]:stock['forge-parcel'].materials}}),
     dailyOffer('dark-essence','materials',resources.ess.name,resources.ess.icon,'Расходуется на усиление тёмной экипировки.','gems',{res:{ess:stock['dark-essence'].amount}}),
-    dailyOffer('summon-seal','growth','Печать призыва',resources.seal.icon,'Один призыв за осколками спутников.','gems',{res:{seal:stock['summon-seal'].amount}}),
-    dailyOffer('squad-rations','growth','Жалованье призывателя','summon-seal','Печать на один призыв и золото на обучение спутников.','gems',stock['squad-rations'].reward),
+    dailyOffer('summon-seal','growth','Печать призыва',resources.seal.icon,'Обменивается в Призыве на 10 Звёздных душ.','gems',{res:{seal:stock['summon-seal'].amount}}),
+    dailyOffer('squad-rations','growth','Жалованье призывателя','summon-seal','Печать для обмена на Звёздные души и золото на обучение спутников.','gems',stock['squad-rations'].reward),
     dailyOffer('relic-shards','growth',resources.shard.name,resources.shard.icon,'Для открытия и усиления реликвий. Условия открытия смотрите в каталоге.','gems',{res:{shard:stock['relic-shards'].amount}}),
     hornOffer(p, now),
     dailyOffer('horn-kit','horn','Припасы охотника','horn','Заряды для добычи и золото для её усиления.','tokens',stock['horn-kit'].reward),
@@ -135,6 +139,7 @@ export function shopOffers(p: Player, now = Date.now(), equipmentSlot:Slot='weap
 interface ShopDay {day?: string; bought?: string[]}
 export function shopSold(p: Player, offer: ShopOffer, now: number) {
   if (offer.limit === 'once') return p.bought.includes(offer.id);
+  if(offer.limit==='weekly'){const week=peekBox<{week:number;bought:string[]}>(p,'shopWeek');return !!week&&week.week>=utcWeek(now)&&week.bought?.includes(offer.id)}
   const today = peekBox<ShopDay>(p, 'shop');
   return offer.limit === 'daily' && today?.day === dayOf(now)
     && Array.isArray(today.bought) && today.bought.includes(offer.id);
@@ -157,6 +162,11 @@ export function applyPurchase(p: Player, offer: ShopOffer, now: number) {
   p[offer.currency] -= offer.price;
   grant(p, offer.reward, now);
   if (offer.limit === 'once') p.bought.push(offer.id);
+  if(offer.limit==='weekly'){
+    const week=utcWeek(now),log=boxOf(p,'shopWeek',()=>({week,bought:[] as string[]}));
+    if(log.week!==week||!Array.isArray(log.bought)){log.week=week;log.bought=[];}
+    log.bought.push(offer.id);
+  }
   if (offer.limit === 'daily') {
     const day = dayOf(now);
     const log = boxOf<ShopDay>(p, 'shop', () => ({}));

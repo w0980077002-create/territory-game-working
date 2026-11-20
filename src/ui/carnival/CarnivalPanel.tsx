@@ -181,7 +181,8 @@ function PeriodPanel({period,active,now,hero}:{period:Period;active:boolean;now:
     }
   };
   const go=(route:CarnivalRoute)=>{
-    if(route==='campaign'||route==='dungeon'||route==='farm')battle?.startMode(route);
+    if(route==='campaign'||route==='farm')battle?.startMode(route);
+    else if(route==='dungeon')open('lair');
     else open(route);
   };
   const done=day.tasks.filter(task=>task.status==='claimable'||task.status==='claimed').length;

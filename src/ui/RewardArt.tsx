@@ -1,3 +1,4 @@
+import {soloResources,type SoloResource} from '../saga/soloEconomy';
 import {resources,type ResId} from '../dark/rules';
 import {materials} from '../saga/gear';
 import type {Reward} from '../saga/rewards';
@@ -23,6 +24,9 @@ export function rewardParts(reward: Reward) {
   }
   for (const [key, count] of Object.entries(reward.mats ?? {})) {
     if (materials[key] && count) parts.push({key, count, icon:materialIcon(key), name:materials[key].name});
+  }
+  for(const [key,count] of Object.entries(reward.solo??{})){
+    if(count)parts.push({key,count,icon:key==='wing'?'wings':key==='scroll'?'scroll':'star',name:soloResources[key as SoloResource].name});
   }
   return parts;
 }
