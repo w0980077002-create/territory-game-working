@@ -51,7 +51,8 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await open('rewards');const gold=await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold);await page.getByRole('button',{name:'Забрать подарок',exact:true}).tap();assert.equal(await page.evaluate(()=>window.__lootborn.useGame.getState().p.gold),gold+200);await check('daily-claimed');
   const read=()=>page.evaluate(()=>window.__lootborn.useGame.getState().p);
   await page.getByRole('button',{name:'Закрыть',exact:true}).tap();
-  await page.getByRole('button',{name:'Магазин',exact:true}).tap();
+  const shopButton=page.getByRole('button',{name:'Магазин',exact:true});
+  await shopButton.press('Enter');
   const shopControls=await page.locator('.treasure-shop button').evaluateAll(controls=>controls
    .map(control=>control.getBoundingClientRect().height));
   assert.ok(shopControls.every(height=>height>=44),width+' shop targets are at least 44 CSS px high');
@@ -65,9 +66,16 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   const offer=id=>page.locator(`[data-offer="${id}"]`);
   const purchase=id=>offer(id).getByRole('button',{name:/^Купить/});
   const category=name=>page.locator('.shop-tabs').getByRole('button',{name,exact:true}).tap();
-  await offer('expedition-kit').getByRole('button',{name:/Подробнее/}).tap();
+  const bundle=offer('expedition-kit').getByRole('button',{name:/Подробнее/});
+  await bundle.press('Enter');
   assert.equal(await page.locator('dialog .reward-piece').count(),2,'bundle preview illustrates all contents');
-  await page.getByRole('button',{name:'Закрыть карточку',exact:true}).tap();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'Закрыть карточку',exact:true}).waitFor({state:'detached'});
+  assert.ok(await bundle.evaluate(button=>document.activeElement===button),'closing a nested card restores its trigger');
+  await page.keyboard.press('Escape');
+  await page.locator('.treasure-shop').waitFor({state:'detached'});
+  assert.ok(await shopButton.evaluate(button=>document.activeElement===button),'closing the shop restores the HUD button');
+  await shopButton.tap();
   const prior=await read();
   await purchase('travel-stipend').evaluate(button=>{button.click();button.click()});
   const afterDaily=await read();
