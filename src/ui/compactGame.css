@@ -49,7 +49,7 @@
 .game .stage h1{margin:8px 110px 0 0;white-space:normal;overflow-wrap:break-word}
 .game .stage .enter{top:1px;right:0}
 .game .toast{top:112px;left:154px;right:154px;padding:4px 8px;min-height:32px;max-height:46px;font-size:21px;line-height:1.05;text-wrap:balance}
-.game .trophy-ribbon{top:277px;left:170px;right:170px;min-height:72px;padding:6px 13px;gap:10px}
+.game .trophy-ribbon{top:277px;left:170px;right:170px;min-height:max(72px,calc(44px / var(--game-scale,1)));padding:6px 13px;gap:10px}
 .game .trophy-ribbon .icon{width:55px;height:55px;flex:none}
 .game .trophy-ribbon strong{font-size:24px;margin:2px 0}
 .game .trophy-ribbon small{font-size:17px;letter-spacing:0}

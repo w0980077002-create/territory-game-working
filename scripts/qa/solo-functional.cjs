@@ -134,6 +134,18 @@ const fixed=(day,month=0)=>new Date(Date.UTC(2027,month,day,12));
     g.mutate(p=>{p.stage=70});
    });
    await checkHud(page);
+   if(width===320){
+    await page.evaluate(()=>{
+     const game=window.__lootborn.useGame.getState();
+     game.mutate(p=>{p.rewardOffer={encounterId:p.encounter.id,itemId:p.inventory[0].id,resolved:false}});
+     game.notice('Трофей ожидает выбора');
+    });
+    const trophy=button('Трофей босса · открыть добычу');
+    assert.ok((await trophy.boundingBox()).height>=43.9);
+    assert.equal(await page.locator('.game .toast').count(),0);
+    await trophy.tap();
+    await panel('item').waitFor();
+   }
    assert.deepEqual(errors,[]);
    await context.close();
    console.log(width+' px: followers, runes, sprints, boards, mail, wings, tracks, lair and reload OK');
