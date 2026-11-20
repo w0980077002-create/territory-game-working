@@ -179,3 +179,10 @@
  width:100%;color:#302018;border-color:#f4d27c;background:linear-gradient(#ffe7ae,#d4a34a 62%,#b17930);
  text-shadow:0 1px #fff6;box-shadow:inset 0 0 0 2px #664728;
 }
+
+/* Formation shares the existing stage art and the talent card palette. */
+.squad-placement{display:grid;gap:5px}
+.follower-talents{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0;padding:0;list-style:none}
+.follower-talents li:has(.talent-row){grid-column:1/-1}
+.follower-talents li>span{display:block;padding:7px;text-align:center;color:#ced8d4;border:1px solid #53635b;border-radius:6px}
+.follower-talents .locked>span{color:#b1a28f;border-color:#635744;background:#171925}

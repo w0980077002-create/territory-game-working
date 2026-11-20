@@ -15,10 +15,10 @@ import {resources,resCount,duskCount,type ResId,bonusLines,statNames,statText,
  darkSlots,darkRarity,darkColors,darkState,darkValue,darkEffectOf,darkName,darkScore,darkUpgradeCost,darkMaxUpgrade,darkSalvageValue,darkBonus,darkEffectTotals,darkEffects,darkEffectIds,darkResonance,DARK_STORAGE,type DarkItem,
  gemTypes,gemSlots,gemState,parseGem,gemLabel,gemText,gemBonus,gemSynthGold,socketOpen,socketRules,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicIds,relicLevel,relicRarity,relicColors,relicUnlockCost,relicUpgradeCost,relicCollection,RELIC_MAX,type RelicId,
- squadBonus,companions,companionIds,companionRarity,companionColors,squadState,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,talentDefs,talentPoints,talentSpent,TALENT_MAX,summonTable,SUMMON,powerParts} from '../dark/rules';
+ squadBonus,companions,companionIds,companionRarity,companionColors,squadState,followerProgress,followerId,FOLLOWER_MAX_LEVEL,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,talentDefs,talentPoints,talentSpent,TALENT_MAX,summonTable,SUMMON,powerParts} from '../dark/rules';
 import {blessings,blessingIds,realmRun,realmLast,realmSelected,roomReward,floorName,lordFloor,floorBoss,roomTitles,REALM_COST,ROOMS,type BlessingId,type RealmLast,type RealmTotals} from '../dark/realm';
 import {collectRealmReward,realmSelect,realmStart,realmResume,realmAbandon,darkEquip,darkUnequip,darkUpgrade,darkSalvage,darkSalvageMany,darkBulkList,
- gemInsert,gemRemove,gemSynth,gemSynthAll,gemBuy,relicUnlock,relicUpgrade,summon,petLevel,petLevelCost,petStar,petAwaken,petTalent,petTalentReset,petActivate,type SummonResult} from '../dark/actions';
+ gemInsert,gemRemove,gemSynth,gemSynthAll,gemBuy,relicUnlock,relicUpgrade,summon,petLevel,petLevelCost,petStar,petAwaken,petTalent,petTalentReset,petActivate,petClearReserve,type SummonResult} from '../dark/actions';
 import './dark.css';
 const fmt=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
 const nameOf=(id:string)=>characters.find(c=>c.id===id)?.name.split(',')[0]??id;
@@ -212,23 +212,57 @@ export function RelicsPanel({p}:{p:Player}){
 
 // ───────────────────────── Companions ─────────────────────────
 export function SquadPanel({p}:{p:Player}){
- const s=squadState(p),[picked,setPicked]=useState(s.act[0]),[results,setResults]=useState<SummonResult[]|null>(null),[detail,setDetail]=useState(false),[summoning,setSummoning]=useState(false),[tab,setTab]=useState('level'),def=companions[picked],pet=s.own[picked],own=pet.lv>0,active=s.act.includes(picked),power=companionPower(picked,{...pet,lv:Math.max(1,pet.lv)}),points=talentPoints(pet)-talentSpent(pet),legacy=legacyPet(picked),attack=stats(p).attack;
+ const s=squadState(p);
+ const [picked,setPicked]=useState(s.formation[0]),[results,setResults]=useState<SummonResult[]|null>(null);
+ const [detail,setDetail]=useState(false),[summoning,setSummoning]=useState(false),[tab,setTab]=useState('level');
+ const instance=s.instances[picked];
+ const species=instance?.species??(Object.hasOwn(companions,picked)?picked:s.act[0]);
+ const def=companions[species],pet=instance?followerProgress(instance,s.shards[species]):s.own[species];
+ const own=!!instance,position=s.formation.indexOf(picked),power=companionPower(species,{...pet,lv:Math.max(1,pet.lv)});
+ const points=talentPoints(pet)-talentSpent(pet),legacy=picked===followerId(species)?legacyPet(species):-1;
+ const attack=stats(p).attack,labels=['Главный','Сопровождение I','Сопровождение II'];
+ const inspect=(id:string)=>{setPicked(id);setDetail(true);setTab('level')};
+ const roster=companionIds.flatMap(species=>{
+  const entries=Object.entries(s.instances).filter(([,pet])=>pet.species===species);
+  return entries.length?entries.map(([id],i)=>({id,species,copy:entries.length>1?i+1:0})): [{id:species,species,copy:0}];
+ });
  const call=(times:1|10,pay:'seal'|'gems')=>{const r=summon(times,pay);if(r)setResults(r)};
  const job=(id:string,pw:{power:number;interval:number})=>companions[id].role==='striker'?`Удар ${fmt(attack*pw.power)} каждые ${pw.interval.toFixed(1).replace('.',',')} сек`:`Лечит ${(Math.min(.45,pw.power)*100).toFixed(0)}% здоровья каждые ${pw.interval.toFixed(1).replace('.',',')} сек`;
  return <div className="squad">
   <DarkWallet p={p} show={['seal']} from="companions"/>
-  <div className="squad-active squad-stage">{s.act.map((id,i)=><button key={id} className={picked===id?'selected':''} onClick={()=>{setPicked(id);setDetail(true);setTab('level')}} style={{'--rarity':companionColors[companions[id].rarity]} as React.CSSProperties}><img src={art(id)} alt=""/><small>{i===0?'БОЕЦ':'ХРАНИТЕЛЬ'}</small><strong>{companions[id].name}</strong><span>ур.{s.own[id].lv} · {'★'.repeat(s.own[id].st)||'без звёзд'}{s.own[id].aw?' · пробуждён':''}</span></button>)}</div>
+  <div className="squad-active squad-stage" role="group" aria-label="Состав дружины">{s.formation.map((id,i)=>{
+   const member=id?s.instances[id]:null;
+   return id&&member?<button key={i} className={picked===id?'selected':''} onClick={()=>inspect(id)} aria-label={`${labels[i]} · ${companions[member.species].name}`}>
+    <img src={art(member.species)} alt=""/><small>{labels[i]}</small><strong>{companions[member.species].name}</strong>
+    <span>{i===2?'Вне боя':`ур.${member.lv} · ${'★'.repeat(member.st)||'без звёзд'}`}</span>
+   </button>:<div key={i} className="squad-vacancy"><small>{labels[i]}</small><strong>Свободно</strong><span>Выберите в каталоге</span></div>;
+  })}</div>
   <div className="squad-bonus">Бонус дружины: {bonusLines(squadBonus(p)).join(' · ')||'звёзды и таланты ещё не развиты'}</div>
   <div className="workspace-toolbar"><b>Каталог · {s.owned.length}/{companionIds.length}</b><button onClick={()=>setSummoning(true)}>Призыв</button></div>
-  <div className="local-scroll"><div className="squad-grid">{companionIds.map(id=>{const d=companions[id],o=s.own[id];return <button key={id} className={`${picked===id?'selected':''} ${o.lv?'':'locked'}`} style={{'--rarity':companionColors[d.rarity]} as React.CSSProperties} aria-pressed={picked===id} aria-label={d.name} onClick={()=>{setPicked(id);setDetail(true);setTab('level')}}><img src={art(id)} alt=""/><small>{o.lv?`ур.${o.lv}`:`${o.sh}/${d.shards}`}</small>{o.st>0&&<em>{'★'.repeat(o.st)}</em>}{s.act.includes(id)&&<i aria-label="в строю">✓</i>}</button>})}</div>
-  </div>{detail&&<CardDialog title={def.name} onClose={()=>setDetail(false)} actions={own?<>{!active&&<Btn onClick={()=>petActivate(picked)}>В строй · заменить {def.role==='striker'?'бойца':'хранителя'}</Btn>}{tab==='level'&&<Btn disabled={p.gold<petLevelCost(pet.lv)} onClick={()=>petLevel(picked)}>Повысить уровень · {fmt(petLevelCost(pet.lv))} золота <small>→ {job(picked,companionPower(picked,{...pet,lv:pet.lv+1}))}</small></Btn>}
-    {tab==='stars'&&<Btn kind="secondary" disabled={pet.st>=STAR_MAX||pet.sh<starCost[pet.st]} onClick={()=>petStar(picked)}>{pet.st>=STAR_MAX?'Все 5 звёзд получены':`Звезда ${pet.st+1} · осколки ${pet.sh}/${starCost[pet.st]} · ${job(picked,companionPower(picked,{...pet,st:pet.st+1}))}`}</Btn>}{tab==='awake'&&(!pet.aw?<><div className="awaken-list"><b>Пробуждение</b><span className={pet.st>=AWAKEN.stars?'ok':''}>Звёзды {pet.st}/{AWAKEN.stars}</span><span className={pet.lv>=AWAKEN.level?'ok':''}>Уровень {pet.lv}/{AWAKEN.level}</span><span className={duskCount(p)>=AWAKEN.dusk?'ok':''}>Камни Сумрака {duskCount(p)}/{AWAKEN.dusk}</span><span className={p.gold>=AWAKEN.gold?'ok':''}>Золото {fmt(AWAKEN.gold)}</span></div><Btn kind="secondary" disabled={pet.st<AWAKEN.stars||pet.lv<AWAKEN.level||duskCount(p)<AWAKEN.dusk||p.gold<AWAKEN.gold} onClick={()=>petAwaken(picked)}>Пробудить · {job(picked,companionPower(picked,{...pet,aw:true}))}</Btn></>:<p>✓ Спутник пробуждён · +25% силы</p>)}</>:undefined}><div className="pet-card" style={{'--rarity':companionColors[def.rarity]} as React.CSSProperties}>
-   <div className="pet-head"><div className={`pet-portrait ${pet.aw?'awake':''}`}><img src={art(picked)} alt={def.name}/></div><div><small>{companionRarity[def.rarity]} · {def.role==='striker'?'боец':'хранитель'}</small><h3>{def.name}{own?` · ур.${pet.lv}`:''}</h3><b className="stars">{'★'.repeat(pet.st)}{'☆'.repeat(STAR_MAX-pet.st)}</b><p>{def.lore}</p></div></div>
-   <div className="bonus-card"><span><b>{def.traitName}</b> {def.trait}</span><span><b>В бою</b> {job(picked,power)}</span>{pet.aw&&<span className="on"><b>Пробуждение</b> {def.role==='striker'?'Каждая третья атака бьёт всех врагов на 50%.':'Каждое лечение даёт герою +15% урона на 3 секунды.'}</span>}</div>
+  <div className="local-scroll"><div className="squad-grid">{roster.map(({id,species,copy})=>{
+   const d=companions[species],o=s.instances[id];
+   return <button key={id} className={`${picked===id?'selected':''} ${o?'':'locked'}`} style={{'--rarity':companionColors[d.rarity]} as React.CSSProperties} aria-pressed={picked===id} aria-label={copy?`${d.name}, экземпляр ${copy}`:d.name} onClick={()=>inspect(id)}>
+    <img src={art(species)} alt=""/><small>{o?`ур.${o.lv}${copy?` · №${copy}`:''}`:`${s.shards[species]}/${d.shards}`}</small>{o&&o.st>0&&<em>{'★'.repeat(o.st)}</em>}{s.formation.includes(id)&&<i aria-label="в строю">✓</i>}
+   </button>;
+  })}</div>
+  </div>{detail&&<CardDialog title={def.name} onClose={()=>setDetail(false)} actions={own?<>
+    {position!==0&&position!==1&&<div className="squad-placement">
+     <Btn onClick={()=>petActivate(picked)}>{def.role==='striker'?'Назначить главным':'Назначить в сопровождение I'}</Btn>
+     {position===2?<Btn kind="secondary" onClick={()=>petClearReserve(picked)}>Освободить сопровождение II</Btn>:<Btn kind="secondary" onClick={()=>petActivate(picked,2)}>В сопровождение II</Btn>}
+    </div>}
+    {tab==='level'&&(pet.lv>=FOLLOWER_MAX_LEVEL?<p className="hint">Предел повышения · {FOLLOWER_MAX_LEVEL}</p>:<Btn disabled={p.gold<petLevelCost(pet.lv)} onClick={()=>petLevel(picked)}>Повысить уровень · {fmt(petLevelCost(pet.lv))} золота <small>→ {job(species,companionPower(species,{...pet,lv:pet.lv+1}))}</small></Btn>)}
+    {tab==='stars'&&<Btn kind="secondary" disabled={pet.st>=STAR_MAX||pet.sh<starCost[pet.st]} onClick={()=>petStar(picked)}>{pet.st>=STAR_MAX?'Все 5 звёзд получены':`Звезда ${pet.st+1} · осколки ${pet.sh}/${starCost[pet.st]} · ${job(species,companionPower(species,{...pet,st:pet.st+1}))}`}</Btn>}{tab==='awake'&&(!pet.aw?<><div className="awaken-list"><b>Пробуждение</b><span className={pet.st>=AWAKEN.stars?'ok':''}>Звёзды {pet.st}/{AWAKEN.stars}</span><span className={pet.lv>=AWAKEN.level?'ok':''}>Уровень {pet.lv}/{AWAKEN.level}</span><span className={duskCount(p)>=AWAKEN.dusk?'ok':''}>Камни Сумрака {duskCount(p)}/{AWAKEN.dusk}</span><span className={p.gold>=AWAKEN.gold?'ok':''}>Золото {fmt(AWAKEN.gold)}</span></div><Btn kind="secondary" disabled={pet.st<AWAKEN.stars||pet.lv<AWAKEN.level||duskCount(p)<AWAKEN.dusk||p.gold<AWAKEN.gold} onClick={()=>petAwaken(picked)}>Пробудить · {job(species,companionPower(species,{...pet,aw:true}))}</Btn></>:<p>✓ Спутник пробуждён · +25% силы</p>)}</>:undefined}><div className="pet-card" style={{'--rarity':companionColors[def.rarity]} as React.CSSProperties}>
+   {tab!=='talents'&&<>
+   <div className="pet-head"><div className={`pet-portrait ${pet.aw?'awake':''}`}><img src={art(species)} alt={def.name}/></div><div><small>{companionRarity[def.rarity]} · {def.role==='striker'?'боец':'хранитель'}</small><h3>{def.name}{own?` · ур.${pet.lv}`:''}</h3><b className="stars">{'★'.repeat(pet.st)}{'☆'.repeat(STAR_MAX-pet.st)}</b><p>{def.lore}</p></div></div>
+   <div className="bonus-card">{position===2&&<span><b>Сопровождение II</b> Пока не участвует в бою.</span>}<span><b>{def.traitName}</b> {def.trait}</span><span><b>В бою</b> {job(species,power)}</span>{pet.aw&&<span className="on"><b>Пробуждение</b> {def.role==='striker'?'Каждая третья атака бьёт всех врагов на 50%.':'Каждое лечение даёт герою +15% урона на 3 секунды.'}</span>}</div>
+   </>}
    {!own?<><div className="relic-progress"><b>Осколки: {pet.sh}/{def.shards}</b><i><span style={{width:`${Math.min(100,pet.sh/def.shards*100)}%`}}/></i><small>Спутник присоединится, когда наберётся {def.shards} осколков из Призыва.</small></div></>:<>
     <div className="growth-tabs tabs">{[['level','Уровень'],['stars','Звёзды'],['talents','Таланты'],['awake','Пробуждение']].map(([id,label])=><button key={id} className={tab===id?'selected':''} aria-pressed={tab===id} onClick={()=>setTab(id)}>{label}</button>)}</div>
     {tab==='talents'&&<><h3>Таланты · свободно очков: {points}</h3>
-    {talentDefs[def.role].map((t,i)=><div className="talent-row" key={t.name}><div><strong>{t.name} · {pet.t[i]}/{TALENT_MAX}</strong><small>{t.text}</small></div><button className="action" aria-label={`Изучить ${t.name}`} disabled={points<=0||pet.t[i]>=TALENT_MAX} onClick={()=>petTalent(picked,i)}>+</button></div>)}
+    <ol className="follower-talents" aria-label="Ячейки талантов">{instance?.talents.map((slot,i)=>{
+     const current=talentDefs[def.role][i];
+     return <li key={i} className={slot.open?'':'locked'}>{current?<div className="talent-row"><div><strong>{current.name} · {slot.rank}/{TALENT_MAX}</strong><small>{current.text}</small></div><button className="action" aria-label={`Изучить ${current.name}`} disabled={points<=0||slot.rank>=TALENT_MAX} onClick={()=>petTalent(picked,i)}>+</button></div>:<span>{slot.open?'Свободная ячейка':`Ячейка ${i+1} закрыта`}</span>}</li>;
+    })}</ol>
     <p className="hint">Одно очко таланта за каждые 5 уровней спутника.{talentSpent(pet)>0&&<> <button className="link" onClick={()=>petTalentReset(picked)}>Сбросить за 200 золота</button></>}</p>
     </>}{tab==='level'&&legacy>=0&&<details className="saga-disclosure"><summary>Эволюция и боевая ветвь</summary><CompanionGrowth p={p} pet={legacy as 0|1}/></details>}
    </>}

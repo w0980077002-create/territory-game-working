@@ -180,19 +180,105 @@ export const talentDefs:Record<CompanionRole,{name:string;text:string}[]>={
  guardian:[{name:'Целитель',text:'+8% силы лечения за очко'},{name:'Быстрая лапа',text:'Лечит на 4% чаще за очко'},{name:'Оберег',text:'+1% снижения урона героя за очко, пока спутник в строю'}]
 };
 export const TALENT_MAX=5;
+export const FOLLOWER_MAX_LEVEL=100;
+export const followerId=(species:string)=>`follower:${species}`;
+interface FollowerTalent {rank:number;type:string|null;open:boolean}
+interface FollowerInstance {species:string;lv:number;st:number;aw:boolean;talents:FollowerTalent[]}
 export interface Pet {lv:number;st:number;sh:number;aw:boolean;t:number[]}
-interface SquadBox {own?:unknown;act?:unknown}
-export interface SquadState {own:Record<string,Pet>;act:[string,string];owned:string[]}
+type Formation=[string,string,string|null];
+interface FollowerSave {v:1;instances:Record<string,FollowerInstance>;shards:Record<string,number>;formation:Formation}
+interface LegacySquad {own?:Record<string,Partial<Pet>>;act?:unknown[]}
+export interface SquadState extends FollowerSave {own:Record<string,Pet>;act:[string,string];owned:string[]}
 const int=(v:unknown,min:number,max:number,fallback:number)=>typeof v==='number'&&Number.isInteger(v)&&v>=min&&v<=max?v:fallback;
-export function squadState(p:Player):SquadState{
- const box=peekBox<SquadBox>(p,'squad'),raw=box?.own&&typeof box.own==='object'&&!Array.isArray(box.own)?box.own as Record<string,Partial<Pet>|undefined>:{},own:Record<string,Pet>={};
- for(const id of companionIds){const r=raw[id]??{},legacy=legacyPet(id),t=Array.isArray(r.t)?r.t:[];
-  own[id]={lv:legacy>=0?Math.max(1,p.companions[legacy]):int(r.lv,0,9999,0),st:int(r.st,0,STAR_MAX,0),sh:int(r.sh,0,1e6,0),aw:r.aw===true,t:[0,1,2].map(i=>int(t[i],0,TALENT_MAX,0))}}
- const owned=companionIds.filter(id=>own[id].lv>0),act=Array.isArray(box?.act)?box.act:[],pick=(role:CompanionRole,want:unknown,fallback:string)=>typeof want==='string'&&owned.includes(want)&&companions[want].role===role?want:fallback;
- return {own,owned,act:[pick('striker',act[0],'goose_aviator'),pick('guardian',act[1],'brown_white_dog')]};
+
+export function newFollower(species:string,lv=1,ranks:readonly number[]=[],st=0,aw=false):FollowerInstance{
+ return {species,lv,st,aw,talents:Array.from({length:8},(_,i)=>({
+  rank:i<3?int(ranks[i],0,TALENT_MAX,0):0,
+  type:i<3?`legacy:${companions[species].role}:${i}`:null,
+  open:i<4,
+ }))};
 }
-/** Mutable squad box; levels of the goose and the dog stay in `player.companions`. */
-export function squadBox(p:Player){const clean=squadState(p),box=boxOf<{own:Record<string,Pet>;act:string[]}>(p,'squad',()=>({own:{},act:[]}));box.own=clean.own;box.act=[...clean.act];return box}
+
+function readFollowers(p:Player):FollowerSave{
+ const saved=peekBox<FollowerSave & LegacySquad>(p,'squad');
+ const instances:Record<string,FollowerInstance>={},shards:Record<string,number>={};
+ const current=saved?.v===1;
+ if(current){
+  for(const [id,entry] of Object.entries(saved.instances??{})){
+   if(!/^follower:[\w:.-]{1,55}$/.test(id)||!entry||!Object.hasOwn(companions,entry.species))continue;
+   if(Object.hasOwn(companions,id.slice(9))&&id!==followerId(entry.species))continue;
+   const lv=int(entry.lv,1,Number.MAX_SAFE_INTEGER,0);
+   if(!lv)continue;
+   const slots=Array.isArray(entry.talents)?entry.talents:[];
+   const follower=newFollower(entry.species,lv,slots.map(slot=>slot?.rank),int(entry.st,0,STAR_MAX,0),entry.aw===true);
+   follower.talents.forEach((slot,i)=>{
+    if(i<3)return;
+    const previous=slots[i];
+    slot.open=i===3||previous?.open===true;
+    if(slot.open&&typeof previous?.type==='string'&&/^[\w:.-]{1,48}$/.test(previous.type)){
+     slot.type=previous.type;
+     slot.rank=int(previous.rank,0,100,0);
+    }
+   });
+   instances[id]=follower;
+  }
+ }
+ for(const species of companionIds){
+  const id=followerId(species),old=saved?.own?.[species],legacy=legacyPet(species);
+  shards[species]=int(current?saved.shards?.[species]:old?.sh,0,1e6,0);
+  if(!current){
+   const lv=legacy>=0?p.companions[legacy]:int(old?.lv,0,9999,0);
+   if(lv>0)instances[id]=newFollower(species,lv,Array.isArray(old?.t)?old.t:[],int(old?.st,0,STAR_MAX,0),old?.aw===true);
+  }else if(legacy>=0){
+   // Starter levels also drive approved evolution, branches and hero stats.
+   const starter=instances[id]??=newFollower(species);
+   starter.lv=p.companions[legacy];
+  }
+ }
+ const requested=current?saved.formation:Array.isArray(saved?.act)?saved.act.map(id=>typeof id==='string'?followerId(id):null):[];
+ const pick=(slot:0|1,role:CompanionRole,fallback:string)=>{
+  const id=requested?.[slot];
+  return typeof id==='string'&&Object.hasOwn(instances,id)&&companions[instances[id].species].role===role?id:followerId(fallback);
+ };
+ const main=pick(0,'striker','goose_aviator'),guard=pick(1,'guardian','brown_white_dog');
+ const reserve=requested?.[2];
+ return {v:1,instances,shards,formation:[main,guard,
+  typeof reserve==='string'&&Object.hasOwn(instances,reserve)&&reserve!==main&&reserve!==guard?reserve:null]};
+}
+
+export function squadBox(p:Player):FollowerSave{
+ const squad=readFollowers(p);
+ sagaOf(p).box.squad=squad;
+ return squad;
+}
+export function migrateSquad(p:Player){
+ if(peekBox(p,'squad')||p.companions.some(level=>level>1))squadBox(p);
+}
+
+export function followerProgress(instance:FollowerInstance,sh:number):Pet{
+ return {lv:instance.lv,st:instance.st,sh,aw:instance.aw,t:instance.talents.slice(0,3).map(slot=>slot.rank)};
+}
+export function squadState(p:Player):SquadState{
+ const save=readFollowers(p),own:Record<string,Pet>={};
+ const bySpecies=new Map<string,FollowerInstance>();
+ for(const instance of Object.values(save.instances)){
+  if(!bySpecies.has(instance.species))bySpecies.set(instance.species,instance);
+ }
+ for(const species of companionIds){
+  const instance=save.instances[followerId(species)]??bySpecies.get(species);
+  own[species]=followerProgress(instance??newFollower(species,0),save.shards[species]);
+ }
+ return {...save,own,owned:companionIds.filter(id=>own[id].lv>0),
+  act:[save.instances[save.formation[0]].species,save.instances[save.formation[1]].species]};
+}
+export function raiseFollowerLevel(p:Player,id:string,box=squadBox(p)){
+ const pet=box.instances[id];
+ if(!pet||pet.lv>=FOLLOWER_MAX_LEVEL)return false;
+ pet.lv++;
+ const legacy=legacyPet(pet.species);
+ if(legacy>=0&&id===followerId(pet.species))p.companions[legacy]=pet.lv;
+ return true;
+}
 export const talentPoints=(pet:Pet)=>Math.floor(pet.lv/5);
 export const talentSpent=(pet:Pet)=>pet.t.reduce((a,b)=>a+b,0);
 /** Own power of one companion: its job multiplier, action interval and the awakened ability. */
@@ -203,11 +289,13 @@ export function companionPower(id:string,pet:Pet){
 }
 export interface SquadCombat {striker:{id:string;power:number;interval:number;fly:boolean;awake:boolean};guardian:{id:string;power:number;interval:number;awake:boolean};heroDamage:number}
 export function squadCombat(p:Player):SquadCombat{
- const s=squadState(p),[a,b]=s.act,pa=s.own[a],pb=s.own[b],ca=companionPower(a,pa),cb=companionPower(b,pb),boost=1+(relicLevel(p,'ravens')?(6+3*relicLevel(p,'ravens'))/100:0);
+ const s=squadState(p),[main,guard]=s.formation,[a,b]=s.act;
+ const pa=followerProgress(s.instances[main],s.shards[a]),pb=followerProgress(s.instances[guard],s.shards[b]);
+ const ca=companionPower(a,pa),cb=companionPower(b,pb),boost=1+(relicLevel(p,'ravens')?(6+3*relicLevel(p,'ravens'))/100:0);
  return {striker:{id:a,power:ca.power*boost,interval:ca.interval,fly:!!companions[a].fly,awake:pa.aw},guardian:{id:b,power:cb.power*boost,interval:cb.interval,awake:pb.aw},heroDamage:pa.t[2]*.015};
 }
 /** Every star of every owned companion supports the hero, in or out of the active pair. */
-export function squadBonus(p:Player){const b=zeroBonus(),s=squadState(p);let stars=0;for(const id of s.owned)stars+=s.own[id].st+(s.own[id].aw?2:0);b.hpPct+=stars*.005;b.atkPct+=stars*.005;b.reduction+=s.own[s.act[1]].t[2]*.01;return b}
+export function squadBonus(p:Player){const b=zeroBonus(),s=squadState(p);let stars=0;for(const id of s.owned)stars+=s.own[id].st+(s.own[id].aw?2:0);b.hpPct+=stars*.005;b.atkPct+=stars*.005;b.reduction+=s.instances[s.formation[1]].talents[2].rank*.01;return b}
 export const SUMMON={gems:80,seal:1};
 const summonWeights:[string,number,number][]=[['08_armored_boar',30,5],['moss_eater',30,5],['senior_driller',13,3],['capybara_bruiser',13,3],['brown_white_dog',9,3],['goose_aviator',5,2]];
 export const summonTable=summonWeights.map(([id,weight,shards])=>({id,chance:weight/100,shards}));

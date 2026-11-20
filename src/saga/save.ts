@@ -33,7 +33,13 @@ export function normalizeSaga(raw:unknown):SagaSave{
  const s=freshSaga();if(!raw||typeof raw!=='object'||Array.isArray(raw))return s;const r=raw as Partial<SagaSave>;
  s.seen=strings(r.seen,64);s.trophies=strings(r.trophies,200);s.flags=strings(r.flags,600,64);
  if(r.n&&typeof r.n==='object'&&!Array.isArray(r.n)){let count=0;for(const [k,v] of Object.entries(r.n)){if(key(k)&&typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<1e15&&++count<=600)s.n[k]=v}}
- if(r.box&&typeof r.box==='object'&&!Array.isArray(r.box)){const box=plain(r.box) as Record<string,unknown>;if(JSON.stringify(box).length<=90000)s.box=box}
+ if(r.box&&typeof r.box==='object'&&!Array.isArray(r.box)){
+  const box=plain(r.box) as Record<string,unknown>;
+  const squad=box.squad as {v?:number}|undefined;
+  // The expanded follower records have their own allowance so migration cannot evict the other boxes.
+  const followerAllowance=squad?.v===1?Math.min(12000,JSON.stringify(squad).length):0;
+  if(JSON.stringify(box).length<=90000+followerAllowance)s.box=box;
+ }
  return s;
 }
 type Holder={saga?:SagaSave};

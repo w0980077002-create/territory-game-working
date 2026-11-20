@@ -88,14 +88,14 @@ test('companions: summon pays once, shards unlock, stars, awakening, talents and
  seedRandom(11);const results=A.summon(10,'seal')!;restoreRandom();assert.equal(results.length,10);assert.equal(R.resCount(P(),'seal'),0);assert.equal(A.summon(1,'seal'),null);
  const total=results.reduce((a,r)=>a+r.shards,0),s=R.squadState(P()),spent=R.companionIds.reduce((a,id)=>a+(R.legacyPet(id)<0&&s.own[id].lv>0?R.companions[id].shards:0),0);
  assert.equal(R.companionIds.reduce((a,id)=>a+s.own[id].sh,0)+spent,total,'every shard is accounted for');
- give(p=>{const box=R.squadBox(p);box.own['08_armored_boar'].lv=1;box.own['08_armored_boar'].sh=200;box.own.moss_eater.lv=1});
+ give(p=>{const box=R.squadBox(p);box.instances[R.followerId('08_armored_boar')]=R.newFollower('08_armored_boar');box.shards['08_armored_boar']=200;box.instances[R.followerId('moss_eater')]=R.newFollower('moss_eater')});
  assert.equal(A.petActivate('senior_driller')||R.squadState(P()).own.senior_driller.lv>0,R.squadState(P()).own.senior_driller.lv>0);
  const goose=battle!.gooseDamage(),p0=P();assert.equal(goose,Math.round(stats(p0).attack*(.25+p0.companions[0]*.04)*evoPower(p0.companions[0])),'the goose keeps its approved formula');
  assert.ok(A.petActivate('08_armored_boar'));assert.equal(battle!.squad.striker.id,'08_armored_boar');assert.equal(A.petActivate('08_armored_boar'),false);assert.equal(R.squadState(P()).act[1],'brown_white_dog');
  const power=battle!.gooseDamage();assert.ok(A.petLevel('08_armored_boar'));battle!.tuneTeam();assert.ok(battle!.gooseDamage()>power);
  assert.ok(A.petLevel('goose_aviator'));assert.equal(P().companions[0],2,'the goose level stays in the approved save field');
  const hp=stats(P()).hp;assert.ok(A.petStar('08_armored_boar'));assert.equal(R.squadState(P()).own['08_armored_boar'].sh,190);assert.ok(stats(P()).hp>hp,'stars support the hero');
- assert.equal(A.petAwaken('08_armored_boar'),false);give(p=>{const pet=R.squadBox(p).own['08_armored_boar'];pet.st=3;pet.lv=20;R.addDusk(p,5)});
+ assert.equal(A.petAwaken('08_armored_boar'),false);give(p=>{const pet=R.squadBox(p).instances[R.followerId('08_armored_boar')];pet.st=3;pet.lv=20;R.addDusk(p,5)});
  assert.ok(A.petAwaken('08_armored_boar'));assert.equal(A.petAwaken('08_armored_boar'),false);assert.equal(R.duskCount(P()),0);battle!.tuneTeam();assert.equal(battle!.squad.striker.awake,true);
  assert.equal(R.talentPoints(R.squadState(P()).own['08_armored_boar']),4);for(let n=0;n<4;n++)assert.ok(A.petTalent('08_armored_boar',2));assert.equal(A.petTalent('08_armored_boar',0),false,'no free points');
  assert.equal(R.combatAura(P()).heroDamage,.06);assert.ok(A.petTalentReset('08_armored_boar'));assert.equal(R.combatAura(P()).heroDamage,0);
@@ -146,8 +146,8 @@ test('auras really change the fight: blessing, veil, aegis, gap, thorns, reducti
  b.phase='fight';assert.ok(Math.abs(b.auraDamage()-1.2*1.12*1)<1e-9,'fury blessing and the horn rally stack once');
  const hp=b.hp,shield=b.shield;b.takeDamage(500);assert.equal(b.hp,hp);assert.equal(b.shield,shield,'aegis swallows the first hit');
  b.shield=0;const foe=b.units[0].hp;seedRandom(3);b.takeDamage(500);restoreRandom();assert.ok(b.hp<hp);assert.ok(b.units[0].hp<foe,'thorns return damage');
- give(p=>{const q=R.squadBox(p);q.own.senior_driller.lv=3;q.act[0]='senior_driller'});b.tuneTeam();const def=b.foeDef(b.units[0]);b.hit(b.units[0],5,false,'#fff','goose');assert.ok(b.foeDef(b.units[0])<def,'the driller wears armour down');
- give(p=>{const q=R.squadBox(p);q.own.capybara_bruiser.lv=2;q.act[1]='capybara_bruiser'});b.tuneTeam();b.shield=0;b.guardianAid();assert.equal(b.shield,Math.round(b.maxHp*.06));
+ give(p=>{const q=R.squadBox(p);const id=R.followerId('senior_driller');q.instances[id]=R.newFollower('senior_driller',3);q.formation[0]=id});b.tuneTeam();const def=b.foeDef(b.units[0]);b.hit(b.units[0],5,false,'#fff','goose');assert.ok(b.foeDef(b.units[0])<def,'the driller wears armour down');
+ give(p=>{const q=R.squadBox(p);const id=R.followerId('capybara_bruiser');q.instances[id]=R.newFollower('capybara_bruiser',2);q.formation[1]=id});b.tuneTeam();b.shield=0;b.guardianAid();assert.equal(b.shield,Math.round(b.maxHp*.06));
 });
 
 test('realm: final claim rolls back on storage failure and retries without granting twice',()=>{
@@ -216,4 +216,107 @@ test('realm: published choices keep their saved enemy counts after reload',()=>{
  assert.equal(resumed.total,9);
  assert.equal(resumed.killed,1);
  assert.deepEqual(resumed.selected,pair[1]);
+});
+
+test('legacy followers migrate exactly once with their original combat and all resources',()=>{
+ const old=freshPlayer();
+ old.companions=[123,44];
+ old.gold=47000;
+ old.gems=91;
+ const saga=sagaOf(old);
+ saga.n={'res:seal':17,'res:shard':21,'res:ess':34,'mat:dusk':8};
+ saga.box.pets={b:[0,1]};
+ saga.box.relics={lv:{ravens:2}};
+ saga.box.squad={
+  own:{
+   goose_aviator:{st:4,sh:97,aw:true,t:[5,3,2]},
+   brown_white_dog:{st:2,sh:42,aw:false,t:[1,4,3]},
+   senior_driller:{lv:35,st:3,sh:62,aw:true,t:[2,1,4]},
+   moss_eater:{lv:0,sh:7},
+  },
+  act:['senior_driller','brown_white_dog'],
+ };
+ const before={stats:stats(old),combat:R.squadCombat(old),aura:R.combatAura(old),
+  bonus:R.squadBonus(old),ravens:R.relics.ravens.need(old)};
+ const p=parseSave(JSON.stringify(old),true)!;
+ const state=R.squadState(p);
+ assert.deepEqual(state.formation,[R.followerId('senior_driller'),R.followerId('brown_white_dog'),null]);
+ assert.deepEqual(state.own.goose_aviator,{lv:123,st:4,sh:97,aw:true,t:[5,3,2]});
+ assert.deepEqual(state.own.senior_driller,{lv:35,st:3,sh:62,aw:true,t:[2,1,4]});
+ assert.equal(state.shards.moss_eater,7);
+ assert.equal(state.instances[R.followerId('moss_eater')],undefined);
+ for(const pet of Object.values(state.instances)){
+  assert.equal(pet.talents.length,8);
+  assert.deepEqual(pet.talents.map(slot=>slot.open),[true,true,true,true,false,false,false,false]);
+ }
+ assert.deepEqual({stats:stats(p),combat:R.squadCombat(p),aura:R.combatAura(p),
+  bonus:R.squadBonus(p),ravens:R.relics.ravens.need(p)},before);
+ assert.deepEqual(p.saga?.n,saga.n);
+ assert.deepEqual(p.saga?.box.pets,saga.box.pets);
+ assert.deepEqual(p.saga?.box.relics,saga.box.relics);
+ assert.equal(p.gold,old.gold);
+ assert.equal(p.gems,old.gems);
+ assert.deepEqual(parseSave(JSON.stringify(p),true),p);
+ assert.ok(G().importSave(old));
+ assert.deepEqual(R.squadState(reload()),state);
+});
+
+test('follower migration preserves other Saga progress in a near-capacity save',()=>{
+ const p=freshPlayer(),saga=sagaOf(p);
+ saga.box.squad={own:Object.fromEntries(R.companionIds.map(id=>[id,{lv:40,st:4,sh:200,aw:true,t:[4,5,3]}]))};
+ saga.box.archive=Object.fromEntries(Array.from({length:215},(_,i)=>['entry'+i,'x'.repeat(400)]));
+ assert.ok(JSON.stringify(saga.box).length<90000);
+ const migrated=parseSave(JSON.stringify(p),true)!;
+ assert.ok(JSON.stringify(migrated.saga?.box).length>90000);
+ assert.deepEqual(parseSave(JSON.stringify(migrated),true),migrated);
+});
+
+test('formation saves individual copies, protects the combat pair, and rolls back a failed write',()=>{
+ const extra='follower:boar-copy',original=R.followerId('08_armored_boar'),goose=R.followerId('goose_aviator');
+ give(p=>{
+  const s=R.squadBox(p);
+  s.instances[original]=R.newFollower('08_armored_boar',7);
+  s.instances[extra]=R.newFollower('08_armored_boar',15,[3,1,2]);
+ });
+ const base=R.squadCombat(P()),collection=R.relics.ravens.need(P());
+ assert.equal(A.petActivate(goose,2),false);
+ assert.equal(A.petClearReserve(goose),false);
+ assert.ok(A.petActivate(extra,2));
+ assert.deepEqual(R.squadCombat(P()),base);
+ assert.equal(R.squadState(P()).formation[2],extra);
+ assert.deepEqual(R.relics.ravens.need(P()),collection);
+ const raw=exportSave(),storage=localStorage.setItem;
+ localStorage.setItem=()=>{throw new Error('write failed')};
+ try{
+  assert.equal(A.petActivate(extra),false);
+  assert.equal(A.petClearReserve(extra),false);
+  assert.equal(exportSave(),raw);
+ }finally{localStorage.setItem=storage}
+ assert.ok(A.petClearReserve(extra));
+ assert.equal(R.squadState(P()).formation[2],null);
+ assert.ok(A.petActivate(extra,2));
+ assert.deepEqual(R.squadState(reload()).formation,[goose,R.followerId('brown_white_dog'),extra]);
+ assert.ok(A.petActivate(extra));
+ assert.deepEqual(R.squadState(P()).formation,[extra,R.followerId('brown_white_dog'),null]);
+ assert.equal(R.squadState(P()).instances[original].lv,7);
+ assert.equal(R.squadCombat(P()).heroDamage,.03);
+ assert.equal(A.petActivate(extra,2),false);
+});
+
+test('both level entry points enforce 100 without reducing veteran levels or charging gold',()=>{
+ const goose=R.followerId('goose_aviator'),dog=R.followerId('brown_white_dog'),boar=R.followerId('08_armored_boar');
+ give(p=>{p.gold=100000;p.companions=[99,137];R.squadBox(p).instances[boar]=R.newFollower('08_armored_boar',99)});
+ assert.ok(A.petLevel(boar));
+ G().train('companion',0);
+ assert.equal(R.squadState(P()).instances[goose].lv,100);
+ assert.equal(R.squadState(P()).instances[boar].lv,100);
+ const gold=P().gold;
+ assert.equal(A.petLevel(boar),false);
+ assert.equal(A.petLevel(goose),false);
+ assert.equal(A.petLevel(dog),false);
+ G().train('companion',0);
+ G().train('companion',1);
+ assert.equal(P().gold,gold);
+ assert.deepEqual(P().companions,[100,137]);
+ assert.equal(R.squadState(reload()).instances[dog].lv,137);
 });
