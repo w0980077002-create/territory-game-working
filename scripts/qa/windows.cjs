@@ -14,6 +14,70 @@ async function closeCard(page){await page.getByRole('button',{name:'Закрыт
 async function geometry(page){return page.evaluate(()=>{const body=document.querySelector('.modal-body'),r=body.getBoundingClientRect();const local=document.querySelector('.local-scroll');return {outerOverflow:body.scrollHeight-body.clientHeight,horizontal:document.documentElement.scrollWidth-innerWidth,body:{top:r.top,bottom:r.bottom},local:local?{height:local.clientHeight,scroll:local.scrollHeight}:null};});}
 async function assertCard(page){assert.equal(await page.locator('dialog[open]').count(),1);assert.equal(await page.evaluate(()=>{const d=document.querySelector('dialog[open]');const r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth+1&&d.contains(document.activeElement)}),true);}
 async function assertSigns(page){assert.equal(await page.locator('.harbor-links button').evaluateAll(es=>{for(let i=0;i<es.length;i++){const a=es[i].getBoundingClientRect();if(a.width<76||a.height<44||document.elementFromPoint(a.x+a.width/2,a.y+a.height/2)?.closest('button')!==es[i])return false;for(let j=i+1;j<es.length;j++){const b=es[j].getBoundingClientRect();if(Math.min(a.right,b.right)>Math.max(a.left,b.left)&&Math.min(a.bottom,b.bottom)>Math.max(a.top,b.top))return false}}return true}),true,'All city signs have separate reachable touch areas');}
+async function verifyMail(page,width) {
+ const december = Date.UTC(2026,11,1,12);
+ const january = Date.UTC(2027,0,1,12);
+ await page.clock.setFixedTime(december);
+ await page.goto((process.env.BASE_URL || 'http://localhost:5173/') + '?hero=mail-qa');
+ await page.waitForFunction(() => window.__lootborn?.battle);
+ const persist = () => page.evaluate(() => window.__lootborn.useGame.getState().persist());
+ await persist();
+ await page.clock.setFixedTime(january);
+ await persist();
+ await page.clock.setFixedTime(Date.UTC(2027,0,8,12));
+ await persist();
+ const openMail = async () => {
+  await page.getByRole('button',{name:'Меню',exact:true}).tap();
+  await page.locator('.mail-entry').tap();
+  await page.getByRole('dialog',{name:'Почта',exact:true}).waitFor();
+ };
+ await page.setViewportSize({width,height:568});
+ await page.evaluate(() => {
+  document.documentElement.style.setProperty('--tg-content-safe-area-inset-top','26px');
+  document.documentElement.style.setProperty('--tg-safe-area-inset-bottom','24px');
+ });
+ const menu = page.getByRole('button',{name:'Меню',exact:true});
+ assert.equal(await menu.locator('.side-medal i').count(),1);
+ await openMail();
+ const inbox = page.getByRole('dialog',{name:'Почта',exact:true});
+ const letters = inbox.locator('.mail-letter');
+ const unread = inbox.locator('.mail-letter[data-unread="true"]');
+ const remove = inbox.getByRole('button',{name:'Удалить прочитанные'});
+ const all = inbox.getByRole('button',{name:'Забрать всё'});
+ assert.equal(await unread.count(),2);
+ assert.equal(await remove.isDisabled(),true);
+ assert.equal((await geometry(page)).horizontal,0);
+ for(const button of [all,remove]){
+  const box=await button.boundingBox();
+  assert.ok(box && box.height>=44 && box.y+box.height<=544,'mail actions above the bottom safe area');
+ }
+ await letters.locator('img').evaluateAll(images => Promise.all(images.map(image=>image.decode())));
+ await page.screenshot({path:`${output}/mail-${width}.png`});
+ await letters.first().tap();
+ const detail = page.getByRole('dialog',{name:'Награды карнавала',exact:true});
+ await assertCard(page);
+ assert.equal(await detail.locator('.reward-piece img').count(),1);
+ assert.equal(await detail.locator('.reward-piece strong').textContent(),'38');
+ await page.screenshot({path:`${output}/mail-letter-${width}.png`});
+ const balance = (await read(page)).gold;
+ await detail.getByRole('button',{name:'Забрать',exact:true}).evaluate(button=>{button.click();button.click()});
+ await detail.getByText('Вложения получены',{exact:false}).last().waitFor();
+ assert.equal((await read(page)).gold,balance+38);
+ await closeCard(page);
+ assert.equal(await unread.count(),1);
+ await remove.tap();
+ assert.equal(await letters.count(),1);
+ await all.evaluate(button=>{button.click();button.click()});
+ assert.equal((await read(page)).gold,balance+76);
+ await page.reload();
+ await page.waitForFunction(() => window.__lootborn?.battle);
+ assert.equal(await menu.locator('.side-medal i').count(),0);
+ await openMail();
+ assert.equal(await all.isDisabled(),true);
+ await remove.tap();
+ await inbox.getByText('Писем пока нет').waitFor();
+ assert.equal((await read(page)).gold,balance+76);
+}
 async function verifyManualCry(page) {
  await page.goto((process.env.BASE_URL || 'http://localhost:5173/') + '?hero=cry-qa');
  await page.waitForFunction(() => window.__lootborn?.battle);
@@ -151,6 +215,12 @@ let browser;
 (async()=>{browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':chromium.executablePath()),args:['--no-sandbox']});const report=[];
  for(const [width,height] of [[320,640],[360,740],[390,780],[430,932]]){
   const context=await browser.newContext({viewport:{width,height},deviceScaleFactor:1,hasTouch:true,isMobile:true,reducedMotion:'reduce'});const page=await context.newPage();const errors=[];page.on('response',r=>{if(r.status()>=400&&/\.(webp|svg|png|js|css)(\?|$)/.test(r.url()))errors.push(r.status()+' '+r.url())});page.on('pageerror',e=>errors.push(e.message));
+  if(!before){
+   const mailPage=await context.newPage();
+   mailPage.on('pageerror',e=>errors.push(e.message));
+   await verifyMail(mailPage,width);
+   await mailPage.close();
+  }
   if(!before)await verifyHonor(page,width,height);
   await page.goto((process.env.BASE_URL||'http://localhost:5173/')+'?hero=windows-qa');await page.waitForFunction(()=>window.__lootborn&&document.querySelector('.viewport'));await seed(page);
   // Finish normal quest initialization before comparing the complete Saga across reload.

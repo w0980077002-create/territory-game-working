@@ -4,6 +4,8 @@ import balance from '../config/test-balance.v1.json';
 import {installHeadless} from '../scripts/sim/bot';
 import {claimCarnivalReward, freshPlayer, makeItem, parseSave, SAVE_KEY, useGame} from '../src/core/store';
 import {carnivalView} from '../src/saga/carnival';
+import {carnivalDays} from '../src/saga/carnivalRules';
+import {mailbox,unreadMail} from '../src/saga/mail';
 import {bumpCount} from '../src/saga/save';
 import {resCount} from '../src/dark/rules';
 
@@ -94,6 +96,90 @@ test('UTC boundaries, real action deltas, old saves, catch-up, reload and backwa
 function oldGiftAndSeason() {
   return state().p.daily === '2026-11-30' && state().p.seasonClaims.join() === '1';
 }
+
+test('mail links real closed prizes, excludes direct claims and persists read state and payment atomically', t => {
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:at(11,1)});
+  start(Date.now());
+  const mail = () => mailbox(state().p,Date.now());
+  const unread = () => unreadMail(state().p,Date.now());
+  wins('campaign',3,'mail-chapter');
+  assert.deepEqual(mail(), [], 'active prizes stay in the carnival');
+  assert.equal(claimCarnivalReward(december,'task:1:1').status,'claimed');
+  const due = task(1,2).reward.gold;
+  t.mock.timers.setTime(at(11,8));
+  state().persist();
+  assert.equal(unread(), 1);
+  assert.equal(mail()[0].reward.gold, due, 'the paid login prize is excluded');
+  const before = state().p.gold;
+  const saved = localStorage.getItem(SAVE_KEY);
+  const write = localStorage.setItem;
+  localStorage.setItem = () => {throw new Error('Storage full')};
+  try {
+    assert.equal(state().mailAction({kind:'read',id:december}), false);
+    assert.equal(state().mailAction({kind:'claimAll'}), false);
+    assert.equal(state().p.gold, before);
+    assert.equal(unread(), 1);
+    assert.equal(localStorage.getItem(SAVE_KEY), saved);
+  } finally { localStorage.setItem = write; }
+
+  assert.equal(state().mailAction({kind:'read',id:december}), true);
+  assert.equal(state().mailAction({kind:'deleteRead'}), true);
+  reload();
+  assert.equal(unread(), 0);
+  assert.equal(mail()[0].pending, true, 'a read letter with attachments is protected');
+  assert.equal(state().mailAction({kind:'claim',id:december}), true);
+  assert.equal(state().mailAction({kind:'claim',id:december}), true);
+  reload();
+  assert.equal(state().p.gold, before + due!);
+  assert.equal(mail()[0].pending, false);
+  assert.equal(claimCarnivalReward(december,'task:1:2').status,'unavailable');
+  localStorage.setItem = () => {throw new Error('Storage full')};
+  try {
+    assert.equal(state().mailAction({kind:'deleteRead'}), false);
+    assert.equal(mail().length, 1);
+  } finally { localStorage.setItem = write; }
+  state().mailAction({kind:'deleteRead'});
+  reload();
+  assert.deepEqual(mail(), []);
+  assert.equal(state().p.gold, before + due!);
+});
+
+test('mail bulk claim preserves Horn overflow and slot choice and delivers gear to storage once', t => {
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:at(11,7)});
+  start(Date.now());
+  state().persist();
+  state().mutate(p => {
+    const period = p.carnival!.latest;
+    period.progress = carnivalDays.flatMap(day => day.tasks.flatMap(task => [task.primary.target,0]));
+    period.claims = Object.fromEntries([...carnivalDays.flatMap((day,i) => day.tasks.map((_,j) => `task:${i+1}:${j+1}`)),
+      'tier:100','tier:200','tier:400','tier:500'].map(id => [id,-1]));
+    p.inventory = Array.from({length:balance.loot_test_settings.starter_inventory_capacity},() => makeItem('belt',1,0));
+  });
+  t.mock.timers.setTime(at(11,8));
+  state().mutate(p => {p.horn=balance.horn_test_settings.maximum_charges;p.hornAt=Date.now()});
+  const before = state().p.gems;
+  state().mailAction({kind:'claimAll'});
+  state().mailAction({kind:'claimAll'});
+  reload();
+  assert.equal(state().p.gems, before + 12);
+  assert.equal(mailbox(state().p,Date.now())[0].reward.horn, 6);
+  assert.ok(mailbox(state().p,Date.now())[0].gear);
+  state().mailAction({kind:'deleteRead'});
+  assert.equal(mailbox(state().p,Date.now()).length, 1);
+
+  state().mailAction({kind:'claim',id:december,slot:'ring1'});
+  reload();
+  assert.equal(state().p.gems, before + 42);
+  assert.equal(state().p.pendingLoot?.length, 1);
+  assert.equal(state().p.pendingLoot?.[0].slot, 'ring1');
+  assert.equal(mailbox(state().p,Date.now())[0].pending, true);
+  state().mutate(p => {p.horn-=6});
+  state().mailAction({kind:'claimAll'});
+  reload();
+  assert.equal(state().p.horn, balance.horn_test_settings.maximum_charges);
+  assert.equal(mailbox(state().p,Date.now())[0].pending, false);
+  assert.equal(state().p.pendingLoot?.length, 1);
+});
 
 test('free route reaches 600 and atomically delivers the selected set piece to a full backpack through storage', t => {
   t.mock.timers.enable({apis:['Date','setTimeout'],now:at(11,1)});
