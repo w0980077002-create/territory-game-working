@@ -15,7 +15,7 @@ const fixed=(day,month=0)=>new Date(Date.UTC(2027,month,day,12));
 (async()=>{
  const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox']});
  try{
-  for(const width of [320,360,390,430]){
+  for(const width of (process.env.WIDTHS||'320,360,390,430').split(',').map(Number)){
    const context=await browser.newContext({viewport:{width,height:width===320?568:width*2},isMobile:true,hasTouch:true,timezoneId:'Pacific/Honolulu'});
    const page=await context.newPage(),errors=[];
    page.on('pageerror',error=>errors.push(error.message));
@@ -107,7 +107,11 @@ const fixed=(day,month=0)=>new Date(Date.UTC(2027,month,day,12));
    await tap('Забрать',card());await closeCard();
    assert.equal((await state()).saga.box.soloEvents['followers:2027-01'].claims,127);
    assert.equal(await page.locator('select').count(),0);
-   await open('wings');await tap('Получить первые крылья бесплатно');await tap('Рост');await tap(/Усилить · 4 перьев/);
+   await open('wings');await tap('Получить первые крылья бесплатно',panel('wings'));
+   await page.waitForFunction(()=>!!window.__lootborn.useGame.getState().p.equipment.wings);
+   await tap('Рост',panel('wings'));
+   await button('Рост',panel('wings')).and(page.locator('[aria-pressed=true]')).waitFor();
+   await tap(/Усилить · 4 перьев/,panel('wings'));
    assert.equal((await state()).saga.box.wings.rank,1);
    await open('hero-path');await check();
    await tap(/^Трактат опыта/);await tap('Забрать');await closeCard();

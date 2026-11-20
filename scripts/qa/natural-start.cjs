@@ -61,7 +61,7 @@ const heights={320:568,360:740,390:844,430:932};
   }else log('no unprotected weak item to salvage yet');
   // 6. Hero growth with earned gold: skill upgrade, quest reward (double tap), daily gift, summon.
   await closeAll();await tap('Навыки');const sk0=(await st()).skills,g1=(await st()).gold;
-  await tap(/^Сокрушительный удар/,{exact:false});
+  await page.locator('[data-panel="skills"]').getByRole('button',{name:/^Сокрушительный удар/}).tap();
   await page.getByRole('button',{name:/^Улучшить · \d+ золота/}).first().tap();await page.waitForTimeout(400);
   s=await st();assert.ok(s.skills[0]===sk0[0]+1&&s.gold<g1,'skill level paid with gold');
   await closeAll();await tap('Задания');const q0=await st();
