@@ -59,8 +59,8 @@ export class CompanionBrain {
   if(d.kind==='cheer')return {dx:0,dy:-Math.abs(Math.sin(f*Math.PI*3))*26,attack:0,run:false};
   return {dx:Math.sin(clock*50)*1.5,dy:0,attack:f<.8?.3:0,run:false};
  }
- drawEmotes(c:CanvasRenderingContext2D,at:(who:Emote['who'])=>{x:number;y:number}){
-  for(const e of this.emotes){const p=e.who==='spot'?{x:e.x??0,y:e.y??0}:at(e.who),age=e.max-e.t,pop=Math.min(1,age/.12),scale=.6+.4*pop+(age<.25?Math.sin(age/.25*Math.PI)*.15:0);
+ drawEmotes(c:CanvasRenderingContext2D,at:(who:Emote['who'])=>{x:number;y:number}|null){
+  for(const e of this.emotes){const p=e.who==='spot'?{x:e.x??0,y:e.y??0}:at(e.who);if(!p)continue;const age=e.max-e.t,pop=Math.min(1,age/.12),scale=.6+.4*pop+(age<.25?Math.sin(age/.25*Math.PI)*.15:0);
    c.save();c.translate(p.x,p.y-Math.min(8,age*20));c.scale(scale,scale);c.globalAlpha=Math.min(1,e.t/.2);
    c.fillStyle='#fffdf2';c.strokeStyle='#1b2b44';c.lineWidth=3;c.beginPath();c.arc(0,0,19,0,Math.PI*2);c.moveTo(-6,17);c.lineTo(-11,29);c.lineTo(4,18);c.fill();c.stroke();c.beginPath();c.arc(0,0,17,0,Math.PI*2);c.fill();
    c.fillStyle=e.glyph==='♥'?'#e5484d':e.glyph==='!'?'#d9480f':e.glyph==='♪'?'#2b6fb3':'#3d4f66';c.font='900 27px system-ui';c.textAlign='center';c.textBaseline='middle';c.fillText(e.glyph,0,2);c.restore()}

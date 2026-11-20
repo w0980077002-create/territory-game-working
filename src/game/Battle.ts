@@ -3,7 +3,7 @@ import {GearEffects} from './GearEffects';
 import {gearRules} from '../core/gear';
 import {useGame,registerEncounterProvider,mayStartLoot} from '../core/store';
 import {stats,damage,skillPowerMultiplier,odinCallSeconds} from '../core/formulas';
-import type {EncounterSnapshot,Fighter,Projectile,BattleView,Player,Stats} from '../core/types';
+import type {EncounterSnapshot,Fighter,Projectile,BattleView,Player,Stats,FollowerEncounter,FollowerImpact} from '../core/types';
 import balance from '../../config/test-balance.v1.json';
 import {characters,enemyIds,bossIds,miniIds,heroArt,skillData,rarityColors} from '../data/catalog';
 import {haptic} from '../core/telegram';
@@ -34,7 +34,7 @@ import {setCounts,hasPerk} from '../saga/gear';
 import {specId} from '../saga/specs';
 import {branchOf,evoPower,combos} from '../saga/companions';
 import {bumpCount} from '../saga/save';
-import {combatAura,squadCombat} from '../dark/rules';
+import {combatAura,squadCombat,type CombatFollower} from '../dark/rules';
 import {realmRun,realmLast,realmDefeat,realmVictory,realmChoose,realmPlan} from '../dark/realm';
 type Unit=Fighter;
 interface Effect {x:number;y:number;vx:number;vy:number;life:number;max:number;text?:string;color:string;size:number;ring?:boolean;tag?:string;amount?:number;critical?:boolean;labelKey?:string}
@@ -51,7 +51,10 @@ export class Battle implements TeamHost {
  labelPositions=new Map<string,Rect>();lastLabels:PlacedLabel[]=[];labelSerial=0;
  gear=new GearEffects();
  /** Dark gear, relic and companion effects of the current hero; refreshed on every spawn and resume. */
- aura=combatAura(useGame.getState().p);squad=squadCombat(useGame.getState().p);
+ squad=squadCombat(useGame.getState().p);aura=combatAura(useGame.getState().p,this.squad);
+ followers:FollowerEncounter|undefined;
+ followerSavePending=false;
+ reservePose=0;
  comics=new ComicFeedback();systemReduced=typeof window!=='undefined'&&!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
  journey=newJourney();scenery=new WorldRenderer();
  private realmRenderer?:RealmWorld;
@@ -60,25 +63,78 @@ export class Battle implements TeamHost {
  // Living World extension points (see WorldDirector / CompanionBrain / EnemyTactics).
  brain=new CompanionBrain();director=new WorldDirector(this);worldEvent:WorldEventSnapshot|undefined;team:TeamSnapshot|undefined;walked=0;coverNote=0;
  heroX=285;hp=1;maxHp=1;heroAttack=0;heroHurt=0;heroPending=0;cooldowns=[0,0,0];timer=rules.boss_timer_seconds as number;phase:BattleView['phase']='walk';mode='campaign';delay=0;clock=0;last=0;raf=0;autoCd=0;compCd=[1,3];buff=0;shield=0;burn=0;burnTick=0;stun=0;shake=0;stopped=false;lastPublish=0;lastSave=0;enemyLevel=1;boss=false;running=false;id=newId();stage=1;wave=1;rewarded=false;pressure=0;defensePressure=0;poison=0;poisonTick=0;slow=0;quality=1;gooseAttack=0;dogCast=0;unbind:()=>void=()=>{};
- constructor(canvas:HTMLCanvasElement){this.canvas=canvas;this.ctx=canvas.getContext('2d')!;for(const id of [heroArt[useGame.getState().p.heroClass],this.squad.striker.id,this.squad.guardian.id])this.warmActor(id,'high');this.maxHp=stats(useGame.getState().p).hp;this.hp=this.maxHp;this.journey=newJourney(useGame.getState().p.stage,useGame.getState().p.wave);this.spawn();this.restorePlayer();const unregister=registerEncounterProvider(()=>this.snapshot(),{pause:()=>this.pause(),restore:()=>this.restorePlayer(),resume:()=>this.resume()});const stopGear=useGame.subscribe((state,previous)=>{if(state.p.equipment!==previous.p.equipment)this.gear.sync(state.p)});this.unbind=()=>{stopGear();unregister()};this.canvas.addEventListener?.('pointerup',this.portalTap);this.publish();this.raf=requestAnimationFrame(this.frame)}
+ constructor(canvas:HTMLCanvasElement){this.canvas=canvas;this.ctx=canvas.getContext('2d')!;for(const id of [heroArt[useGame.getState().p.heroClass],...this.visibleFollowers().map(pet=>pet.id)])this.warmActor(id,'high');this.maxHp=stats(useGame.getState().p).hp;this.hp=this.maxHp;this.journey=newJourney(useGame.getState().p.stage,useGame.getState().p.wave);this.spawn();this.restorePlayer();const unregister=registerEncounterProvider(()=>this.snapshot(),{pause:()=>this.pause(),restore:()=>this.restorePlayer(),resume:()=>this.resume()});const stopGear=useGame.subscribe((state,previous)=>{if(state.p.equipment!==previous.p.equipment)this.gear.sync(state.p)});this.unbind=()=>{stopGear();unregister()};this.canvas.addEventListener?.('pointerup',this.portalTap);this.publish();this.raf=requestAnimationFrame(this.frame)}
  destroy(){this.canvas.removeEventListener?.('pointerup',this.portalTap);this.checkpoint();this.stopped=true;this.unbind();cancelAnimationFrame(this.raf)}
- snapshot():EncounterSnapshot{const worldEvent=this.director.snapshot();return structuredClone({version:1,balanceRevision:BALANCE_REVISION,gearProcs:this.gear.entries,...(worldEvent?{worldEvent}:{}),team:this.brain.snapshot(),...(this.pendingMode?{pendingMode:this.pendingMode}:{}),entryPaid:this.entryPaid,intro:this.intro,combatTime:this.combatTime,impactStop:this.impactStop,autoDecision:this.autoDecision,hazard:this.hazard,journey:this.journey,id:this.id,stage:this.stage,wave:this.wave,mode:this.mode,hp:this.hp,maxHp:this.maxHp,heroX:this.heroX,phase:this.phase,units:this.units,cooldowns:this.cooldowns,timer:this.timer,delay:this.delay,clock:this.clock,autoCd:this.autoCd,compCd:this.compCd,buff:this.buff,shield:this.shield,burn:this.burn,burnTick:this.burnTick,stun:this.stun,boss:this.boss,heroAttack:this.heroAttack,heroHurt:this.heroHurt,heroPending:this.heroPending,projectiles:this.projectiles,pressure:this.pressure,defensePressure:this.defensePressure,poison:this.poison,poisonTick:this.poisonTick,slow:this.slow,rewarded:this.rewarded,...(this.curse?{curse:this.curse}:{}),...(Object.keys(this.perk).length?{perk:this.perk}:{})})}
- restorePlayer(){this.gear.reset();this.curse=0;this.perk={};this.hazardCycle=-1;this.hazardWarn=-1;this.worldEvent=undefined;this.team=undefined;this.comics.reset();this.running=false;this.pendingMode=undefined;this.entryPaid=false;this.intro=0;this.combatTime=0;this.impactStop=0;this.autoDecision=0;this.hazard={remaining:0,tick:0,damage:0};const p=useGame.getState().p,s=p.encounter;if(validEncounter(s)&&(s.mode==='darkness'&&!!realmRun(p)||(s.stage===p.stage&&s.wave===p.wave)||s.phase==='victory'&&s.id===p.lastBattleReward)){Object.assign(this,structuredClone(encounterData(rebaseEncounter(s,planFor({...p,stage:s.stage,wave:s.wave},s.mode)))));this.entryPaid=s.entryPaid??['dungeon','darkness'].includes(s.mode);this.journey=s.journey?structuredClone(s.journey):newJourney(s.stage,s.wave,s.phase!=='walk');this.heroX=projectX(this.journey.worldX,this.journey.cameraX);this.plan=planFor(p,this.mode);this.placeEncounter(!s.journey);if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.running=false;this.fx=[];this.projectiles=this.projectiles.map(b=>({...b,encounterId:b.encounterId??this.id,targetId:b.targetId??this.units[b.target]?.id,targetRole:b.targetRole??this.units[b.target]?.role}));}else{this.journey=newJourney(p.stage,p.wave);this.mode='campaign';this.hp=stats(p).hp;this.maxHp=this.hp;this.spawn()}this.gear.entries=validEncounter(s)&&s.id===this.id?structuredClone(s.gearProcs??[]):[];this.gear.sync(p);this.tuneTeam();this.brain.restore(this.team);this.director.onRestore(this.worldEvent);this.worldEvent=undefined;this.team=undefined;if(this.mode==='darkness'){const run=realmRun(p),last=realmLast(p);if(run?.lastCombatId===s?.id&&!this.realmWaiting())this.spawn(false);if(!run&&last&&!last.ack){this.phase=last.win?'victory':'defeat';this.running=false;useGame.getState().open('realm')}}this.publish()}
- checkpoint(){useGame.getState().persist()}
+ snapshot():EncounterSnapshot{const worldEvent=this.director.snapshot();return structuredClone({version:1,balanceRevision:BALANCE_REVISION,gearProcs:this.gear.entries,followers:this.followers,...(worldEvent?{worldEvent}:{}),team:this.brain.snapshot(),...(this.pendingMode?{pendingMode:this.pendingMode}:{}),entryPaid:this.entryPaid,intro:this.intro,combatTime:this.combatTime,impactStop:this.impactStop,autoDecision:this.autoDecision,hazard:this.hazard,journey:this.journey,id:this.id,stage:this.stage,wave:this.wave,mode:this.mode,hp:this.hp,maxHp:this.maxHp,heroX:this.heroX,phase:this.phase,units:this.units,cooldowns:this.cooldowns,timer:this.timer,delay:this.delay,clock:this.clock,autoCd:this.autoCd,compCd:this.compCd,buff:this.buff,shield:this.shield,burn:this.burn,burnTick:this.burnTick,stun:this.stun,boss:this.boss,heroAttack:this.heroAttack,heroHurt:this.heroHurt,heroPending:this.heroPending,projectiles:this.projectiles,pressure:this.pressure,defensePressure:this.defensePressure,poison:this.poison,poisonTick:this.poisonTick,slow:this.slow,rewarded:this.rewarded,...(this.curse?{curse:this.curse}:{}),...(Object.keys(this.perk).length?{perk:this.perk}:{})})}
+ restorePlayer(){this.gear.reset();this.followers=undefined;this.followerSavePending=false;this.gooseAttack=0;this.dogCast=0;this.reservePose=0;this.curse=0;this.perk={};this.hazardCycle=-1;this.hazardWarn=-1;this.worldEvent=undefined;this.team=undefined;this.comics.reset();this.running=false;this.pendingMode=undefined;this.entryPaid=false;this.intro=0;this.combatTime=0;this.impactStop=0;this.autoDecision=0;this.hazard={remaining:0,tick:0,damage:0};const p=useGame.getState().p,s=p.encounter;if(validEncounter(s)&&(s.mode==='darkness'&&!!realmRun(p)||(s.stage===p.stage&&s.wave===p.wave)||s.phase==='victory'&&s.id===p.lastBattleReward)){Object.assign(this,structuredClone(encounterData(rebaseEncounter(s,planFor({...p,stage:s.stage,wave:s.wave},s.mode)))));this.entryPaid=s.entryPaid??['dungeon','darkness'].includes(s.mode);this.journey=s.journey?structuredClone(s.journey):newJourney(s.stage,s.wave,s.phase!=='walk');this.heroX=projectX(this.journey.worldX,this.journey.cameraX);this.plan=planFor(p,this.mode);this.placeEncounter(!s.journey);if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.running=false;this.fx=[];this.projectiles=this.projectiles.map(b=>({...b,encounterId:b.encounterId??this.id,targetId:b.targetId??this.units[b.target]?.id,targetRole:b.targetRole??this.units[b.target]?.role}));}else{this.journey=newJourney(p.stage,p.wave);this.mode='campaign';this.hp=stats(p).hp;this.maxHp=this.hp;this.spawn()}this.gear.entries=validEncounter(s)&&s.id===this.id?structuredClone(s.gearProcs??[]):[];this.gear.sync(p);this.tuneTeam();this.brain.restore(this.team);this.director.onRestore(this.worldEvent);this.worldEvent=undefined;this.team=undefined;if(this.mode==='darkness'){const run=realmRun(p),last=realmLast(p);if(run?.lastCombatId===s?.id&&!this.realmWaiting())this.spawn(false);if(!run&&last&&!last.ack){this.phase=last.win?'victory':'defeat';this.running=false;useGame.getState().open('realm')}}this.publish()}
+ checkpoint(){return useGame.getState().persist()}
+ /** Reserve actions and their impacts stop on an unsuccessful write. Resume retries the same state. */
+ saveFollowerAction(){
+  this.followerSavePending=!this.checkpoint();
+  if(!this.followerSavePending)return true;
+  this.running=false;
+  this.publish();
+  useGame.getState().notice('Бой приостановлен · повторите сохранение кнопкой боя');
+  return false;
+ }
  toggle(){if(useGame.getState().recoveryRequired)return;unlockAudio(useGame.getState().p.sound);const g=useGame.getState();if(this.mode==='darkness'&&!realmRun(g.p)&&realmLast(g.p)){this.running=false;if(!realmLast(g.p)!.ack)g.open('realm');else this.leaveRealm();return}if(this.running){this.pause();return}if(g.p.rewardOffer&&!g.p.rewardOffer.resolved){if(this.mode==='campaign')g.keepReward();else{g.notice('Трофей босса ждёт выбора');return}}
+  if(this.followerSavePending&&!this.saveFollowerAction())return;
   const modeToStart=this.pendingMode??(this.phase==='walk'&&!this.entryPaid?this.mode:undefined);
   if((modeToStart==='campaign'||modeToStart==='dungeon')&&!mayStartLoot())return;
   if(this.pendingMode){const mode=this.pendingMode,cost=['dungeon','darkness'].includes(mode)?config.mode_entry_chaosite:0;if(g.p.chaosite<cost){g.notice(`Нужно ${cost} Хаосита`);return}this.pendingMode=undefined;this.mode=mode;this.hp=stats(g.p).hp;this.maxHp=this.hp;this.spawn(true);this.entryPaid=cost>0;g.mutate(p=>{p.chaosite-=cost});}
   this.tuneTeam();this.running=true;this.publish();this.checkpoint();haptic()
  }
  /** Resume only a previously started free encounter. No paid mode, active menu or corrupt save can auto-start. */
- resume(){const g=useGame.getState();if(this.mode==='darkness'&&!realmRun(g.p)&&realmLast(g.p))return;if(this.running||this.phase==='defeat'||this.pendingMode||g.panel||g.recoveryRequired)return;if(this.phase==='walk'&&!this.entryPaid&&(this.mode==='campaign'||this.mode==='dungeon')&&!mayStartLoot())return;if(g.p.rewardOffer&&!g.p.rewardOffer.resolved){if(this.mode==='campaign')g.keepReward();else return}this.tuneTeam();this.running=true;this.publish();this.checkpoint()}
+ resume(){const g=useGame.getState();if(this.mode==='darkness'&&!realmRun(g.p)&&realmLast(g.p))return;if(this.running||this.phase==='defeat'||this.pendingMode||g.panel||g.recoveryRequired)return;if(this.phase==='walk'&&!this.entryPaid&&(this.mode==='campaign'||this.mode==='dungeon')&&!mayStartLoot())return;if(this.followerSavePending&&!this.saveFollowerAction())return;if(g.p.rewardOffer&&!g.p.rewardOffer.resolved){if(this.mode==='campaign')g.keepReward();else return}this.tuneTeam();this.running=true;this.publish();this.checkpoint()}
  continueAfterLoot(){const g=useGame.getState();if(g.continueOnVictory&&this.phase==='victory'&&g.p.rewardOffer?.resolved&&!g.panel&&!this.running)this.resume()}
  pause(){if(this.running){this.running=false;this.publish()}this.flushTally();this.checkpoint();this.audioFrame()}
  /** Quest and mastery counters are buffered during the fight and written in one save. */
  note(key:string,by=1){this.tally[key]=(this.tally[key]??0)+by}
  flushTally(){const keys=Object.keys(this.tally);if(!keys.length||useGame.getState().recoveryRequired)return;const t=this.tally;if(useGame.getState().mutate(p=>{for(const k of keys)bumpCount(p,k,t[k])}))this.tally={}}
- tuneTeam(){const p=useGame.getState().p;this.aura=combatAura(p);this.squad=squadCombat(p);this.brain.diveScale=branchOf(p,0)===0?.7:1;this.brain.guardScale=branchOf(p,1)===0?.7:1;this.brain.guardCut=branchOf(p,1)===0?.25:.5;this.brain.rescueMax=branchOf(p,1)===1?2:1}
+ tuneTeam(){
+  const p=useGame.getState().p;
+  this.squad=squadCombat(p);
+  this.aura=combatAura(p,this.squad);
+  const members=[this.squad.striker,this.squad.guardian,this.squad.reserve] as const;
+  const formation:FollowerEncounter['formation']=[members[0].instanceId,members[1].instanceId,members[2]?.instanceId??null];
+  const previous=this.followers;
+  if(!previous){
+   this.followers={formation,thirdCooldown:members[2]?.interval??0,charges:{}};
+   // The old checkpoint stored the main attacker's burst progress in a shared perk.
+   if(this.perk.sq!==undefined){
+    this.followers.charges[formation[0]]=Math.max(0,Math.trunc(this.perk.sq))%3;
+    delete this.perk.sq;
+   }
+  }else if(formation.some((id,i)=>id!==previous.formation[i])){
+   const before=[...this.compCd,previous.thirdCooldown];
+   const cooldown=(i:0|1|2)=>{
+    if(formation[i]===previous.formation[i])return before[i];
+    const member=members[i];
+    return member?Math.max(before[i],before[previous.formation.indexOf(member.instanceId)]??0,member.interval):before[i];
+   };
+   this.compCd=[cooldown(0),cooldown(1)];
+   this.followers={formation,thirdCooldown:cooldown(2),charges:previous.charges};
+   if(formation[0]!==previous.formation[0]){
+    this.gooseAttack=0;this.brain.goose=null;
+    this.brain.emotes=this.brain.emotes.filter(e=>e.who!=='goose');
+   }
+   if(formation[1]!==previous.formation[1]){
+    this.dogCast=0;this.brain.dog=null;this.brain.armed=0;
+    this.brain.emotes=this.brain.emotes.filter(e=>e.who!=='dog');
+   }
+   if(formation[2]!==previous.formation[2])this.reservePose=0;
+   for(const pet of this.visibleFollowers())this.warmActor(pet.id,'high');
+  }
+  this.brain.diveScale=branchOf(p,0)===0?.7:1;this.brain.guardScale=branchOf(p,1)===0?.7:1;
+  this.brain.guardCut=branchOf(p,1)===0?.25:.5;this.brain.rescueMax=branchOf(p,1)===1?2:1;
+ }
+ visibleFollowers(){
+  const visible:CombatFollower[]=[];
+  for(const pet of [this.squad.striker,this.squad.guardian,this.squad.reserve]){
+   if(pet&&!visible.some(actor=>actor.fly===pet.fly))visible.push(pet);
+  }
+  return visible;
+ }
  foeDef(u:Unit){return u.def*(hasPerk(useGame.getState().p,'boots')?.6:1)*(1-.03*(this.perk.drill??0))}
  foeRate(u:Unit,p=useGame.getState().p){return this.gear.enemyRate(u.role,p)*(setCounts(p).frost>=2?.92:1)*((u.chill??0)>0?.8:1)}
  /** Returns true when the hero really falls. «Сердце Бездны» refuses the first lethal blow of a fight. */
@@ -98,7 +154,7 @@ export class Battle implements TeamHost {
   if(!this.images.has(id))this.images.set(id,sceneImage(id,priority));
   warmRun(id);
  }
- spawn(advance=false){this.gear.reset();if(advance)nextSite(this.journey);const p=useGame.getState().p;this.id=newId();this.stage=p.stage;this.wave=p.wave;this.enemyLevel=p.stage;this.rewarded=false;this.intro=0;this.combatTime=0;this.impactStop=0;this.autoDecision=.5;this.hazard={remaining:0,tick:0,damage:0};this.entryPaid=false;this.plan=planFor(p,this.mode);this.curse=0;this.perk={};this.hazardCycle=-1;this.hazardWarn=-1;this.boss=this.plan.boss;this.timer=this.plan.timer||rules.boss_timer_seconds;this.phase='walk';this.heroX=projectX(this.journey.worldX,this.journey.cameraX);this.projectiles=[];this.heroPending=0;this.autoCd=.5;this.compCd=[1.5,5];this.cooldowns=[0,0,0];this.units=this.plan.units.map((f,i)=>({id:f.id,x:(this.boss?680:670)+i*85,y:800+i*5,hp:f.hp,max:f.hp,atk:f.atk,def:f.def,cd:1+i*.7,attack:0,hurt:0,dead:0,size:this.boss?250:170,role:i,windup:0,ability:'',bossPhase:1,specialCd:5+i,actionTime:0,guard:0,exposed:0,strikes:0,...(f.affix?{affix:f.affix}:{}),...(f.title?{title:f.title}:{})}));this.burn=0;this.stun=0;this.buff=0;this.shield=0;this.pressure=0;this.defensePressure=0;this.poison=0;this.poisonTick=0;this.slow=0;this.placeEncounter();this.tuneTeam();this.openFight();this.brain.reset();this.director.onSpawn();this.publish()}
+ spawn(advance=false){this.gear.reset();this.followers=undefined;this.reservePose=0;if(advance)nextSite(this.journey);const p=useGame.getState().p;this.id=newId();this.stage=p.stage;this.wave=p.wave;this.enemyLevel=p.stage;this.rewarded=false;this.intro=0;this.combatTime=0;this.impactStop=0;this.autoDecision=.5;this.hazard={remaining:0,tick:0,damage:0};this.entryPaid=false;this.plan=planFor(p,this.mode);this.curse=0;this.perk={};this.hazardCycle=-1;this.hazardWarn=-1;this.boss=this.plan.boss;this.timer=this.plan.timer||rules.boss_timer_seconds;this.phase='walk';this.heroX=projectX(this.journey.worldX,this.journey.cameraX);this.projectiles=[];this.heroPending=0;this.autoCd=.5;this.compCd=[1.5,5];this.cooldowns=[0,0,0];this.units=this.plan.units.map((f,i)=>({id:f.id,x:(this.boss?680:670)+i*85,y:800+i*5,hp:f.hp,max:f.hp,atk:f.atk,def:f.def,cd:1+i*.7,attack:0,hurt:0,dead:0,size:this.boss?250:170,role:i,windup:0,ability:'',bossPhase:1,specialCd:5+i,actionTime:0,guard:0,exposed:0,strikes:0,...(f.affix?{affix:f.affix}:{}),...(f.title?{title:f.title}:{})}));this.burn=0;this.stun=0;this.buff=0;this.shield=0;this.pressure=0;this.defensePressure=0;this.poison=0;this.poisonTick=0;this.slow=0;this.placeEncounter();this.tuneTeam();this.openFight();this.brain.reset();this.director.onSpawn();this.publish()}
  startMode(mode:string){const g=useGame.getState();if(mode==='darkness'){g.open('realm');return}if(!['campaign','farm','arena','dungeon','darkness'].includes(mode))return;this.pause();if(g.p.rewardOffer&&!g.p.rewardOffer.resolved){g.notice('Сначала разберите трофей босса');return}this.pendingMode=mode===this.mode?undefined:mode;g.open(null);this.publish();this.checkpoint();const cost=this.pendingMode&&['dungeon','darkness'].includes(this.pendingMode)?config.mode_entry_chaosite:0;g.notice(this.pendingMode?`${MODE_TITLES[this.pendingMode]} · нажмите топоры${cost?` · ${cost} Хаосита при старте`:''}`:'Продолжить тот же бой · нажмите топоры')}
  /** «Войти»: choose the main chapter. A chapter fight already in progress is never paused by it. */
  challenge(){if(this.mode==='campaign'&&this.running&&!this.pendingMode){useGame.getState().notice('Основная глава уже идёт · топоры — пауза');return}this.startMode('campaign')}
@@ -128,9 +184,10 @@ export class Battle implements TeamHost {
   for(const b of arrived){if(this.hp<=0||this.phase!=='fight')break;const u=this.projectileTarget(b);if(!u||u.hp<=0)continue;
    if(b.source==='enemy'){this.takeDamage(b.damage);if(b.kind==='web')this.slow=3;if(b.kind==='spore'||b.kind==='fire'){this.poison=Math.max(this.poison,4);this.poisonTick=Math.max(.5,this.poisonTick)}}
    else if(b.kind==='sword-wave')this.resolveSword(u,b.damage,b.crit,b.lifesteal,b.strikeRune);
-   else{if(b.stun&&u.windup>0&&!this.boss){u.windup=0;u.ability='';u.cd=Math.max(u.cd,1.6);u.fury=0;this.effect(this.visual(u).barX,this.visual(u).barY-30,'ОГЛУШЁН','#ffe3a1',22);this.note('interrupt')}const dealt=this.hit(u,b.damage,b.crit,b.kind==='arrow'?'#ffe3a1':'#a9f9ff',b.source);if(b.lifesteal)this.hp=Math.min(this.maxHp,this.hp+dealt*b.lifesteal)}
+   else{if(b.stun&&u.windup>0&&!this.boss){u.windup=0;u.ability='';u.cd=Math.max(u.cd,1.6);u.fury=0;this.effect(this.visual(u).barX,this.visual(u).barY-30,'ОГЛУШЁН','#ffe3a1',22);this.note('interrupt')}const dealt=this.hit(u,b.damage,b.crit,b.kind==='arrow'?'#ffe3a1':'#a9f9ff',b.source,b.follower);if(b.lifesteal)this.hp=Math.min(this.maxHp,this.hp+dealt*b.lifesteal)}
   }
-  if(arrived.length)this.checkpoint();
+  if(arrived.some(b=>b.follower&&!b.follower.primary))this.saveFollowerAction();
+  else if(arrived.length)this.checkpoint();
  }
  reducedMotion(){return useGame.getState().p.reducedMotion??this.systemReduced}
  comicObstacles():Rect[]{
@@ -138,8 +195,12 @@ export class Battle implements TeamHost {
   const blocked:Rect[]=[[0,0,864,440],[0,110,120,826],[748,110,864,516],[737,731,864,866],[0,846,864,1536],[this.heroX-60,heroBarY-4,this.heroX+60,heroBarY+14]];
   const add=(id:string,x:number,y:number,height:number,pose:number,flip=false)=>{for(const band of feedbackBands(id,pose===7)){const b=flip?[-band[2],band[1],-band[0],band[3]]:band;blocked.push([x+b[0]*height,y+b[1]*height,x+b[2]*height+8,y+b[3]*height])}};
   const p=useGame.getState().p;add(heroArt[p.heroClass],this.heroX,this.journey.worldY,legacyBodyHeight(heroArt[p.heroClass],214),poseFrame({attack:this.heroAttack,hurt:this.heroHurt}));
-  add(this.squad.striker.id,this.strikerPos().x,this.strikerPos().y,legacyBodyHeight(this.squad.striker.id,156),poseFrame({attack:this.gooseAttack}));
-  add(this.squad.guardian.id,this.guardianX(),this.journey.dog.worldY,legacyBodyHeight(this.squad.guardian.id,156),poseFrame({attack:this.dogCast}));
+  for(const member of this.visibleFollowers()){
+   const main=member===this.squad.striker,guard=member===this.squad.guardian;
+   const at=guard?{x:this.guardianX(),y:this.journey.dog.worldY}:this.strikerPos(member.fly);
+   const attack=main?this.gooseAttack:guard?this.dogCast:this.reservePose;
+   add(member.id,at.x,at.y,legacyBodyHeight(member.id,156),poseFrame({attack}));
+  }
   for(const u of this.units){if(u.dead>1.1)continue;const v=this.visual(u);add(u.id,v.x,v.y,v.height,poseFrame({attack:u.attack,hurt:u.hurt,death:u.dead,windup:u.windup}),v.flip);if(u.hp>0)blocked.push([v.barX-(this.boss?94:48),v.barY-42,v.barX+(this.boss?94:48),v.barY+12]);}
   return blocked;
  }
@@ -151,9 +212,9 @@ export class Battle implements TeamHost {
  auraHit(u:Unit){const a=this.aura;return 1+(u.hp<u.max*.3?a.execute30:0)+(u.hp<u.max*.35?a.execute35:0)+(this.boss?a.boss:0)}
  /** Fight opening: «Пелена» shield, «Рог Вальхаллы» rally and «Тень Гиннунгагап» on the enemies. */
  openFight(){const a=this.aura;if(a.veil>0)this.shield=Math.round(this.maxHp*a.veil);if(a.rally>0)this.perk.horn=8;if(a.foeHpCut>0)for(const u of this.units)u.hp=Math.max(1,Math.round(u.hp*(1-a.foeHpCut)))}
- strikerPos(){const j=this.journey,x=projectX(j.goose.worldX,j.cameraX);return this.squad.striker.fly?{x:x-40,y:j.goose.worldY-25}:{x:x-25,y:j.dog.worldY+14}}
+ strikerPos(fly=this.squad.striker.fly){const j=this.journey,x=projectX(j.goose.worldX,j.cameraX);return fly?{x:x-40,y:j.goose.worldY-25}:{x:x-25,y:j.dog.worldY+14}}
  guardianX(){return projectX(this.journey.dog.worldX,this.journey.cameraX)-48-(this.squad.striker.fly?0:48)}
- guardianAid(){const id=this.squad.guardian.id;if(id==='capybara_bruiser')this.shield=Math.max(this.shield,Math.round(this.maxHp*.06));if(id==='moss_eater'){this.poison=0;this.slow=0}if(this.squad.guardian.awake){this.perk.howl=3;this.effect(this.heroX+30,560,'БОЕВОЙ ДУХ','#ffe08a',22)}}
+ guardianAid(guardian=this.squad.guardian){const id=guardian.id;if(id==='capybara_bruiser')this.shield=Math.max(this.shield,Math.round(this.maxHp*.06));if(id==='moss_eater'){this.poison=0;this.slow=0}if(guardian.awake){this.perk.howl=3;this.effect(this.heroX+30,560,'БОЕВОЙ ДУХ','#ffe08a',22)}}
  /** Starts or continues the paid Dark Realm run chosen in its window. The entry was charged by the action. */
  enterRealm(){const g=useGame.getState(),run=realmRun(g.p);if(g.recoveryRequired||!run)return;const same=this.mode==='darkness';this.pause();g.open(null);unlockAudio(g.p.sound);this.pendingMode=undefined;this.mode='darkness';if(!same){if(validEncounter(run.checkpoint)){useGame.setState({p:{...useGame.getState().p,encounter:run.checkpoint}});this.restorePlayer()}else{this.hp=stats(g.p).hp;this.maxHp=this.hp;this.spawn(true)}}if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.entryPaid=true;this.running=true;this.publish();this.checkpoint();haptic()}
  continueRealm(){const run=realmRun(useGame.getState().p);if(!run||run.stage.startsWith('CHOICE'))return;this.spawn(true);this.entryPaid=true;this.publish();this.checkpoint()}
@@ -194,7 +255,7 @@ export class Battle implements TeamHost {
   }
  }
  visual(u:Unit){const v=enemyPlacement(this.units,this.units.indexOf(u));const x=projectX(u.worldX??this.journey.targetX+v.barX-375,this.journey.cameraX),dy=(u.worldY??v.y)-v.y;return {...v,x:x+v.x-v.barX,barX:this.phase==='walk'?healthAnchorX(x,v.barY+dy,this.boss):x,y:u.worldY??v.y,barY:v.barY+dy,bodyY:v.bodyY+dy};}
- hit(u:Unit,amount:number,crit=false,color='#fff4ce',source?:'hero'|'goose'){if(u.hp<=0)return 0;const before=u.hp,blocked=u.guard>0&&!crit;if((u.exposed??0)>0)amount=Math.round(amount*chapterOne.counter_damage_multiplier);else if(this.plan.hazard==='phalanx'&&this.units.filter(a=>a.hp>0).length>1)amount=Math.max(1,Math.round(amount*.65));if(u.affix==='warded')amount=Math.max(1,Math.round(amount*(this.castingSkill?1.3:.7)));const belt=source==='hero'&&hasPerk(useGame.getState().p,'belt');if(source==='hero'){const n=setCounts(useGame.getState().p);amount=Math.round(amount*(n.frost>=6&&((u.exposed??0)>0||(u.frozen??0)>0)?1.3:1)*(belt&&u.guard>0?1.25:1)*(1+.02*(u.dusk??0))*this.auraHit(u))}if(source==='goose'){const sid=this.squad.striker.id;if(sid==='08_armored_boar'&&u.guard>0)amount=Math.round(amount*1.5);if(sid==='senior_driller')this.perk.drill=Math.min(10,(this.perk.drill??0)+1)}const v=this.visual(u),contact=this.targetBody(u);if(u.guard>0&&!crit){amount=Math.max(1,Math.round(amount*(belt?.65:.4)));this.effect(v.barX,v.barY-20,'БЛОК','#96d9ff',23);sound('block',useGame.getState().p.sound)}const cover=absorb(this.units,u,amount);if(cover.coverer){amount=cover.amount;const c=cover.coverer;c.hp=Math.max(1,c.hp-cover.shared);c.hurt=.18;this.damageNumber(c,cover.shared,'#96d9ff',false);if(this.clock-this.coverNote>1.2){this.coverNote=this.clock;this.effect(v.barX,v.barY-20,'ПРИКРЫТ','#96d9ff',22);sound('block',useGame.getState().p.sound)}}u.hp=Math.max(0,u.hp-amount);this.director.impact(contact.x,crit);u.hurt=crit?.30:.22;u.reaction=.30;u.reactionStrength=blocked?3:crit?8:5;u.blockedHit=blocked;this.damageNumber(u,amount,color,crit);this.fx.push({x:contact.x,y:contact.y,vx:0,vy:0,life:.23,max:.23,color,size:crit?42:25,ring:true});this.burst(contact.x,contact.y,color,crit?18:7);const comic=crit&&this.comics.emit(contact.x,contact.y,this.comicObstacles(),u.hp===0?'БДЫЩ!':(u.exposed??0)>0?'ХРЯСЬ!':undefined);sound(comic?'critical':'hit',useGame.getState().p.sound);if(comic)this.impactStop=this.reducedMotion()||this.quality<.6?0:.03;if(u.hp===0){u.dead=.01;u.windup=0;u.actionTime=0;this.burst(v.x,v.y-50,'#ffdb5d',18);sound('death',useGame.getState().p.sound);for(const e of died(this.units,u))this.tacticEvent(e);if(source&&this.aura.killHeal>0&&this.hp>0){const heal=Math.round(this.maxHp*this.aura.killHeal);this.hp=Math.min(this.maxHp,this.hp+heal);this.effect(this.heroX-30,585,`ГОЛОД ТЕНИ +${heal}`,'#b98cff',22)}if(source&&setCounts(useGame.getState().p).ember>=6&&this.hp>0){const heal=Math.round(this.maxHp*.15);this.hp=Math.min(this.maxHp,this.hp+heal);this.burn=4;this.effect(this.heroX,600,`ЖАР БЕЗДНЫ +${heal}`,'#ff9a5c',23)}if(this.plan.hazard==='phalanx'&&this.units.filter(a=>a.hp>0).length===1&&this.units.length>1){for(const a of this.units)if(a.hp>0){a.exposed=Math.max(a.exposed??0,3);a.guard=0}this.note('phalanx:break');this.effect(560,500,'СТРОЙ СЛОМАН!','#ffe08a',28)}}if(before>u.hp&&source)this.gearHit(u,source,crit);return before-u.hp;}
+ hit(u:Unit,amount:number,crit=false,color='#fff4ce',source?:'hero'|'goose',follower?:FollowerImpact){if(u.hp<=0)return 0;const before=u.hp,blocked=u.guard>0&&!crit;if((u.exposed??0)>0)amount=Math.round(amount*chapterOne.counter_damage_multiplier);else if(this.plan.hazard==='phalanx'&&this.units.filter(a=>a.hp>0).length>1)amount=Math.max(1,Math.round(amount*.65));if(u.affix==='warded')amount=Math.max(1,Math.round(amount*(this.castingSkill?1.3:.7)));const belt=source==='hero'&&hasPerk(useGame.getState().p,'belt');if(source==='hero'){const n=setCounts(useGame.getState().p);amount=Math.round(amount*(n.frost>=6&&((u.exposed??0)>0||(u.frozen??0)>0)?1.3:1)*(belt&&u.guard>0?1.25:1)*(1+.02*(u.dusk??0))*this.auraHit(u))}if(source==='goose'){const sid=follower?.species??this.squad.striker.id;if(sid==='08_armored_boar'&&u.guard>0)amount=Math.round(amount*1.5);if(sid==='senior_driller')this.perk.drill=Math.min(10,(this.perk.drill??0)+1)}const v=this.visual(u),contact=this.targetBody(u);if(u.guard>0&&!crit){amount=Math.max(1,Math.round(amount*(belt?.65:.4)));this.effect(v.barX,v.barY-20,'БЛОК','#96d9ff',23);sound('block',useGame.getState().p.sound)}const cover=absorb(this.units,u,amount);if(cover.coverer){amount=cover.amount;const c=cover.coverer;c.hp=Math.max(1,c.hp-cover.shared);c.hurt=.18;this.damageNumber(c,cover.shared,'#96d9ff',false);if(this.clock-this.coverNote>1.2){this.coverNote=this.clock;this.effect(v.barX,v.barY-20,'ПРИКРЫТ','#96d9ff',22);sound('block',useGame.getState().p.sound)}}u.hp=Math.max(0,u.hp-amount);this.director.impact(contact.x,crit);u.hurt=crit?.30:.22;u.reaction=.30;u.reactionStrength=blocked?3:crit?8:5;u.blockedHit=blocked;this.damageNumber(u,amount,color,crit);this.fx.push({x:contact.x,y:contact.y,vx:0,vy:0,life:.23,max:.23,color,size:crit?42:25,ring:true});this.burst(contact.x,contact.y,color,crit?18:7);const comic=crit&&this.comics.emit(contact.x,contact.y,this.comicObstacles(),u.hp===0?'БДЫЩ!':(u.exposed??0)>0?'ХРЯСЬ!':undefined);sound(comic?'critical':'hit',useGame.getState().p.sound);if(comic)this.impactStop=this.reducedMotion()||this.quality<.6?0:.03;if(u.hp===0){u.dead=.01;u.windup=0;u.actionTime=0;this.burst(v.x,v.y-50,'#ffdb5d',18);sound('death',useGame.getState().p.sound);for(const e of died(this.units,u))this.tacticEvent(e);if(source&&this.aura.killHeal>0&&this.hp>0){const heal=Math.round(this.maxHp*this.aura.killHeal);this.hp=Math.min(this.maxHp,this.hp+heal);this.effect(this.heroX-30,585,`ГОЛОД ТЕНИ +${heal}`,'#b98cff',22)}if(source&&setCounts(useGame.getState().p).ember>=6&&this.hp>0){const heal=Math.round(this.maxHp*.15);this.hp=Math.min(this.maxHp,this.hp+heal);this.burn=4;this.effect(this.heroX,600,`ЖАР БЕЗДНЫ +${heal}`,'#ff9a5c',23)}if(this.plan.hazard==='phalanx'&&this.units.filter(a=>a.hp>0).length===1&&this.units.length>1){for(const a of this.units)if(a.hp>0){a.exposed=Math.max(a.exposed??0,3);a.guard=0}this.note('phalanx:break');this.effect(560,500,'СТРОЙ СЛОМАН!','#ffe08a',28)}}if(before>u.hp&&source&&follower?.primary!==false)this.gearHit(u,source,crit);return before-u.hp;}
  gearEvent(){return this.running&&this.phase==='fight'&&this.hp>0&&!useGame.getState().panel}
  gearHit(u:Unit,source:'hero'|'goose',crit:boolean){if(!this.gearEvent()||u.hp<=0)return;const p=useGame.getState().p,v=this.visual(u);
   if(source==='hero'){if(hasPerk(p,'void'))u.dusk=Math.min(10,(u.dusk??0)+1);if(!this.castingSkill&&(specId(p)==='trapper'||specId(p)==='frostweave'))u.chill=2}
@@ -207,15 +268,15 @@ export class Battle implements TeamHost {
  burst(x:number,y:number,color:string,count:number){for(let i=0;i<Math.ceil(count*this.quality);i++)this.fx.push({x,y,vx:(Math.random()-.5)*260,vy:-Math.random()*220,life:.45+Math.random()*.4,max:1,color,size:3+Math.random()*6})}
  lightning(x:number,y:number,end:number){for(let k=0;k<10;k++)this.fx.push({x:x+(Math.random()-.5)*35,y:y+(end-y)*k/10,vx:0,vy:0,life:.35,max:1,color:'#b9f7ff',size:5})}
  takeDamage(attack:number,mult=1,piercing=false,melee=false){if(this.hp<=0)return;const p=useGame.getState().p,s=this.statsFor(p);if(Math.random()<s.dodge){this.effect(this.heroX,610,'УКЛОНЕНИЕ','#b2ecff',22);return}if(this.aura.firstBlock&&!this.perk.aegis){this.perk.aegis=1;this.effect(this.heroX,600,'ЭГИДА ТЮРА','#ffd27a',25);this.burst(this.heroX+30,720,'#ffd27a',12);sound('block',p.sound);return}mult*=(1-s.reduction)*(this.bless()==='ward'?.8:1);if(melee)mult*=this.brain.absorb(this);const amt=damage(attack,piercing?s.defense*.25:s.defense*(this.buff>0&&p.runes[1]===1?1.5:1),this.stage,mult);const absorbed=Math.min(this.shield,amt);this.shield-=absorbed;const incoming=this.gear.absorb(amt-absorbed,p);this.hp=Math.max(0,this.hp-incoming);this.heroHurt=.3;this.effect(this.heroX,610,`−${Math.round(incoming)}`,'#ff9c91',27);this.burst(this.heroX+40,710,'#ffc495',7);this.fatal();if(this.aura.thorns>0&&incoming>=1){const foe=this.units.find(u=>u.hp>0);if(foe)this.hit(foe,Math.max(1,Math.round(incoming*this.aura.thorns)),false,'#b98cff')}}
- shoot(source:Projectile['source'],kind:string,target:number,amount:number,crit=false){const u=this.units[target];if(!u)return;const v=this.visual(u),tip=swordTip(this.heroX,this.journey.worldY,this.heroAttack,this.heroHurt),sword=kind==='sword-wave',x0=sword?tip.x:source==='enemy'?v.x-v.height*.18:source==='goose'?this.strikerPos().x:this.heroX+55,y0=sword?tip.y:source==='goose'?this.strikerPos().y-100:source==='enemy'?v.bodyY:695;
- this.projectiles.push({encounterId:this.id,targetId:u.id,targetRole:u.role,originCameraX:this.journey.cameraX,x0,y0,x1:source==='enemy'?this.heroX+10:v.x,y1:source==='enemy'?710:v.bodyY,t:0,duration:sword?Math.max(.22,Math.min(.42,Math.hypot(v.x-x0,v.bodyY-y0)/800)):kind==='arrow'?.35:.55,damage:amount,target,kind,crit,source})}
+ shoot(source:Projectile['source'],kind:string,target:number,amount:number,crit=false,follower?:FollowerImpact){const u=this.units[target];if(!u)return;const v=this.visual(u),tip=swordTip(this.heroX,this.journey.worldY,this.heroAttack,this.heroHurt),sword=kind==='sword-wave',origin=follower&&!follower.primary?this.strikerPos(!!this.squad.reserve?.fly):this.strikerPos(),x0=sword?tip.x:source==='enemy'?v.x-v.height*.18:source==='goose'?origin.x:this.heroX+55,y0=sword?tip.y:source==='goose'?origin.y-100:source==='enemy'?v.bodyY:695;
+ this.projectiles.push({encounterId:this.id,targetId:u.id,targetRole:u.role,originCameraX:this.journey.cameraX,x0,y0,x1:source==='enemy'?this.heroX+10:v.x,y1:source==='enemy'?710:v.bodyY,t:0,duration:sword?Math.max(.22,Math.min(.42,Math.hypot(v.x-x0,v.bodyY-y0)/800)):kind==='arrow'?.35:.55,damage:amount,target,kind,crit,source,...(follower?{follower}:{})})}
 
  enemyAbility(u:Unit){const enraged=u.bossPhase>1;switch(u.id){case '01_sword_shield_veteran':return this.pressure>4?'Контрудар щитом':'Удар мечом';case '02_roman_spearman':return 'Бросок пилума';case '03_pirate_bandit':return 'Рывок пирата';case '04_club_raider':return 'Тяжёлый замах';case '05_shield_spearman':return this.defensePressure>1?'Пробивающее копьё':'Стена щитов';case '06_red_crest_legionary':return 'Римская черепаха';case '07_purple_mage':return enraged?'Теневой залп':'Тёмная сфера';case '08_armored_boar':return 'Таран';case 'capybara_bruiser':return enraged?'Двойной раскол':'Удар булавой';case 'senior_driller':return enraged?'Перегрев бура':'Буровой прорыв';case 'moss_eater':return enraged?'Шипы корней':'Поглощение мха';case 'spider_queen':return enraged?'Паутина и яд':'Ловчая сеть';case 'fungal_king':return enraged?'Взрыв спор':'Споровое облако';case 'minotaur_echo':return enraged?'Грохот лавины':'Топот минотавра';case 'fire_abyss_lord':return enraged?'Огненный шторм':'Дыхание Бездны';default:return 'Сильный удар'}}
  enemyStep(u:Unit,dt:number){if(u.hp<=0)return;if((u.frozen??0)>0){u.frozen=Math.max(0,u.frozen!-dt);return}const tactic=think(this.units,u,dt,{interruptCooldown:this.cooldowns[0],stunned:this.stun>0,boss:this.boss});if(tactic)this.tacticEvent(tactic);u.exposed=Math.max(0,(u.exposed??0)-dt);if(u.affix==='regen'&&this.burn<=0&&this.stun<=0&&u.exposed<=0&&u.hp<u.max&&this.combatTime>1)u.hp=Math.min(u.max,u.hp+u.max*.012*dt);if(u.affix==='bulwark'&&u.specialCd<=0&&u.guard<=0&&this.stun<=0){u.guard=2.6;u.specialCd=9;this.effect(this.visual(u).barX,this.visual(u).barY-20,'ЩИТ ПОДНЯТ','#8fd8ff',21)}const phase=u.hp/u.max<.35?3:u.hp/u.max<.65?2:1;if((this.boss||u.id.includes('mage'))&&phase>u.bossPhase){u.bossPhase=phase;u.cd=.7;if(this.chapterBoss()){u.actionTime=0;u.windup=phase===2?1.7:1.35;u.ability=phase===2?'Ледяной кокон':'Ядовитый прилив';u.castTotal=u.windup;}else if(this.plan.ultimates&&u.role===0&&this.boss){u.actionTime=0;u.windup=phase===2?2.1:1.8;u.ability=this.plan.ultimates[phase-2];u.castTotal=u.windup;u.guard=0}this.effect(this.visual(u).barX,this.visual(u).barY-35,phase===3?'ЯРОСТЬ!':'ФАЗА II','#ffd58b',29);this.burst(this.visual(u).x,this.visual(u).bodyY,'#ffad72',18)}u.guard=Math.max(0,u.guard-dt);u.specialCd-=dt;if(this.stun>0)return;
  if(u.actionTime>0){u.actionTime-=dt;if(u.actionTime<=0){u.strikes=(u.strikes??0)+1;if(u.affix==='frenzy')u.fury=Math.min(5,(u.fury??0)+1);const ult=this.ultimate(u);if(this.chapterBoss()&&u.bossPhase>1||ult){this.hazard={remaining:u.bossPhase===3?4:3,tick:.7,damage:u.atk*.65};this.burst(this.heroX,784,'#b0a2ff',14);}let mult=(ult?1.55:1)*(u.bossPhase===3?1.6:u.bossPhase===2?1.25:1)*(u.id.includes('pirate')&&(u.strikes??0)%2===0?1.3:1)*strikeMultiplier(u);const ranged=/spearman|mage|spider|fungal|fire_abyss/.test(u.id);if(ranged){const kind=u.affix==='venom'?'spore':u.id.includes('spider')?'web':u.id.includes('fire')?'fire':u.id.includes('fungal')?'spore':u.id.includes('mage')?'orb':'arrow';this.shoot('enemy',kind,this.units.indexOf(u),u.atk*mult);sound('whoosh',useGame.getState().p.sound);if(u.bossPhase>1&&this.boss){this.shoot('enemy',kind,this.units.indexOf(u),u.atk*.35);this.projectiles[this.projectiles.length-1].duration+=.25;if(u.id==='fungal_king'){const heal=u.max*.035;u.hp=Math.min(u.max,u.hp+heal);this.effect(this.visual(u).barX,this.visual(u).barY-20,`+${Math.round(heal)}`,'#baff9c',23)}}}else{this.takeDamage(u.atk,mult,u.ability.includes('Пробивающее')||u.id==='senior_driller'&&u.bossPhase>1,true);if(u.affix==='venom'&&this.hp>0){this.poison=Math.max(this.poison,3);this.poisonTick=Math.max(.5,this.poisonTick)}if(u.ability==='Таран'||u.ability.includes('прорыв')){this.shake=7;this.burst(this.heroX+45,770,'#cfb69b',16)}if(u.id==='minotaur_echo'&&u.bossPhase>1){this.shoot('enemy','shock',this.units.indexOf(u),u.atk*.5);if(u.bossPhase===3){this.shoot('enemy','shock',this.units.indexOf(u),u.atk*.4);this.projectiles[this.projectiles.length-1].duration+=.3}this.shake=8}if(u.id==='moss_eater'&&u.bossPhase>1)this.slow=3;if(u.id==='capybara_bruiser'&&u.bossPhase>1)this.shoot('enemy','shock',this.units.indexOf(u),u.atk*.5);if(u.id==='senior_driller'&&u.bossPhase>1)this.shield=Math.max(0,this.shield-u.atk);if(u.id==='moss_eater'&&u.bossPhase===1){u.hp=Math.min(u.max,u.hp+u.max*.06);this.effect(this.visual(u).barX,this.visual(u).barY-20,'+6%','#9affb1',23)}}}return}
  if(u.windup>0){u.windup-=dt;if(u.windup<=0){u.attack=.7;u.actionTime=.28;u.cd=(u.id.includes('pirate')?((u.strikes??0)%2===0?1.8:.85):u.id.includes('boar')?2.6:2.1)/(1+(u.bossPhase-1)*.15)/(1+(u.fury??0)*.12)*(u.affix==='swift'?.85:1);if(u.ability.includes('щито')||u.id.includes('legionary'))u.guard=1.6;}return}
  u.cd-=dt;if(u.cd<=0&&this.stun<=0){u.ability=this.chapterBoss()&&u.bossPhase>1?(u.bossPhase===3?'Ядовитый прилив':'Ледяной кокон'):this.enemyAbility(u);u.windup=this.chapterBoss()?(u.bossPhase>1?1.6:1.25):this.boss?1.15:u.id.includes('club')||u.id.includes('boar')?.95:.6;if(u.affix==='swift')u.windup*=.75;u.castTotal=u.windup;if(!this.boss&&onWindup(u))this.effect(this.visual(u).barX,this.visual(u).barY-40,'МЕНЯЕТ ТАКТИКУ','#e3c2ff',21);if((u.id.includes('shield')||u.id.includes('veteran'))&&this.pressure>4){u.guard=1.7;this.pressure=0}if(this.defensePressure>1&&u.id.includes('spearman'))this.defensePressure=0;}}
- update(dt:number,visualDt=dt/useGame.getState().speed){if(!this.running||!(dt>0)||!Number.isFinite(dt))return;if(useGame.getState().panel){this.pause();return;}const g=useGame.getState(),p=g.p,s=this.statsFor(p);this.syncStats(s);this.clock+=dt;const realDt=visualDt;this.comics.step(realDt);const poseDt=this.impactStop>0?0:dt;this.impactStop=Math.max(0,this.impactStop-realDt);this.heroAttack=Math.max(0,this.heroAttack-poseDt);this.heroHurt=Math.max(0,this.heroHurt-poseDt);this.gooseAttack=Math.max(0,this.gooseAttack-dt);this.dogCast=Math.max(0,this.dogCast-dt);this.buff=Math.max(0,this.buff-dt);this.potionCd=Math.max(0,this.potionCd-dt);this.stun=Math.max(0,this.stun-dt);this.shake=Math.max(0,this.shake-dt*35);{const rate=this.director.cooldownRate()*(setCounts(p).rune>=4?1/.85:1)*this.aura.cooldownRate;if(this.perk.combo)this.perk.combo=Math.max(0,this.perk.combo-dt);if(this.perk.rally)this.perk.rally=Math.max(0,this.perk.rally-dt);this.cooldowns=this.cooldowns.map(c=>Math.max(0,c-dt*rate))}for(const u of this.units){u.attack=Math.max(0,u.attack-poseDt);u.hurt=Math.max(0,u.hurt-poseDt);u.reaction=Math.max(0,(u.reaction??0)-poseDt);if(u.chill)u.chill=Math.max(0,u.chill-dt);if(u.dead>0)u.dead+=dt}for(const f of this.fx){f.life-=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;if(!f.text&&!f.ring)f.vy+=350*dt}this.fx=this.fx.filter(f=>f.life>0).slice(-Math.round(160*this.quality));this.director.tick(dt,realDt);this.brain.step(dt,this);
+ update(dt:number,visualDt=dt/useGame.getState().speed){if(!this.running||!(dt>0)||!Number.isFinite(dt))return;if(useGame.getState().panel){this.pause();return;}const g=useGame.getState(),p=g.p,s=this.statsFor(p);this.syncStats(s);this.clock+=dt;const realDt=visualDt;this.comics.step(realDt);const poseDt=this.impactStop>0?0:dt;this.impactStop=Math.max(0,this.impactStop-realDt);this.heroAttack=Math.max(0,this.heroAttack-poseDt);this.heroHurt=Math.max(0,this.heroHurt-poseDt);this.gooseAttack=Math.max(0,this.gooseAttack-dt);this.dogCast=Math.max(0,this.dogCast-dt);this.reservePose=Math.max(0,this.reservePose-dt);this.buff=Math.max(0,this.buff-dt);this.potionCd=Math.max(0,this.potionCd-dt);this.stun=Math.max(0,this.stun-dt);this.shake=Math.max(0,this.shake-dt*35);{const rate=this.director.cooldownRate()*(setCounts(p).rune>=4?1/.85:1)*this.aura.cooldownRate;if(this.perk.combo)this.perk.combo=Math.max(0,this.perk.combo-dt);if(this.perk.rally)this.perk.rally=Math.max(0,this.perk.rally-dt);this.cooldowns=this.cooldowns.map(c=>Math.max(0,c-dt*rate))}for(const u of this.units){u.attack=Math.max(0,u.attack-poseDt);u.hurt=Math.max(0,u.hurt-poseDt);u.reaction=Math.max(0,(u.reaction??0)-poseDt);if(u.chill)u.chill=Math.max(0,u.chill-dt);if(u.dead>0)u.dead+=dt}for(const f of this.fx){f.life-=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;if(!f.text&&!f.ring)f.vy+=350*dt}this.fx=this.fx.filter(f=>f.life>0).slice(-Math.round(160*this.quality));this.director.tick(dt,realDt);this.brain.step(dt,this);
  if(this.realmWaiting())return;
  if(this.phase==='victory'||this.phase==='defeat'){this.delay-=dt;
   if(this.phase==='victory'&&g.p.rewardOffer&&!g.p.rewardOffer.resolved){
@@ -248,6 +309,7 @@ export class Battle implements TeamHost {
  this.slow=Math.max(0,this.slow-dt);if(this.poison>0){this.poison-=dt;this.poisonTick-=dt;if(this.poisonTick<=0){this.poisonTick=1;this.takeDamage(this.maxHp*.025);this.burst(this.heroX,745,'#a5db79',6)}}if(this.hp<=0)return;
  if(this.boss){this.timer=Math.max(0,this.timer-dt);if(this.timer<=0){this.defeat();return}}
  this.stepProjectiles(dt);
+ if(this.followerSavePending)return;
  if(this.hp<=0)return;let live=this.units.filter(u=>u.hp>0);if(live.length===0){this.victory();return}if(this.hp<=0)return;
  if(this.heroPending>0){this.heroPending-=dt;if(this.heroPending<=0){const target=this.units.findIndex(u=>u.hp>0),u=this.units[target];if(u){
    const pk=this.perk,spec=specId(p),sets=setCounts(p);let crit=Math.random()<s.crit+(this.buff>0&&p.runes[1]===0?.25:0),mult=this.buff>0?1.3:1;pk.strikes=(pk.strikes??0)+1;
@@ -262,9 +324,54 @@ export class Battle implements TeamHost {
    if(hasPerk(p,'aquila')&&pk.strikes%4===0)for(const a of this.units)if(a!==u&&a.hp>0)this.hit(a,Math.max(1,Math.round(amount*.6)),false,'#ffd27a');
    this.pressure++;}}}
  this.autoCd-=dt*(this.slow>0?.6:1)*this.gear.attackRate(p);if(this.autoCd<=0){this.autoCd=1/s.aspd;this.heroAttack=.65;this.heroPending=.23}
- for(let i=0;i<2;i++){this.compCd[i]-=dt*this.companionRate();if(this.compCd[i]<=0){this.compCd[i]=i===0?this.squad.striker.interval:this.squad.guardian.interval;if(i===0){this.gooseAttack=.75;const target=this.units.map(u=>u.hp>0).lastIndexOf(true);if(target>=0){this.shoot('goose','feather',target,this.gooseDamage());if(this.squad.striker.awake&&(this.perk.sq=(this.perk.sq??0)+1)%3===0)for(const [n,a] of this.units.entries())if(n!==target&&a.hp>0)this.hit(a,Math.max(1,Math.round(this.gooseDamage()*.5)),false,'#fff4d2')}}else{this.dogCast=.9;const heal=Math.round(this.maxHp*Math.min(.45,this.squad.guardian.power*(branchOf(p,1)===1?1.4:1)*(setCounts(p).legion>=4?1.3:1)));this.hp=Math.min(this.maxHp,this.hp+heal);this.effect(this.heroX-20,620,`+${heal}`,'#8cffa1',26);this.burst(this.heroX,750,'#8affc0',18);this.guardianAid();sound('potion',p.sound)}}}
+ if(!this.stepFollowers(dt,p))return;
  if(this.burn>0){this.burn-=dt;this.burnTick-=dt;if(this.burnTick<=0){this.burnTick=1;const target=this.units.find(u=>u.hp>0);if(target)this.hit(target,Math.round(s.attack*.5),false,'#ff9555')}}if(g.auto)this.autoSkills(dt);
  live=this.units.filter(u=>u.hp>0);if(live.length===0){this.victory();return}for(const u of live){if(this.hp<=0)break;if(u.hp<=0)continue;this.enemyStep(u,dt*this.foeRate(u,p))}
+ }
+ stepFollowers(dt:number,p:Player){
+  const elapsed=dt*this.companionRate();
+  const pair=[this.squad.striker,this.squad.guardian] as const;
+  for(const [i,member] of pair.entries()){
+   this.compCd[i]-=elapsed;
+   if(this.compCd[i]>0)continue;
+   this.compCd[i]=member.interval;
+   if(i===0){this.gooseAttack=.75;this.followerAttack(member,true)}
+   else{this.dogCast=.9;this.followerHeal(member,p,true)}
+  }
+  const reserve=this.squad.reserve,clock=this.followers;
+  if(!reserve||!clock)return true;
+  clock.thirdCooldown-=elapsed;
+  if(clock.thirdCooldown>0)return true;
+  clock.thirdCooldown=reserve.interval;
+  this.reservePose=reserve.role==='striker'?.75:.9;
+  if(reserve.role==='striker')this.followerAttack(reserve,false);
+  else this.followerHeal(reserve,p,false);
+  return this.saveFollowerAction();
+ }
+ followerAttack(member:CombatFollower,primary:boolean){
+  let target=this.units.length-1;
+  while(target>=0&&this.units[target].hp<=0)target--;
+  if(target<0)return;
+  const amount=this.followerDamage(member);
+  const impact:FollowerImpact={instanceId:member.instanceId,species:member.id,primary,
+   hidden:!this.visibleFollowers().includes(member)};
+  this.shoot('goose','feather',target,amount,false,impact);
+  if(!member.awake||!this.followers)return;
+  const charges=this.followers.charges;
+  charges[member.instanceId]=((charges[member.instanceId]??0)+1)%3;
+  if(charges[member.instanceId]===0){
+   for(const [i,unit] of this.units.entries()){
+    if(i!==target&&unit.hp>0)this.hit(unit,Math.max(1,Math.round(amount*.5)),false,'#fff4d2',undefined,impact);
+   }
+  }
+ }
+ followerHeal(member:CombatFollower,p:Player,primary:boolean){
+  const heal=Math.round(this.maxHp*this.followerHealFraction(member,p,primary));
+  this.hp=Math.min(this.maxHp,this.hp+heal);
+  this.effect(this.heroX-20,620,`+${heal}`,'#8cffa1',26);
+  this.burst(this.heroX,750,'#8affc0',18);
+  this.guardianAid(member);
+  sound('potion',p.sound);
  }
  victory(){if(this.rewarded)return;if(this.mode==='darkness'&&realmRun(useGame.getState().p)){if(this.units.some(u=>u.hp>0))return;const g=useGame.getState();if(!g.mutate(p=>{realmVictory(p,this.id,this.units.length)})){this.running=false;this.publish();return}this.projectiles=[];const run=realmRun(useGame.getState().p);if(run){if(run.stage.startsWith('CHOICE')){this.phase='waiting';this.plan=realmPlan(run.f,run.r,run);this.publish();this.checkpoint()}else this.continueRealm();return}this.rewarded=true;this.phase='victory';this.running=false;this.publish();this.checkpoint();sound('rare',g.p.sound);g.open('realm');return;}this.phase='victory';this.curse=0;this.hazardWarn=-1;this.hazard.remaining=0;this.poison=0;this.delay=1.7;this.rewarded=true;this.projectiles=[];if(!useGame.getState().win(this.mode,this.id,this.snapshot(),this.tally)){this.phase='fight';this.rewarded=false;this.running=false;this.publish();useGame.getState().notice('Победа ожидает сохранения · освободите место и нажмите топоры');return}this.tally={};this.director.onVictory();if(this.mode==='arena'||!useGame.getState().continueOnVictory){this.running=false;this.checkpoint()}if(this.mode==='darkness'&&realmLast(useGame.getState().p)?.win&&!realmRun(useGame.getState().p)){this.effect(432,400,'ЭТАЖ ПРОЙДЕН!','#d9b8ff',36);this.burst(432,560,'#b98cff',34)}if(this.boss)this.burst(550,640,'#ffe2a0',24);else this.effect(445,410,'ПОБЕДА!','#fff1a1',31);sound(this.boss?'rare':'win',useGame.getState().p.sound);haptic(true);this.publish();if(this.mode==='arena')useGame.getState().open('arena')}
  // ── Saga: region hazards. Timing is a pure function of combatTime, so pause/reload never repeat a strike. ──
@@ -287,7 +394,14 @@ export class Battle implements TeamHost {
  // ── Living World hooks ──
  audioFrame(){const p=useGame.getState().p,d=this.director;audio.frame({enabled:p.sound,running:this.running,hidden:typeof document!=='undefined'&&document.hidden,volume:p.volume??2,mood:this.boss&&this.phase==='fight'?'boss':d.danger>.4||d.gloom>=.15?'tense':'city',wind:d.life.wind,walked:this.walked,quality:this.quality});this.walked=0}
  companionRate(){return this.director.companionRate()*(setCounts(useGame.getState().p).legion>=2?1.2:1)}
- gooseDamage(){const p=useGame.getState().p;return Math.round(this.statsFor(p).attack*this.squad.striker.power*(setCounts(p).legion>=4?2:1))}
+ followerDamage(member:CombatFollower){
+  const p=useGame.getState().p;
+  return Math.round(this.statsFor(p).attack*member.power*(setCounts(p).legion>=4?2:1));
+ }
+ followerHealFraction(member:CombatFollower,p:Player,primary:boolean){
+  return Math.min(.45,member.power*(primary&&branchOf(p,1)===1?1.4:1)*(setCounts(p).legion>=4?1.3:1));
+ }
+ gooseDamage(){return this.followerDamage(this.squad.striker)}
  teamCombo(kind:1|2){this.perk.combo=combos.finish.window;this.perk.kind=kind;if(setCounts(useGame.getState().p).legion>=6){this.perk.rally=4;this.effect(this.heroX,545,'ОРЁЛ ЛЕГИОНА +40%','#ffd27a',22)}}
  onDive(u:Unit,broke:boolean){const v=this.visual(u),p=useGame.getState().p;this.burst(v.x,v.bodyY-20,'#fff4d2',14);sound('honk',p.sound);if(broke){this.effect(v.barX,v.barY-16,'ГУСЬ СОРВАЛ!','#fff0b0',26);this.impactStop=this.reducedMotion()?0:.04;this.director.count('dive');this.note('dive');this.teamCombo(1);if(branchOf(p,0)===0&&u.hp>0)this.hit(u,Math.round(this.gooseDamage()*1.5),false,'#fff4d2','goose')}else if(u.hp>0)this.hit(u,this.gooseDamage(),false,'#fff4d2','goose')}
  onGuardReady(){sound('bark',useGame.getState().p.sound)}
@@ -334,6 +448,8 @@ export class Battle implements TeamHost {
  }
  const actors:Array<{y:number;paint:()=>void}>=[];
  const heroDrawX=this.heroX-(gates?130:0);
+ const visible=this.visibleFollowers();
+ const showMain=visible.includes(this.squad.striker),showGuard=visible.includes(this.squad.guardian);
  const rawGooseX=projectX(this.journey.goose.worldX,this.journey.cameraX)-40;
  const gooseX=gates?Math.min(200,rawGooseX):rawGooseX;
 
@@ -341,8 +457,18 @@ export class Battle implements TeamHost {
  const dive=this.brain.goose?.kind==='dive'?this.targetBody(this.brain.goose.target):undefined,gp=this.brain.goosePose(this.clock,{x:gooseX,y:this.journey.goose.worldY-25},dive),dp=this.brain.dogPose(this.clock,{x:dogX},this.heroX);
  if(!dark)actors.push(...this.director.actors());
  const sp=this.strikerPos(),strikerLane=gates?Math.min(218,sp.x):sp.x,fly=this.squad.striker.fly,glow=(x:number,y:number)=>{c.save();c.globalAlpha=.35+.15*Math.sin(this.clock*3);c.fillStyle='#ffd86b';c.beginPath();c.ellipse(x,y+2,52,13,0,0,Math.PI*2);c.fill();c.restore()};
- actors.push({y:sp.y,paint:()=>{if(this.squad.striker.awake)glow(strikerLane+(gates?0:gp.dx),fly?sp.y+gp.dy-70:sp.y);this.character(this.squad.striker.id,strikerLane+(gates?0:gp.dx),sp.y+gp.dy*(fly?1:.12),fly?156:136,Math.max(this.gooseAttack,gp.attack),0,this.phase==='walk'&&(this.journey.goose.speed??0)>3,0,0,false,!fly,this.squad.striker.id!=='goose_aviator',fly?this.clock:this.journey.distance/160)}});
- actors.push({y:this.journey.dog.worldY+(dp.dx>60?8:0),paint:()=>{if(this.squad.guardian.awake)glow(dogX+(gates?0:dp.dx),this.journey.dog.worldY);this.character(this.squad.guardian.id,dogX+(gates?0:dp.dx),this.journey.dog.worldY+dp.dy,this.squad.guardian.id==='brown_white_dog'?156:132,Math.max(this.dogCast,dp.attack),0,dp.run||this.phase==='walk'&&(this.journey.dog.speed??0)>3,0,0,false,this.squad.guardian.id!=='brown_white_dog',this.squad.guardian.id!=='brown_white_dog',(this.journey.dog.stride??0)/160)}});
+ if(showMain)actors.push({y:sp.y,paint:()=>{if(this.squad.striker.awake)glow(strikerLane+(gates?0:gp.dx),fly?sp.y+gp.dy-70:sp.y);this.character(this.squad.striker.id,strikerLane+(gates?0:gp.dx),sp.y+gp.dy*(fly?1:.12),fly?156:136,Math.max(this.gooseAttack,gp.attack),0,this.phase==='walk'&&(this.journey.goose.speed??0)>3,0,0,false,!fly,this.squad.striker.id!=='goose_aviator',fly?this.clock:this.journey.distance/160)}});
+ if(showGuard)actors.push({y:this.journey.dog.worldY+(dp.dx>60?8:0),paint:()=>{if(this.squad.guardian.awake)glow(dogX+(gates?0:dp.dx),this.journey.dog.worldY);this.character(this.squad.guardian.id,dogX+(gates?0:dp.dx),this.journey.dog.worldY+dp.dy,this.squad.guardian.id==='brown_white_dog'?156:132,Math.max(this.dogCast,dp.attack),0,dp.run||this.phase==='walk'&&(this.journey.dog.speed??0)>3,0,0,false,this.squad.guardian.id!=='brown_white_dog',this.squad.guardian.id!=='brown_white_dog',(this.journey.dog.stride??0)/160)}});
+ const reserve=this.squad.reserve;
+ if(reserve&&visible.includes(reserve)){
+  const at=this.strikerPos(reserve.fly),x=gates?Math.min(218,at.x):at.x;
+  actors.push({y:at.y,paint:()=>{
+   if(reserve.awake)glow(x,reserve.fly?at.y-70:at.y);
+   this.character(reserve.id,x,at.y,reserve.fly?156:136,this.reservePose,0,
+    this.phase==='walk'&&(this.journey.goose.speed??0)>3,0,0,false,!reserve.fly,reserve.id!=='goose_aviator',
+    reserve.fly?this.clock:this.journey.distance/160);
+  }});
+ }
  actors.push({y:this.journey.worldY,paint:()=>this.character(heroArt[p.heroClass],heroDrawX+(gates?0:attackLunge),this.journey.worldY,214,gates?0:this.heroAttack,gates?0:this.heroHurt,walking,this.phase==='defeat'?.65:0,0,this.phase==='victory',false,false,this.journey.distance/160,true)});
  if(!dark&&this.phase==='victory'&&this.boss)actors.push({y:724,paint:()=>this.character('cappuccina_approved',650,724,110,Math.floor(this.clock*4)%2?.5:.2,0,false)});
  for(const [i,u] of this.units.entries()){
@@ -375,11 +501,11 @@ export class Battle implements TeamHost {
   if(!dark&&u.affix&&u.windup<=0&&!this.boss&&this.phase==='fight')labels.push({key:'affix:'+i,text:affixes[u.affix as keyof typeof affixes]?.name??'',x:v.barX,y:v.barY-14,size:17,color:affixes[u.affix as keyof typeof affixes]?.color??'#fff',alpha:.95,priority:1});if(u.windup>0)labels.push({key:'ability:'+i,text:u.ability,x:v.barX,y:v.barY-32,size:21,color:'#ffe0a1',alpha:1,priority:4});
   if(this.stun>0){c.fillStyle='#fff19c';c.font='25px serif';c.fillText('✦',v.barX-12,v.barY-17)}c.restore();
  }
- if(!gates&&this.dogCast>0){c.strokeStyle='#a8ffd0';c.lineWidth=4;c.beginPath();c.ellipse(dogX,797,59,12,0,0,Math.PI*2);c.stroke();c.beginPath();c.ellipse(this.heroX,800,72,13,0,0,Math.PI*2);c.stroke()}
+ if(!gates&&this.dogCast>0){c.strokeStyle='#a8ffd0';c.lineWidth=4;if(showGuard){c.beginPath();c.ellipse(dogX,797,59,12,0,0,Math.PI*2);c.stroke()}c.beginPath();c.ellipse(this.heroX,800,72,13,0,0,Math.PI*2);c.stroke()}
  const heroId=heroArt[p.heroClass],heroHeight=legacyBodyHeight(heroId,214),heroTop=805+Math.min(clips[heroId].envelope[1],clips[heroId+':run']?.envelope[1]??0)*heroHeight;this.bar(heroDrawX,Math.min(571,heroTop-18),114,this.hp/this.maxHp,'#72e46a');if(!gates&&this.heroAttack>.18&&p.heroClass==='berserker'){c.save();c.strokeStyle='#cdf6ffbb';c.lineWidth=10;c.shadowBlur=this.quality>.6?14:0;c.shadowColor='#78dfff';c.beginPath();c.arc(this.heroX+62,704,92,-1.4,.8);c.stroke();c.lineWidth=3;c.strokeStyle='#fff';c.stroke();c.restore()}
  if(!gates&&this.gear.active('tempo',p)){c.strokeStyle='#ffdc8f';c.lineWidth=3;c.beginPath();c.ellipse(this.heroX,800,78,13,0,0,Math.PI*2);c.stroke()}
  if(!gates&&(this.buff>0||this.shield>0||this.gear.active('bulwark',p)?.pool)){c.strokeStyle=(this.shield>0||this.gear.active('bulwark',p)?.pool)?'#88eaff':'#ffda6b';c.lineWidth=4;c.beginPath();c.ellipse(this.heroX,790,(this.shield>0||this.gear.active('bulwark',p)?.pool)?76:64,(this.shield>0||this.gear.active('bulwark',p)?.pool)?105:14,0,0,Math.PI*2);c.stroke()}
- for(const b of this.projectiles){if(!this.projectileTarget(b))continue;if(b.kind==='sword-wave'){if((b.launchDelay??0)<=0){const ends=this.projectileEnds(b);drawSwordWave(c,b,ends.start,ends.end,this.quality)}continue}const {start,end}=this.projectileEnds(b),{head,tail,angle}=projectileVisualPath(b,start,end),x=head.x,y=head.y; c.save();const trail=c.createLinearGradient(tail.x,tail.y,x,y);trail.addColorStop(0,'#b7eeff00');trail.addColorStop(1,b.kind==='fire'?'#ffb36aa0':b.kind==='web'?'#ddbaffb0':'#b7eeffa0');c.strokeStyle=trail;c.lineWidth=b.kind==='arrow'?3:8;c.beginPath();c.moveTo(tail.x,tail.y);c.lineTo(x,y);c.stroke();c.translate(x,y);c.rotate(angle);if(b.kind==='arrow'||b.kind==='feather'){c.strokeStyle=b.kind==='feather'?'#fff4d2':b.stun?'#ffe08a':'#dba966';c.lineWidth=5;c.beginPath();c.moveTo(-31,0);c.lineTo(13,0);c.stroke();c.fillStyle='#eff9ff';c.beginPath();c.moveTo(20,0);c.lineTo(7,-6);c.lineTo(7,6);c.closePath();c.fill()}else{const color=b.kind==='fire'?'#ff9e49':b.kind==='spore'?'#b6f58f':b.kind==='web'?'#eee2ff':b.kind==='orb'?'#da93ff':'#9cf9ff';c.shadowBlur=this.quality>.6?18:0;c.shadowColor=color;c.fillStyle=color;c.beginPath();c.arc(0,0,b.kind==='web'?10:11,0,Math.PI*2);c.fill();if(b.kind==='web'){c.shadowBlur=0;c.strokeStyle='#f1e4ff';c.lineWidth=1.5;for(let n=0;n<6;n++){const a=n*Math.PI/3;c.beginPath();c.moveTo(0,0);c.lineTo(Math.cos(a)*22,Math.sin(a)*22);c.stroke()}c.beginPath();for(let n=0;n<=6;n++){const a=n*Math.PI/3;c.lineTo(Math.cos(a)*17,Math.sin(a)*17)}c.stroke()}c.fillStyle='#fff';c.beginPath();c.arc(-2,-3,4,0,Math.PI*2);c.fill()}c.restore()}
+ for(const b of this.projectiles){if(b.follower?.hidden||!this.projectileTarget(b))continue;if(b.kind==='sword-wave'){if((b.launchDelay??0)<=0){const ends=this.projectileEnds(b);drawSwordWave(c,b,ends.start,ends.end,this.quality)}continue}const {start,end}=this.projectileEnds(b),{head,tail,angle}=projectileVisualPath(b,start,end),x=head.x,y=head.y; c.save();const trail=c.createLinearGradient(tail.x,tail.y,x,y);trail.addColorStop(0,'#b7eeff00');trail.addColorStop(1,b.kind==='fire'?'#ffb36aa0':b.kind==='web'?'#ddbaffb0':'#b7eeffa0');c.strokeStyle=trail;c.lineWidth=b.kind==='arrow'?3:8;c.beginPath();c.moveTo(tail.x,tail.y);c.lineTo(x,y);c.stroke();c.translate(x,y);c.rotate(angle);if(b.kind==='arrow'||b.kind==='feather'){c.strokeStyle=b.kind==='feather'?'#fff4d2':b.stun?'#ffe08a':'#dba966';c.lineWidth=5;c.beginPath();c.moveTo(-31,0);c.lineTo(13,0);c.stroke();c.fillStyle='#eff9ff';c.beginPath();c.moveTo(20,0);c.lineTo(7,-6);c.lineTo(7,6);c.closePath();c.fill()}else{const color=b.kind==='fire'?'#ff9e49':b.kind==='spore'?'#b6f58f':b.kind==='web'?'#eee2ff':b.kind==='orb'?'#da93ff':'#9cf9ff';c.shadowBlur=this.quality>.6?18:0;c.shadowColor=color;c.fillStyle=color;c.beginPath();c.arc(0,0,b.kind==='web'?10:11,0,Math.PI*2);c.fill();if(b.kind==='web'){c.shadowBlur=0;c.strokeStyle='#f1e4ff';c.lineWidth=1.5;for(let n=0;n<6;n++){const a=n*Math.PI/3;c.beginPath();c.moveTo(0,0);c.lineTo(Math.cos(a)*22,Math.sin(a)*22);c.stroke()}c.beginPath();for(let n=0;n<=6;n++){const a=n*Math.PI/3;c.lineTo(Math.cos(a)*17,Math.sin(a)*17)}c.stroke()}c.fillStyle='#fff';c.beginPath();c.arc(-2,-3,4,0,Math.PI*2);c.fill()}c.restore()}
  for(const f of this.fx){if(gates||f.text)continue;c.globalAlpha=Math.min(1,f.life*2);if(f.ring){const radius=f.size*(1-f.life/f.max);c.strokeStyle=f.color;c.lineWidth=3;c.beginPath();c.arc(f.x,f.y,radius,0,Math.PI*2);c.stroke();}else{c.fillStyle=f.color;c.beginPath();c.arc(f.x,f.y,f.size*Math.min(1,f.life*2),0,Math.PI*2);c.fill()}}c.globalAlpha=1;c.restore();
  const blocked=this.comicObstacles(),comic=this.comics.active;if(!dark&&comic)blocked.push([comic.x-106,comic.y-56,comic.x+106,comic.y+56]);
  const floating=dark?this.fx.filter(f=>f.tag||f.text?.startsWith('−')).slice(-3):this.fx;
@@ -391,7 +517,7 @@ export class Battle implements TeamHost {
   if(gates)drawRealmPortals(c,gates,realm.clock,realm.reduced);
   this.realmScenery.drawCrossing(c,this.journey,realm);
  }
- if(!dark){this.director.front(c);paintBiomeFront(c,this.plan.region,this.clock,this.journey.cameraX,this.quality,this.reducedMotion());}if(!dark)this.brain.drawEmotes(c,who=>who==='goose'?{x:gooseX+gp.dx+60,y:this.journey.goose.worldY+gp.dy-132}:who==='dog'?{x:dogX+(gates?0:dp.dx)+64,y:this.journey.dog.worldY+dp.dy-128}:{x:this.heroX+70,y:560});
+ if(!dark){this.director.front(c);paintBiomeFront(c,this.plan.region,this.clock,this.journey.cameraX,this.quality,this.reducedMotion());}if(!dark)this.brain.drawEmotes(c,who=>who==='goose'?(showMain?{x:gooseX+gp.dx+60,y:this.journey.goose.worldY+gp.dy-132}:null):who==='dog'?(showGuard?{x:dogX+(gates?0:dp.dx)+64,y:this.journey.dog.worldY+dp.dy-128}:null):{x:this.heroX+70,y:560});
 
  c.fillStyle='#fff';if(!dark&&this.plan.region.look.particles==='snow')for(let i=0;i<Math.round(32*this.quality);i++){const x=((i*137+this.clock*(8+i%4)-this.journey.cameraX*(.12+(i%3)*.08))%864+864)%864,y=(i*97+this.clock*(16+i%7))%900;c.globalAlpha=.2+(i%3)*.13;c.beginPath();c.arc(x,y,1.3+i%3,0,Math.PI*2);c.fill()}c.globalAlpha=1}
  frame=(time:number)=>{

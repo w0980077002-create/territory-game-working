@@ -234,7 +234,7 @@ export function SquadPanel({p}:{p:Player}){
    const member=id?s.instances[id]:null;
    return id&&member?<button key={i} className={picked===id?'selected':''} onClick={()=>inspect(id)} aria-label={`${labels[i]} · ${companions[member.species].name}`}>
     <img src={art(member.species)} alt=""/><small>{labels[i]}</small><strong>{companions[member.species].name}</strong>
-    <span>{i===2?'Вне боя':`ур.${member.lv} · ${'★'.repeat(member.st)||'без звёзд'}`}</span>
+    <span>ур.{member.lv} · {'★'.repeat(member.st)||'без звёзд'}</span>
    </button>:<div key={i} className="squad-vacancy"><small>{labels[i]}</small><strong>Свободно</strong><span>Выберите в каталоге</span></div>;
   })}</div>
   <div className="squad-bonus">Бонус дружины: {bonusLines(squadBonus(p)).join(' · ')||'звёзды и таланты ещё не развиты'}</div>
@@ -254,7 +254,9 @@ export function SquadPanel({p}:{p:Player}){
     {tab==='stars'&&<Btn kind="secondary" disabled={pet.st>=STAR_MAX||pet.sh<starCost[pet.st]} onClick={()=>petStar(picked)}>{pet.st>=STAR_MAX?'Все 5 звёзд получены':`Звезда ${pet.st+1} · осколки ${pet.sh}/${starCost[pet.st]} · ${job(species,companionPower(species,{...pet,st:pet.st+1}))}`}</Btn>}{tab==='awake'&&(!pet.aw?<><div className="awaken-list"><b>Пробуждение</b><span className={pet.st>=AWAKEN.stars?'ok':''}>Звёзды {pet.st}/{AWAKEN.stars}</span><span className={pet.lv>=AWAKEN.level?'ok':''}>Уровень {pet.lv}/{AWAKEN.level}</span><span className={duskCount(p)>=AWAKEN.dusk?'ok':''}>Камни Сумрака {duskCount(p)}/{AWAKEN.dusk}</span><span className={p.gold>=AWAKEN.gold?'ok':''}>Золото {fmt(AWAKEN.gold)}</span></div><Btn kind="secondary" disabled={pet.st<AWAKEN.stars||pet.lv<AWAKEN.level||duskCount(p)<AWAKEN.dusk||p.gold<AWAKEN.gold} onClick={()=>petAwaken(picked)}>Пробудить · {job(species,companionPower(species,{...pet,aw:true}))}</Btn></>:<p>✓ Спутник пробуждён · +25% силы</p>)}</>:undefined}><div className="pet-card" style={{'--rarity':companionColors[def.rarity]} as React.CSSProperties}>
    {tab!=='talents'&&<>
    <div className="pet-head"><div className={`pet-portrait ${pet.aw?'awake':''}`}><img src={art(species)} alt={def.name}/></div><div><small>{companionRarity[def.rarity]} · {def.role==='striker'?'боец':'хранитель'}</small><h3>{def.name}{own?` · ур.${pet.lv}`:''}</h3><b className="stars">{'★'.repeat(pet.st)}{'☆'.repeat(STAR_MAX-pet.st)}</b><p>{def.lore}</p></div></div>
-   <div className="bonus-card">{position===2&&<span><b>Сопровождение II</b> Пока не участвует в бою.</span>}<span><b>{def.traitName}</b> {def.trait}</span><span><b>В бою</b> {job(species,power)}</span>{pet.aw&&<span className="on"><b>Пробуждение</b> {def.role==='striker'?'Каждая третья атака бьёт всех врагов на 50%.':'Каждое лечение даёт герою +15% урона на 3 секунды.'}</span>}</div>
+   <div className="bonus-card">{position===2&&<span><b>Сопровождение II</b> {def.role==='striker'?'Атакует':'Лечит'} по своему интервалу.</span>}
+    {!(position===2&&['goose_aviator','brown_white_dog'].includes(species))&&<span><b>{def.traitName}</b> {def.trait}</span>}
+    <span><b>{position===2?'Базовое действие':'В бою'}</b> {job(species,power)}</span>{pet.aw&&<span className="on"><b>Пробуждение</b> {def.role==='striker'?'Каждая третья атака бьёт всех врагов на 50%.':'Каждое лечение даёт герою +15% урона на 3 секунды.'}</span>}</div>
    </>}
    {!own?<><div className="relic-progress"><b>Осколки: {pet.sh}/{def.shards}</b><i><span style={{width:`${Math.min(100,pet.sh/def.shards*100)}%`}}/></i><small>Спутник присоединится, когда наберётся {def.shards} осколков из Призыва.</small></div></>:<>
     <div className="growth-tabs tabs">{[['level','Уровень'],['stars','Звёзды'],['talents','Таланты'],['awake','Пробуждение']].map(([id,label])=><button key={id} className={tab===id?'selected':''} aria-pressed={tab===id} onClick={()=>setTab(id)}>{label}</button>)}</div>
