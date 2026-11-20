@@ -317,6 +317,37 @@ let browser;
     await page.getByRole('button',{name:'Звёзды',exact:true}).click();await page.getByRole('button',{name:'Таланты',exact:true}).click();await page.getByRole('button',{name:'Пробуждение',exact:true}).click();assert.equal(await page.getByRole('button',{name:/Пробудить ·/}).isDisabled(),true);await page.getByRole('button',{name:'Уровень',exact:true}).click();
     const lv=(await read(page)).companions[0];await page.getByRole('button',{name:/Повысить уровень/}).click();assert.equal((await read(page)).companions[0],lv+1);assert.match(await page.locator('.context-status').innerText(),/Уровень спутника повышен/);await page.screenshot({path:`${output}/notice-live-${width}.png`});await page.screenshot({path:`${output}/companion-${width}.png`});await closeCard(page);assert.deepEqual(await page.locator('.squad-grid').boundingBox(),initial);await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();assert.equal(await page.locator('.dialog-notice').count(),0);await page.screenshot({path:`${output}/notice-destination-${width}.png`});await page.getByRole('navigation',{name:'Постройки гавани'}).getByRole('button',{name:'Спутники',exact:true}).click();
     await page.getByRole('button',{name:'Призыв',exact:true}).click();await assertCard(page);assert.equal(await page.locator('.context-status').innerText(),'');const seals=(await read(page)).saga.n['res:seal'];await page.getByRole('button',{name:'Призыв · 1 печать',exact:true}).click();assert.equal((await read(page)).saga.n['res:seal'],seals-1);await closeCard(page);
+    const formation=page.getByRole('group',{name:'Состав дружины'});
+    assert.equal(await formation.locator(':scope > *').count(),3);
+    await page.evaluate(()=>window.__lootborn.useGame.getState().mutate(p=>{
+     const squad=p.saga.box.squad;
+     const starter=squad.instances['follower:goose_aviator'];
+     squad.instances['follower:08_armored_boar']={...structuredClone(starter),species:'08_armored_boar',lv:100};
+    }));
+    const boar=page.getByRole('button',{name:'Броненосный вепрь',exact:true});
+    await boar.tap();await assertCard(page);
+    assert.equal(await page.getByText('Предел повышения · 100',{exact:true}).count(),1);
+    await page.getByRole('button',{name:'Таланты',exact:true}).tap();
+    const talents=page.getByRole('list',{name:'Ячейки талантов'});
+    assert.equal(await talents.getByRole('listitem').count(),8);
+    assert.equal(await talents.locator('.locked').count(),4);
+    await page.screenshot({path:`${output}/follower-talents-${width}.png`});
+    await page.getByRole('button',{name:'В сопровождение II',exact:true}).tap();
+    assert.equal((await read(page)).saga.box.squad.formation[2],'follower:08_armored_boar');
+    await closeCard(page);
+    await page.reload();await page.waitForFunction(()=>window.__lootborn?.battle);
+    await open(page,'companions');
+    await formation.getByRole('button',{name:'Сопровождение II · Броненосный вепрь',exact:true}).waitFor();
+    assert.equal(await formation.getByText('Вне боя',{exact:true}).count(),1);
+    assert.equal(await formation.evaluate(group=>{
+     const boxes=[...group.children].map(cell=>cell.getBoundingClientRect());
+     return boxes.every((box,i)=>box.width>=44&&box.height>=44&&(i===0||box.left>=boxes[i-1].right));
+    }),true);
+    await page.screenshot({path:`${output}/follower-formation-${width}.png`});
+    await formation.getByRole('button',{name:'Сопровождение II · Броненосный вепрь',exact:true}).tap();
+    await page.getByRole('button',{name:'Освободить сопровождение II',exact:true}).tap();
+    assert.equal((await read(page)).saga.box.squad.formation[2],null);
+    await closeCard(page);
    }
    if(panel==='relic'){
     await page.locator('.relic-grid button').first().click();await assertCard(page);const old=(await read(page)).relic;await page.getByRole('button',{name:/Развить ·/}).click();assert.equal((await read(page)).relic,old+1);assert.match(await page.locator('.context-status').innerText(),/Уровень повышен/);await page.screenshot({path:`${output}/relic-card-${width}.png`});await closeCard(page);

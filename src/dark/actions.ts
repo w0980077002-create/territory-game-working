@@ -13,7 +13,7 @@ import {realmRun,realmLast,realmBox,realmDefeat,newRealmRun,realmChoose,blessing
 import {resCount,addRes,duskCount,addDusk,darkState,darkBox,darkUpgradeCost,darkMaxUpgrade,darkSalvageValue,darkEffectOf,darkName,DARK_STORAGE,
  gemState,gemBox,parseGem,gemCode,gemSynthGold,gemSlots,socketOpen,rollGem,gemLabel,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicLevel,relicUnlockCost,relicUpgradeCost,RELIC_MAX,type RelicId,
- companions,squadState,squadBox,legacyPet,starCost,STAR_MAX,AWAKEN,talentPoints,talentSpent,TALENT_MAX,rollSummon,SUMMON,resources} from './rules';
+ companions,squadState,squadBox,followerId,followerProgress,newFollower,raiseFollowerLevel,FOLLOWER_MAX_LEVEL,starCost,STAR_MAX,AWAKEN,talentPoints,talentSpent,TALENT_MAX,rollSummon,SUMMON,resources} from './rules';
 const G=()=>useGame.getState();
 const fail=(text:string)=>{G().notice(text);return false};
 /** Validate → mutate (validated again on the fresh clone) → report. */
@@ -91,29 +91,77 @@ export function summon(times:1|10,pay:'seal'|'gems'){
  const cost=pay==='seal'?SUMMON.seal*times:SUMMON.gems*times,results:SummonResult[]=[];
  const ok=tx(p=>pay==='seal'?resCount(p,'seal')<cost?`Нужно ${cost} × ${resources.seal.name}`:null:p.gems<cost?'Недостаточно самоцветов':null,
   p=>{if(pay==='seal')addRes(p,'seal',-cost);else p.gems-=cost;const box=squadBox(p);
-   for(let n=0;n<times;n++){const roll=rollSummon(),pet=box.own[roll.id],def=companions[roll.id];pet.sh+=roll.shards;let unlocked=false;if(pet.lv<=0&&pet.sh>=def.shards){pet.sh-=def.shards;pet.lv=1;unlocked=true}results.push({...roll,unlocked})}
+   const owned=new Set(Object.values(box.instances).map(pet=>pet.species));
+   for(let n=0;n<times;n++){
+    const roll=rollSummon(),def=companions[roll.id];
+    box.shards[roll.id]+=roll.shards;
+    const unlocked=!owned.has(roll.id)&&box.shards[roll.id]>=def.shards;
+    if(unlocked){
+     box.shards[roll.id]-=def.shards;
+     box.instances[followerId(roll.id)]=newFollower(roll.id);
+     owned.add(roll.id);
+    }
+    results.push({...roll,unlocked});
+   }
    bumpCount(p,'summon',times)});
  return ok?results:null;
 }
-const owned=(p:Player,id:string)=>Object.hasOwn(companions,id)&&squadState(p).own[id].lv>0;
+
+const instanceId=(id:string)=>Object.hasOwn(companions,id)?followerId(id):id;
+function petAction(id:string,check:(pet:ReturnType<typeof followerProgress>,p:Player)=>string|null,
+ apply:(box:ReturnType<typeof squadBox>,id:string,p:Player)=>void,message?:string){
+ const key=instanceId(id);
+ return tx(p=>{
+  const box=squadState(p);
+  const pet=Object.hasOwn(box.instances,key)?box.instances[key]:undefined;
+  return pet?check(followerProgress(pet,box.shards[pet.species]),p):'Спутник ещё не призван';
+ },p=>apply(squadBox(p),key,p),message);
+}
+
 export const petLevelCost=(level:number)=>120*level;
 export function petLevel(id:string){
- return tx(p=>!owned(p,id)?'Спутник ещё не призван':p.gold<petLevelCost(squadState(p).own[id].lv)?'Недостаточно золота':null,
-  p=>{const legacy=legacyPet(id),level=squadState(p).own[id].lv;p.gold-=petLevelCost(level);if(legacy>=0)p.companions[legacy]++;else squadBox(p).own[id].lv=level+1},'Уровень спутника повышен');
+ return petAction(id,(pet,p)=>pet.lv>=FOLLOWER_MAX_LEVEL?'Достигнут предел уровня':p.gold<petLevelCost(pet.lv)?'Недостаточно золота':null,
+  (box,key,p)=>{const cost=petLevelCost(box.instances[key].lv);if(raiseFollowerLevel(p,key,box))p.gold-=cost},'Уровень спутника повышен');
 }
 export function petStar(id:string){
- return tx(p=>{if(!owned(p,id))return 'Спутник ещё не призван';const pet=squadState(p).own[id];return pet.st>=STAR_MAX?'Достигнуто 5 звёзд':pet.sh<starCost[pet.st]?`Нужно ${starCost[pet.st]} осколков спутника`:null},
-  p=>{const pet=squadBox(p).own[id];pet.sh-=starCost[pet.st];pet.st++;bumpCount(p,'pet:star')},'Звезда получена · спутник стал сильнее');
+ return petAction(id,pet=>pet.st>=STAR_MAX?'Достигнуто 5 звёзд':pet.sh<starCost[pet.st]?`Нужно ${starCost[pet.st]} осколков спутника`:null,
+  (box,key,p)=>{const pet=box.instances[key];box.shards[pet.species]-=starCost[pet.st];pet.st++;bumpCount(p,'pet:star')},'Звезда получена · спутник стал сильнее');
 }
 export function petAwaken(id:string){
- return tx(p=>{if(!owned(p,id))return 'Спутник ещё не призван';const pet=squadState(p).own[id];return pet.aw?'Спутник уже пробуждён':pet.st<AWAKEN.stars?`Нужно ${AWAKEN.stars} звезды`:pet.lv<AWAKEN.level?`Нужен ${AWAKEN.level} уровень спутника`:duskCount(p)<AWAKEN.dusk?`Нужно ${AWAKEN.dusk} × Камень Сумрака`:p.gold<AWAKEN.gold?'Недостаточно золота':null},
-  p=>{addDusk(p,-AWAKEN.dusk);p.gold-=AWAKEN.gold;squadBox(p).own[id].aw=true;bumpCount(p,'pet:awaken')},'Пробуждение свершилось!');
+ return petAction(id,(pet,p)=>pet.aw?'Спутник уже пробуждён':pet.st<AWAKEN.stars?`Нужно ${AWAKEN.stars} звезды`:pet.lv<AWAKEN.level?`Нужен ${AWAKEN.level} уровень спутника`:duskCount(p)<AWAKEN.dusk?`Нужно ${AWAKEN.dusk} × Камень Сумрака`:p.gold<AWAKEN.gold?'Недостаточно золота':null,
+  (box,key,p)=>{addDusk(p,-AWAKEN.dusk);p.gold-=AWAKEN.gold;box.instances[key].aw=true;bumpCount(p,'pet:awaken')},'Пробуждение свершилось!');
 }
 export function petTalent(id:string,index:number){
- return tx(p=>{if(!owned(p,id)||index<0||index>2)return 'Спутник ещё не призван';const pet=squadState(p).own[id];return pet.t[index]>=TALENT_MAX?'Талант изучен полностью':talentSpent(pet)>=talentPoints(pet)?'Нет свободных очков · очко за каждые 5 уровней':null},p=>{squadBox(p).own[id].t[index]++});
+ if(!Number.isInteger(index)||index<0||index>2)return false;
+ return petAction(id,pet=>pet.t[index]>=TALENT_MAX?'Талант изучен полностью':talentSpent(pet)>=talentPoints(pet)?'Нет свободных очков · очко за каждые 5 уровней':null,
+  (box,key)=>{box.instances[key].talents[index].rank++});
 }
-export function petTalentReset(id:string){return tx(p=>!owned(p,id)||!talentSpent(squadState(p).own[id])?'Очки не распределены':p.gold<200?'Нужно 200 золота':null,p=>{p.gold-=200;squadBox(p).own[id].t=[0,0,0]},'Таланты сброшены')}
-export function petActivate(id:string){
- return tx(p=>!owned(p,id)?'Спутник ещё не призван':squadState(p).act.includes(id)?'Спутник уже в строю':null,p=>{const box=squadBox(p);box.act[companions[id].role==='striker'?0:1]=id},`${companions[id]?.name??''} встаёт в строй`)&&(battle?.tuneTeam(),true);
+export function petTalentReset(id:string){
+ return petAction(id,(pet,p)=>!talentSpent(pet)?'Очки не распределены':p.gold<200?'Нужно 200 золота':null,
+  (box,key,p)=>{p.gold-=200;for(const slot of box.instances[key].talents.slice(0,3))slot.rank=0},'Таланты сброшены');
+}
+export function petActivate(id:string,position?:0|1|2){
+ const key=instanceId(id);
+ const ok=tx(p=>{
+  const box=squadState(p);
+  if(!Object.hasOwn(box.instances,key))return 'Спутник ещё не призван';
+  const role=companions[box.instances[key].species].role==='striker'?0:1;
+  const slot=position??role;
+  if(slot!==role&&slot!==2)return 'Спутник не подходит для этой позиции';
+  if(box.formation[slot]===key)return 'Спутник уже на этой позиции';
+  if(slot===2&&box.formation.slice(0,2).includes(key))return 'Сначала назначьте замену в бою';
+  return null;
+ },p=>{
+  const box=squadBox(p);
+  const slot=position??(companions[box.instances[key].species].role==='striker'?0:1);
+  if(box.formation[2]===key)box.formation[2]=null;
+  box.formation[slot]=key;
+ },'Состав дружины сохранён');
+ if(ok&&position!==2)battle?.tuneTeam();
+ return ok;
+}
+export function petClearReserve(id:string){
+ return tx(p=>squadState(p).formation[2]===id?null:'Позиция уже свободна',
+  p=>{squadBox(p).formation[2]=null},'Позиция освобождена');
 }
 export {darkName};
