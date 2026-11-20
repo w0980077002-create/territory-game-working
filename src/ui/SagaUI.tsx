@@ -26,7 +26,7 @@ export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel
  const toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError),close=useGame(s=>s.open),reduced=useGame(s=>s.p.reducedMotion);
  const scrollPositions=useRef(new Map<string,number>());
  const kind=panelMaterial(panel),ref=useRef<HTMLElement>(null),body=useRef<HTMLDivElement>(null);
- useEffect(()=>{
+ useLayoutEffect(()=>{
   const previous=document.activeElement as HTMLElement|null,background=document.querySelector<HTMLElement>('.viewport');
   if(background)background.inert=true;
   return()=>{if(background)background.inert=false;previous?.focus({preventScroll:true})};
@@ -76,11 +76,16 @@ export function LevelUpFeedback(){
  return award===null?null:createPortal(<div className="level-award" data-motion={reduced?'reduced':undefined} role="status" key={award.level}><span aria-hidden="true">✦</span><div><small>ЛЕГЕНДА РАСТЁТ</small><strong>Уровень {award.level}</strong><p>Характеристики выросли · +{award.points} к талантам</p></div><span aria-hidden="true">✦</span></div>,document.body);
 }
 
-/** Native top layer keeps the catalog mounted, locks its input and restores focus on close. */
+/** Native top layer keeps the catalog mounted while its input is locked. */
 export function CardDialog({title,onClose,children,actions,className=''}:{title:string;onClose:()=>void;children:React.ReactNode;actions?:React.ReactNode;className?:string}){
  const openingToastId=useRef(useGame.getState().toastId);
  const ref=useRef<HTMLDialogElement>(null),id=useId(),toast=useGame(s=>s.toast),storageError=useGame(s=>s.storageError);
- useEffect(()=>{useGame.getState().dismissNotice(openingToastId.current);const dialog=ref.current!;dialog.showModal();return()=>dialog.close()},[]);
+ useLayoutEffect(()=>{
+  const previous=document.activeElement as HTMLElement|null,dialog=ref.current!;
+  useGame.getState().dismissNotice(openingToastId.current);
+  dialog.showModal();
+  return()=>{dialog.close();previous?.focus({preventScroll:true})};
+ },[]);
  return <dialog ref={ref} className={`context-card ${className}`} aria-labelledby={id} onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose()}}}>
   <header className="context-header"><h3 id={id}>{title}</h3><button autoFocus className="context-close" aria-label="Закрыть карточку" onClick={onClose}>×</button></header>
   <div className="context-body">{children}</div>

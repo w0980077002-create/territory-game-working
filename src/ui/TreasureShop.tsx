@@ -11,6 +11,10 @@ import {CardDialog} from './SagaUI';
 import './treasureShop.css';
 
 const categories = [['all','Витрина'], ...shopCategories] as const;
+const categoryIcons = {
+  all:'chest', daily:'event', resources:'coins', materials:'mat-harbor',
+  equipment:'helmet', growth:'skill', horn:'horn', supplies:'gift',
+} satisfies Record<typeof categories[number][0],string>;
 const featured = ['travel-stipend','region-supplies','expedition-kit','mine-reserve','summon-seal','forge-parcel','basic-equipment'];
 const compactCoins = new Intl.NumberFormat('ru', {notation:'compact',maximumFractionDigits:1});
 const priceText = (offer: ShopOffer) => `${offer.price.toLocaleString('ru')} ${shopCurrencies[offer.currency].unit}`;
@@ -43,20 +47,20 @@ export function TreasureShop({p, source, sources}: {
   const selectedStatus = selected && shopStatus(p, selected, now);
   return <div className="treasure-shop">
     <div className="shop-counter">
-      <div><strong>Прилавок<br/>северного купца</strong><span>Новые товары в 00:00 UTC</span></div>
+      <div className="shop-sign"><strong>Прилавок<br/>северного купца</strong><span>Новые товары в 00:00 UTC</span></div>
     </div>
     <div className="shop-wallet">
       {Object.entries(shopCurrencies).map(([id, def]) => {
         const amount = p[id as keyof typeof shopCurrencies];
         return <button key={id} type="button" onClick={() => setGuide(id)} aria-label={`Где получить · ${def.name}`}
           title={def.name + ' · ' + amount.toLocaleString('ru')}>
-          <Icon name={def.icon}/><strong>{amount >= 100_000 ? compactCoins.format(amount) : amount.toLocaleString('ru')}</strong>
+          <Icon name={def.icon}/><strong>{amount >= 100_000 ? compactCoins.format(amount) : amount.toLocaleString('ru')}</strong><span aria-hidden="true">+</span>
         </button>;
       })}
     </div>
     <div className="shop-tabs" role="group" aria-label="Категории лавки">
       {categories.map(([id, label]) => <button key={id} type="button" aria-pressed={category === id}
-        onClick={() => setCategory(id)}>{label}</button>)}
+        onClick={() => setCategory(id)}><Icon name={categoryIcons[id]}/><span>{label}</span></button>)}
     </div>
     <div className="shop-grid">
       {visible.map(offer => {
