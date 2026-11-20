@@ -111,8 +111,9 @@ const fixed=(day,month=0)=>new Date(Date.UTC(2027,month,day,12));
    await page.waitForFunction(()=>!!window.__lootborn.useGame.getState().p.equipment.wings);
    await tap('Рост',panel('wings'));
    await button('Рост',panel('wings')).and(page.locator('[aria-pressed=true]')).waitFor();
+   await page.waitForTimeout(360); // Keep this deliberate tap outside the existing double-tap guard after equipping.
    await tap(/Усилить · 4 перьев/,panel('wings'));
-   assert.equal((await state()).saga.box.wings.rank,1);
+   await page.waitForFunction(()=>window.__lootborn.useGame.getState().p.saga?.box.wings?.rank===1);
    await open('hero-path');await check();
    await tap(/^Трактат опыта/);await tap('Забрать');await closeCard();
    assert.ok((await state()).saga.flags.includes('solo:track:xp:0'));
