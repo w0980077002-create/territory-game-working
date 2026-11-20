@@ -43,14 +43,18 @@ async function verifyMail(page,width) {
  });
  assert.equal(await envelope.evaluate(button => {
   const box=button.getBoundingClientRect();
-  const controls=document.querySelectorAll('.side-menu,.stage,.enter,.side-right:not(.side-menu),.hud');
-  return box.right<=innerWidth+1 && box.top>=26
+  const counter=document.querySelector('.currency.chaosite').getBoundingClientRect();
+  const menu=document.querySelector('.side-menu').getBoundingClientRect();
+  const controls=document.querySelectorAll('.side,.stage,.enter,.hud button,.hud .name');
+  return box.right<=innerWidth+1 && box.top>=26 && box.top>=counter.bottom && box.top-counter.bottom<6
+    && Math.abs((box.left+box.right)-(counter.left+counter.right))<4
     && document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)?.closest('button')===button
+    && document.elementFromPoint(menu.x+menu.width/2,menu.y+menu.height/2)?.closest('button')?.matches('.side-menu')
     && Array.from(controls).every(control=>{
       const rect=control.getBoundingClientRect();
       return box.right<=rect.left || box.left>=rect.right || box.bottom<=rect.top || box.top>=rect.bottom;
     });
- }),true,`the envelope has a separate touch area at ${width}px`);
+ }),true,`the envelope is directly below Chaosite with a separate touch area at ${width}px`);
  assert.equal(await envelope.locator('i').textContent(),'2');
  assert.equal(await menu.locator('.side-medal i').count(),0);
  await envelope.locator('img').evaluate(img=>img.decode());

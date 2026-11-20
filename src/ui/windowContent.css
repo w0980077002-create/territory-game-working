@@ -70,13 +70,18 @@
 .quest-prizes .reward-piece strong { font-size: 10px; padding: 0; }
 
 /* Solo 1.1 audit: menu shortcuts compact, slot card leads with the worn item, battle summary 2×2. */
+.game {
+  --hud-mail-top: 61px;
+  --hud-mail-size: max(116px, calc(44px / var(--game-scale)));
+}
+.game .side-menu { top: calc(var(--hud-mail-top) + var(--hud-mail-size) + 6px); }
 .game .hud-mail {
   position: absolute;
-  right: 0;
-  top: 206px;
+  right: calc(96px - var(--hud-mail-size) / 2);
+  top: var(--hud-mail-top);
   z-index: 3;
-  width: max(116px, calc(44px / var(--game-scale)));
-  height: max(116px, calc(44px / var(--game-scale)));
+  width: var(--hud-mail-size);
+  height: var(--hud-mail-size);
   display: grid;
   justify-items: center;
   align-content: start;
