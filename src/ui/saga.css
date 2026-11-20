@@ -196,7 +196,7 @@
 .game .quick-buttons button .icon {position:relative;z-index:1;width:54px;height:54px;filter:drop-shadow(0 3px 2px #050d10) drop-shadow(0 0 3px #d7a45755)}
 .game .quick-buttons button.quick-speed {font:900 41px/1 Georgia,serif;letter-spacing:-3px;color:#ffe9ab}
 .game .quick-buttons button.quick-speed::first-letter {color:#edd8ad}
-.game .quick-buttons button.quick-cry .icon {filter:drop-shadow(0 3px 2px #050d10) drop-shadow(0 0 5px #e6a83e7a)}
+.game .quick-buttons button.quick-honor .icon {filter:drop-shadow(0 3px 2px #050d10) drop-shadow(0 0 5px #e6a83e7a)}
 .game .quick-buttons button.quick-thor .icon {filter:drop-shadow(0 3px 2px #050d10) drop-shadow(0 0 6px #f6db6caa)}
 .game .quick-buttons button.quick-auto .icon {filter:drop-shadow(0 3px 2px #050d10) drop-shadow(0 0 5px #9dd4d299)}
 .game .quick-buttons button.active {

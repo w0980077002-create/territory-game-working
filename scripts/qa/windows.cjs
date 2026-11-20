@@ -14,23 +14,62 @@ async function closeCard(page){await page.getByRole('button',{name:'Закрыт
 async function geometry(page){return page.evaluate(()=>{const body=document.querySelector('.modal-body'),r=body.getBoundingClientRect();const local=document.querySelector('.local-scroll');return {outerOverflow:body.scrollHeight-body.clientHeight,horizontal:document.documentElement.scrollWidth-innerWidth,body:{top:r.top,bottom:r.bottom},local:local?{height:local.clientHeight,scroll:local.scrollHeight}:null};});}
 async function assertCard(page){assert.equal(await page.locator('dialog[open]').count(),1);assert.equal(await page.evaluate(()=>{const d=document.querySelector('dialog[open]');const r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth+1&&d.contains(document.activeElement)}),true);}
 async function assertSigns(page){assert.equal(await page.locator('.harbor-links button').evaluateAll(es=>{for(let i=0;i<es.length;i++){const a=es[i].getBoundingClientRect();if(a.width<76||a.height<44||document.elementFromPoint(a.x+a.width/2,a.y+a.height/2)?.closest('button')!==es[i])return false;for(let j=i+1;j<es.length;j++){const b=es[j].getBoundingClientRect();if(Math.min(a.right,b.right)>Math.max(a.left,b.left)&&Math.min(a.bottom,b.bottom)>Math.max(a.top,b.top))return false}}return true}),true,'All city signs have separate reachable touch areas');}
+async function verifyManualCry(page) {
+ await page.goto((process.env.BASE_URL || 'http://localhost:5173/') + '?hero=cry-qa');
+ await page.waitForFunction(() => window.__lootborn?.battle);
+ await page.evaluate(() => window.__lootborn.useGame.getState().configure({auto:false}));
+ await page.getByRole('button', {name:'Начать или продолжить бой'}).tap();
+ const cry = page.getByRole('button', {name:'Клич Одина',exact:true});
+ await cry.waitFor();
+ const box = await cry.boundingBox();
+ assert.ok(box && box.width >= 44 && box.height >= 44, 'manual cry is a reachable touch control at 320px');
+ const status = await page.locator('.battle-status').boundingBox();
+ assert.ok(status && box.y + box.height < status.y, 'manual cry leaves the battle status button fully accessible');
+ await page.screenshot({path:`${output}/honor-fight-320.png`});
+ await cry.tap();
+ await page.waitForFunction(() => window.__lootborn.battle.buff > 0 && window.__lootborn.battle.cooldowns[1] > 0);
+ assert.equal(await cry.isDisabled(), true);
+ await page.getByRole('button', {name:'Почётные звания',exact:true}).tap();
+ await page.getByRole('dialog', {name:'Почётные звания'}).waitFor();
+ assert.equal(await page.evaluate(() => window.__lootborn.battle.running), false);
+ await page.getByRole('button', {name:'Закрыть',exact:true}).tap();
+ assert.equal(await page.evaluate(() => window.__lootborn.battle.running), true);
+ await page.evaluate(() => {
+  const {battle,useGame} = window.__lootborn;
+  battle.buff = 0;
+  battle.cooldowns[1] = 0;
+  useGame.getState().configure({auto:true});
+ });
+ await page.waitForFunction(() => window.__lootborn.battle.buff > 0 && window.__lootborn.battle.cooldowns[1] > 0);
+}
 async function verifyHonor(page, width, height) {
+ if(width===320)await verifyManualCry(page);
  await page.goto((process.env.BASE_URL || 'http://localhost:5173/') + '?hero=honor-qa');
  await page.waitForFunction(() => window.__lootborn?.battle);
- const enter = async () => {
-  await page.getByRole('button', {name:'Герой', exact:true}).tap();
-  await page.getByRole('button', {name:/^Почётные звания/}).tap();
- };
- await enter();
+ const crown = page.getByRole('button', {name:'Почётные звания',exact:true});
+ assert.equal(await crown.evaluate(el => el.previousElementSibling.matches('.quick-auto') && el.nextElementSibling.matches('.quick-thor')), true);
+ assert.equal(await crown.locator('.honor-ready').count(), 0);
+ assert.equal(await page.getByRole('button', {name:'Клич Одина',exact:true}).count(), 0);
+ await page.getByRole('button', {name:'Герой',exact:true}).tap();
+ assert.equal(await page.getByRole('dialog').getByRole('button', {name:/^Почётные звания/}).count(), 0);
+ await page.getByRole('button', {name:'Закрыть',exact:true}).tap();
+ await page.evaluate(() => window.__lootborn.useGame.getState().mutate(p => {p.gold = 99}));
+ await crown.tap();
  const dialog = page.getByRole('dialog', {name:'Почётные звания'});
  const claim = dialog.getByRole('button', {name:'Получить звание · 100 золота'});
  assert.equal(await claim.isDisabled(), true);
+ const bars = dialog.getByRole('progressbar');
+ assert.deepEqual(await bars.evaluateAll(els => els.map(el => [el.value,el.max])), [[0,1],[1,2],[99,100]]);
  await page.evaluate(() => window.__lootborn.useGame.getState().mutate(p => {
   p.stage = 61;
   p.level = 25;
   p.gold = 100000;
  }));
  assert.equal(await dialog.locator('.honor-requirements li[data-done="true"]').count(), 3);
+ assert.deepEqual(await bars.evaluateAll(els => els.map(el => el.position)), [1,1,1]);
+ await dialog.getByRole('button', {name:'Закрыть',exact:true}).tap();
+ await crown.locator('.honor-ready').waitFor();
+ await crown.tap();
  assert.equal(await claim.isEnabled(), true);
  const preview = await dialog.locator('.honor-stat-gain strong').allTextContents();
  const hp = Number(preview[1].replace(/\s/g, ''));
@@ -42,6 +81,7 @@ async function verifyHonor(page, width, height) {
  await dialog.locator('.honor-crest').evaluateAll(images => Promise.all(images.map(image => image.decode())));
  await page.locator('.level-award').waitFor({state:'hidden'});
  assert.equal((await geometry(page)).horizontal, 0);
+ assert.ok((await geometry(page)).outerOverflow <= 1, 'rank cards, stats and all progress bars fit above the promotion button');
  const box = await claim.boundingBox();
  assert.ok(box && box.height >= 44 && box.y + box.height <= 544, `promotion reachable in the short ${width}px window: ${JSON.stringify(box)}`);
  await page.screenshot({path:`${output}/honor-${width}.png`});
@@ -52,10 +92,12 @@ async function verifyHonor(page, width, height) {
  await page.waitForFunction(value => window.__lootborn.battle.maxHp === value, hp);
  assert.deepEqual(await dialog.locator('.honor-stats tbody td:nth-child(2)').allTextContents(), preview);
  await dialog.getByRole('button', {name:'Готово'}).tap();
- await page.getByRole('button', {name:/^Почётные звания Дружинник/}).waitFor();
+ await dialog.waitFor({state:'detached'});
+ assert.equal(await page.evaluate(() => window.__lootborn.battle.running), false);
+ await crown.locator('.honor-ready').waitFor();
  await page.reload();
  await page.waitForFunction(() => window.__lootborn?.battle);
- await enter();
+ await crown.tap();
  assert.equal(await dialog.getByRole('button', {name:'Получить звание · 350 золота'}).isEnabled(), true);
  const restored = await read(page);
  assert.equal(restored.gold, 99900);
