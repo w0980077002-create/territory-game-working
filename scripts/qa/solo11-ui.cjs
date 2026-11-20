@@ -185,7 +185,8 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
    await btn('Карта').tap();
    if(height<=700){const mapBefore=await page.locator('.harbor-scene').boundingBox();await page.locator('.harbor-help').tap();assert.deepEqual(await page.locator('.harbor-scene').boundingBox(),mapBefore,'«?» does not shrink the map')}
    await page.locator('.harbor-guide button',{hasText:label}).tap();await page.getByRole('dialog',{name:dialog}).waitFor();
-   if(dialog==='Драгоценные камни')await page.locator('.panel-lead').waitFor();await close();
+   if(dialog==='Драгоценные камни')assert.equal(await page.locator('.sockets .socket').count(),3);
+   await close();
   }
   // Even an otherwise ordinary item needs confirmation while its reward offer is active.
   await page.evaluate(ordinary=>{
