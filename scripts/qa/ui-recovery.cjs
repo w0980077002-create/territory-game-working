@@ -17,6 +17,19 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await page.getByRole('dialog').screenshot({path:`${out}/${width}-recovery.png`});
   await page.getByRole('button',{name:'Открыть импорт и резервную копию',exact:true}).tap();
   const file={name:'isolated-test-save.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(require('./ui-fixture.cjs')()))};
+  await page.evaluate(() => {
+   const text=File.prototype.text;
+   File.prototype.text=function(){
+    return new Promise(resolve=>{window.finishImport=async()=>{File.prototype.text=text;resolve(await text.call(this))}});
+   };
+  });
+  await page.locator('input[type=file]').setInputFiles(file);
+  await page.waitForFunction(()=>!!window.finishImport);
+  await page.getByRole('button',{name:'К меню',exact:true}).tap();
+  await page.getByRole('button',{name:'Сохранение и восстановление',exact:true}).tap();
+  await page.evaluate(async()=>{await window.finishImport();await new Promise(requestAnimationFrame)});
+  assert.equal(await page.getByRole('heading',{name:'Восстановить сохранение?',exact:true}).count(),0,'leaving the panel invalidates a pending import');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('lootborn-codex-v1:test:ui-recovery')),raw);
   await page.locator('input[type=file]').setInputFiles(file);
   await page.getByRole('heading',{name:'Восстановить сохранение?',exact:true}).scrollIntoViewIfNeeded();
   await page.getByRole('dialog').screenshot({path:`${out}/${width}-import-confirmation.png`});

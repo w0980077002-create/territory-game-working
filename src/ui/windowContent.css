@@ -70,8 +70,82 @@
 .quest-prizes .reward-piece strong { font-size: 10px; padding: 0; }
 
 /* Solo 1.1 audit: menu shortcuts compact, slot card leads with the worn item, battle summary 2×2. */
-.saga-modal .menu-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
-.saga-modal .menu-shortcuts .action{margin:0;min-height:44px;font-size:14px}
+.game .hud-mail {
+  position: absolute;
+  right: 0;
+  top: 206px;
+  z-index: 3;
+  width: max(116px, calc(44px / var(--game-scale)));
+  height: max(116px, calc(44px / var(--game-scale)));
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 1px;
+  padding: 3px 0 0;
+  background: transparent;
+  color: #fff0cf;
+  font: 700 21px/1.15 system-ui, sans-serif;
+  text-shadow: 0 2px 3px #06121a, 0 0 4px #04121d;
+}
+.game .hud-mail .icon {
+  width: 83px;
+  height: 68px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 3px #051520);
+}
+.game .hud-mail i {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  right: 11px;
+  min-width: 31px;
+  padding: 1px 5px;
+  border: 2px solid #ffe6ab;
+  border-radius: 15px;
+  background: #a53a29;
+  color: #fff5cf;
+  font: 700 20px/1.15 system-ui, sans-serif;
+  text-align: center;
+  box-shadow: 0 2px 4px #060f17;
+}
+.saga-modal[data-panel="menu"] .modal-body,
+.saga-modal[data-panel="save-tools"] .modal-body { padding: 10px clamp(9px, 3vw, 17px); }
+.menu-settings, .menu-links, .save-actions { display: grid; gap: 6px; margin-block: 0 8px; }
+.menu-settings { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.menu-settings > :last-child { grid-column: 1 / -1; }
+.saga-modal .menu-settings .action,
+.saga-modal .save-actions .action { min-height: 44px; margin: 0; padding: 5px 8px; font-size: 13px; }
+.saga-modal .menu-links button {
+  display: grid;
+  grid-template-columns: 31px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 9px;
+  border: 1px solid #8d795b;
+  border-radius: 6px;
+  background: linear-gradient(105deg, #9a794029, transparent 65%), var(--saga-iron);
+  box-shadow: inset 0 0 0 2px #141b21;
+  color: #f4e5c4;
+  text-align: left;
+  font: 700 13px/1.25 system-ui, sans-serif;
+}
+.menu-links .icon { width: 30px; height: 29px; }
+.menu-links b { color: #dbbc82; font: 25px/1 Georgia, serif; }
+.saga-modal[data-panel="save-tools"] label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.saga-modal[data-panel="save-tools"] textarea {
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  font: 14px/1.3 ui-monospace, monospace;
+  user-select: text;
+  -webkit-user-select: text;
+}
 .saga-modal .menu-heroes .action{margin:6px 12px;width:calc(100% - 24px)}
 .saga-modal .menu-heroes>.hint{padding:0 12px}
 .saga-modal .slot-pack-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px!important;margin:14px 0 6px!important}

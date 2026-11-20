@@ -69,7 +69,9 @@ const slotNames={weapon:'Оружие',armor:'Доспех',helmet:'Шлем',sh
   // 5) the original hero is intact after reload and the new one is listed under «Мои герои»
   await page.goto(url);await page.waitForFunction(()=>window.__lootborn?.battle);
   const back=await state();for(const k of ['level','stage','gold','gems','chaosite'])assert.equal(back[k],saved[k],k);assert.equal(back.inventory.length,saved.inventory.length);
-  await page.getByRole('button',{name:'Меню',exact:true}).tap();await page.getByRole('heading',{name:'Мои герои'}).waitFor();
+  await page.getByRole('button',{name:'Меню',exact:true}).tap();
+  await page.locator('summary',{hasText:'Другие герои на этом устройстве'}).tap();
+  await page.getByRole('heading',{name:'Мои герои'}).waitFor();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal scroll');
   assert.deepEqual(errors,[]);
   results.push(row);await context.close();
