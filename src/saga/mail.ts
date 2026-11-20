@@ -16,6 +16,7 @@ interface MailLetter {
   read: boolean;
   pending: boolean;
   reward: Reward;
+  claimableReward?: Reward;
   title?: string;
   chests?: string[];
   pendingHorn?: number;
@@ -34,7 +35,7 @@ export function mailbox(p: Player, now: number, rewardNow=Date.now()): MailLette
     const prizes = carnivalMailPrizes(period);
     const total=combineRewards(prizes.map(prize=>prize.reward)), reward=actualReward(p,total,rewardNow);
     return {id:period.id, date:period.endAt, read:read?.[period.id] === period.endAt, pending:true,
-      reward, pendingHorn:(total.horn??0)-(reward.horn??0), gear:prizes.find(prize => prize.gear)?.gear};
+      reward:total, claimableReward:reward, pendingHorn:(total.horn??0)-(reward.horn??0), gear:prizes.find(prize => prize.gear)?.gear};
   });
   pending.push(...eventMail(p,now).map(({id,date,title,prizes})=>({id,date,title,read:read?.[id]===date,pending:true,
     reward:combineRewards(prizes.map(prize=>prize.reward)),chests:prizes.flatMap(prize=>prize.chest?[chestNames[prize.chest]]:[])})));

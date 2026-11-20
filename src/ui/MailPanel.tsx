@@ -54,7 +54,7 @@ export function MailPanel({p}: {p:Player}) {
         <time dateTime={new Date(letter.date).toISOString()}>{dateFormat.format(letter.date)}</time>
       </div>
       {letter.pending && <div className="mail-attachments">
-        <RewardArt reward={letter.reward}/>{!!letter.pendingHorn&&<p>После получения в письме останется зарядов Рога: {letter.pendingHorn}</p>}
+        <RewardArt reward={letter.claimableReward??letter.reward}/>{!!letter.pendingHorn&&<p>После получения в письме останется зарядов Рога: {letter.pendingHorn}</p>}
         {letter.chests?.map((name,i)=><p key={i}>{name} · сундук появится в Событиях</p>)}
         {gear && <div className="mail-gear" style={{'--item-trim':rarityColors[gear.rarity]} as React.CSSProperties}>
           <Icon name={slot ? gearIcon(slot) : 'chest'}/>
