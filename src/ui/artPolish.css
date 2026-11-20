@@ -4,7 +4,7 @@
   --art-wood: linear-gradient(115deg,#23150d18,#1b0e0870),var(--carved-oak) 50% 38% / 310px auto;
   --art-iron: linear-gradient(#2b27227a,#0b1013c2),var(--hammered-iron) center / 230px auto;
   --art-panel: radial-gradient(ellipse at 45% 0%,#9d61322e,transparent 73%),linear-gradient(#35201799,#160f0dea),var(--carved-oak) 50% 44% / 360px auto;
-  --art-gold: linear-gradient(#f2d394,#d7a450 48%,#ad6c2f);
+  --art-gold: linear-gradient(#f2d394,#d7a450 48%,#bb7835);
   --art-green: linear-gradient(#4c662b,#283e17 51%,#182a10);
   --art-rim: #9c7048;
   --art-light: #ffebc6;

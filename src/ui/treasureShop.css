@@ -62,8 +62,14 @@
   padding: 0 2px 1px;
 }
 .shop-wallet .icon,.shop-price .icon { flex: none; width: 19px; height: 19px; }
-.shop-tabs > button { flex-direction: column; gap: 1px; font: 700 10px/1.08 system-ui,sans-serif; }
-.shop-tabs > button > .icon { flex: none; width: 20px; height: 20px; }
+.shop-tabs > button {
+  flex-direction: column;
+  gap: 1px;
+  padding: 1px;
+  font: 700 10px/1.08 'Roboto Condensed','Arial Narrow',system-ui,sans-serif;
+}
+.shop-tabs > button > span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.shop-tabs > button > .icon { flex: none; width: 20px; height: 18px; }
 .shop-tabs > button[aria-pressed=true] {
   border-color: #f0c680;
   background: var(--art-gold);
