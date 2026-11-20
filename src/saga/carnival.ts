@@ -210,6 +210,26 @@ export function carnivalView(p: Player, now = Date.now()) {
 }
 
 export type CarnivalView = ReturnType<typeof carnivalView>;
+
+/** The inbox links to earned prizes. The carnival remains the authority for each payout. */
+export function carnivalMailPeriods(p: Player, now: number) {
+  const save = p.carnival;
+  if (!save) return [];
+  const effective = Math.max(now, save.day * DAY);
+  return [save.latest, ...save.past].filter(period => period.endAt <= effective && hasPending(period));
+}
+
+export function carnivalMailPrizes(period: PeriodSave) {
+  const score = points(period);
+  const earned = [...tasks.filter(task => complete(period, task)), ...milestones.filter(tier => tier.points <= score)];
+  return earned.flatMap(entry => {
+    const paid = period.claims[entry.id];
+    if (paid === -1) return [];
+    return [{id:entry.id, reward:paid === undefined ? resolveReward(period, entry.reward) : {horn:(entry.reward.horn ?? 0)-paid},
+      gear:'gear' in entry && entry.gear ? getGear(period) : undefined}];
+  });
+}
+
 export type CarnivalClaimResult =
   | {status:'claimed'|'partial'; reward:Reward; item?:{name:string; destination:'backpack'|'storage'}}
   | {status:'unavailable'|'horn_full'|'choose_slot'|'save_failed'};

@@ -8,10 +8,10 @@ import {Icon,gearIcon} from './Icon';
 import {sound,unlockAudio} from '../game/Sound';
 
 export type Material='chest'|'forge'|'rune'|'sea'|'roman'|'moon'|'gold';
-const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',realm:'rune',darkgear:'moon',gems:'chest',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',honor:'gold',companions:'moon',shop:'chest',rewards:'gold',events:'gold',carnival:'gold',collection:'moon'};
+const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',mail:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',realm:'rune',darkgear:'moon',gems:'chest',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',honor:'gold',companions:'moon',shop:'chest',rewards:'gold',events:'gold',carnival:'gold',collection:'moon'};
 const panelIcons:Record<string,string>={
  adventure:'map',arena:'arena',carnival:'event',collection:'book',equipment:'armor',events:'banner',
- friends:'handshake',honor:'crown',invite:'handshake',inventory:'chest',loot:'horn',port:'ship',
+ friends:'handshake',honor:'crown',invite:'handshake',inventory:'chest',loot:'horn',mail:'mail',port:'ship',
  quests:'scroll',rewards:'gift',shop:'market',skills:'skill',wings:'wings',
 };
 const materialIcons:Record<Material,string>={chest:'chest',forge:'hammer',rune:'rune',sea:'ship',roman:'shield',moon:'wings',gold:'gift'};
