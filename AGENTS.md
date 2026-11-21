@@ -1,5 +1,5 @@
 # AGENTS.md — единая работа Codex и Claude
-Единственное действующее поручение: [Issue #51](https://github.com/w0980077002-create/territory-game-working/issues/51), включая последние решения владельца. #39 завершено. [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) — общие правила работы и проверки; Google Drive — сценарий и референсы, не самостоятельная очередь задач.
+Единственное активное инженерное поручение: [Issue #81 — настоящая Арена 1×1](https://github.com/w0980077002-create/territory-game-working/issues/81). Solo 1.1 из [#51](https://github.com/w0980077002-create/territory-game-working/issues/51) принята владельцем; #39 завершено. [#82 — единый UX-контракт](https://github.com/w0980077002-create/territory-game-working/issues/82) — план после Арены, не отдельное поручение Codex сейчас. [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) — общие правила работы и проверки; Google Drive — сценарий и референсы, не самостоятельная очередь задач.
 
 Один репозиторий VIKING VS ROME, одна рабочая ветка `codex-build`, один интегратор Codex. Claude работает над согласованным непересекающимся блоком. Не трогать TERRITORY, Supabase, main, контрольный релиз и данные игроков. Не переписывать принятые механики, не запускать старые задания.
 
