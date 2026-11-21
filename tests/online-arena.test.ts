@@ -132,6 +132,7 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
    },body:data?JSON.stringify(data):undefined});
    return {status:response.status,data:await response.json()};
   };
+  assert.equal((await fetch(new URL('/health',base))).status,200);
   assert.equal((await request('auth',{initData:'user=1'})).status,401);
   assert.equal((await request('auth',{initData:sign(4)})).status,403);
   assert.equal((await request('local?user=alice')).status,401);
