@@ -1,3 +1,4 @@
+import {arenaStaging} from '../arena/staging';
 import {telegramAccountId,tg} from './telegram';
 
 const params=new URLSearchParams(typeof window==='undefined'?'':window.location?.search??'');
@@ -12,7 +13,7 @@ const dayMs=86_400_000;
 export const carnivalNow=(now=Date.now())=>acceptanceStart===undefined?now:acceptanceStart+now%dayMs;
 export const isolatedProfile=!!requested&&/^[a-z0-9_-]{1,32}$/.test(requested);
 export const mailAcceptanceProfile=requested==='mail-acceptance';
-export const LEGACY_SAVE_KEY='lootborn-codex-v1';
-export const telegramProfile=isolatedProfile?undefined:telegramAccountId();
+export const LEGACY_SAVE_KEY=arenaStaging?'lootborn-arena-staging-v1':'lootborn-codex-v1';
+export const telegramProfile=isolatedProfile||arenaStaging?undefined:telegramAccountId();
 export const SAVE_KEY=LEGACY_SAVE_KEY+(isolatedProfile?':test:'+requested:telegramProfile?':telegram:'+telegramProfile:'');
 export const saveLockProfile=isolatedProfile?requested:telegramProfile?'telegram:'+telegramProfile:'owner';
