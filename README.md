@@ -7,7 +7,7 @@
 1. [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) — **единственные действующие правила**.
 2. [AGENTS.md](AGENTS.md) — компактная памятка для обоих агентов; Claude также использует [CLAUDE.md](CLAUDE.md).
 3. [PROJECT_BRIEF.md](PROJECT_BRIEF.md) — утверждённые свойства игры, без автоматического запуска долгосрочных систем.
-4. [Issue #51](https://github.com/w0980077002-create/territory-game-working/issues/51) — единственное действующее поручение и последние решения владельца. [Экран «100%»](assets/references/main-screen-100-percent.png) и Google Drive — референсы по конкретной задаче.
+4. [Issue #82 — сквозной аудит всей игры](https://github.com/w0980077002-create/territory-game-working/issues/82) — единственное текущее поручение: сравнение мастер-ТЗ №12, архива конкурента и актуальной игры с реальным QA. [#51](https://github.com/w0980077002-create/territory-game-working/issues/51) (Solo 1.1) уже принята; [PR #83](https://github.com/w0980077002-create/territory-game-working/pull/83) (сетевая Арена) на паузе. [Экран «100%»](assets/references/main-screen-100-percent.png) и Google Drive — референсы, не повод дублировать работающие системы.
 
 Все большие исторические GDD, исследования Lootborn, старые Issue/PR и 201-пунктный список — **архив/долгосрочная дорожная карта**, а не текущие задачи. Сначала закончить имеющуюся увлекательную одиночную игру; балерину Капучино не трогать.
 
