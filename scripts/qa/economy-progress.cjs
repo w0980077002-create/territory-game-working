@@ -41,6 +41,16 @@ const saveKey='lootborn-codex-v1:test:'+profile;
    await info.getByRole('button',{name:'Закрыть карточку'}).tap();
    await open('skills');
    await page.getByRole('button',{name:/Жадность/}).first().waitFor();
+   // Verify all nine names stay readable as a whole word in the actual compact skill overview.
+   const runeLabels=await page.locator('.saga-modal[data-panel="skills"] .rune-options button > small').evaluateAll(els=>els.map(el=>{
+    const range=document.createRange();
+    range.selectNodeContents(el);
+    return {name:el.textContent,lines:range.getClientRects().length,
+     overflow:el.scrollWidth>el.clientWidth+2,font:parseFloat(getComputedStyle(el).fontSize)};
+   }));
+   assert.equal(runeLabels.length,9,'all skill-rune choices remain present');
+   assert.ok(runeLabels.every(label=>label.lines===1&&!label.overflow&&label.font>=10),
+    width+' unreadable rune name: '+JSON.stringify(runeLabels));
    const panel=page.locator('.saga-modal');
    assert.ok(await panel.evaluate(el=>el.scrollWidth<=el.clientWidth+2));
    await open(null);
