@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import {installHeadless} from '../scripts/sim/bot';
 import {freshPlayer, makeItem, parseSave, salvageYield, SAVE_KEY, useGame} from '../src/core/store';
 import {shopOffers, shopQuote, shopSold, shopStatus} from '../src/saga/shop';
-import {claimDailyGift, claimSeason, dailyCalendar, dailyGift, seasonBadge} from '../src/saga/events';
+import {claimDailyGift, claimSeason, dailyCalendar, dailyGift, seasonBadge, seasonReceivedHorn} from '../src/saga/events';
 import {bumpCount} from '../src/saga/save';
 import {resCount} from '../src/dark/rules';
 
@@ -48,7 +48,8 @@ test('daily gifts preserve the original grant, rotate, and respect Horn capacity
   p.horn = 49;
   p.hornAt = now;
   const originalGold = p.gold;
-  assert.ok(claimDailyGift(p,now));
+  assert.equal(claimDailyGift(p,now)?.main.horn,1);
+  assert.equal(dailyCalendar(parseSave(JSON.stringify(p))!,now).find(day=>day.current)?.receivedHorn,1);
   assert.equal(p.horn,50);
   assert.equal(p.gold,originalGold+200);
   assert.equal(claimDailyGift(p,now),null);
@@ -65,6 +66,7 @@ test('the calendar remembers legacy and new receipts without granting an old gif
   assert.equal(before[0].day,dailyGift(monday).day);
   assert.equal(before[0].claimed,false);
   assert.equal(before[1].claimed,true);
+  assert.equal(before[1].receivedHorn,undefined);
   assert.equal(before[2].current,true);
   assert.equal(claimDailyGift(p,tuesday),null);
   assert.ok(claimDailyGift(p,wednesday));
@@ -88,6 +90,17 @@ test('season respects old receipts and rewards only completed goals', () => {
   assert.equal(resCount(p,'shard'),4);
   assert.equal(claimSeason(p,'season:goal:lair',now),null);
   assert.equal(seasonBadge(p),false);
+});
+
+test('season shows actual Horn charges after reload even when the reward filled the Horn',()=>{
+  const now=Date.UTC(2026,10,18),p=freshPlayer();
+  p.horn=49;p.hornAt=now;p.bosses=2;
+  assert.equal(claimSeason(p,'season:1',now)?.horn,1);
+  assert.equal(claimSeason(p,'season:2',now)?.horn,0);
+  const saved=parseSave(JSON.stringify(p),true)!;
+  assert.equal(seasonReceivedHorn(saved,1),1);
+  assert.equal(seasonReceivedHorn(saved,2),0);
+  assert.equal(claimSeason(saved,'season:2',now),null);
 });
 
 test('new stock respects progression, daily limits and Horn capacity', () => {

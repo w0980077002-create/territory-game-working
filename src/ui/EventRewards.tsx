@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import type {Player} from '../core/types';
 import {useGame} from '../core/store';
-import {actualReward, dailyCalendar, dailyGift, SEASON_STEPS, seasonGoals, seasonTierReward} from '../saga/events';
+import {actualReward, dailyCalendar, dailyGift, SEASON_STEPS, seasonGoals, seasonTierReward, seasonReceivedHorn} from '../saga/events';
 import {Icon} from './Icon';
 import {RewardArt, rewardParts} from './RewardArt';
 import './eventRewards.css';
@@ -17,7 +17,7 @@ export function DailyRewards({p}: {p: Player}) {
   const [day, selectDay] = useState(today.day);
   const selected = calendar.find(gift => gift.day === day) ?? today;
   const next = dailyGift(Date.parse(today.day) + 86_400_000);
-  const base = selected.current && !selected.claimed ? actualReward(p, selected.base) : selected.base;
+  const base = selected.claimed ? {...selected.base,horn:selected.receivedHorn} : selected.current ? actualReward(p,selected.base) : selected.base;
   return <section className="reward-window daily-window">
     <div className="reward-hero daily-hero">
       <div><small>Семь дней</small><h3>Дары зимнего очага</h3></div>
@@ -91,7 +91,7 @@ export function SeasonRewards({p}: {p: Player}) {
       <div className="reward-plaque-head"><strong>{tier === SEASON_STEPS ? 'Финальная награда' : 'Награда этапа ' + tier}</strong>
         <small>{claimed ? '✓ Получено' : ready ? 'Можно забрать' : 'Победы · ' + progress + '/' + tier}</small>
       </div>
-      <RewardArt reward={ready && !claimed ? actualReward(p,reward) : reward} names/>
+      <RewardArt reward={claimed ? {...reward,horn:seasonReceivedHorn(p,tier)} : ready ? actualReward(p,reward) : reward} names/>
       {ready && !claimed && <button className="action claim-reward" onClick={() => {select(tier);claim('season:'+tier)}}>Забрать награду</button>}
     </article>
     <h3>Дополнительные испытания</h3>

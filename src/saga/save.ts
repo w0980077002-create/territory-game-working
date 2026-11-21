@@ -39,7 +39,7 @@ export function normalizeSaga(raw:unknown):SagaSave{
   // The expanded follower records have their own allowance so migration cannot evict the other boxes.
   const followerAllowance=squad?.v===1||squad?.v===2?JSON.stringify(squad).length:0;
   // Added gameplay boxes have a separate budget so they cannot evict a valid old profile.
-  const extensionKeys=['followerMarket','runes','soloEvents','soloChests','wings','lair','raidDay','shopWeek'];
+  const extensionKeys=['followerMarket','runes','soloEvents','soloChests','wings','lair','raidDay','shopWeek','daily-gifts','season-horn'];
   const extensionAllowance=extensionKeys.reduce((size,k)=>size+(box[k]===undefined?0:JSON.stringify(box[k]).length+k.length+4),0);
   if(JSON.stringify(box).length<=90000+followerAllowance+Math.min(100000,extensionAllowance))s.box=box;
  }

@@ -25,7 +25,10 @@ export function dailyGift(now = Date.now()) {
 export const actualReward = (p: Pick<Player,'horn'|'hornAt'>, reward: Reward, now = Date.now()): Reward =>
   reward.horn ? {...reward, horn:Math.min(reward.horn, maxHorn - availableHorn(p, now))} : reward;
 
-interface DailyReceipts { days?: string[] }
+interface DailyReceipts { days?: string[]; horn?: Record<string,number> }
+type SeasonReceipts = Record<number,number>;
+const receivedHorn=(value:unknown)=>typeof value==='number'&&Number.isInteger(value)&&value>=0&&value<=maxHorn?value:undefined;
+export const seasonReceivedHorn=(p:Player,tier:number)=>receivedHorn(peekBox<SeasonReceipts>(p,'season-horn')?.[tier]);
 const dailyReceipts = (p: Player) => {
   const days = peekBox<DailyReceipts>(p, 'daily-gifts')?.days;
   return Array.isArray(days) ? days.filter(day => typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day)) : [];
@@ -37,7 +40,7 @@ export function dailyCalendar(p: Player, now = Date.now()) {
   const received = new Set([...dailyReceipts(p), p.daily]);
   return Array.from({length:DAYS_PER_WEEK}, (_, index) => {
     const gift = dailyGift(monday + index * DAY_MS);
-    return {...gift, claimed:received.has(gift.day), current:gift.day === today};
+    return {...gift, claimed:received.has(gift.day), current:gift.day === today, receivedHorn:receivedHorn(peekBox<DailyReceipts>(p,'daily-gifts')?.horn?.[gift.day])};
   });
 }
 
@@ -46,13 +49,17 @@ export function claimDailyGift(p: Player, now: number) {
   const receipts = dailyReceipts(p);
   if (p.daily === day || receipts.includes(day)) return null;
   const earliest = dayOf(now - (DAYS_PER_WEEK - 1) * DAY_MS);
-  boxOf<DailyReceipts>(p, 'daily-gifts', () => ({})).days =
+  const log=boxOf<DailyReceipts>(p, 'daily-gifts', () => ({}));
+  log.days =
     [...new Set([...receipts, p.daily, day])].filter(date => date >= earliest && date <= day).sort();
   p.daily = day;
   const main = actualReward(p, base, now);
   grant(p, main, now);
-  grant(p, extra, now);
-  return {main, extra};
+  const paidExtra=actualReward(p,extra,now);
+  grant(p, paidExtra, now);
+  const horn=Object.fromEntries(Object.entries(log.horn??{}).filter(([key,value])=>log.days!.includes(key)&&receivedHorn(value)!==undefined));
+  log.horn={...horn,[day]:main.horn??0};
+  return {main, extra:paidExtra};
 }
 
 const goals = [
@@ -74,14 +81,16 @@ export function claimSeason(p: Player, id: string, now: number) {
   if (id.startsWith('season:goal:')) {
     const goal = seasonGoals(p).find(goal => id === `season:goal:${goal.id}`);
     if (!goal || goal.claimed || goal.progress < goal.goal || !setFlag(p, id)) return null;
-    grant(p, goal.reward, now);
-    return goal.reward;
+    const reward=actualReward(p,goal.reward,now);
+    grant(p,reward,now);
+    return reward;
   }
   const tier = Number(id.slice('season:'.length));
   if (!Number.isInteger(tier) || tier < 1 || tier > SEASON_STEPS || p.seasonClaims.includes(tier) || p.bosses < tier) return null;
   p.seasonClaims.push(tier);
   const reward = actualReward(p, seasonTierReward(tier), now);
   grant(p, reward, now);
+  boxOf<SeasonReceipts>(p,'season-horn',()=>({}))[tier]=reward.horn??0;
   return reward;
 }
 

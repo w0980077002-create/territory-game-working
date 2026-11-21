@@ -156,3 +156,13 @@
 .saga-modal .slot-pack-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px!important;margin:14px 0 6px!important}
 .saga-modal .slot-pack-title button{min-height:40px;padding:4px 10px;border:1px solid #b18c54;border-radius:6px;background:var(--saga-iron);color:#efddb3;font:600 12px Arial,sans-serif}
 .saga-modal[data-panel="battle"] .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+.game .orb .potion-cost { display: inline-flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; }
+.game .orb .potion-cost .icon { position: static; width: 22px; height: 22px; }
+.chapter-claim > span { min-width: 0; }
+.chapter-claim .reward-art { justify-content: flex-start; }
+.chapter-claim .reward-piece .icon,
+.reward-notice .reward-piece .icon { width: 20px; height: 20px; }
+.reward-notice { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.reward-notice .reward-art { justify-content: flex-start; flex-wrap: wrap; width: auto; }
+.reward-notice .reward-piece { display: flex; align-items: center; }

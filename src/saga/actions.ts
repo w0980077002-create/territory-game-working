@@ -7,7 +7,7 @@ import {useGame,makeItem,asSetItem,addLoot,mayStartLoot,salvageYield} from '../c
 import type {Item,Player,Slot,HeroClass} from '../core/types';
 import balance from '../../config/test-balance.v1.json';
 import {slots} from '../data/catalog';
-import {sets,engravings,matKey,matCount,materials,materialIds,masterworkStartStage,professionForSlot,applyMasterwork,type SetId,type EngraveId} from './gear';
+import {craftRarityBoostChance,sets,engravings,matKey,matCount,materials,materialIds,masterworkStartStage,professionForSlot,applyMasterwork,type SetId,type EngraveId} from './gear';
 import {regionIndex} from './regions';
 import {chooseSpec,specIndex} from './specs';
 import {chooseBranch} from './companions';
@@ -54,7 +54,7 @@ export function craftSet(set:SetId,slot:Slot,masterwork=false){
  if(!G().mutate(p=>{
   p.gold-=plan.gold;
   spend(p,plan.material,plan.mats);
-  const rarity=plan.rarity+(!masterwork&&Math.random()<Math.min(.5,p.blessing*.015)?1:0);
+  const rarity=plan.rarity+(!masterwork&&Math.random()<craftRarityBoostChance(p.blessing)?1:0);
   made=asSetItem(makeItem(slot,plan.level,rarity),set);
   if(profession){
    applyMasterwork(made);

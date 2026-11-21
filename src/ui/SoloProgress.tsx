@@ -24,7 +24,7 @@ export function HeroTracks({p,onGo}:{p:Player;onGo?:(route:string)=>void}){
    <div className="event-thresholds">{track.targets.map((target,i)=>{
     const filled=track.value(p)>=target,claimed=trackClaimed(p,track.id,i);
     return <div className="event-threshold" key={target} data-ready={filled&&!claimed||undefined}><b>{Math.min(track.value(p),target)}/{target}</b><RewardDetails reward={track.reward(i)}/>
-     {filled&&!claimed?<button className="action secondary" onClick={()=>soloAction(draft=>claimTrack(draft,track.id,i),'Награда получена')}>Забрать</button>:<small>{claimed?'✓':'Закрыто'}</small>}
+     {filled&&!claimed?<button className="action secondary" onClick={()=>soloAction(draft=>claimTrack(draft,track.id,i),'Получено',track.reward(i))}>Забрать</button>:<small>{claimed?'✓':'Закрыто'}</small>}
     </div>;
    })}</div>
   </CardDialog>}

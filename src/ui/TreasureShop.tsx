@@ -54,7 +54,7 @@ export function TreasureShop({p, source, sources}: {
         const amount = p[id as keyof typeof shopCurrencies];
         return <button key={id} type="button" onClick={() => setGuide(id)} aria-label={`Где получить · ${def.name}`}
           title={def.name + ' · ' + amount.toLocaleString('ru')}>
-          <Icon name={def.icon}/><strong>{amount >= 100_000 ? compactCoins.format(amount) : amount.toLocaleString('ru')}</strong><span aria-hidden="true">+</span>
+          <Icon name={def.icon}/><strong>{amount >= 100_000 ? compactCoins.format(amount) : amount.toLocaleString('ru')}</strong><span aria-hidden="true">i</span>
         </button>;
       })}
     </div>
