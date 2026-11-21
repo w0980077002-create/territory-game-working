@@ -132,7 +132,7 @@ export function createArenaServer(options:Options){
    const url=new URL(req.url??'/','http://arena.local');
    const now=clock();
    const {pathname}=url;
-   if(pathname==='/arena-api/health'&&req.method==='GET'){json(res,200,{ok:true});return}
+   if((pathname==='/health'||pathname==='/arena-api/health')&&req.method==='GET'){json(res,200,{ok:true});return}
    if(pathname==='/arena-api/local'&&req.method==='GET'&&options.local&&req.socket.remoteAddress==='127.0.0.1'&&/^127\.0\.0\.1(?::\d+)?$/.test(req.headers.host??'')&&req.headers['sec-fetch-site']!=='cross-site'){
     const user=url.searchParams.get('user');
     if(user==='alice'||user==='boris'){json(res,200,{initData:fixture(user,options.botToken,now)});return}
