@@ -167,8 +167,29 @@
 .reward-notice .reward-art { justify-content: flex-start; flex-wrap: wrap; width: auto; }
 .reward-notice .reward-piece { display: flex; align-items: center; }
 
-/* Solo 1.1 release QA: rune names are complete words, not sliced syllables.
-   Narrow dialogs use two columns only in the skill overview; the 3x3 rune catalog stays intact. */
+/* Solo 1.1: the skill overview needs a full-width row for three labelled rune variants.
+   Keep the separate 3x3 Rune catalog unchanged and all labels accessible in Telegram WebView. */
+.saga-modal[data-panel="skills"] .skill-card.active-skill {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+.saga-modal[data-panel="skills"] .skill-card.active-skill .rune-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+}
+.saga-modal[data-panel="skills"] .skill-card.active-skill .rune-options > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  padding: 4px 3px;
+}
 .saga-modal[data-panel="skills"] .rune-options button > small {
   display: block;
   max-width: 100%;
@@ -177,18 +198,4 @@
   word-break: keep-all;
   font-size: 11px;
   line-height: 1.2;
-}
-@media (max-width: 399px) {
-  .saga-modal[data-panel="skills"] .rune-options {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .saga-modal[data-panel="skills"] .rune-options button {
-    min-height: 60px;
-    padding: 3px 6px;
-  }
-  .saga-modal[data-panel="skills"] .rune-options button:nth-child(3) {
-    grid-column: 1 / -1;
-    justify-self: center;
-    width: calc(50% - 2px);
-  }
 }
