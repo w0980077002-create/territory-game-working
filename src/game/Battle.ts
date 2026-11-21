@@ -203,10 +203,12 @@ export class Battle implements TeamHost {
   this.slow=0;
   this.lairRevives++;
   if(!g.mutate(p=>{
-   if(p.lairAttempt?.id!==id||(p.lairAttempt.lairRevives??0)!==expected||p.gold<cost)return false;
+   const attempt=p.lairAttempt;
+   if(attempt?.id!==id||attempt.phase!=='defeat'||(attempt.lairRevives??0)!==expected||p.gold<cost)return false;
    p.gold-=cost;
   },true)){
-   if(this.id===id)Object.assign(this,before);
+   // If the write found a newer save, keep the engine state restored from that save.
+   if(useGame.getState().p===g.p)Object.assign(this,before);
    g.notice('Не удалось сохранить возрождение');
    return false;
   }
