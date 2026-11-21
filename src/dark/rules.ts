@@ -1,3 +1,4 @@
+import {glacierAttackBonus} from '../core/progression';
 /**
  * Five linked growth systems of the saga: Dark Energy gear, gems, relics, companions and the Dark Realm.
  * Pure rules only: catalogs, defensive readers of the save and ONE aggregator (`powerBonus`) that the hero
@@ -133,14 +134,14 @@ export const GEM_SHOP_PRICE=30;
 
 // ───────────────────────── Relics ─────────────────────────
 export type RelicId='heart'|'horn'|'mjolnir'|'leaf'|'fang'|'aegis'|'ravens'|'draupnir'|'gjallar'|'gap';
-export interface RelicDef {name:string;rarity:number;icon:string;material:string;lore:string;ability:(lv:number)=>string;passive?:[StatKey,number];need:(p:Player)=>{ok:boolean;text:string}}
+export interface RelicDef {name:string;rarity:number;icon:string;material:string;lore:string;ability:(lv:number,p?:Player)=>string;passive?:[StatKey,number];need:(p:Player)=>{ok:boolean;text:string}}
 export const relicRarity=['Редкая','Эпическая','Легендарная','Мифическая'];
 export const relicColors=['#48bafa','#c97aff','#ffb343','#ff6262'];
 export const RELIC_MAX=10;
 const lairWins=(p:Player)=>p.saga?.n['win:dungeon']??0;
 const goal=(have:number,need:number,text:string)=>({ok:have>=need,text:`${text} · ${Math.min(have,need)}/${need}`});
 export const relics:Record<RelicId,RelicDef>={
- heart:{name:'Сердце ледника',rarity:0,icon:'gem',material:'ice',lore:'Первая реликвия Севера. Растёт без предела.',ability:lv=>`Вклад в множитель атаки +${(lv*.03).toLocaleString('ru',{maximumFractionDigits:2})}`,need:()=>({ok:true,text:'Получена в начале пути'})},
+ heart:{name:'Сердце ледника',rarity:0,icon:'gem',material:'ice',lore:'Первая реликвия Севера. После 100 уровня вклад растёт постепенно.',ability:(lv,p)=>`Вклад в атаку +${(100*glacierAttackBonus({relic:lv,progression:p?.progression})).toLocaleString('ru',{maximumFractionDigits:1})} п.п.`,need:()=>({ok:true,text:'Получена в начале пути'})},
  horn:{name:'Рог Вальхаллы',rarity:0,icon:'horn',material:'harbor',lore:'Его зов поднимает дружину в первый натиск.',ability:lv=>`Первые 8 секунд боя: +${10+2*lv}% урона героя`,passive:['atkPct',.005],need:p=>goal(p.bosses,3,'Победить боссов главы')},
  mjolnir:{name:'Осколок Мьёльнира',rarity:1,icon:'lightning',material:'forest',lore:'Искра молота, что помнит гром.',ability:lv=>`Каждый 6-й удар героя бьёт цель молнией на ${60+12*lv}% атаки`,passive:['crit',.003],need:p=>goal(p.stage-1,10,'Пройти этапов главы')},
  leaf:{name:'Лист Иггдрасиля',rarity:1,icon:'heart',material:'forest',lore:'Живой лист Мирового древа не вянет.',ability:lv=>`В бою герой восстанавливает ${(.3+.07*lv).toFixed(2).replace('.',',')}% здоровья в секунду`,passive:['hpPct',.01],need:p=>goal(p.darkFloor-1,2,'Пройти этажей Царства тьмы')},

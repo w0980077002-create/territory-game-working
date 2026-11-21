@@ -44,6 +44,7 @@ export function RuneWorkshop({p}:{p:Player}){
    {id===1&&<p>Обычные удары +{number(30*runeMultiplier(p,id))}% на время Клича. {hasPerk(p,'echo')?'Эхо добавляет 3 секунды и щит.':'Эхо может увеличить длительность на 3 секунды.'}</p>}
    {id===2&&<p>{sets.rune>=6?4:3} удара {talent==='chain'||p.runes[id]===1?'по одним–трём целям':'по одной цели'}.</p>}
    <p>{skill.runes[p.runes[id]]}{id===1&&p.runes[id]===2?' других навыков':''}.</p>
+   {id===2&&p.runes[id]===2&&<p>До 20% базового золота за добивание и до 40% за победу. В Царстве Тьмы бонус не начисляется.</p>}
    {!max&&p.gold<cost&&<p className="hint">Не хватает {number(cost-p.gold)} золота</p>}
   </CardDialog>;
  };
@@ -51,6 +52,7 @@ export function RuneWorkshop({p}:{p:Player}){
   const i=Math.floor(id/3),n=id%3,level=state.ranks[id],cost=runeUpgradeCost(level,state.dust),selected=p.runes[i]===n;
   return <CardDialog className="game-detail" title={runeName(id)} onClose={close}>
    <p>{skillData[i].name} · {skillData[i].runes[n]}</p>
+   {i===2&&n===2&&<p>До 20% базового золота за добивание и до 40% за победу. В Царстве Тьмы бонус не начисляется.</p>}
    <p>{selected?'Выбран базовый вариант':'Можно выбрать бесплатно'} · {level?'Ранг '+level:'Ранг не открыт'}</p>
    <p>{i===1?'Бонус к силе Клича':'Бонус к урону навыка'} · +{number(level*runeRules.upgradeEffect*100)}%{level<runeRules.rankCosts.length?' → +'+number((level+1)*runeRules.upgradeEffect*100)+'%':' · максимум'}</p>
    <div className="game-actions"><button className="action secondary" disabled={selected} onClick={()=>choose(i,n)}>Выбрать вариант</button>
