@@ -1,3 +1,5 @@
+import {OnlineArena} from './OnlineArena';
+import {arenaStaging} from '../arena/staging';
 import {forgeLevel,nextForgeBonus} from '../core/forge';
 import {migrateProgression} from '../core/progression';
 import {GameTabs} from './CompactGame';
@@ -270,6 +272,7 @@ function ArenaPanel(){
  const {battle:duel,p}=useGame();
  const onArena=duel.mode==='arena',won=onArena&&duel.phase==='victory',lost=onArena&&duel.phase==='defeat';
  return <>
+  {arenaStaging&&<OnlineArena/>}
   <PanelIntro icon="arena" title={won?'Победа на Арене':lost?'Поражение на Арене':'Одиночный поединок'}>
    {won?'Получено: 100 золота, 10 жетонов Арены, 30 опыта.':lost?'Усильте героя или попробуйте снова.':'Соперником управляет игра. Победа приносит 100 золота, 10 жетонов Арены и 30 опыта.'}
   </PanelIntro>

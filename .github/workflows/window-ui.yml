@@ -20,6 +20,16 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      - name: Verify online Arena on four mobile sizes
+        run: |
+          npm run arena:build
+          node scripts/qa/online-arena.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: isolated-arena-build
+          path: .tmp/arena/
+          include-hidden-files: true
+          if-no-files-found: error
       - name: Start isolated local game
         run: |
           npm run dev > /tmp/vite.log 2>&1 &

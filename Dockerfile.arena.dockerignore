@@ -1,0 +1,6 @@
+*
+!.tmp/
+!.tmp/arena/
+!.tmp/arena/server.mjs
+!.tmp/arena/web/
+!.tmp/arena/web/**
