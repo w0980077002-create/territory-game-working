@@ -4,6 +4,7 @@ import balance from '../../config/test-balance.v1.json';
 import economy from '../../config/solo-economy.v1.json';
 import {setCounts,engraveTotals,hasPerk} from '../saga/gear';
 import {specId} from '../saga/specs';
+import {glacierAttackBonus} from './progression';
 import {powerBonus} from '../dark/rules';
 import {honorRank,honorRanks} from '../saga/honor';
 export function itemPower(i:Item){return i.hp*.2+i.attack*2.5+i.defense*1.8+(i.percent?i.percent.attack*12+i.percent.hp*8+i.percent.defense*8:0)}
@@ -18,7 +19,7 @@ export function stats(p:Player,rank=honorRank(p)):Stats {
  // Saga layer: set bonuses, engravings, named perks and the chosen class build. Old saves have none of them.
  const n=setCounts(p),eng=engraveTotals(p),spec=specId(p);
  hp*=1+p.talents[1]*.05+(p.heroClass==='berserker'?.25:0)+p.companions[0]*.02+(n.stone>=2?.08:0)+eng.vigor*.025+dark.hpPct;
- attack*=1+p.talents[0]*.04+p.relic*.03+eng.might*.02+dark.atkPct;defense*=1+p.talents[1]*.03+(n.stone>=2?.12:0)+eng.ward*.03+(spec==='bastion'?.15:0)+dark.defPct;
+ attack*=1+p.talents[0]*.04+glacierAttackBonus(p)+eng.might*.02+dark.atkPct;defense*=1+p.talents[1]*.03+(n.stone>=2?.12:0)+eng.ward*.03+(spec==='bastion'?.15:0)+dark.defPct;
  const honor=honorRanks[rank].bonuses;
  hp*=1+honor.hp/100;attack*=1+honor.attack/100;defense*=1+honor.defense/100;
  const crit=Math.min(.9,dark.crit+.07+(p.heroClass==='ranger'?.15:0)+p.talents[0]*.005+(n.storm>=4?.12:0)+eng.edge*.01+(spec==='deadeye'?.1:0)),critDamage=1.5+(spec==='deadeye'?.3:0)+dark.critDamage;

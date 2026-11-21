@@ -36,6 +36,8 @@ jobs:
           BASE_URL=http://localhost:5173/ node scripts/qa/ui-subpanels.cjs
       - name: Verify transactional healing, chapter rewards and Blessing
         run: BASE_URL=http://localhost:5173/ node scripts/qa/solo-stability.cjs
+      - name: Verify economy progression and Hammer receipts
+        run: BASE_URL=http://localhost:5173/ node scripts/qa/economy-progress.cjs
       - name: Verify carnival window on mobile
         run: BASE_URL=http://localhost:5173/ OUT=.tmp/window-qa/carnival node scripts/qa/carnival-ui.cjs
       - name: Verify hero, backpack and salvage protection

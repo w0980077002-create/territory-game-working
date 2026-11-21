@@ -1,9 +1,10 @@
+import {glacierAttackBonus} from '../src/core/progression';
 import {beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {freshPlayer,makeItem,parseSave,SAVE_KEY,useGame,bestUpgrade} from '../src/core/store';
 import {blessingEffects,blessingCanImprove} from '../src/saga/gear';
 import {chapterReward} from '../src/saga/rewards';
-import {upgradePreview} from '../src/core/forge';
+import {forgeLevel,nextForgeBonus,upgradePreview} from '../src/core/forge';
 import {xpNeeded,stats} from '../src/core/formulas';
 // First play hour outside the Dark Realm: victory → loot → backpack → equip → forge → quests → reload.
 const saved=new Map<string,string>();
@@ -116,4 +117,58 @@ test('Blessing caps each existing effect independently and blocks only a useless
  assert.equal(G().train('blessing'),false);
  assert.equal(P().blessing,129);
  assert.equal(P().gold,100_000);
+});
+
+test('legacy progression is anchored once, including reload and alternating older backups with modern exports',()=>{
+ const old=freshPlayer();
+ delete old.progression;
+ old.forge=1575;old.relic=420;old.gold=500_000_000;
+ old.claimed=['veteran-reward'];
+ old.inventory=[makeItem('boots',600,4)];
+ const before=stats(old),gear=structuredClone(old.equipment);
+ assert.equal(G().importSave(old),true);
+ const migrated=reload();
+ assert.equal(migrated.progression?.anchors.forge?.bonus,525);
+ assert.equal(migrated.progression?.anchors.heart?.bonus,.03*420);
+ assert.deepEqual(stats(migrated),before);
+ assert.deepEqual(migrated.equipment,gear);
+ assert.deepEqual(migrated.inventory,old.inventory);
+ assert.deepEqual(migrated.claimed,old.claimed);
+
+ const newer={...migrated,forge:1665,relic:450};
+ assert.equal(G().importSave(newer),true);
+ const restored=reload();
+ assert.equal(forgeLevel(restored)-restored.level,535);
+ assert.equal(Math.round(glacierAttackBonus(restored)*1000),12937);
+ assert.ok(stats(restored).attack>before.attack);
+
+ const newerLegacy={...newer};
+ delete newerLegacy.progression;
+ assert.equal(G().importSave(newerLegacy),true);
+ assert.equal(forgeLevel(P())-P().level,535);
+ assert.equal(Math.round(glacierAttackBonus(P())*1000),12937);
+
+ assert.equal(G().importSave(freshPlayer()),true);
+ assert.equal(G().importSave(old),true);
+ assert.equal(G().importSave(newerLegacy),true);
+ assert.deepEqual(P().progression,restored.progression);
+ assert.equal(forgeLevel(P())-P().level,535);
+ assert.equal(Math.round(glacierAttackBonus(P())*1000),12937);
+});
+
+test('new progression agrees with the approved checkpoints and remains finite',()=>{
+ const p=freshPlayer();
+ for(const [level,bonus] of [[299,99],[300,100],[301,100],[308,100],[309,101],[1575,241]]){
+  p.forge=level;
+  assert.equal(forgeLevel(p)-p.level,bonus);
+ }
+ for(const [level,expected] of [[99,297],[100,300],[101,302.993],[200,543.279],[420,873.307],[450,906.961]]){
+  p.relic=level;
+  assert.ok(Math.abs(glacierAttackBonus(p)*100-expected)<.015);
+ }
+ p.relic=Number.MAX_VALUE;
+ assert.ok(Number.isFinite(glacierAttackBonus(p)));
+ assert.equal(nextForgeBonus(300),9);
+ assert.equal(nextForgeBonus(301),8);
+ assert.equal(nextForgeBonus(308),1);
 });

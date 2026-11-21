@@ -1,3 +1,6 @@
+import {hammerVictoryGold} from '../src/core/battleGold';
+import {stageGold} from '../src/saga/regions';
+import {validEncounter} from '../src/game/snapshot';
 import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {Battle} from '../src/game/Battle';
@@ -283,4 +286,99 @@ test('legacy encounter cooldown defaults to zero, invalid values are rejected, a
   assert.equal(parseSave(JSON.stringify({...useGame.getState().p,encounter:{...old,potionCd}}),true),null);
  }
  b.destroy();
+});
+
+test('Hammer quotes use the real mode, respect per-kill and victory caps, and accept many genuine kills',()=>{
+ const cases=[
+  ['campaign',1,false,5,10],['campaign',30,false,223,446],['campaign',60,false,1656,3313],
+  ['campaign',71,false,2112,4225],['campaign',100,false,3313,6627],
+  ['campaign',100,true,19882,39764],['farm',100,true,2651,5302],
+  ['arena',100,false,20,40],['dungeon',100,true,30,60],['darkness',100,true,0,0],
+ ] as const;
+ for(const [mode,stage,boss,one,cap] of cases){
+  assert.equal(hammerVictoryGold(mode,stage,boss,0),0);
+  assert.equal(hammerVictoryGold(mode,stage,boss,1),one);
+  assert.equal(hammerVictoryGold(mode,stage,boss,2),one*2);
+  assert.equal(hammerVictoryGold(mode,stage,boss,3),cap);
+  assert.equal(hammerVictoryGold(mode,stage,boss,5),cap);
+ }
+});
+
+test('golden Hammer earns a saved finishing blow but pays only once with the successful victory write',()=>{
+ const G=()=>useGame.getState();
+ G().mutate(p=>{p.stage=71;p.gold=100_000;p.runes[2]=2});
+ const b=scene();
+ b.phase='fight';
+ const unit=b.units[0];
+ b.units=[unit,{...unit,role:1}];
+ unit.hp=1;
+ const gold=G().p.gold;
+ b.skill(2);b.skill(2);
+ assert.equal(b.hammerKills,1);
+ assert.equal(G().p.gold,gold);
+ const first=parseSave(saves.get(SAVE_KEY)!,true)!;
+ assert.equal(first.encounter?.hammerKills,1);
+ b.destroy();
+ useGame.setState({p:first});
+ const restored=scene(false);
+ assert.equal(restored.hammerKills,1);
+ assert.equal(G().p.gold,gold);
+ restored.units[1].hp=0;
+ failWrites=true;
+ restored.victory();
+ assert.equal(G().p.gold,gold);
+ assert.equal(restored.phase,'fight');
+ assert.equal(G().p.claimed.includes('battle:'+restored.id),false);
+ failWrites=false;
+ restored.victory();restored.victory();
+ const bonus=hammerVictoryGold('campaign',71,false,1);
+ assert.equal(G().p.gold,gold+stageGold(71,false)+bonus);
+ assert.match(G().toast,/руна Молота/);
+ assert.equal(parseSave(saves.get(SAVE_KEY)!,true)?.lastBattleReward,restored.id);
+ assert.equal(G().p.claimed.filter(id=>id==='battle:'+restored.id).length,1);
+ restored.destroy();
+});
+
+test('defeat and a different encounter discard unclaimed Hammer gold; invalid snapshots cannot add finishing blows',()=>{
+ const G=()=>useGame.getState();
+ G().mutate(p=>{p.runes[2]=2});
+ const b=scene();
+ b.phase='fight';b.units[0].hp=1;b.skill(2);
+ assert.equal(b.hammerKills,1);
+ const gold=G().p.gold,valid=b.snapshot();
+ assert.equal(validEncounter({...valid,hammerKills:2}),false);
+ assert.equal(validEncounter({...valid,hammerKills:-1}),false);
+ assert.equal(validEncounter({...valid,hammerKills:1.1}),false);
+ assert.equal(validEncounter({...valid,mode:'darkness'}),false);
+ assert.equal(validEncounter({...valid,hammerKills:undefined}),true);
+ b.defeat();
+ assert.equal(G().p.gold,gold);
+ assert.equal(b.hammerKills,0);
+ b.spawn();
+ assert.equal(b.hammerKills,0);
+ b.destroy();
+});
+
+test('the same actual Hammer kill settles with each paid mode and is included in the chapter trophy',()=>{
+ const G=()=>useGame.getState();
+ for(const [mode,wave,base,bonus] of [
+  ['campaign',5,63375,12675],['farm',2,8450,1690],['arena',2,100,20],['dungeon',2,150,30],
+ ] as const){
+  const p=freshPlayer();
+  p.gold=100_000;p.stage=71;p.wave=wave;p.runes[2]=2;
+  useGame.setState({p,panel:null,selected:null});
+  const b=scene(false);
+  b.mode=mode;b.spawn();b.running=true;b.phase='fight';
+  b.units=[b.units[0]];b.units[0].hp=1;
+  b.skill(2);
+  assert.equal(b.hammerKills,1,mode);
+  assert.equal(G().p.gold,p.gold,mode);
+  b.victory();
+  assert.equal(G().p.gold,p.gold+base+bonus,mode);
+  if(mode==='campaign'){
+   assert.equal(G().p.rewardOffer?.bossReward?.gold,base+bonus);
+   assert.equal(G().p.rewardOffer?.hammerGold,bonus);
+  }
+  b.destroy();
+ }
 });
