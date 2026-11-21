@@ -1,10 +1,20 @@
-FROM node:22-bookworm-slim
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY index.html vite.config.ts ./
+COPY config ./config
+COPY public ./public
+COPY server ./server
+COPY src ./src
+RUN npm run arena:build
+
+FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production PORT=8787 ARENA_WEB_ROOT=/app/web ARENA_DB=/data/arena.sqlite
 WORKDIR /app
-COPY --chown=node:node .tmp/arena/server.mjs ./server.mjs
-COPY --chown=node:node .tmp/arena/web ./web
+COPY --from=build --chown=node:node /app/.tmp/arena/server.mjs ./server.mjs
+COPY --from=build --chown=node:node /app/.tmp/arena/web ./web
 RUN mkdir /data && chown node:node /data
 USER node
 EXPOSE 8787
-VOLUME ["/data"]
 CMD ["node", "server.mjs"]
