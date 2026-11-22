@@ -18,7 +18,8 @@ test('currency plus buttons open an honest "where to get" window with working ac
  assert.match(app,/onClick=\{\(\)=>g\.open\(`source:\$\{c\.key\}`\)\}/);
  for(const k of ['gold','gems','chaosite'])assert.match(app,new RegExp(`'source:${k}':'Где получить`));
  assert.match(app,/kind==='gold'.*startMode\('farm'\)/s);
- assert.match(app,/kind==='chaosite'.*g\.claim\('mine'\)|const mine=.*g\.claim\('mine'\)/s);
+ assert.match(app,/const mine=.*<MineCollection compact\/>/);
+ assert.match(app,/kind==='chaosite'&&<>\{mine\}/);
 });
 test('«Новый герой» asks for confirmation and lists heroes saved on the device',()=>{
  assert.doesNotMatch(app,/<Action onClick=\{newHero\}>Новый герой/,'the menu entry must not leave the current hero in one tap');

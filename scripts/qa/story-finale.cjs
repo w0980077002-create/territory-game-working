@@ -33,9 +33,8 @@ fs.mkdirSync(out,{recursive:true});
     assert.equal(first.stage,60);
     assert.ok(!(first.saga?.flags??[]).includes('story:done'));
     assert.equal(await page.getByRole('dialog',{name:'Сага Севера завершена'}).count(),0);
-    const won=await page.evaluate(async id=>{
-     const {battle}=await import('/src/game/Battle.ts');
-     const {useGame}=await import('/src/core/store.ts');
+    const won=await page.evaluate(id=>{
+     const {battle,useGame}=window.__lootborn;
      battle.pause();
      return useGame.getState().win('campaign',id);
     },'final-boss-'+width);
@@ -46,6 +45,11 @@ fs.mkdirSync(out,{recursive:true});
     assert.ok(pending.rewardOffer&&!pending.rewardOffer.resolved);
     assert.equal(await page.getByRole('dialog',{name:'Сага Севера завершена'}).count(),0,'boss trophy comes first');
     await page.locator('.trophy-ribbon').tap();
+    assert.match(await page.locator('.trophy-value').innerText(),/[+−-]\d+ CP/);
+    const effects=page.locator('.effect-comparison');
+    assert.match(await effects.innerText(),/Получите · Второе дыхание/);
+    assert.match(await effects.innerText(),/восстаёт с 35% HP/);
+    assert.match(await effects.innerText(),/Сердце Бездны.*\d\/6 → \d\/6/s);
     const keep=page.getByRole('button',{name:/^(В рюкзак|На хранение)$/});
     await keep.tap();
     await page.getByRole('dialog',{name:'Сага Севера завершена'}).waitFor({state:'visible'});
@@ -71,6 +75,12 @@ fs.mkdirSync(out,{recursive:true});
     assert.equal(restored.gold,savedGold);
     assert.equal(restored.gems,savedGems);
     assert.equal((restored.saga?.flags??[]).filter(x=>x==='story:finale-seen').length,1);
+    const mission=page.locator('.mission');
+    assert.equal(await mission.locator('b').innerText(),'Легенда I · 7-1');
+    await mission.tap();
+    const quests=page.getByRole('dialog',{name:'Путь героя'});
+    await quests.getByRole('heading',{name:'Легенда I · 7-1',exact:true}).waitFor();
+    assert.match(await quests.innerText(),/Шесть регионов открываются снова, с более сильными врагами/);
     assert.deepEqual(errors,[]);
     console.log(width+'x'+height+' finale shown after trophy, acknowledged once, reload safe');
    }finally{await context.close()}

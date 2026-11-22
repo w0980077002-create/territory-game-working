@@ -2,12 +2,14 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const app=readFileSync(new URL('../src/ui/App.tsx',import.meta.url),'utf8');
+const collection=readFileSync(new URL('../src/ui/CollectionStatus.tsx',import.meta.url),'utf8');
 const art=readFileSync(new URL('../src/ui/HarborScene.tsx',import.meta.url),'utf8');
 const css=readFileSync(new URL('../src/ui/harbor.css',import.meta.url),'utf8');
 test('port routes to the existing game panels',()=>{
  assert.match(app,/panel==='port'&&/);
  for(const name of ['shipyard','forge','inventory','companions','blessing','talents','relic'])assert.ok(app.includes("'"+name+"'"));
- assert.match(app,/g\.claim\('mine'\)/);
+ assert.match(app,/<MineCollection\/>/);
+ assert.match(collection,/claim\('mine'\)/);
 });
 test('shipyard displays only saved ships, offers selection and keeps the real transactions',()=>{
  assert.match(app,/ships=\{fleet\.ships\}/);

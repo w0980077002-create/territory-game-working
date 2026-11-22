@@ -26,16 +26,17 @@ function Atmosphere({kind}:{kind:Material}){
 export function panelMaterial(panel:string):Material{return panel==='gear:wings'?'moon':panel.startsWith('gear:')?'forge':themes[panel]??'sea'}
 function panelIcon(panel:string,kind:Material){return panelIcons[panel]??materialIcons[kind]}
 
-export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel,dismissible=true}:{panel:string;title:string;children:React.ReactNode;footer:React.ReactNode;rarity?:number;onBack?:()=>void;backLabel?:string;dismissible?:boolean}){
+export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel,scrollMemory,dismissible=true}:{panel:string;title:string;children:React.ReactNode;footer:React.ReactNode;rarity?:number;onBack?:()=>void;backLabel?:string;scrollMemory?:Map<string,number>;dismissible?:boolean}){
  const toast=useGame(s=>s.toast),toastReward=useGame(s=>s.toastReward),storageError=useGame(s=>s.storageError),close=useGame(s=>s.open),reduced=useGame(s=>s.p.reducedMotion);
- const scrollPositions=useRef(new Map<string,number>()),openedAt=useRef(0);
+ const localScroll=useRef(new Map<string,number>()),openedAt=useRef(0);
+ const scrollPositions=scrollMemory??localScroll.current;
  const kind=panelMaterial(panel),ref=useRef<HTMLElement>(null),body=useRef<HTMLDivElement>(null);
  useLayoutEffect(()=>{
   const previous=document.activeElement as HTMLElement|null,background=document.querySelector<HTMLElement>('.viewport');
   if(background)background.inert=true;
   return()=>{if(background)background.inert=false;previous?.focus({preventScroll:true})};
  },[]);
- useLayoutEffect(()=>{openedAt.current=performance.now();ref.current?.focus({preventScroll:true});if(body.current)body.current.scrollTop=scrollPositions.current.get(panel)??0},[panel]);
+ useLayoutEffect(()=>{openedAt.current=performance.now();ref.current?.focus({preventScroll:true});if(body.current)body.current.scrollTop=scrollPositions.get(panel)??0},[panel,scrollPositions]);
  const realmBack=panel==='realm'?onBack:undefined;
  const dismiss=()=>{if(realmBack)realmBack();else close(panel==='carnival'?'events':null)};
  const keyDown=(e:React.KeyboardEvent)=>{
@@ -57,9 +58,9 @@ export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel
   }
  }} onClick={e=>{if(dismissible&&e.target===e.currentTarget)dismiss()}} onKeyDown={keyDown}>
   <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} data-layout={workspace?'workspace':undefined} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
-   <header className="modal-header">{(onBack||harborBack)?<button className="harbor-back" aria-label={backLabel??'‹ В гавань'} title={backLabel??'В гавань'} onClick={onBack??(()=>close('port'))}>‹</button>:<div className="header-seal"><Icon name={panelIcon(panel,kind)}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&!realmBack&&<button className="close" onClick={dismiss} aria-label="Закрыть">×</button>}</header>
+   <header className="modal-header">{(onBack||harborBack)?<button className={backLabel==='← Назад'?'harbor-back text-back':'harbor-back'} aria-label={backLabel??'‹ В гавань'} title={backLabel??'В гавань'} onClick={onBack??(()=>close('port'))}>{backLabel==='← Назад'?backLabel:'‹'}</button>:<div className="header-seal"><Icon name={panelIcon(panel,kind)}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&!realmBack&&<button className="close" onClick={dismiss} aria-label="Закрыть">×</button>}</header>
    <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status"><RewardNotice message={toast} reward={toastReward}/></div>}</div>
-   <div className="modal-body" ref={body} key={panel} onScroll={event=>scrollPositions.current.set(panel,event.currentTarget.scrollTop)}><div className="panel-content">{children}</div></div>
+   <div className="modal-body" ref={body} key={panel} onScroll={event=>scrollPositions.set(panel,event.currentTarget.scrollTop)}><div className="panel-content">{children}</div></div>
    {!workspace&&footer}<i className="frame-corner corner-a" aria-hidden="true"/><i className="frame-corner corner-b" aria-hidden="true"/>
   </section>
  </div>,document.body);

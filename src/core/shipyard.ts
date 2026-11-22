@@ -5,6 +5,7 @@ export interface ShipWallet {gold:number;redDiamonds?:number;shipyard?:ShipyardS
 /** sealPrice: red diamonds traded for one summon seal in the harbor (the only spend; companions grow from it). */
 export const SHIP_RULES={maxShips:3,maxLevel:5,diamondsPerLevelHour:1,maxStoredHours:12,sealPrice:20} as const;
 const HOUR=3_600_000;
+const WHOLE_DIAMOND_EPSILON=1e-9;
 export function starterShipyard(now=Date.now()):ShipyardState {return {ships:[{id:'drakkar-1',level:1}],lastAt:now,stored:0}}
 export function shipRate(s:ShipyardState):number{return s.ships.reduce((n,ship)=>n+ship.level*SHIP_RULES.diamondsPerLevelHour,0)}
 export function shipCapacity(s:ShipyardState):number{return shipRate(s)*SHIP_RULES.maxStoredHours}
@@ -22,9 +23,15 @@ export function previewShips(s:ShipyardState,now=Date.now()):ShipyardState{
 }
 export function shipBuyCost(count:number):number|null{return count>=SHIP_RULES.maxShips?null:500*count}
 export function shipUpgradeCost(level:number):number|null{return level>=SHIP_RULES.maxLevel?null:300*level*level}
-export function shipClaimable(s:ShipyardState,now=Date.now()):number{return Math.floor(previewShips(s,now).stored+1e-9)}
+const wholeDiamonds=(s:ShipyardState)=>Math.floor(s.stored+WHOLE_DIAMOND_EPSILON);
+export function shipClaimable(s:ShipyardState,now=Date.now()):number{return wholeDiamonds(previewShips(s,now))}
+export function shipCollection(s:ShipyardState,now=Date.now()){
+ const fleet=previewShips(s,now),amount=wholeDiamonds(fleet);
+ const waitMs=amount>0?0:Math.ceil(Math.max(0,s.lastAt-now)+(1-WHOLE_DIAMOND_EPSILON-fleet.stored)*HOUR/shipRate(fleet));
+ return {fleet,amount,waitMs,progress:amount>0?1:fleet.stored};
+}
 export function claimShips(p:ShipWallet,now=Date.now()):number{
- const next=previewShips(p.shipyard??starterShipyard(now),now),amount=Math.floor(next.stored+1e-9);
+ const next=previewShips(p.shipyard??starterShipyard(now),now),amount=wholeDiamonds(next);
  if(amount<=0||(p.redDiamonds??0)+amount>1_000_000_000)return 0;
  p.shipyard={...next,stored:Math.max(0,next.stored-amount)};p.redDiamonds=(p.redDiamonds??0)+amount;return amount;
 }

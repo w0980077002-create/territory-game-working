@@ -123,7 +123,7 @@
 .saga-modal .relic-grid button.locked{opacity:.8}.saga-modal .relic-grid button.locked .icon{filter:grayscale(.75) brightness(.75)}
 .relic-feature{display:grid;grid-template-columns:84px minmax(0,1fr);gap:9px;align-items:center}.relic-feature .relic-object{height:88px}.saga-modal .relic-feature .icon{width:70px;height:70px;filter:drop-shadow(0 4px 5px #0009)}
 .saga-modal .relic-level-line{font-size:12px!important;border-bottom:1px solid #b8995855;padding:5px 0;color:#e8c680!important}
-.saga-modal .harbor-workspace .workspace-actions{padding:4px 0 0;background:none}.saga-modal .harbor-workspace .mine-summary{font-size:10px;line-height:1.2;margin:0 0 4px;text-align:center}
+.saga-modal .harbor-workspace .workspace-actions{padding:4px 0 0;background:none}.saga-modal .harbor-workspace .mine-summary{font-size:10px;line-height:1.2;margin:0 0 4px;text-align:left}
 /* Wide comparison preserves a clear reading order and visible costs/actions. */
 .saga-modal .dark-compare .dark-card{padding:8px;border-width:2px;background:linear-gradient(140deg,#28253a,#111a2c);box-shadow:inset 0 0 0 2px #101521}
 .saga-modal .dark-compare .dark-card>.icon{width:58px;height:58px}.saga-modal .dark-compare .dark-card strong{font-size:13px;line-height:1.25}.saga-modal .dark-compare .dark-card b{font-size:12px}
@@ -141,3 +141,5 @@
 .saga-modal .harbor-back{flex:0 0 44px;min-width:44px;width:44px;height:44px;padding:0;border:1px solid #998469;border-radius:5px;color:#efdab4;background:linear-gradient(#464252,#1a2030);font:30px/1 Georgia,serif;box-shadow:inset 0 0 0 2px #131b2b}
 .saga-modal .realm .bless-explainer{height:24px;min-height:24px;margin:0;padding:0 5px;text-align:center;font:10px/12px Arial,sans-serif;color:#ccbda6;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 @media(max-height:600px){.saga-modal .realm .bless-explainer{height:22px;min-height:22px;font-size:9px;line-height:11px}}
+
+.modal-header .text-back{flex-basis:70px;min-width:70px;width:70px;font:600 12px/1.1 system-ui,sans-serif}

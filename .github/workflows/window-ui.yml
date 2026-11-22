@@ -60,6 +60,8 @@ jobs:
         run: |
           node --import tsx scripts/qa/fixtures.ts
           BASE_URL=http://localhost:5173/ node scripts/qa/story-finale.cjs
+      - name: Verify equipment navigation, loot decisions and harbor timers
+        run: BASE_URL=http://localhost:5173/ node scripts/qa/useful-loot.cjs
       - run: npm run test:windows
       - name: Verify rewards, shop and subpanels on mobile
         run: |

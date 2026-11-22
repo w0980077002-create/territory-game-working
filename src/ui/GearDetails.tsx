@@ -6,11 +6,24 @@ import {useGame,compareItem,bestUpgrade} from '../core/store';
 import {uniqueOf,effectText,equippedUniques,uniques,gearRules,huntModes,buildGuides,type HuntMode} from '../core/gear';
 import {upgradePreview} from '../core/forge';
 import {stats} from '../core/formulas';
+import {compareLootEffects} from '../core/lootEffects';
 import {gearIcon,Icon} from './Icon';
 import {battle} from '../game/Battle';
 import {forgeFeedback} from './SagaUI';
 export function UniqueEffect({item}:{item:Item}){const def=uniqueOf(item);return def?<div className={`unique-effect effect-${def.effect}`}><strong>✦ {def.tag}</strong><p>{effectText(def.effect)}</p><small>Свойство работает только на надетом предмете. Ситуационный эффект не входит в CP.</small></div>:null}
-export function EffectComparison({item,p}:{item:Item;p:Player}){const next=uniqueOf(item),old=uniqueOf(p.equipment[item.slot]);if(!next&&!old)return null;return <div className="effect-comparison"><strong>Выбор стиля боя</strong><p>{old?`Снимается: ${old.tag}.`:'Сейчас в этом слоте нет уникального свойства.'} {next?`Получаете: ${next.tag}.`:'Новое снаряжение не даёт уникального свойства.'}</p><small>CP сравнивает характеристики. Решайте отдельно, нужен ли вам этот эффект.</small></div>}
+export function EffectComparison({item,p}:{item:Item;p:Player}){
+ const {properties,bonuses}=compareLootEffects(item,p);
+ if(!properties.length&&!bonuses.length)return null;
+ return <div className="effect-comparison">
+  <strong>Эффекты при замене</strong>
+  {properties.map(({id,change,tag,text})=><p key={id}><b>{change} · {tag}</b><br/>{text}</p>)}
+  {bonuses.map(({id,name,from,to,thresholds})=><div key={id}>
+   <p><b>{name}</b> · {from===to?`${to}/6 сохраняется`:`${from}/6 → ${to}/6`}</p>
+   {thresholds.map(({pieces,bonus,gained})=><p key={pieces}>{gained?'Получите':'Потеряете'} · {pieces} {pieces===2||pieces===4?'вещи':'вещей'} · {bonus}</p>)}
+  </div>)}
+  <small>CP отражает характеристики героя. Свойства могут менять тактику даже при меньшей силе.</small>
+ </div>;
+}
 export function UpgradePlan({item,p}:{item:Item;p:Player}){const {cost,next}=upgradePreview(item);const [confirm,setConfirm]=useState(false);const g=useGame(),costly=cost>p.gold*.25;return <div className="upgrade-plan"><strong>Следующее усиление: +{next.upgrade}</strong><div className="upgrade-stats">{item.percent&&next.percent?<>HP {item.percent.hp}% → {next.percent.hp}% · Атака {item.percent.attack}% → {next.percent.attack}% · Защита {item.percent.defense}% → {next.percent.defense}%</>:<>Атака {item.attack} → {next.attack} · HP {item.hp} → {next.hp} · Защита {item.defense} → {next.defense}</>}</div><p>CP героя: {stats(p).cp} → {stats(p).cp+compareItem(next,p)} · цена {cost} золота<br/><small>Доступно: {Math.floor(p.gold)} золота</small></p><button className="action" disabled={p.gold<cost||!Number.isFinite(cost)} onClick={()=>{if(costly&&!confirm){setConfirm(true);return}const before=useGame.getState().p.equipment[item.slot];g.upgrade(item.slot,{id:item.id,upgrade:item.upgrade});if(before)forgeFeedback(before);setConfirm(false)}}>{p.gold<cost?'Недостаточно золота':confirm?`Подтвердить +${next.upgrade} · ${cost} золота`:`Усилить +${next.upgrade} · ${cost} золота`}</button>{confirm&&<button className="action secondary" onClick={()=>setConfirm(false)}>Отмена</button>}</div>}
 /** What changes if `item` replaces `old`: every stat and the hero's CP, signed and coloured. */
 export function StatDelta({item,old,p}:{item:Item;old?:Item;p:Player}){
