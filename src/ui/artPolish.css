@@ -152,17 +152,17 @@
 .fantasy-filter-options { background: var(--art-iron); border-color: #bd955d; }
 .fantasy-filter-options [role="option"] { margin-bottom: 3px; }
 
-.game .gear {
+.game .gear-face {
   background: radial-gradient(ellipse at 50% 33%,color-mix(in srgb,var(--rarity) 23%,#24232a),#141319 77%);
   border-color: color-mix(in srgb,var(--rarity) 61%,#3a302b);
   box-shadow: inset 0 0 0 2px #0b0b10,inset 0 -9px 12px #0a080eb0,0 2px 0 #0a090a;
 }
-.game .gear.empty { filter: none; background: radial-gradient(ellipse at 50% 33%,#353438,#141319 78%); }
-.game .gear > span {
+.game .gear.empty>.gear-face { filter: none; background: radial-gradient(ellipse at 50% 33%,#353438,#141319 78%); }
+.game .gear-face>span {
   background: linear-gradient(90deg,transparent,#100d12ea 18%,#100d12ea 82%,transparent);
   color: #fff0d6;
 }
-.game .gear.empty > span { color: #e3d3bd; }
+.game .gear.empty .gear-face>span { color: #e3d3bd; }
 .game .gear .illustrated { filter: drop-shadow(0 3px 2px #070509bb); }
 
 .saga-modal:is([data-panel="hero"],[data-panel="quests"],[data-panel="hero-path"],[data-panel="equipment"]) .modal-body {
