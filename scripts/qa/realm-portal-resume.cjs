@@ -30,7 +30,10 @@ fs.mkdirSync(OUT,{recursive:true});
    });
    try{
     await page.goto(BASE+'?testProfile=portal-resume-'+width);
-    await page.waitForFunction(()=>!!window.__lootborn?.battle);
+    await page.waitForFunction(async()=>{
+     if(!window.__lootborn?.battle)return false;
+     return (await import('/src/dark/session.ts')).realmSessionWritable();
+    });
     const start=await page.evaluate(async()=>{
      const {useGame}=await import('/src/core/store.ts');
      const {battle}=await import('/src/game/Battle.ts');
@@ -49,7 +52,8 @@ fs.mkdirSync(OUT,{recursive:true});
      }))throw Error('Cannot prepare saved fork');
      battle.phase='waiting';battle.running=false;battle.publish();
      if(!battle.checkpoint())throw Error('Could not persist paused portal');
-     return {chaosite:g.p.chaosite,runId:realmRun(g.p)?.runId};
+     const saved=useGame.getState().p;
+     return {chaosite:saved.chaosite,runId:realmRun(saved)?.runId};
     });
     await page.reload();
     await page.waitForFunction(()=>!!window.__lootborn?.battle);
