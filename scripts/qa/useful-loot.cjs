@@ -131,6 +131,12 @@ async function capacity({page,button,close,read}){
 async function harvest({page,button,close,read},now){
  const harbor=()=>button('Карта').tap();
  await page.clock.setFixedTime(now);
+ await page.locator('.currency.gold').tap();
+ const compactMine=page.getByText('Северная шахта',{exact:true});
+ await compactMine.waitFor();
+ assert.ok((await compactMine.boundingBox()).width>100,'mine title keeps a readable column in the compact currency window');
+ assert.equal(await button('Копится').isDisabled(),true);
+ await close();
  await harbor();
  const mine=button('Собрать добычу шахтёров');
  if(!await mine.count())await button('‹ В гавань').tap();
