@@ -342,7 +342,7 @@
     "mode": "TEST_ONLY",
     "version": 1,
     "regular_equipment_chance": 0.3,
-    "upgrade_stat_multiplier": 1.12,
+    "upgrade_stat_bonus_per_rank": 0.05,
     "effects": {
       "frost": {
         "cooldown": 6,
