@@ -311,7 +311,19 @@ export class Battle implements TeamHost {
  /** Starts or continues the paid Dark Realm run chosen in its window. The entry was charged by the action. */
  enterRealm(){const g=useGame.getState(),run=realmRun(g.p);if(g.recoveryRequired||!run)return;const same=this.mode==='darkness';if(!this.pause()&&this.mode==='dungeon'&&this.entryPaid&&!this.rewarded){g.notice('Не удалось сохранить попытку Логова');return}g.open(null);unlockAudio(g.p.sound);this.pendingMode=undefined;this.mode='darkness';if(!same){if(validEncounter(run.checkpoint)){useGame.setState({p:{...useGame.getState().p,encounter:run.checkpoint}});this.restorePlayer()}else{this.hp=stats(g.p).hp;this.maxHp=this.hp;this.spawn(true)}}if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.entryPaid=true;this.running=true;this.publish();this.checkpoint();haptic()}
  continueRealm(){const run=realmRun(useGame.getState().p);if(!run||run.stage.startsWith('CHOICE'))return;this.spawn(true);this.entryPaid=true;this.publish();this.checkpoint()}
- choosePortal(id:string){const g=useGame.getState();if(!this.running||g.panel)return false;let chosen=false;if(!g.mutate(p=>{chosen=realmChoose(p,id)})||!chosen)return false;this.continueRealm();return true}
+ choosePortal(id:string){
+  const g=useGame.getState();
+  // After reload the saved fork is visible but paused. The portal tap itself is
+  // an explicit resume action; never charge the already-paid Realm again.
+  if(g.panel||g.recoveryRequired||!this.realmWaiting())return false;
+  const run=realmRun(g.p);
+  if(!run?.pair?.some(portal=>portal.id===id))return false;
+  if(!this.running)this.resume();
+  if(!this.running||!this.realmWaiting())return false;
+  let chosen=false;
+  if(!g.mutate(p=>{chosen=realmChoose(p,id)})||!chosen)return false;
+  this.continueRealm();return true
+ }
  realmWaiting(){return this.mode==='darkness'&&!!realmRun(useGame.getState().p)?.stage.startsWith('CHOICE')}
  portalTap=(event:PointerEvent)=>{if(!this.realmWaiting())return;const rect=this.canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*864/rect.width,y=(event.clientY-rect.top)*940/rect.height;const run=realmRun(useGame.getState().p),portal=run?.pair&&portalAt(run.pair,x,y);if(portal)this.choosePortal(portal.id)};
  realmView(run=realmRun(useGame.getState().p)):RealmView{
