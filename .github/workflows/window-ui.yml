@@ -29,6 +29,10 @@ jobs:
           done
           cat /tmp/vite.log
           exit 1
+      - name: Verify campaign finale, trophy and one-time acknowledgment
+        run: |
+          node --import tsx scripts/qa/fixtures.ts
+          BASE_URL=http://localhost:5173/ node scripts/qa/story-finale.cjs
       - run: npm run test:windows
       - name: Verify rewards, shop and subpanels on mobile
         run: |
