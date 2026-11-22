@@ -19,16 +19,16 @@ test('forge loot stays within five levels and mastery is bounded',()=>{
  assert.equal(forgeMasteryBonus(p),0);
 });
 
-test('forty enhancements increase stats linearly rather than ninety-fold',()=>{
+test('forty enhancements increase stats by 5% of the original per rank, not ninety-fold',()=>{
  const first=makeItem('weapon',39,3);
  let current=first;
  for(let rank=1;rank<=40;rank++){
   current=upgradePreview(current).next;
   assert.equal(current.upgrade,rank);
   for(const key of ['attack','hp','defense'] as const)
-   assert.equal(current[key],Math.ceil(first[key]*(1+.04*rank)));
+   assert.equal(current[key],Math.ceil(first[key]*(1+.05*rank)));
  }
- assert.ok(current.attack<=first.attack*2.61);
+ assert.ok(current.attack<=first.attack*3.01);
  assert.deepEqual(current.enhancementBase,{attack:first.attack,hp:first.hp,defense:first.defense});
 });
 
@@ -41,7 +41,7 @@ test('reforging has bounded level and reapplies ranks without compounding',()=>{
  assert.equal(plan.next.level,44);
  assert.equal(plan.next.upgrade,10);
  assert.ok(plan.next.enhancementBase);
- assert.equal(plan.next.attack,Math.ceil(plan.next.enhancementBase!.attack*1.4));
+ assert.equal(plan.next.attack,Math.ceil(plan.next.enhancementBase!.attack*1.5));
  assert.equal(withExistingUpgrades(worn,makeItem('weapon',44,3)).id,worn.id);
 });
 
