@@ -18,6 +18,7 @@ fs.mkdirSync(OUT,{recursive:true});
  try{
   for(const [width,height] of [[320,568],[360,780],[390,844],[430,932]]){
    const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true});
+   await context.route('https://telegram.org/**',route=>route.abort());
    const page=await context.newPage(),errors=[];
    page.on('pageerror',error=>errors.push(error.message));
    const snapshot=()=>page.evaluate(async()=>{
@@ -64,6 +65,20 @@ fs.mkdirSync(OUT,{recursive:true});
     assert.equal(paused.running,false);
     assert.equal(paused.chaosite,start.chaosite);
     assert.equal(paused.runId,start.runId);
+    const mission=page.locator('.mission');
+    assert.match(await mission.innerText(),/Цель похода · этаж 1[\s\S]*Выберите портал/i);
+    const target=await mission.boundingBox();
+    const x=target.x+target.width/2,y=target.y+target.height/2;
+    await page.touchscreen.tap(x,y);await page.touchscreen.tap(x,y);
+    const realm=page.getByRole('dialog',{name:'Царство тьмы',exact:true});
+    await realm.waitFor();
+    await realm.getByRole('button',{name:'Продолжить поход',exact:true}).waitFor();
+    assert.equal(await page.locator('[data-panel="quests"]').count(),0);
+    assert.deepEqual(await snapshot(),paused,'opening the objective leaves the paid fork intact');
+    await page.screenshot({path:OUT+'/'+width+'-mission-dialog.png'});
+    await realm.getByRole('button',{name:'Закрыть',exact:true}).tap();
+    await page.waitForTimeout(380);
+    assert.deepEqual(await snapshot(),paused,'closing the objective cannot start a paused run');
     const invalid=await page.evaluate(async()=>{
      const {battle}=await import('/src/game/Battle.ts');
      return battle.choosePortal('not-a-real-portal');
@@ -82,6 +97,13 @@ fs.mkdirSync(OUT,{recursive:true});
     assert.equal(chosen.history,1,'Only one portal choice can be recorded');
     assert.equal(chosen.running,true);
     await page.screenshot({path:OUT+'/'+width+'-after-tap.png'});
+    assert.match(await mission.innerText(),/Цель похода · этаж 1[\s\S]*\d+\/\d+ врагов/i);
+    await mission.tap();await realm.waitFor();
+    assert.equal((await snapshot()).running,false,'opening the objective pauses active combat');
+    await realm.getByRole('button',{name:'Продолжить поход',exact:true}).tap();
+    await page.waitForFunction(()=>window.__lootborn.battle.running);
+    assert.equal((await snapshot()).chaosite,start.chaosite);
+    assert.equal((await snapshot()).runId,start.runId);
     await page.reload();
     await page.waitForFunction(()=>!!window.__lootborn?.battle);
     const after=await snapshot();
