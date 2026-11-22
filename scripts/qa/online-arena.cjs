@@ -9,6 +9,8 @@ const {chromium} = require('playwright');
 const port = process.env.ARENA_QA_PORT || '18787';
 const base = 'http://127.0.0.1:'+port;
 const out = '.tmp/window-qa/online-arena';
+const stagingKey='lootborn-arena-staging-v1';
+const soloKey='lootborn-codex-v1';
 const viewportSizes = [[320,568],[360,780],[390,844],[430,932]];
 const wait = ms => new Promise(resolve => setTimeout(resolve,ms));
 const button = (page,name) => page.getByRole('button',{name,exact:true});
@@ -24,14 +26,22 @@ async function actor(browser,user,viewport) {
  const {initData} = await (await fetch(base+'/arena-api/local?user='+user)).json();
  const context = await browser.newContext({viewport,isMobile:true,hasTouch:true});
  await context.route('https://telegram.org/js/telegram-web-app.js',route=>route.fulfill({body:'',contentType:'text/javascript'}));
- await context.addInitScript(data=>{
+ const player=require('./ui-fixture.cjs')(34);
+ player.heroClass=user==='alice'?'ranger':'berserker';
+ player.skills=[5,2,1];
+ const stagedWeapon={...player.equipment.weapon,attack:user==='alice'?1e100:12,upgrade:user==='alice'?9000:0};
+ player.equipment.weapon=stagedWeapon;
+ const profileKey=soloKey+':telegram:'+(user==='alice'?'1001':'1002');
+ await context.addInitScript(({data,player,profileKey,stagingKey,soloKey})=>{
   window.__arenaCloudCalls=0;
   window.Telegram={WebApp:{
    initData:data,ready(){},expand(){},isVersionAtLeast:()=>false,
    CloudStorage:{getItem(){window.__arenaCloudCalls++},setItem(){window.__arenaCloudCalls++}},
   }};
-  localStorage.setItem('lootborn-codex-v1','original-save-sentinel');
- },initData);
+  localStorage.setItem(soloKey,'original-save-sentinel');
+  localStorage.setItem(profileKey,'telegram-save-sentinel');
+  if(!localStorage.getItem(stagingKey))localStorage.setItem(stagingKey,JSON.stringify(player));
+ },{data:initData,player,profileKey,stagingKey,soloKey});
  const page=await context.newPage();
  const errors=[];
  page.on('pageerror',error=>errors.push(error.message));
@@ -39,7 +49,7 @@ async function actor(browser,user,viewport) {
  await openArena(page);
  await button(page,'Войти через Telegram').tap();
  await button(page,'Найти соперника').waitFor();
- return {context,page,errors};
+ return {context,page,errors,player,profileKey};
 }
 
 async function pickMove(page,attack,first,second) {
@@ -97,9 +107,22 @@ async function noHorizontalOverflow(page) {
    const one=await actor(browser,'alice',{width,height});
    const two=await actor(browser,'boris',{width,height});
    const a=one.page,b=two.page,ar=section(a),br=section(b);
-   const arenaOne=a.getByRole('combobox',{name:'Комплект'});
+   const arenaOne=a.getByRole('combobox',{name:'Тренировочный комплект'});
+   assert.equal(await a.getByRole('combobox',{name:'Класс бойца'}).inputValue(),'ranger');
+   assert.equal(await b.getByRole('combobox',{name:'Класс бойца'}).inputValue(),'berserker');
+   await ar.getByText('Предпросмотр героя Solo',{exact:true}).tap();
+   await br.getByText('Предпросмотр героя Solo',{exact:true}).tap();
+   await ar.getByText('Оружие · атака · 8 из 8',{exact:true}).waitFor();
+   await br.getByText('Оружие · атака · 3 из 8',{exact:true}).waitFor();
+   assert.equal(await ar.getByRole('list',{name:'Предпросмотр вклада 7 предметов'}).getByRole('listitem').count(),7);
+   await noHorizontalOverflow(a);
+   await a.screenshot({path:join(out,width+'-solo-preview.png')});
+   await ar.getByText('Предпросмотр героя Solo',{exact:true}).tap();
+   await br.getByText('Предпросмотр героя Solo',{exact:true}).tap();
    await arenaOne.selectOption('offensive');
+   const joinRequest=a.waitForRequest(request=>request.url().endsWith('/arena-api/join'));
    await button(a,'Найти соперника').tap();
+   assert.deepEqual((await joinRequest).postDataJSON(),{hero:'ranger',kit:'offensive'});
    await ar.getByText(/Поиск · уровни ±7/).waitFor();
    await button(b,'Найти соперника').tap();
    await Promise.all([round(a,1).waitFor(),round(b,1).waitFor()]);
@@ -108,10 +131,10 @@ async function noHorizontalOverflow(page) {
    await ar.getByText('Борис',{exact:true}).waitFor();
    await br.getByText('Алиса',{exact:true}).waitFor();
 
-   await ar.getByText('Экипировка · 7 ячеек',{exact:true}).tap();
+   await ar.getByText('Тренировочная экипировка · 7 ячеек',{exact:true}).tap();
    assert.equal(await ar.locator('.online-gear-row').count(),7);
    assert.match(await ar.locator('.online-gear-row').first().innerText(),/\+8/);
-   await ar.getByText('Экипировка · 7 ячеек',{exact:true}).tap();
+   await ar.getByText('Тренировочная экипировка · 7 ячеек',{exact:true}).tap();
    await ar.getByText('Пояс эликсиров',{exact:true}).tap();
    await button(ar,'Сила 1').tap();
    await ar.getByRole('button',{name:/^Сила 0 · /}).waitFor();
@@ -150,8 +173,15 @@ async function noHorizontalOverflow(page) {
    await ar.getByText(/До закрытия чата · (29:|30:00)/).waitFor();
    await a.screenshot({path:join(out,width+'-postfight.png')});
    for(const actor of [one,two]){
-    const storage=await actor.page.evaluate(()=>({original:localStorage.getItem('lootborn-codex-v1'),cloud:window.__arenaCloudCalls}));
-    assert.deepEqual(storage,{original:'original-save-sentinel',cloud:0});
+    const storage=await actor.page.evaluate(({soloKey,profileKey,stagingKey})=>({
+     original:localStorage.getItem(soloKey),telegram:localStorage.getItem(profileKey),
+     player:JSON.parse(localStorage.getItem(stagingKey)),cloud:window.__arenaCloudCalls,
+    }),{soloKey,profileKey:actor.profileKey,stagingKey});
+    assert.equal(storage.original,'original-save-sentinel');
+    assert.equal(storage.telegram,'telegram-save-sentinel');
+    assert.equal(storage.cloud,0);
+    for(const field of ['equipment','inventory','gold','gems','chaosite','tokens','stage','skills'])
+     assert.deepEqual(storage.player[field],actor.player[field],'Arena never mutates Solo '+field);
     assert.deepEqual(actor.errors,[]);
     await actor.context.close();
    }

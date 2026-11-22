@@ -1,6 +1,6 @@
 import {migrateProgression,validProgression} from './progression';
 import {baseVictoryGold,hammerVictoryGold} from './battleGold';
-import {noteLairWin,payRaid,lairRules,lairTrophy} from '../saga/lair';
+import {noteLairWin,payRaid,lairRules,lairTrophy,isPaidLairAttempt} from '../saga/lair';
 import {chapterReward,combineRewards,grant,rewardText,type Reward} from '../saga/rewards';
 import {create} from 'zustand';
 import {SHIP_RULES,starterShipyard,validShipyard,shipClaimable,shipBuyCost,shipUpgradeCost,claimShips,buyShip,upgradeShip} from './shipyard';
@@ -15,7 +15,7 @@ import {acceptedMailCarnival} from '../qa/mailAcceptance';
 export {SAVE_KEY,isolatedProfile} from './profile';
 import {validEncounter} from '../game/snapshot';
 import {uniques,uniqueOf,namedDrop,gearRules} from './gear';
-import {upgradePreview,forgeLevel} from './forge';
+import {upgradePreview,forgeLevel,applyForgeMastery} from './forge';
 import type {UniqueId} from './types';
 import {normalizeWorld} from './world';
 import {normalizeSaga,markSeen,bumpCount} from '../saga/save';
@@ -70,8 +70,20 @@ function validBossReward(reward:Reward){
   Object.entries(reward.mats).every(([id,amount])=>materialIds.some(valid=>valid===id)&&count(amount));
 }
 export function freshPlayer():Player {const s=balance.new_player_test_start;return {version:1,progression:{v:1,anchors:{}},level:s.hero_level,xp:0,gold:s.gold,gems:s.gems,redDiamonds:0,shipyard:starterShipyard(),chaosite:s.chaosite,tokens:s.test_shop_tokens,horn:s.horn_charges,hornAt:Date.now(),stage:1,wave:1,kills:0,bosses:0,heroClass:'berserker',inventory:[],equipment:Object.fromEntries(slots.filter(s=>s!=='wings').map(s=>[s,makeItem(s,1,1)])),skills:[1,1,1],runes:[0,0,0],companions:[1,1],talents:[0,0,0],forge:1,blessing:1,daily:'',mission:0,claimed:[],bought:[],savedAt:Date.now(),wingVisible:true,sound:false,arenaWins:0,darkFloor:1,mineAt:Date.now(),relic:0,seasonClaims:[]}}
-function validItem(value:unknown):value is Item {if(!value||typeof value!=='object')return false;const i=value as Item;return typeof i.id==='string'&&i.id.length<=120&&typeof i.name==='string'&&i.name.length<=120&&slots.includes(i.slot)&&['level','rarity','attack','hp','defense','upgrade'].every(k=>Number.isFinite(i[k as keyof Item])&&Number(i[k as keyof Item])>=0)&&Number.isInteger(i.rarity)&&i.rarity<=8&&i.level>=1&&(i.masterwork===undefined||i.masterwork===true)&&(i.salvageGoldCap===undefined||Number.isSafeInteger(i.salvageGoldCap)&&i.salvageGoldCap>=0)&&(i.locked===undefined||typeof i.locked==='boolean')&&(i.origin===undefined||typeof i.origin==='string'&&i.origin.length<=160)&&(i.uniqueId===undefined||typeof i.uniqueId==='string'&&Object.hasOwn(uniques,i.uniqueId)&&uniques[i.uniqueId].slot===i.slot)&&(!i.percent||[i.percent.hp,i.percent.attack,i.percent.defense].every(n=>Number.isFinite(n)&&n>=0))&&[i.set,i.perk,i.engrave].every(v=>v===undefined||typeof v==='string'&&v.length<=24)}
-export function parseSave(raw:string|null,strictEncounter=false):Player|null {if(!raw)return null;try{const p=JSON.parse(raw) as Player;if(p.version!==1||p.progression!==undefined&&!validProgression(p.progression))return null;const nonnegative=['level','xp','gold','gems','chaosite','tokens','horn','hornAt','stage','wave','kills','bosses','forge','blessing','mission','savedAt','arenaWins','darkFloor','mineAt','relic'] as const;if(nonnegative.some(k=>!Number.isFinite(p[k])||p[k]<0)||p.level<1||!Number.isInteger(p.level)||p.stage<1||!Number.isInteger(p.stage)||!Number.isInteger(p.wave)||p.wave<1||p.wave>5||p.horn>hornConfig.maximum_charges)return null;if(!['berserker','ranger','runologist'].includes(p.heroClass))return null;for(const [key,len] of [['skills',3],['runes',3],['talents',3],['companions',2]] as const){if(!Array.isArray(p[key])||p[key].length!==len||p[key].some(n=>!Number.isInteger(n)||n<0))return null}if(p.skills.some(n=>n<1)||p.companions.some(n=>n<1)||p.runes.some(n=>n>2))return null;if(!Array.isArray(p.inventory)||p.inventory.length>balance.loot_test_settings.starter_inventory_capacity||!p.inventory.every(validItem)||!p.equipment||typeof p.equipment!=='object'||Array.isArray(p.equipment))return null;if(p.pendingLoot!==undefined&&!Array.isArray(p.pendingLoot))return null;const ids=new Set<string>();for(const [slot,item] of Object.entries(p.equipment)){if(!validItem(item)||item.slot!==slot||ids.has(item.id))return null;ids.add(item.id)}for(const items of [p.inventory,p.pendingLoot]){if(!items)continue;for(const i of items){if(!validItem(i)||ids.has(i.id))return null;ids.add(i.id)}}for(const key of ['claimed','bought'] as const){if(!Array.isArray(p[key])||p[key].some(v=>typeof v!=='string'))return null}if(!Array.isArray(p.seasonClaims)||p.seasonClaims.some(n=>!Number.isInteger(n)||n<1||n>10)||typeof p.daily!=='string'||typeof p.wingVisible!=='boolean'||typeof p.sound!=='boolean')return null;if(p.reducedMotion!==undefined&&typeof p.reducedMotion!=='boolean')return null;if(p.redDiamonds!==undefined&&(!Number.isSafeInteger(p.redDiamonds)||p.redDiamonds<0||p.redDiamonds>1_000_000_000))return null;if(p.shipyard!==undefined&&!validShipyard(p.shipyard))return null;if(p.lastBattleReward!==undefined&&(typeof p.lastBattleReward!=='string'||p.lastBattleReward.length>120))return null;if(p.preferences&&(typeof p.preferences.auto!=='boolean'||![1,2].includes(p.preferences.speed)||(p.preferences.stopOnDeath!==undefined&&typeof p.preferences.stopOnDeath!=='boolean')||(p.preferences.continueOnVictory!==undefined&&typeof p.preferences.continueOnVictory!=='boolean')||(p.preferences.autoSalvageWeaker!==undefined&&typeof p.preferences.autoSalvageWeaker!=='boolean')))return null;if(p.rewardOffer){const r=p.rewardOffer;if(typeof r.encounterId!=='string'||typeof r.itemId!=='string'||typeof r.resolved!=='boolean')return null;if(r.hammerGold!==undefined&&(!Number.isSafeInteger(r.hammerGold)||r.hammerGold<=0))delete r.hammerGold;if(r.bossReward!==undefined&&!validBossReward(r.bossReward))delete r.bossReward;if(!r.resolved&&!p.inventory.some(i=>i.id===r.itemId)&&!p.pendingLoot?.some(i=>i.id===r.itemId))delete p.rewardOffer;}if(p.encounter&&!validEncounter(p.encounter)){if(strictEncounter)return null;delete p.encounter;}if(p.world!==undefined)p.world=normalizeWorld(p.world);if(p.saga!==undefined)p.saga=normalizeSaga(p.saga);if(p.carnival!==undefined){const carnival=normalizeCarnival(p.carnival);if(carnival)p.carnival=carnival;else delete p.carnival;}if(p.volume!==undefined&&![1,2,3].includes(p.volume))delete p.volume;migrateRealm(p);migrateSquad(p);const result=stats(p);if(Object.values(result).some(n=>!Number.isFinite(n)))return null;return p;}catch{return null}}
+function validItem(value:unknown):value is Item {if(!value||typeof value!=='object')return false;const i=value as Item;return typeof i.id==='string'&&i.id.length<=120&&typeof i.name==='string'&&i.name.length<=120&&slots.includes(i.slot)&&['level','rarity','attack','hp','defense','upgrade'].every(k=>Number.isFinite(i[k as keyof Item])&&Number(i[k as keyof Item])>=0)&&Number.isInteger(i.rarity)&&i.rarity<=8&&i.level>=1&&(i.enhancementBase===undefined||typeof i.enhancementBase==='object'&&i.enhancementBase!==null&&!Array.isArray(i.enhancementBase)&&['attack','hp','defense'].every(k=>Number.isFinite(i.enhancementBase![k as keyof typeof i.enhancementBase])&&i.enhancementBase![k as keyof typeof i.enhancementBase]>=0))&&(i.masterwork===undefined||i.masterwork===true)&&(i.salvageGoldCap===undefined||Number.isSafeInteger(i.salvageGoldCap)&&i.salvageGoldCap>=0)&&(i.locked===undefined||typeof i.locked==='boolean')&&(i.origin===undefined||typeof i.origin==='string'&&i.origin.length<=160)&&(i.uniqueId===undefined||typeof i.uniqueId==='string'&&Object.hasOwn(uniques,i.uniqueId)&&uniques[i.uniqueId].slot===i.slot)&&(!i.percent||[i.percent.hp,i.percent.attack,i.percent.defense].every(n=>Number.isFinite(n)&&n>=0))&&[i.set,i.perk,i.engrave].every(v=>v===undefined||typeof v==='string'&&v.length<=24)}
+function lairReceipt(p:Player,id:string){
+ return p.lastBattleReward===id||p.claimed.includes('battle:'+id);
+}
+
+function migrateLairAttempt(p:Player){
+ if(p.lairAttempt===undefined&&isPaidLairAttempt(p.encounter))p.lairAttempt=p.encounter;
+ if(p.lairAttempt&&lairReceipt(p,p.lairAttempt.id)){
+  if(p.encounter?.id===p.lairAttempt.id&&!p.encounter.rewarded)delete p.encounter;
+  delete p.lairAttempt;
+ }
+}
+
+export function parseSave(raw:string|null,strictEncounter=false):Player|null {if(!raw)return null;try{const p=JSON.parse(raw) as Player;if(p.version!==1||p.progression!==undefined&&!validProgression(p.progression))return null;const nonnegative=['level','xp','gold','gems','chaosite','tokens','horn','hornAt','stage','wave','kills','bosses','forge','blessing','mission','savedAt','arenaWins','darkFloor','mineAt','relic'] as const;if(nonnegative.some(k=>!Number.isFinite(p[k])||p[k]<0)||p.level<1||!Number.isInteger(p.level)||p.stage<1||!Number.isInteger(p.stage)||!Number.isInteger(p.wave)||p.wave<1||p.wave>5||p.horn>hornConfig.maximum_charges)return null;if(!['berserker','ranger','runologist'].includes(p.heroClass))return null;for(const [key,len] of [['skills',3],['runes',3],['talents',3],['companions',2]] as const){if(!Array.isArray(p[key])||p[key].length!==len||p[key].some(n=>!Number.isInteger(n)||n<0))return null}if(p.skills.some(n=>n<1)||p.companions.some(n=>n<1)||p.runes.some(n=>n>2))return null;if(!Array.isArray(p.inventory)||p.inventory.length>balance.loot_test_settings.starter_inventory_capacity||!p.inventory.every(validItem)||!p.equipment||typeof p.equipment!=='object'||Array.isArray(p.equipment))return null;if(p.pendingLoot!==undefined&&!Array.isArray(p.pendingLoot))return null;const ids=new Set<string>();for(const [slot,item] of Object.entries(p.equipment)){if(!validItem(item)||item.slot!==slot||ids.has(item.id))return null;ids.add(item.id)}for(const items of [p.inventory,p.pendingLoot]){if(!items)continue;for(const i of items){if(!validItem(i)||ids.has(i.id))return null;ids.add(i.id)}}for(const key of ['claimed','bought'] as const){if(!Array.isArray(p[key])||p[key].some(v=>typeof v!=='string'))return null}if(!Array.isArray(p.seasonClaims)||p.seasonClaims.some(n=>!Number.isInteger(n)||n<1||n>10)||typeof p.daily!=='string'||typeof p.wingVisible!=='boolean'||typeof p.sound!=='boolean')return null;if(p.reducedMotion!==undefined&&typeof p.reducedMotion!=='boolean')return null;if(p.redDiamonds!==undefined&&(!Number.isSafeInteger(p.redDiamonds)||p.redDiamonds<0||p.redDiamonds>1_000_000_000))return null;if(p.shipyard!==undefined&&!validShipyard(p.shipyard))return null;if(p.lastBattleReward!==undefined&&(typeof p.lastBattleReward!=='string'||p.lastBattleReward.length>120))return null;if(p.preferences&&(typeof p.preferences.auto!=='boolean'||![1,2].includes(p.preferences.speed)||(p.preferences.stopOnDeath!==undefined&&typeof p.preferences.stopOnDeath!=='boolean')||(p.preferences.continueOnVictory!==undefined&&typeof p.preferences.continueOnVictory!=='boolean')||(p.preferences.autoSalvageWeaker!==undefined&&typeof p.preferences.autoSalvageWeaker!=='boolean')))return null;if(p.rewardOffer){const r=p.rewardOffer;if(typeof r.encounterId!=='string'||typeof r.itemId!=='string'||typeof r.resolved!=='boolean')return null;if(r.hammerGold!==undefined&&(!Number.isSafeInteger(r.hammerGold)||r.hammerGold<=0))delete r.hammerGold;if(r.bossReward!==undefined&&!validBossReward(r.bossReward))delete r.bossReward;if(!r.resolved&&!p.inventory.some(i=>i.id===r.itemId)&&!p.pendingLoot?.some(i=>i.id===r.itemId))delete p.rewardOffer;}if(p.encounter&&!validEncounter(p.encounter)){if(strictEncounter)return null;delete p.encounter;}if(p.world!==undefined)p.world=normalizeWorld(p.world);if(p.saga!==undefined)p.saga=normalizeSaga(p.saga);if(p.carnival!==undefined){const carnival=normalizeCarnival(p.carnival);if(carnival)p.carnival=carnival;else delete p.carnival;}if(p.volume!==undefined&&![1,2,3].includes(p.volume))delete p.volume;if(p.lairAttempt!==undefined&&(!validEncounter(p.lairAttempt)||!isPaidLairAttempt(p.lairAttempt)))return null;migrateLairAttempt(p);migrateRealm(p);migrateSquad(p);const result=stats(p);if(Object.values(result).some(n=>!Number.isFinite(n)))return null;return p;}catch{return null}}
 
 let recoveryRequired=false;
 let observedRaw:string|null=null;
@@ -86,7 +98,7 @@ export function grantHorn(p:Player,count:number,now=Date.now()){refill(p,now);p.
 export function rollItem(p:Player,forcedSlot?:Slot,setBase:number=dropRules.setChanceHorn){const r=Math.random()*100;let acc=0,rarity=0;for(const [i,x] of balance.loot_test_settings.rarities.entries()){acc+=x.weight_percent;if(r<acc){rarity=i;break}}rarity=Math.min(8,rarity+(Math.random()<rarityBoostChance(p.blessing)?1:0));const item=makeItem(forcedSlot??slots[Math.floor(Math.random()*slots.length)],forgeLevel(p),rarity);
  // Sets belong to regions: the hero finds pieces of the region he is fighting in (or has already freed).
  if(item.slot!=='wings'&&p.stage>1&&Math.random()<setChance(setBase,p.blessing)){const open=Math.min(5,regionIndex(p.stage)+legendLap(p.stage)*6);asSetItem(item,setOfRegion(setBase===dropRules.setChanceHorn?Math.floor(Math.random()*(open+1)):regionIndex(p.stage)))}
- return item}
+ return applyForgeMastery(item,p)}
 const inventoryCapacity=balance.loot_test_settings.starter_inventory_capacity;
 const protectedOrigin=/босс|трофей|награда|покупка|boss|trophy|reward|shop/i;
 export function salvageProtection(p:Player,item:Item):string|undefined{
@@ -168,12 +180,16 @@ interface Store {p:Player;panel:string|null;selected:string|null;back:string|nul
 // The flag expires before the next user interaction; it is never part of a player save.
 let activeNoticeId:number|undefined;
 /** The write did not happen: the state was already rolled back, so say so instead of «success». */
-const unsaved=(g:Store)=>g.notice(g.recoveryRequired?'Сохранение повреждено · откройте Меню → восстановление':'Не удалось сохранить · попробуйте ещё раз');
+const cloudLoadingNotice='Копия Telegram загружается · подождите несколько секунд';
+const unsaved=(g:Store)=>g.notice(cloudRestorePending?cloudLoadingNotice:g.recoveryRequired?'Сохранение повреждено · откройте Меню → восстановление':'Не удалось сохранить · попробуйте ещё раз');
 const loadedPlayer=read();refill(loadedPlayer);
+// A startup checkpoint would otherwise turn the placeholder hero into a local fork.
+let cloudRestorePending=!!telegramProfile&&observedRaw===null&&!recoveryRequired;
 let observedPlayer:Player|undefined;
 /** Check before starting an action that can produce loot. Already-earned rewards are always committed. */
 export function mayStartLoot(){
  const g=useGame.getState();
+ if(cloudRestorePending){g.notice(cloudLoadingNotice);return false}
  if(g.p!==observedPlayer){
   observeLootSave(JSON.stringify(g.p),true);
   observedPlayer=g.p;
@@ -185,7 +201,7 @@ export function mayStartLoot(){
 type Settings=Pick<Store,'auto'|'speed'|'stopOnDeath'|'continueOnVictory'|'autoSalvageWeaker'>;
 export const useGame=create<Store>((set,get)=>{
  const writable=()=>{
-  if(get().recoveryRequired)return false;
+  if(cloudRestorePending||get().recoveryRequired)return false;
   const ownsLock=realmSessionWritable();
   if(typeof window==='undefined'&&ownsLock)return true;
   try{
@@ -206,6 +222,13 @@ export const useGame=create<Store>((set,get)=>{
   const p={...draft,preferences:{auto,speed:speed as 1|2,stopOnDeath,continueOnVictory,autoSalvageWeaker},savedAt:now};
   const carnival=updateCarnival(get().p,p,carnivalNow(now));
   if(carnival)p.carnival=carnival;
+  // The current combat can change independently of the one paid Lair attempt.
+  const encounter=p.encounter;
+  if(isPaidLairAttempt(encounter)&&(!p.lairAttempt||p.lairAttempt.id===encounter.id)&&!lairReceipt(p,encounter.id)){
+   const {pendingMode:_,...attempt}=encounter;
+   p.lairAttempt=attempt;
+  }
+  if(p.lairAttempt&&lairReceipt(p,p.lairAttempt.id))delete p.lairAttempt;
   const run=realmRun(p);
   if(run&&p.encounter?.mode==='darkness'&&run.lastCombatId!==p.encounter.id){
    const saga=p.saga!;
@@ -477,6 +500,19 @@ const cloudReceiptKey=SAVE_KEY+':cloud-base';
 let checkingCloud=false;
 /** One warning per failure streak; cleared only by a confirmed upload. */
 let cloudWarned=false;
+
+export function finishInitialCloudRead(){cloudRestorePending=false}
+
+export function restoreInitialCloudProfile(raw:string,player:Player){
+ player.progression=migrateProgression(player);
+ localStorage.setItem(SAVE_KEY,raw);
+ observeLootSave(raw,true);
+ observedRaw=raw;observedPlayer=player;
+ acknowledgeCloud(raw);
+ const prefs=player.preferences;
+ useGame.setState({p:player,auto:prefs?.auto??true,speed:prefs?.speed??1,stopOnDeath:prefs?.stopOnDeath??true,continueOnVictory:prefs?.continueOnVictory??true,autoSalvageWeaker:prefs?.autoSalvageWeaker??false});
+ encounterRestore?.();
+}
 
 export function isKnownCloud(raw:string){return localStorage.getItem(cloudReceiptKey)===raw}
 

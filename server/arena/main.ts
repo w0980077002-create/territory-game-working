@@ -4,12 +4,12 @@ import {randomBytes} from 'node:crypto';
 import {createArenaServer} from './http';
 
 const local=process.env.ARENA_LOCAL==='1';
+const mode=process.env.ARENA_MODE??(local?'staging':undefined);
+if(mode!=='staging')throw new Error('Arena requires explicit staging mode');
 const host=local?'127.0.0.1':process.env.HOST??'0.0.0.0';
 const port=Number(process.env.PORT??8787);
 if(!Number.isInteger(port)||port<1||port>65535)throw new Error('Invalid Arena port');
 const allowedUsers=new Set((process.env.ARENA_TEST_USERS??'').split(',').map(value=>value.trim()).filter(Boolean));
-if(!local&&(allowedUsers.size<2||[...allowedUsers].some(id=>!/^\d{1,16}$/.test(id))))
- throw new Error('ARENA_TEST_USERS must contain at least two test Telegram user IDs');
 const dbPath=resolve(process.env.ARENA_DB??(local?'.tmp/arena/local.sqlite':'/data/arena.sqlite'));
 mkdirSync(dirname(dbPath),{recursive:true});
 const server=createArenaServer({

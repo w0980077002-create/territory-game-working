@@ -230,7 +230,7 @@
 .game .bottom>.central[aria-pressed="true"] .forged-axes-art {filter:drop-shadow(0 0 9px #f5c266aa) brightness(1.10)}
 .game .bottom>.central:active .forged-axes-art {transform:translateY(5px) scale(.96);filter:brightness(1.25)}
 /* Small utility controls should look crafted, without adding taps or changing sizes. */
-.game .currency>span {border:2px solid #463725;border-radius:7px;background:linear-gradient(160deg,#f8dc97,#a47a46 58%,#4c3826);box-shadow:inset 0 1px #ffebb4,0 2px 3px #0008;color:#fff0c2}
+.game .currency-face>span {border:2px solid #463725;border-radius:7px;background:linear-gradient(160deg,#f8dc97,#a47a46 58%,#4c3826);box-shadow:inset 0 1px #ffebb4,0 2px 3px #0008;color:#fff0c2}
 .game .chart {background:linear-gradient(135deg,#cfac6d,#2f3a3c 45%,#121b20 88%);border-color:#352b21;box-shadow:inset 0 0 0 2px #d6b37d,0 2px 4px #000a}
 .game .build-label {display:none}
 @media(prefers-reduced-motion:reduce) {.game .quick-buttons button,.game .bottom>button:not(.central),.game .bottom>button:not(.central) .icon {transition:none}}

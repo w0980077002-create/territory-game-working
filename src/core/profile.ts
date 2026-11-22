@@ -16,4 +16,5 @@ export const mailAcceptanceProfile=requested==='mail-acceptance';
 export const LEGACY_SAVE_KEY=arenaStaging?'lootborn-arena-staging-v1':'lootborn-codex-v1';
 export const telegramProfile=isolatedProfile||arenaStaging?undefined:telegramAccountId();
 export const SAVE_KEY=LEGACY_SAVE_KEY+(isolatedProfile?':test:'+requested:telegramProfile?':telegram:'+telegramProfile:'');
-export const saveLockProfile=isolatedProfile?requested:telegramProfile?'telegram:'+telegramProfile:'owner';
+const localLockProfile=isolatedProfile?requested:telegramProfile?'telegram:'+telegramProfile:'owner';
+export const saveLockProfile=arenaStaging?'arena-staging:'+localLockProfile:localLockProfile;

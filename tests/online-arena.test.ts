@@ -8,6 +8,8 @@ import {DatabaseSync} from 'node:sqlite';
 import {verifyTelegram,issueSession,readSession} from '../server/arena/auth';
 import {createArenaServer} from '../server/arena/http';
 import {ArenaService} from '../server/arena/service';
+import {soloArenaPreview} from '../src/arena/soloPreview';
+import {freshPlayer} from '../src/core/store';
 import {advance,applyCommand,compatible,newMatch,viewMatch,type Entrant} from '../server/arena/duel';
 import {CHAT_MS,ITEM_COOLDOWN_MS,MATCH_WAIT_MS,ROUND_MS,type ArenaCommand} from '../src/arena/protocol';
 
@@ -51,6 +53,32 @@ test('matchmaking uses the exact seven-level window along with rating and power 
  assert.equal(compatible(a,{...b,rating:1701}),false);
  assert.equal(compatible(a,{...a}),false);
  assert.equal(compatible({...a,level:40},{...b,level:40}),true);
+});
+
+test('Solo projection compares ordinary gear, an upgrade and legacy power without touching the save',()=>{
+ const player=freshPlayer();
+ const weapon={...player.equipment.weapon!,attack:12};
+ player.equipment.weapon=weapon;
+ const previous=structuredClone(player);
+ const ordinary=soloArenaPreview(player);
+ assert.deepEqual(player,previous);
+ assert.equal(ordinary.gear.length,7);
+ assert.equal(ordinary.gear[0].contribution,3);
+ assert.equal(ordinary.hero,'berserker');
+ const upgraded=soloArenaPreview({...player,heroClass:'ranger',skills:[5,2,1],equipment:{...player.equipment,weapon:{...weapon,attack:20,upgrade:1}}});
+ assert.equal(upgraded.gear[0].contribution,5);
+ assert.ok(upgraded.attack>ordinary.attack);
+ assert.equal(upgraded.hero,'ranger');
+ assert.deepEqual(upgraded.skillLevels,[5,2,1]);
+ const legacy=soloArenaPreview({...player,equipment:{...player.equipment,weapon:{...weapon,attack:1e100,upgrade:9000}}});
+ assert.equal(legacy.gear[0].contribution,8);
+ assert.equal(legacy.attack,250);
+ assert.ok(legacy.gear.every(item=>item.contribution>=0&&item.contribution<=item.cap));
+});
+
+test('Arena server without a test allowlist only runs in local mode',()=>{
+ assert.throws(()=>createArenaServer({dbPath:':memory:',botToken,sessionKey}),/allowlisted test accounts/);
+ assert.throws(()=>createArenaServer({dbPath:':memory:',botToken,sessionKey,allowedUsers:new Set(['1'])}),/allowlisted test accounts/);
 });
 
 test('20 seconds is the queue window, the bot is explicit, and a duel round lasts 60 seconds',()=>{
@@ -142,11 +170,18 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
    return (path:string,data?:Record<string,unknown>,newTab=tab)=>request(path,data,token,newTab);
   };
   const one=await actor(1),two=await actor(2),stranger=await actor(3);
-  assert.equal((await one('join',{hero:'ranger',kit:'offensive',level:10})).status,400);
+  const forged={hero:'ranger',kit:'offensive',level:9999,cp:1e40,
+  equipment:{weapon:{attack:1e30,upgrade:9999}},revision:12,stats:{hp:1e40}};
+ assert.equal((await one('join',forged)).status,400);
+ assert.equal((await one('join',{...forged,revision:1})).status,400);
+ assert.equal((await one('state')).data.queued,undefined);
+ assert.equal((await one('state')).data.level,1);
   assert.ok((await one('join',{hero:'ranger',kit:'offensive'})).data.queued);
   const opening=(await two('join',{hero:'berserker',kit:'balanced'})).data.match;
   const id=opening.id;
   assert.equal(opening.bot,false);
+ assert.equal(opening.opponent.level,1);
+ assert.deepEqual(opening.opponent.gear,[8,0,8,2,4,2,6]);
   assert.equal(opening.opponent.name,'Герой 1');
   assert.equal((await one('state')).data.match.opponent.name,'Герой 2');
   assert.equal((await stranger('room?match='+id)).status,404);
@@ -204,7 +239,11 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
   assert.equal((await two('chat',{match:id,text:'Поздно'})).status,404);
   assert.equal((await restored('state')).data.points,1);
   const db=new DatabaseSync(dbPath);
-  try{assert.equal(db.prepare('SELECT count(*) AS count FROM settlements').get()?.count,1)}
+  try{
+  assert.equal(db.prepare('SELECT count(*) AS count FROM settlements').get()?.count,1);
+  db.prepare('UPDATE profiles SET wins=100 WHERE id=1').run();
+  assert.equal((await restored('state')).data.level,1,'training wins never raise fighter power');
+ }
   finally{db.close()}
  }finally{
   if(server.listening)await close();

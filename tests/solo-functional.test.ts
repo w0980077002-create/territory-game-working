@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {installHeadless} from '../scripts/sim/bot';
 import {freshPlayer,parseSave,useGame,raidLair} from '../src/core/store';
 import {stats} from '../src/core/formulas';
-import {Battle} from '../src/game/Battle';
+import {Battle,mountBattle,battle} from '../src/game/Battle';
+import {realmStart} from '../src/dark/actions';
 import {miniIds} from '../src/data/catalog';
 import {companionIds,companions,followerId,squadBox,squadState,followerStarCap,addRes,resCount,addDusk,duskCount} from '../src/dark/rules';
 import {advanceAwakening,buyFollower,exchangeAwakeningShards,exchangeFollowerShards,exchangeSeal,followerMarket,followerMerge,grantFollower,mergeFollower,offerOdds,refreshFollowers,rollOffers} from '../src/dark/followerMarket';
@@ -230,4 +231,118 @@ test('lair entry and revive persist the same chosen boss and attempt, raid canno
   assert.equal(count(live(),'lair:raid'),1);
   assert.equal(live().encounter?.id,id);
  } finally {b.destroy()}
+});
+
+test('paid Lair survives all supported mode changes and an older save migrates once',()=>{
+ reset();
+ mutate(p=>{p.stage=3;p.chaosite=45;selectLair(p,miniIds[2])});
+ const b=new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement);
+ try{
+  b.startMode('dungeon',true);b.toggle();b.toggle();
+  b.phase='fight';b.hp-=17;b.units[0].hp-=11;b.cooldowns[0]=3;b.timer=41;
+  assert.ok(b.pause());
+  const expected=live().lairAttempt!;
+  assert.equal(live().chaosite,40);
+  const legacy=structuredClone(live());delete legacy.lairAttempt;delete legacy.encounter!.entryPaid;
+  assert.equal(parseSave(JSON.stringify(legacy),true)?.lairAttempt?.id,expected.id);
+  assert.equal(parseSave(JSON.stringify({...legacy,lairAttempt:{id:expected.id}}),true),null);
+  for(const mode of ['campaign','farm','arena']){
+   b.startMode(mode);b.toggle();assert.equal(b.mode,mode);
+   if(mode==='campaign')mutate(p=>{p.stage++;p.wave=2});
+   assert.deepEqual(live().lairAttempt,expected);
+  }
+  assert.ok(game().importSave(parseSave(JSON.stringify(live()),true)!));
+  assert.ok(b.resumeLair(expected.id));
+  b.pause();
+  assert.deepEqual(live().lairAttempt,expected);
+  assert.equal(live().chaosite,40);
+  assert.ok(b.abandonLair(expected.id));
+  assert.equal(b.abandonLair(expected.id),false);
+  assert.equal(b.resumeLair(expected.id),false);
+  assert.equal(live().chaosite,40);
+  b.startMode('dungeon',true);b.toggle();b.toggle();
+  assert.equal(live().chaosite,35);
+  assert.notEqual(live().lairAttempt?.id,expected.id);
+ }finally{b.destroy()}
+});
+
+test('failed Lair writes preserve charges, defeat and revive limits; the victory clears the checkpoint once',()=>{
+ reset();
+ mutate(p=>{p.stage=3;p.chaosite=4;p.gold=800;selectLair(p,miniIds[0])});
+ const b=new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement);
+ const write=localStorage.setItem;
+ try{
+  b.startMode('dungeon',true);b.toggle();
+  assert.equal(live().chaosite,4);
+  assert.equal(live().lairAttempt,undefined);
+  mutate(p=>{p.chaosite=20});
+  localStorage.setItem=()=>{throw Error('quota')};
+  b.toggle();
+  assert.equal(live().chaosite,20);
+  assert.equal(live().lairAttempt,undefined);
+  localStorage.setItem=write;
+  b.startMode('dungeon',true);b.toggle();
+  const id=b.id;
+  assert.equal(live().chaosite,15);
+  b.hp=0;b.defeat();b.toggle();
+  assert.equal(b.mode,'dungeon');
+  assert.equal(b.phase,'defeat');
+  assert.equal(game().panel,'lair');
+  assert.equal(live().lairAttempt?.id,id);
+  assert.ok(b.resumeLair(id));
+  assert.equal(b.phase,'defeat');
+  localStorage.setItem=()=>{throw Error('quota')};
+  assert.equal(b.reviveLair(id,0),false);
+  assert.equal(b.abandonLair(id),false);
+  assert.equal(live().gold,800);
+  assert.equal(b.lairRevives,0);
+  localStorage.setItem=write;
+  mutate(p=>{p.gold=0});
+  assert.equal(b.reviveLair(id,0),false);
+  mutate(p=>{p.gold=800});
+  for(let i=0;i<2;i++){
+   assert.ok(b.reviveLair(id,i));
+   b.hp=0;b.defeat();
+   assert.equal(live().lairAttempt?.lairRevives,i+1);
+  }
+  assert.equal(b.reviveLair(id,2),false);
+  assert.equal(live().gold,800-2*lairReviveCost(3));
+  // Force the existing victory path after the final enemy falls to test a failed receipt write.
+  b.phase='fight';b.hp=1;b.units[0].hp=0;
+  localStorage.setItem=()=>{throw Error('quota')};
+  b.victory();
+  assert.equal(live().lairAttempt?.id,id);
+  assert.equal(live().lastBattleReward,undefined);
+  localStorage.setItem=write;
+  b.victory();
+  assert.equal(live().lairAttempt,undefined);
+  assert.equal(live().lastBattleReward,id);
+  const gold=live().gold;
+  assert.equal(game().win('dungeon',id,b.snapshot()),false);
+  assert.equal(live().gold,gold);
+  assert.equal(parseSave(JSON.stringify(live()),true)?.lairAttempt,undefined);
+ }finally{localStorage.setItem=write;b.destroy()}
+});
+
+
+test('starting the Dark Realm checkpoints the paid Lair before switching the engine',()=>{
+ reset();
+ const stop=mountBattle({getContext:()=>({})} as unknown as HTMLCanvasElement);
+ try{
+  mutate(p=>{p.chaosite=45;selectLair(p,miniIds[0])});
+  const b=battle!;
+  b.startMode('dungeon',true);b.toggle();
+  b.phase='fight';b.hp-=13;
+  assert.ok(b.pause());
+  const paid=live().lairAttempt!;
+  assert.ok(realmStart(1,'ward'));
+  assert.equal(b.mode,'darkness');
+  assert.deepEqual(live().lairAttempt,paid);
+  assert.equal(live().chaosite,35);
+  assert.ok(b.resumeLair(paid.id));
+  assert.equal(b.mode,'dungeon');
+  assert.equal(b.id,paid.id);
+  assert.equal(b.hp,paid.hp);
+  assert.equal(live().chaosite,35);
+ }finally{stop()}
 });

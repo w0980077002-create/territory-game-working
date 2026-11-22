@@ -1,5 +1,5 @@
 import balance from '../../config/test-balance.v1.json';
-import type {Player} from '../core/types';
+import type {EncounterSnapshot,Player} from '../core/types';
 import {miniIds} from '../data/catalog';
 import {bumpCount,count,peekBox,sagaOf} from './save';
 import {utcDay} from './soloEconomy';
@@ -9,6 +9,11 @@ export const lairRules={
  keeperSpawns:[1,2,3],
  raidReward:{gold:150,gems:5,xp:50,res:{shard:2}},
 } as const;
+export function isPaidLairAttempt(s:EncounterSnapshot|undefined):s is EncounterSnapshot{
+ return !!s&&s.mode==='dungeon'&&s.entryPaid!==false&&!s.rewarded&&
+  (s.phase==='walk'||s.phase==='fight'||s.phase==='defeat')&&miniIds.includes(s.units[0]?.id);
+}
+
 export function lairKeeper(p:Player){
  const selected=peekBox<{id:string}>(p,'lair')?.id;
  return selected&&miniIds.includes(selected)?selected:miniIds[(p.stage-1)%miniIds.length];

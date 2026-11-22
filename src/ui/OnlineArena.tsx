@@ -1,6 +1,8 @@
 import {useEffect,useRef,useState} from 'react';
 import {classNames,heroArt,art,skillData,slotNames} from '../data/catalog';
 import {tg} from '../core/telegram';
+import type {Player} from '../core/types';
+import {gearBonusLabels,soloArenaPreview} from '../arena/soloPreview';
 import {
  arenaElixirs,arenaKits,arenaSkills,gearSlots,zones,MATCH_WAIT_MS,
  type ArenaCommand,type ArenaElixir,type ArenaFighter,type ArenaHero,type ArenaKit,
@@ -99,14 +101,31 @@ function RoundControls({match,now,pending,act}:{match:ArenaMatchView;now:number;
 }
 
 function Gear({match}:{match:ArenaMatchView}){
- return <details className="online-details"><summary>Экипировка · 7 ячеек</summary>
+ return <details className="online-details"><summary>Тренировочная экипировка · 7 ячеек</summary>
   <div className="online-gear">
    <span></span><strong>Вы</strong><strong>Соперник</strong>
    {gearSlots.map((id,i)=><div className="online-gear-row" key={id}>
-    <span><Icon name={id}/> {slotNames[id]} <small>· {['атака','защита','HP','защита','HP','крит, п.п.','HP'][i]}</small></span>
+    <span><Icon name={id}/> {slotNames[id]} <small>· {gearBonusLabels[i]}</small></span>
     <span>+{match.you.gear[i]}</span><span>+{match.opponent.gear[i]}</span>
    </div>)}
   </div>
+ </details>;
+}
+
+function SoloPreview({player}:{player:Player}){
+ const preview=soloArenaPreview(player);
+ return <details className="online-details"><summary>Предпросмотр героя Solo</summary>
+  <p>Расчёт по локальной копии героя на этом устройстве. Он не влияет на сетевой бой.</p>
+  <p>{classNames[preview.hero]} · ур. {preview.level}</p>
+  <p>Нормализованные показатели · HP {preview.hp} · атака {preview.attack} · защита {preview.defense} · крит {preview.crit}%</p>
+  <ul>
+   {preview.skillLevels.map((level,index)=><li key={skillData[index].name}>{skillData[index].name} · ур. {level}</li>)}
+  </ul>
+  <ul aria-label="Предпросмотр вклада 7 предметов">
+   {preview.gear.map(({slot,contribution,cap},index)=><li key={slot}>
+    {slotNames[slot]} · {gearBonusLabels[index]} · {contribution} из {cap}
+   </li>)}
+  </ul>
  </details>;
 }
 
@@ -145,9 +164,9 @@ function RoomMessages({match,now,pending,send}:{match:ArenaMatchView;now:number;
  </div>;
 }
 
-export function OnlineArena(){
+export function OnlineArena({player}:{player:Player}){
  const [active,setActive]=useState(false),[view,setView]=useState<ArenaView>(),[token,setToken]=useState(savedSession);
- const [hero,setHero]=useState<ArenaHero>('berserker'),[kit,setKit]=useState<ArenaKit>('balanced');
+ const [hero,setHero]=useState<ArenaHero>(player.heroClass),[kit,setKit]=useState<ArenaKit>('balanced');
  const [message,setMessage]=useState(''),[pending,setPending]=useState(false);
  const [previous,setPrevious]=useState<ArenaMatchView>();
  const [leaving,setLeaving]=useState(false);
@@ -215,15 +234,17 @@ export function OnlineArena(){
  const shown=previous??match;
  return <section className="online-arena" aria-label="Сетевая Арена 1×1">
   <div className="online-heading"><Icon name="arena"/><strong>Сетевая Арена 1×1</strong></div>
-  {view&&<small>Уровень Арены {view.level} · тестовые очки {view.points}</small>}
+  <p>Тренировочные поединки · без рейтинга и наград Solo</p>
+  {view&&<small>Тренировочный уровень {view.level} · тестовые очки {view.points}</small>}
+  {!queued&&!live&&<SoloPreview player={player}/>}
   {message&&<p role="status" className="online-status">{message}</p>}
   {!token&&<button className="action" disabled={pending} onClick={login}>Войти через Telegram</button>}
   {token&&!view&&!message&&<p role="status">Подключение к Арене…</p>}
   {view&&!queued&&!live&&<>
-   <label className="online-class">Герой <select value={hero} onChange={e=>setHero(e.target.value as ArenaHero)}>
+   <label className="online-class">Класс бойца <select value={hero} onChange={e=>setHero(e.target.value as ArenaHero)}>
     {Object.entries(classNames).map(([id,name])=><option value={id} key={id}>{name}</option>)}
    </select></label>
-   <label className="online-class">Комплект <select value={kit} onChange={e=>setKit(e.target.value as ArenaKit)}>
+   <label className="online-class">Тренировочный комплект <select value={kit} onChange={e=>setKit(e.target.value as ArenaKit)}>
     {Object.entries(arenaKits).map(([id,data])=><option value={id} key={id}>{data.label} · +{data.weapon} атака / +{data.armor} защита</option>)}
    </select></label>
    <button className="action" disabled={pending} onClick={()=>{setPrevious(undefined);void command('join',{hero,kit})}}>Найти соперника</button>

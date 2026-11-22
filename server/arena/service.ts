@@ -13,8 +13,8 @@ type Profile={id:string;name:string;points:number;wins:number};
 type Actor={id:string;controller:string};
 export const QUEUE_IDLE_MS=12_000;
 const MAX_ACTIVE=128;
-const level=(wins:number)=>Math.min(50,1+Math.floor(wins/3));
-const rating=(wins:number)=>1000+wins*25;
+const trainingLevel=1;
+const trainingRating=1000;
 const blockedChat=/(https?:\/\/|www\.|t\.me|telegram\.me|startapp\s*=|ref_[a-f\d]{14})/iu;
 
 export class ArenaService {
@@ -115,7 +115,7 @@ export class ArenaService {
   const match=this.current(state,actor.id);
   const past=this.current(state,actor.id,queued?undefined:match?.id,true);
   return {
-   now,level:level(profile.wins),points:profile.points,
+   now,level:trainingLevel,points:profile.points,
    queued:queued?{since:queued.since,control:queued.controller===actor.controller}:undefined,
    match:match&&!queued?viewMatch(match,actor.id,actor.controller,now):undefined,
    lastResult:past?.result?{id:past.id,chatDeadline:past.result.finishedAt+CHAT_MS}:undefined,
@@ -137,7 +137,7 @@ export class ArenaService {
    const match=this.current(state,actor.id);
    if(match&&!match.result||state.queue.some(player=>player.id===actor.id))return this.view(state,actor,now);
    const profile=this.profile(actor.id);
-   const entry={id:actor.id,name:profile.name,level:level(profile.wins),rating:rating(profile.wins),hero,kit,
+   const entry={id:actor.id,name:profile.name,level:trainingLevel,rating:trainingRating,hero,kit,
     controller:actor.controller,since:now,seenAt:now};
    if(state.queue.length>=MAX_ACTIVE)throw new ArenaError(503,'Очередь заполнена. Повторите позже.');
    state.queue.push(entry);

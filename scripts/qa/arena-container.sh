@@ -13,6 +13,7 @@ trap cleanup EXIT
 
 start() {
   container=$(docker run --detach --network none --mount "type=volume,source=$volume,target=/data" \
+    --env ARENA_MODE=staging \
     --env ARENA_BOT_TOKEN=container-test-bot \
     --env ARENA_SESSION_SECRET=container-test-secret-at-least-32-chars \
     --env ARENA_TEST_USERS=1101,1102 "$image")

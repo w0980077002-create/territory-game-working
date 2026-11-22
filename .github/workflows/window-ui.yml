@@ -6,9 +6,9 @@ on:
 permissions:
   contents: read
 jobs:
-  windows:
+  arena:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Verify Arena image from a clean checkout
@@ -18,20 +18,35 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify online Arena on four mobile sizes
+        run: |
+          node --import tsx scripts/qa/fixtures.ts
+          npm run arena:build
+          node scripts/qa/online-arena.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolated-arena-build
+          path: |
+            .tmp/arena/
+            .tmp/window-qa/online-arena/
+          include-hidden-files: true
+          if-no-files-found: error
+  windows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
       - run: npm run lint
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - name: Verify online Arena on four mobile sizes
-        run: |
-          npm run arena:build
-          node scripts/qa/online-arena.cjs
-      - uses: actions/upload-artifact@v4
-        with:
-          name: isolated-arena-build
-          path: .tmp/arena/
-          include-hidden-files: true
-          if-no-files-found: error
       - name: Start isolated local game
         run: |
           npm run dev > /tmp/vite.log 2>&1 &
@@ -41,11 +56,21 @@ jobs:
           done
           cat /tmp/vite.log
           exit 1
+      - name: Verify campaign finale, trophy and one-time acknowledgment
+        run: |
+          node --import tsx scripts/qa/fixtures.ts
+          BASE_URL=http://localhost:5173/ node scripts/qa/story-finale.cjs
       - run: npm run test:windows
       - name: Verify rewards, shop and subpanels on mobile
         run: |
           node --import tsx scripts/qa/fixtures.ts
           BASE_URL=http://localhost:5173/ node scripts/qa/ui-subpanels.cjs
+      - name: Verify mobile HUD hit zones and routes
+        run: BASE_URL=http://localhost:5173/ OUT=.tmp/window-qa/button-routes node scripts/qa/button-routes.cjs
+      - name: Verify paid Lair survives defeat and mode changes
+        run: BASE_URL=http://localhost:5173/ node scripts/qa/paid-lair.cjs
+      - name: Verify Dark Realm portal taps resume after reload
+        run: BASE_URL=http://localhost:5173/ node scripts/qa/realm-portal-resume.cjs
       - name: Verify transactional healing, chapter rewards and Blessing
         run: BASE_URL=http://localhost:5173/ node scripts/qa/solo-stability.cjs
       - name: Verify economy progression and Hammer receipts

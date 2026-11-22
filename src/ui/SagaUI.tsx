@@ -8,6 +8,9 @@ import {Icon,gearIcon} from './Icon';
 import {sound,unlockAudio} from '../game/Sound';
 import {RewardNotice} from './RewardArt';
 
+/** Shorter than a deliberate second tap, longer than a double tap. */
+export const TAP_GUARD_MS=350;
+
 export type Material='chest'|'forge'|'rune'|'sea'|'roman'|'moon'|'gold';
 const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',mail:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',realm:'rune',darkgear:'moon',gems:'chest',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',honor:'gold',companions:'moon',shop:'chest',rewards:'gold',events:'gold',carnival:'gold',collection:'moon'};
 const panelIcons:Record<string,string>={
@@ -25,14 +28,14 @@ function panelIcon(panel:string,kind:Material){return panelIcons[panel]??materia
 
 export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel,dismissible=true}:{panel:string;title:string;children:React.ReactNode;footer:React.ReactNode;rarity?:number;onBack?:()=>void;backLabel?:string;dismissible?:boolean}){
  const toast=useGame(s=>s.toast),toastReward=useGame(s=>s.toastReward),storageError=useGame(s=>s.storageError),close=useGame(s=>s.open),reduced=useGame(s=>s.p.reducedMotion);
- const scrollPositions=useRef(new Map<string,number>());
+ const scrollPositions=useRef(new Map<string,number>()),openedAt=useRef(0);
  const kind=panelMaterial(panel),ref=useRef<HTMLElement>(null),body=useRef<HTMLDivElement>(null);
  useLayoutEffect(()=>{
   const previous=document.activeElement as HTMLElement|null,background=document.querySelector<HTMLElement>('.viewport');
   if(background)background.inert=true;
   return()=>{if(background)background.inert=false;previous?.focus({preventScroll:true})};
  },[]);
- useLayoutEffect(()=>{ref.current?.focus({preventScroll:true});if(body.current)body.current.scrollTop=scrollPositions.current.get(panel)??0},[panel]);
+ useLayoutEffect(()=>{openedAt.current=performance.now();ref.current?.focus({preventScroll:true});if(body.current)body.current.scrollTop=scrollPositions.current.get(panel)??0},[panel]);
  const realmBack=panel==='realm'?onBack:undefined;
  const dismiss=()=>{if(realmBack)realmBack();else close(panel==='carnival'?'events':null)};
  const keyDown=(e:React.KeyboardEvent)=>{
@@ -47,7 +50,12 @@ export function DialogShell({panel,title,children,footer,rarity,onBack,backLabel
  };
  const harborBack=['shipyard','forge','blessing','talents','darkgear','gems','relic','companions'].includes(panel);
  const workspace=['realm','darkgear','companions','relic','port'].includes(panel);
- return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClick={e=>{if(dismissible&&e.target===e.currentTarget)dismiss()}} onKeyDown={keyDown}>
+ return createPortal(<div className="modal-shade saga-shade" data-motion={reduced?'reduced':undefined} onClickCapture={e=>{
+  // A second tap on the objective can land on «Продолжить поход» in the new portal.
+  if(panel==='realm'&&e.detail>1&&performance.now()-openedAt.current<TAP_GUARD_MS){
+   e.preventDefault();e.stopPropagation();
+  }
+ }} onClick={e=>{if(dismissible&&e.target===e.currentTarget)dismiss()}} onKeyDown={keyDown}>
   <section ref={ref} tabIndex={-1} className={`saga-modal material-${kind}`} data-panel={panel} data-layout={workspace?'workspace':undefined} role="dialog" aria-modal="true" aria-label={title} style={rarity===undefined?undefined:{'--rarity':rarityColors[rarity]} as React.CSSProperties}>
    <header className="modal-header">{(onBack||harborBack)?<button className="harbor-back" aria-label={backLabel??'‹ В гавань'} title={backLabel??'В гавань'} onClick={onBack??(()=>close('port'))}>‹</button>:<div className="header-seal"><Icon name={panelIcon(panel,kind)}/></div>}<div><small>VIKING VS ROME <span>·</span> LOOTBORN SAGA</small><h2>{title}</h2></div>{dismissible&&!realmBack&&<button className="close" onClick={dismiss} aria-label="Закрыть">×</button>}</header>
    <div className="dialog-status">{storageError&&<div className="dialog-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{toast&&<div className="dialog-notice" role="status"><RewardNotice message={toast} reward={toastReward}/></div>}</div>
