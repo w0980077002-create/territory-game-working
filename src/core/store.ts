@@ -180,12 +180,16 @@ interface Store {p:Player;panel:string|null;selected:string|null;back:string|nul
 // The flag expires before the next user interaction; it is never part of a player save.
 let activeNoticeId:number|undefined;
 /** The write did not happen: the state was already rolled back, so say so instead of «success». */
-const unsaved=(g:Store)=>g.notice(g.recoveryRequired?'Сохранение повреждено · откройте Меню → восстановление':'Не удалось сохранить · попробуйте ещё раз');
+const cloudLoadingNotice='Копия Telegram загружается · подождите несколько секунд';
+const unsaved=(g:Store)=>g.notice(cloudRestorePending?cloudLoadingNotice:g.recoveryRequired?'Сохранение повреждено · откройте Меню → восстановление':'Не удалось сохранить · попробуйте ещё раз');
 const loadedPlayer=read();refill(loadedPlayer);
+// A startup checkpoint would otherwise turn the placeholder hero into a local fork.
+let cloudRestorePending=!!telegramProfile&&observedRaw===null&&!recoveryRequired;
 let observedPlayer:Player|undefined;
 /** Check before starting an action that can produce loot. Already-earned rewards are always committed. */
 export function mayStartLoot(){
  const g=useGame.getState();
+ if(cloudRestorePending){g.notice(cloudLoadingNotice);return false}
  if(g.p!==observedPlayer){
   observeLootSave(JSON.stringify(g.p),true);
   observedPlayer=g.p;
@@ -197,7 +201,7 @@ export function mayStartLoot(){
 type Settings=Pick<Store,'auto'|'speed'|'stopOnDeath'|'continueOnVictory'|'autoSalvageWeaker'>;
 export const useGame=create<Store>((set,get)=>{
  const writable=()=>{
-  if(get().recoveryRequired)return false;
+  if(cloudRestorePending||get().recoveryRequired)return false;
   const ownsLock=realmSessionWritable();
   if(typeof window==='undefined'&&ownsLock)return true;
   try{
@@ -496,6 +500,19 @@ const cloudReceiptKey=SAVE_KEY+':cloud-base';
 let checkingCloud=false;
 /** One warning per failure streak; cleared only by a confirmed upload. */
 let cloudWarned=false;
+
+export function finishInitialCloudRead(){cloudRestorePending=false}
+
+export function restoreInitialCloudProfile(raw:string,player:Player){
+ player.progression=migrateProgression(player);
+ localStorage.setItem(SAVE_KEY,raw);
+ observeLootSave(raw,true);
+ observedRaw=raw;observedPlayer=player;
+ acknowledgeCloud(raw);
+ const prefs=player.preferences;
+ useGame.setState({p:player,auto:prefs?.auto??true,speed:prefs?.speed??1,stopOnDeath:prefs?.stopOnDeath??true,continueOnVictory:prefs?.continueOnVictory??true,autoSalvageWeaker:prefs?.autoSalvageWeaker??false});
+ encounterRestore?.();
+}
 
 export function isKnownCloud(raw:string){return localStorage.getItem(cloudReceiptKey)===raw}
 

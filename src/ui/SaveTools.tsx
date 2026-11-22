@@ -124,6 +124,6 @@ export function SaveTools() {
       <button type="button" className="action" onClick={restore}>Восстановить этот прогресс</button>
       <button type="button" className="action secondary" onClick={()=>setCandidate(undefined)}>Отмена</button>
     </div>}
-    <p className="hint">Прогресс сохраняется автоматически. {isolatedProfile?'Дополнительный герой хранится локально.':telegramProfile?'Прогресс Telegram хранится отдельно. При расхождении копий выберите нужную вручную.':'Прогресс браузера хранится на этом устройстве.'} Для переноса используйте экспорт.</p>
+    <p className="hint">Прогресс сохраняется автоматически. {isolatedProfile?'Дополнительный герой хранится локально.':telegramProfile?'Прогресс Telegram хранится отдельно. Играйте на одном устройстве за раз. При расхождении копий выберите нужную вручную.':'Прогресс браузера хранится на этом устройстве.'} Для переноса используйте экспорт.</p>
   </DialogShell>;
 }
