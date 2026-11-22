@@ -1,3 +1,4 @@
+import {arenaStaging} from '../arena/staging';
 import {forgeLevel,forgeMasteryBonus} from '../core/forge';
 import {GameTabs} from './CompactGame';
 import {LairPanel} from './LairPanel';
@@ -6,7 +7,7 @@ import {DetailedStats,HeroTracks,WingGrowth} from './SoloProgress';
 import {SoloEvents} from './SoloEvents';
 import {RuneWorkshop} from './RuneWorkshop';
 import {useShallow} from 'zustand/react/shallow';
-import {useMemo} from 'react';
+import {lazy,Suspense,useMemo} from 'react';
 import {hornRefillDue} from '../core/store';
 import {CompactFilter} from './CompactFilter';
 import {Backpack} from './Backpack';
@@ -54,6 +55,7 @@ import {RewardArt,RewardNotice} from './RewardArt';
 import {PORTALS,portalColors} from '../dark/portals';
 import {realmRun,realmLast,floorName,portalConfig} from '../dark/realm';
 import {RealmPanel,DarkGearPanel,GemsPanel,RelicsPanel,SquadPanel,DarkHub,PowerSources} from './DarkPanels';
+const OnlineArena=arenaStaging?lazy(()=>import('./OnlineArena').then(module=>({default:module.OnlineArena}))):null;
 const INVITE_URL='https://t.me/VikingRomeGame';
 const currencyNames:Record<string,string>={gold:'Золото',gems:'Самоцветы',chaosite:'Хаосит',tokens:'Жетоны Арены',horn:'Заряды Рога Трофеев',ess:'Тёмная эссенция',shard:'Осколки реликвий',seal:'Печати призыва',dusk:'Камни Сумрака'};
 const sourceTitle=(kind:string)=>`Где получить · ${currencyNames[kind]??materials[kind]?.name??kind}`;
@@ -275,6 +277,7 @@ function ArenaPanel(){
  const {battle:duel,p}=useGame();
  const onArena=duel.mode==='arena',won=onArena&&duel.phase==='victory',lost=onArena&&duel.phase==='defeat';
  return <>
+  {OnlineArena&&<Suspense fallback={null}><OnlineArena player={p}/></Suspense>}
   <PanelIntro icon="arena" title={won?'Победа на Арене':lost?'Поражение на Арене':'Одиночный поединок'}>
    {won?'Получено: 100 золота, 10 жетонов Арены, 30 опыта.':lost?'Усильте героя или попробуйте снова.':'Соперником управляет игра. Победа приносит 100 золота, 10 жетонов Арены и 30 опыта.'}
   </PanelIntro>

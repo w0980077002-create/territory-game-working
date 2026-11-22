@@ -6,6 +6,33 @@ on:
 permissions:
   contents: read
 jobs:
+  arena:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Arena image from a clean checkout
+        run: bash scripts/qa/arena-container.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify online Arena on four mobile sizes
+        run: |
+          node --import tsx scripts/qa/fixtures.ts
+          npm run arena:build
+          node scripts/qa/online-arena.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolated-arena-build
+          path: |
+            .tmp/arena/
+            .tmp/window-qa/online-arena/
+          include-hidden-files: true
+          if-no-files-found: error
   windows:
     runs-on: ubuntu-latest
     timeout-minutes: 15

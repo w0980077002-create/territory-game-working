@@ -249,6 +249,18 @@ async function transferBetweenDevices(browser){
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   const tap = (name) => page.getByRole('button', { name, exact: true }).tap();
+  const saveDialog = page.getByRole('dialog', { name: 'Сохранение и восстановление', exact: true });
+  const preview = saveDialog.getByRole('heading', { name: 'Восстановить сохранение?', exact: true });
+  const openSavePreview = async name => {
+   // The menu button and the legacy-copy button can occupy the same screen point
+   // after navigation. Tap a different point so Chromium sends a separate gesture.
+   await saveDialog.getByRole('button', { name, exact: true }).tap({ position: { x: 24, y: 16 } });
+   await preview.waitFor();
+  };
+  const cancelSavePreview = async () => {
+   await saveDialog.getByRole('button', { name: 'Отмена', exact: true }).tap();
+   await preview.waitFor({ state: 'hidden' });
+  };
   const read = key => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
   const open = mini => page.goto(base + (mini ? '?miniapp=1' : ''));
   const waitForCloud = () => page.waitForFunction(() => window.mockCloud?.reads > 0);
@@ -301,10 +313,10 @@ async function transferBetweenDevices(browser){
   assert.equal((await read(telegramKey)).gold, local.gold, 'a newer cloud copy cannot replace local progress');
   await tap('Меню');
   await tap('Сохранение и восстановление');
-  await tap('Открыть прежнее сохранение на устройстве');
-  await tap('Отмена');
-  await tap('Открыть копию из Telegram');
-  await tap('Отмена');
+  await openSavePreview('Открыть прежнее сохранение на устройстве');
+  await cancelSavePreview();
+  await openSavePreview('Открыть копию из Telegram');
+  await cancelSavePreview();
   assert.equal((await read(telegramKey)).gold, local.gold, 'preview cancellation preserves the local copy');
   await checkpoint();
   assert.equal(await page.evaluate(() => window.mockCloud.writes), 0, 'a divergent cloud copy is protected from autosave');
@@ -313,7 +325,7 @@ async function transferBetweenDevices(browser){
   await waitForCloud();
   await tap('Меню');
   await tap('Сохранение и восстановление');
-  await tap('Открыть копию из Telegram');
+  await openSavePreview('Открыть копию из Telegram');
   await tap('Восстановить этот прогресс');
   assert.equal((await read(telegramKey)).gold, other.gold);
   assert.equal((await read(telegramKey + ':before-import')).gold, local.gold);
