@@ -22,8 +22,9 @@ const limitText = (offer: ShopOffer) => offer.limit === 'daily' ? 'Одна по
   : offer.limit === 'weekly' ? 'Одна покупка в неделю · с понедельника 00:00 UTC'
   : offer.limit === 'once' ? 'Одна покупка на героя' : 'Количество зависит от свободного места в Роге';
 
-export function TreasureShop({p, source, sources}: {
+export function TreasureShop({p, source, sources, onFreeSpace}: {
   p: Player;
+  onFreeSpace: () => void;
   source: (kind: string) => React.ReactNode;
   sources: (kind: string) => string;
 }) {
@@ -45,6 +46,9 @@ export function TreasureShop({p, source, sources}: {
     else purchase(offer);
   };
   const selectedStatus = selected && shopStatus(p, selected, now);
+  const confirmationStatus = confirmation && shopStatus(p, confirmation, now);
+  const packFull = category === 'equipment' && visible.some(offer => offer.equipment && shopStatus(p, offer, now) === 'Рюкзак полон');
+  const freeSpace = <button className="action secondary" onClick={onFreeSpace}>Освободить место</button>;
   return <div className="treasure-shop">
     <div className="shop-counter">
       <div className="shop-sign"><strong>Прилавок<br/>северного купца</strong><span>Новые товары в 00:00 UTC</span></div>
@@ -62,6 +66,7 @@ export function TreasureShop({p, source, sources}: {
       {categories.map(([id, label]) => <button key={id} type="button" aria-pressed={category === id}
         onClick={() => setCategory(id)}><Icon name={categoryIcons[id]}/><span>{label}</span></button>)}
     </div>
+    {packFull && <div className="capacity-help"><p className="hint">Рюкзак полон. Перед покупкой снаряжения разберите выбранную вещь в рюкзаке.</p>{freeSpace}</div>}
     <div className="shop-grid">
       {visible.map(offer => {
         const status = shopStatus(p, offer, now);
@@ -86,7 +91,7 @@ export function TreasureShop({p, source, sources}: {
       })}
     </div>
     {selected && !confirmation && !guide && <CardDialog title={selected.name} onClose={() => setDetails(undefined)}
-      actions={selectedStatus === 'Недостаточно средств'
+      actions={selectedStatus === 'Рюкзак полон' ? freeSpace : selectedStatus === 'Недостаточно средств'
         ? <button className="action secondary" onClick={() => setGuide(selected.currency)}>Где получить</button>
         : <button className="action" disabled={!!selectedStatus}
           onClick={() => requestPurchase(selected)}>{selectedStatus || `Купить · ${priceText(selected)}`}</button>}>
@@ -98,7 +103,10 @@ export function TreasureShop({p, source, sources}: {
       <p className="shop-price"><Icon name={shopCurrencies[selected.currency].icon}/>{priceText(selected)}</p>
     </CardDialog>}
     {confirmation && <CardDialog title="Подтвердить покупку" onClose={() => setConfirmation(undefined)}
-      actions={<button className="action" onClick={() => {if(purchase(confirmation)&&confirmation.equipment)setDetails(undefined);setConfirmation(undefined)}}>Подтвердить · {priceText(confirmation)}</button>}>
+      actions={confirmationStatus === 'Рюкзак полон' ? freeSpace :
+        <button className="action" disabled={!!confirmationStatus} onClick={() => {if(purchase(confirmation)&&confirmation.equipment)setDetails(undefined);setConfirmation(undefined)}}>
+          {confirmationStatus || `Подтвердить · ${priceText(confirmation)}`}
+        </button>}>
       {confirmation.equipment?<div className="row">
         <Icon name={gearIcon(confirmation.equipment.slot)}/>
         <p><strong>{slotNames[confirmation.equipment.slot]}</strong><br/>Обычный предмет · ур.{confirmation.equipment.level}</p>

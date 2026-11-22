@@ -90,7 +90,19 @@ export const regionIndex=(stage:number)=>Math.floor((Math.max(1,stage)-1)/STAGES
 export const regionOf=(stage:number)=>regions[regionIndex(stage)%regions.length];
 export const stageInRegion=(stage:number)=>(Math.max(1,stage)-1)%STAGES_PER_REGION+1;
 export const legendLap=(stage:number)=>Math.floor(regionIndex(stage)/regions.length);
-export const regionTitle=(stage:number)=>{const lap=legendLap(stage);return (lap?`Легенда ${'I'.repeat(Math.min(3,lap))}${lap>3?'+':''} · `:'')+regionOf(stage).name};
+const romanDigits=[[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']] as const;
+export function legendTitle(stage:number){
+ let lap=legendLap(stage);
+ if(!lap)return undefined;
+ if(lap>3999)return `Легенда ${lap}`;
+ let numeral='';
+ for(const [value,digit] of romanDigits){
+  numeral+=digit.repeat(Math.floor(lap/value));
+  lap%=value;
+ }
+ return `Легенда ${numeral}`;
+}
+export const regionTitle=(stage:number)=>[legendTitle(stage),regionOf(stage).name].filter(Boolean).join(' · ');
 /**
  * Threat multiplier of a stage relative to stage 1. Stages 1–60 come from a table calibrated by the
  * fixed ordinary builds (scripts/sim/fair-tune.ts); later «legend» stages continue the table's last slope.

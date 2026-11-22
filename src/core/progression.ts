@@ -57,3 +57,5 @@ export function glacierAttackBonus(p:Pick<Player,'relic'|'progression'>):number{
  // log1p of the ratio preserves the anchored contribution at the migration point.
  return anchor.bonus+6*Math.log1p((level-anchor.level)/(200+anchor.level-heartThreshold));
 }
+
+export const glacierUpgradeCost=(level:number)=>300*(level+1);
