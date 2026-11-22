@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {freshPlayer,makeItem,parseSave,SAVE_KEY,useGame,bestUpgrade} from '../src/core/store';
 import {blessingEffects,blessingCanImprove} from '../src/saga/gear';
 import {chapterReward} from '../src/saga/rewards';
-import {forgeLevel,nextForgeBonus,upgradePreview} from '../src/core/forge';
+import {forgeLevel,forgeBonus,nextForgeBonus,upgradePreview} from '../src/core/forge';
 import {xpNeeded,stats} from '../src/core/formulas';
 // First play hour outside the Dark Realm: victory → loot → backpack → equip → forge → quests → reload.
 const saved=new Map<string,string>();
@@ -138,21 +138,21 @@ test('legacy progression is anchored once, including reload and alternating olde
  const newer={...migrated,forge:1665,relic:450};
  assert.equal(G().importSave(newer),true);
  const restored=reload();
- assert.equal(forgeLevel(restored)-restored.level,535);
+ assert.equal(forgeBonus(restored.forge,restored.progression?.anchors.forge),535);
  assert.equal(Math.round(glacierAttackBonus(restored)*1000),12937);
  assert.ok(stats(restored).attack>before.attack);
 
  const newerLegacy={...newer};
  delete newerLegacy.progression;
  assert.equal(G().importSave(newerLegacy),true);
- assert.equal(forgeLevel(P())-P().level,535);
+ assert.equal(forgeBonus(P().forge,P().progression?.anchors.forge),535);
  assert.equal(Math.round(glacierAttackBonus(P())*1000),12937);
 
  assert.equal(G().importSave(freshPlayer()),true);
  assert.equal(G().importSave(old),true);
  assert.equal(G().importSave(newerLegacy),true);
  assert.deepEqual(P().progression,restored.progression);
- assert.equal(forgeLevel(P())-P().level,535);
+ assert.equal(forgeBonus(P().forge,P().progression?.anchors.forge),535);
  assert.equal(Math.round(glacierAttackBonus(P())*1000),12937);
 });
 
@@ -160,7 +160,8 @@ test('new progression agrees with the approved checkpoints and remains finite',(
  const p=freshPlayer();
  for(const [level,bonus] of [[299,99],[300,100],[301,100],[308,100],[309,101],[1575,241]]){
   p.forge=level;
-  assert.equal(forgeLevel(p)-p.level,bonus);
+  assert.equal(forgeBonus(p.forge,p.progression?.anchors.forge),bonus);
+   assert.equal(forgeLevel(p)-p.level,Math.min(5,bonus));
  }
  for(const [level,expected] of [[99,297],[100,300],[101,302.993],[200,543.279],[420,873.307],[450,906.961]]){
   p.relic=level;
