@@ -3,7 +3,7 @@ import {forgeBonus,nextForgeBonus} from './progression';
 import balance from '../../config/test-balance.v1.json';
 
 const MAX_FORGE_GEAR_LEAD=5;
-const ENHANCEMENT_STEP=0.04;
+const ENHANCEMENT_STEP=balance.gear_rpg_test.upgrade_stat_bonus_per_rank;
 const keys=['attack','hp','defense'] as const;
 const bonus=(p:Player)=>p.progression?forgeBonus(p.forge,p.progression.anchors.forge):forgeBonus(p.forge);
 
