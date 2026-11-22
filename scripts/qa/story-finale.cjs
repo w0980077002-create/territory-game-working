@@ -53,7 +53,15 @@ fs.mkdirSync(out,{recursive:true});
     assert.ok(!((await read()).saga?.flags??[]).includes('story:finale-seen'));
     await page.screenshot({path:out+'/'+width+'-ending.png'});
     await page.getByRole('button',{name:'К Легенде I',exact:true}).tap();
-    await page.getByRole('dialog',{name:'Сага Севера завершена'}).waitFor({state:'detached'});
+    await page.waitForTimeout(500);
+    const debug=await page.evaluate(()=>{
+     const g=window.__lootborn.useGame.getState();
+     return {flags:g.p.saga?.flags,panel:g.panel,storageError:g.storageError,
+      recoveryRequired:g.recoveryRequired,toast:g.toast,dialog:!!document.querySelector('.story-finale[open]'),
+      stored:localStorage.getItem('lootborn-codex-v1:test:story-finale-'+innerWidth)?.includes('story:finale-seen')};
+    });
+    console.log('FINALE_AFTER_CLICK',JSON.stringify({width,...debug}));
+    await page.getByRole('dialog',{name:'Сага Севера завершена'}).waitFor({state:'detached',timeout:2500});
     const acknowledged=await read();
     assert.ok((acknowledged.saga?.flags??[]).includes('story:finale-seen'));
     assert.equal((acknowledged.saga?.flags??[]).filter(x=>x==='story:finale-seen').length,1);
