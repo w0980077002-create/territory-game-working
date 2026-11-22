@@ -1,5 +1,4 @@
 import {forgeLevel,forgeMasteryBonus} from '../core/forge';
-import {migrateProgression} from '../core/progression';
 import {GameTabs} from './CompactGame';
 import {LairPanel} from './LairPanel';
 import {lairRules,lairReviveCost} from '../saga/lair';
@@ -16,7 +15,7 @@ import {AutobattleDialog} from './AutobattleDialog';
 import {InventoryGrid} from './InventoryGrid';
 import {ItemDetails,EffectComparison,UpgradePlan,BuildGuide,HuntGoals,StatDelta,QuickSwap} from './GearDetails';
 import {useEffect,useRef,useState} from 'react';
-import {useGame,compareItem,bestUpgrade,bestUpgrades,refill,backupCloud,acknowledgeCloud,isKnownCloud,parseSave,SAVE_KEY,hornPurchase,isolatedProfile,unreadableSave,requiresSalvageConfirmation,salvageRestriction,salvageYield,campaignBossReward,guaranteedBossTrophy} from '../core/store';
+import {useGame,compareItem,bestUpgrade,bestUpgrades,refill,backupCloud,acknowledgeCloud,finishInitialCloudRead,restoreInitialCloudProfile,isKnownCloud,parseSave,SAVE_KEY,hornPurchase,isolatedProfile,unreadableSave,requiresSalvageConfirmation,salvageRestriction,salvageYield,campaignBossReward,guaranteedBossTrophy} from '../core/store';
 import {SHIP_RULES,starterShipyard,previewShips,shipRate,shipCapacity,shipBuyCost,shipUpgradeCost} from '../core/shipyard';
 import {TreasureShop} from './TreasureShop';
 import {HarborScene} from './HarborScene';
@@ -171,12 +170,9 @@ export default function App(){
      battle?.pause();
      return;
     }
-    remote.progression=migrateProgression(remote);
-    localStorage.setItem(SAVE_KEY,result.raw);
-    acknowledgeCloud(result.raw);
-    useGame.setState({p:remote,auto:remote.preferences?.auto??true,speed:remote.preferences?.speed??1,stopOnDeath:remote.preferences?.stopOnDeath??true,continueOnVictory:remote.preferences?.continueOnVictory??true,autoSalvageWeaker:remote.preferences?.autoSalvageWeaker??false});
-    battle?.restorePlayer();
+    restoreInitialCloudProfile(result.raw,remote);
    }catch{useGame.getState().notice('Не удалось восстановить копию Telegram · попробуйте через меню')}
+   finally{finishInitialCloudRead()}
   });
   const stopViewport=observeTelegramViewport(()=>{const next=screenScale(viewport.current);if(next>0)setScale(next)});
   const stop=canvas.current?mountBattle(canvas.current):()=>{};

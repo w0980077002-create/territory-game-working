@@ -10,8 +10,8 @@ const base=process.env.BASE_URL||'http://localhost:5173/';
 const key='lootborn-codex-v1:telegram:1234567';
 const STORED=Number(process.env.STORED||1500);
 
-function bigSave(){
- const p=require('./ui-fixture.cjs')(60);
+function bigSave(stage=60){
+ const p=require('./ui-fixture.cjs')(stage);
  const proto=p.inventory.slice(0,12);
  p.pendingLoot=Array.from({length:STORED},(_,i)=>({...proto[i%proto.length],id:'qa-stored-'+i,upgrade:i%5,rarity:i%9,locked:i%11===0}));
  p.inventory[1]={...p.inventory[1],slot:'boots',perk:'boots',name:'Сапоги бурильщика',origin:'Трофей Логова · Старший бурильщик',locked:true};
@@ -20,7 +20,8 @@ function bigSave(){
 }
 const ids=p=>[...Object.values(p.equipment).filter(Boolean).map(i=>i.id),...p.inventory.map(i=>i.id),...(p.pendingLoot??[]).map(i=>i.id)];
 
-(async()=>{
+module.exports={bigSave};
+if(require.main===module)(async()=>{
  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':chromium.executablePath()),args:['--no-sandbox']});
  const report=[];
  try{
