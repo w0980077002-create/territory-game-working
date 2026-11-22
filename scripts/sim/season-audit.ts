@@ -11,17 +11,19 @@ import {useGame} from '../../src/core/store';
 import {realmRun,realmLast,blessingIds,REALM_COST} from '../../src/dark/realm';
 import {realmStart,chooseRealmPortal,collectRealmReward,darkUpgrade,darkEquip,relicUnlock,relicUpgrade,petLevel,gemSynthAll} from '../../src/dark/actions';
 import {darkState,duskCount,resCount,relicIds,companions} from '../../src/dark/rules';
-import {wingRank} from '../../src/saga/soloProgress';
+import {wingRank,growWings,heroTracks,trackClaimed,claimTrack} from '../../src/saga/soloProgress';
+import {soloAction} from '../../src/saga/soloAction';
 import type {HeroClass} from '../../src/core/types';
 
 const days=Number(process.argv[2]??350),minutes=Number(process.argv[3]??90),cls=(process.argv[4]??'berserker') as HeroClass,out=process.argv[5];
 const G=()=>useGame.getState();
 /** Share of the daily session a player spends in the Dark Realm (assumption, tweakable). */
 const REALM_SHARE=Number(process.env.REALM_SHARE??.3);
-const fp=()=>JSON.stringify(G().p);
+/** Cheap fingerprint of everything a spend action can change. */
+const fp=()=>{const p=G().p;return JSON.stringify([p.gold,p.gems,p.chaosite,p.level,p.xp,p.forge,p.blessing,p.relic,p.skills,p.companions,p.talents,p.inventory.length,Object.values(p.equipment).map(i=>i&&i.id+i.upgrade),p.horn,p.saga?.n,p.saga?.boxes])};
 const acts:Record<string,{tried:number;changed:number}>={};
 /** Runs an action and records whether it really changed the save. */
-function act(name:string,fn:()=>unknown){const before=fp();try{fn()}catch{/* counted as no change */}const a=acts[name]??={tried:0,changed:0};a.tried++;if(fp()!==before)a.changed++}
+function act(name:string,fn:()=>unknown){const full=()=>JSON.stringify(G().p),before=full();try{fn()}catch{/* counted as no change */}const a=acts[name]??={tried:0,changed:0};a.tried++;if(full()!==before)a.changed++}
 // Count the bot's own store calls as well.
 for(const key of ['train','upgrade','equip','salvage','hornLoot'] as const){const orig=G()[key] as (...a:unknown[])=>unknown;useGame.setState({[key]:(...a:unknown[])=>{const before=fp(),r=orig(...a);const n=`${key}${key==='train'?':'+a[0]:''}`,x=acts[n]??={tried:0,changed:0};x.tried++;if(fp()!==before)x.changed++;return r}} as never)}
 
@@ -39,6 +41,8 @@ function spendDark(){
  for(const id of relicIds){act('relic:unlock',()=>relicUnlock(id));act('relic:upgrade',()=>relicUpgrade(id))}
  for(const id of Object.keys(companions))if(G().p.gold>2000)act('pet:level',()=>petLevel(id));
  act('gem:synth',()=>gemSynthAll());
+ for(let i=0;i<10;i++)act('wings:grow',()=>soloAction(d=>growWings(d,wingRank(d))));
+ for(const t of heroTracks)t.targets.forEach((_,i)=>{if(!trackClaimed(G().p,t.id,i))act('track:claim',()=>soloAction(d=>claimTrack(d,t.id,i)))});
 }
 function record(){const p=G().p,s=darkState(p);log.push({day,stage:p.stage,level:p.level,gold:p.gold,forge:p.forge,blessing:p.blessing,relic:p.relic,wings:p.equipment.wings?wingRank(p):0,comp:p.companions.join('/'),skills:p.skills.join('/'),gearUp:Object.values(p.equipment).reduce((n,i)=>n+(i?.upgrade??0),0),floor:p.darkFloor,dusk:duskCount(p),duskGain:duskCount(p)-duskStart,ess:resCount(p,'ess'),chaosite:p.chaosite,realmRuns,darkUp:s.eq.reduce((n,i)=>n+(i?.u??0),0),deaths})}
 seedRandom(2026+cls.length);

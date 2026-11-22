@@ -28,7 +28,7 @@ export function manage(spend=.5,ordinary=false){
   const free=p.level-1-p.talents.reduce((a,b)=>a+b,0);if(free>0){G().train('talent',p.talents[0]<=p.talents[1]*1.5?0:1);continue}
   const slots=(Object.keys(p.equipment) as Slot[]).map(s=>({s,plan:upgradePreview(p.equipment[s]!)})).filter(v=>v.plan.cost<=budget*.6&&(!ordinary||p.equipment[v.s]!.upgrade<2+Math.floor(p.stage/12))).sort((a,b)=>a.plan.cost-b.plan.cost);
   if(slots[0]){G().upgrade(slots[0].s);done=true}
-  for(const [type,index,cost] of [['skill',0,120*p.skills[0]],['skill',1,120*p.skills[1]],['skill',2,120*p.skills[2]],['companion',0,120*p.companions[0]],['companion',1,120*p.companions[1]],['relic',0,300*(p.relic+1)],['forge',0,100*p.forge],['blessing',0,150*p.blessing]] as const)if((!ordinary||(type==='skill'?p.skills[index]:type==='companion'?p.companions[index]:type==='relic'?p.relic:type==='forge'?p.forge:p.blessing)<2+Math.floor(p.stage/8))&&cost<=G().p.gold*spend*.25){G().train(type,index);done=true}
+  for(const [type,index,cost] of [['skill',0,120*p.skills[0]],['skill',1,120*p.skills[1]],['skill',2,120*p.skills[2]],['companion',0,120*p.companions[0]],['companion',1,120*p.companions[1]],['relic',0,300*(p.relic+1)],['forge',0,100*p.forge],['blessing',0,150*p.blessing]] as const)if((!ordinary||(type==='skill'?p.skills[index]:type==='companion'?p.companions[index]:type==='relic'?p.relic:type==='forge'?p.forge:p.blessing)<2+Math.floor(p.stage/8))&&cost<=G().p.gold*spend*.25&&G().train(type,index))done=true;
   if(!done)break;
  }
  while(G().p.horn>0&&G().p.inventory.length<70){G().hornLoot();const id=G().selected;if(!id)break;const item=G().p.inventory.find(i=>i.id===id);if(item&&compareItem(item,G().p)>0)G().equip(id);else if(item)G().salvage(id,true);G().open(null)}
