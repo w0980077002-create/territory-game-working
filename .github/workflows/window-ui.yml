@@ -36,6 +36,8 @@ jobs:
           BASE_URL=http://localhost:5173/ node scripts/qa/ui-subpanels.cjs
       - name: Verify paid Lair survives defeat and mode changes
         run: BASE_URL=http://localhost:5173/ node scripts/qa/paid-lair.cjs
+      - name: Verify Dark Realm portal taps resume after reload
+        run: BASE_URL=http://localhost:5173/ node scripts/qa/realm-portal-resume.cjs
       - name: Verify transactional healing, chapter rewards and Blessing
         run: BASE_URL=http://localhost:5173/ node scripts/qa/solo-stability.cjs
       - name: Verify economy progression and Hammer receipts
