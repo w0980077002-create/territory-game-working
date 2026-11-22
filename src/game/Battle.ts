@@ -1,4 +1,4 @@
-import {lairRules,lairReviveCost} from '../saga/lair';
+import {isPaidLairAttempt,lairRules,lairReviveCost} from '../saga/lair';
 import {soloVictory} from '../saga/soloEconomy';
 import {carnivalNow} from '../core/profile';
 import {runeMultiplier} from '../saga/runes';
@@ -71,7 +71,7 @@ export class Battle implements TeamHost {
  destroy(){this.canvas.removeEventListener?.('pointerup',this.portalTap);this.checkpoint();this.stopped=true;this.unbind();cancelAnimationFrame(this.raf)}
  lairRevives=0;
  snapshot():EncounterSnapshot{const worldEvent=this.director.snapshot();return structuredClone({version:1,balanceRevision:BALANCE_REVISION,gearProcs:this.gear.entries,...(this.mode==='dungeon'?{lairRevives:this.lairRevives}:{}),followers:this.followers,...(worldEvent?{worldEvent}:{}),team:this.brain.snapshot(),...(this.pendingMode?{pendingMode:this.pendingMode}:{}),entryPaid:this.entryPaid,intro:this.intro,combatTime:this.combatTime,impactStop:this.impactStop,autoDecision:this.autoDecision,hazard:this.hazard,journey:this.journey,id:this.id,stage:this.stage,wave:this.wave,mode:this.mode,hp:this.hp,maxHp:this.maxHp,potionCd:this.potionCd,...(this.hammerKills?{hammerKills:this.hammerKills}:{}),heroX:this.heroX,phase:this.phase,units:this.units,cooldowns:this.cooldowns,timer:this.timer,delay:this.delay,clock:this.clock,autoCd:this.autoCd,compCd:this.compCd,buff:this.buff,shield:this.shield,burn:this.burn,burnTick:this.burnTick,stun:this.stun,boss:this.boss,heroAttack:this.heroAttack,heroHurt:this.heroHurt,heroPending:this.heroPending,projectiles:this.projectiles,pressure:this.pressure,defensePressure:this.defensePressure,poison:this.poison,poisonTick:this.poisonTick,slow:this.slow,rewarded:this.rewarded,...(this.curse?{curse:this.curse}:{}),...(Object.keys(this.perk).length?{perk:this.perk}:{})})}
- restorePlayer(){this.hammerKills=0;this.lairRevives=0;this.potionCd=0;this.gear.reset();this.followers=undefined;this.followerSavePending=false;this.gooseAttack=0;this.dogCast=0;this.reservePose=0;this.curse=0;this.perk={};this.hazardCycle=-1;this.hazardWarn=-1;this.worldEvent=undefined;this.team=undefined;this.comics.reset();this.running=false;this.pendingMode=undefined;this.entryPaid=false;this.intro=0;this.combatTime=0;this.impactStop=0;this.autoDecision=0;this.hazard={remaining:0,tick:0,damage:0};const p=useGame.getState().p,s=p.encounter;if(validEncounter(s)&&(s.mode==='darkness'&&!!realmRun(p)||(s.stage===p.stage&&s.wave===p.wave)||s.phase==='victory'&&s.id===p.lastBattleReward)){Object.assign(this,structuredClone(encounterData(rebaseEncounter(s,planFor({...p,stage:s.stage,wave:s.wave},s.mode,s.mode==='dungeon'?s.units[0]?.id:undefined)))));this.entryPaid=s.entryPaid??['dungeon','darkness'].includes(s.mode);this.journey=s.journey?structuredClone(s.journey):newJourney(s.stage,s.wave,s.phase!=='walk');this.heroX=projectX(this.journey.worldX,this.journey.cameraX);this.plan=planFor({...p,stage:s.stage},this.mode,this.mode==='dungeon'?s.units[0]?.id:undefined);this.placeEncounter(!s.journey);if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.running=false;this.fx=[];this.projectiles=this.projectiles.map(b=>({...b,encounterId:b.encounterId??this.id,targetId:b.targetId??this.units[b.target]?.id,targetRole:b.targetRole??this.units[b.target]?.role}));}else{this.journey=newJourney(p.stage,p.wave);this.mode='campaign';this.hp=stats(p).hp;this.maxHp=this.hp;this.spawn()}this.gear.entries=validEncounter(s)&&s.id===this.id?structuredClone(s.gearProcs??[]):[];this.gear.sync(p);this.tuneTeam();this.brain.restore(this.team);this.director.onRestore(this.worldEvent);this.worldEvent=undefined;this.team=undefined;if(this.mode==='darkness'){const run=realmRun(p),last=realmLast(p);if(run?.lastCombatId===s?.id&&!this.realmWaiting())this.spawn(false);if(!run&&last&&!last.ack){this.phase=last.win?'victory':'defeat';this.running=false;useGame.getState().open('realm')}}this.publish()}
+ restorePlayer(){this.hammerKills=0;this.lairRevives=0;this.potionCd=0;this.gear.reset();this.followers=undefined;this.followerSavePending=false;this.gooseAttack=0;this.dogCast=0;this.reservePose=0;this.curse=0;this.perk={};this.hazardCycle=-1;this.hazardWarn=-1;this.worldEvent=undefined;this.team=undefined;this.comics.reset();this.running=false;this.pendingMode=undefined;this.entryPaid=false;this.intro=0;this.combatTime=0;this.impactStop=0;this.autoDecision=0;this.hazard={remaining:0,tick:0,damage:0};const p=useGame.getState().p,s=p.encounter;if(validEncounter(s)&&(s.mode==='darkness'&&!!realmRun(p)||isPaidLairAttempt(s)&&s.id===p.lairAttempt?.id||(s.stage===p.stage&&s.wave===p.wave)||s.phase==='victory'&&s.id===p.lastBattleReward)){Object.assign(this,structuredClone(encounterData(rebaseEncounter(s,planFor({...p,stage:s.stage,wave:s.wave},s.mode,s.mode==='dungeon'?s.units[0]?.id:undefined)))));this.entryPaid=s.entryPaid??['dungeon','darkness'].includes(s.mode);this.journey=s.journey?structuredClone(s.journey):newJourney(s.stage,s.wave,s.phase!=='walk');this.heroX=projectX(this.journey.worldX,this.journey.cameraX);this.plan=planFor({...p,stage:s.stage},this.mode,this.mode==='dungeon'?s.units[0]?.id:undefined);this.placeEncounter(!s.journey);if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.running=false;this.fx=[];this.projectiles=this.projectiles.map(b=>({...b,encounterId:b.encounterId??this.id,targetId:b.targetId??this.units[b.target]?.id,targetRole:b.targetRole??this.units[b.target]?.role}));}else{this.journey=newJourney(p.stage,p.wave);this.mode='campaign';this.hp=stats(p).hp;this.maxHp=this.hp;this.spawn()}this.gear.entries=validEncounter(s)&&s.id===this.id?structuredClone(s.gearProcs??[]):[];this.gear.sync(p);this.tuneTeam();this.brain.restore(this.team);this.director.onRestore(this.worldEvent);this.worldEvent=undefined;this.team=undefined;if(this.mode==='darkness'){const run=realmRun(p),last=realmLast(p);if(run?.lastCombatId===s?.id&&!this.realmWaiting())this.spawn(false);if(!run&&last&&!last.ack){this.phase=last.win?'victory':'defeat';this.running=false;useGame.getState().open('realm')}}this.publish()}
  checkpoint(){return useGame.getState().persist()}
  /** Reserve actions and their impacts stop on an unsuccessful write. Resume retries the same state. */
  saveFollowerAction(){
@@ -86,13 +86,15 @@ export class Battle implements TeamHost {
   if(this.followerSavePending&&!this.saveFollowerAction())return;
   const modeToStart=this.pendingMode??(this.phase==='walk'&&!this.entryPaid?this.mode:undefined);
   if((modeToStart==='campaign'||modeToStart==='dungeon')&&!mayStartLoot())return;
-  if(this.pendingMode){const mode=this.pendingMode,cost=['dungeon','darkness'].includes(mode)?config.mode_entry_chaosite:0;if(g.p.chaosite<cost){g.notice(`Нужно ${cost} Хаосита`);return}this.pendingMode=undefined;this.mode=mode;this.hp=stats(g.p).hp;this.maxHp=this.hp;this.spawn(true);this.entryPaid=cost>0;if(!g.mutate(p=>{p.chaosite-=cost},cost>0)){this.restorePlayer();g.notice('Не удалось сохранить вход в бой');return}}
+  if(!this.pendingMode&&this.mode==='dungeon'&&this.entryPaid&&this.phase==='defeat'){g.open('lair');return}
+  if(this.pendingMode==='dungeon'&&g.p.lairAttempt){g.open('lair');return}
+  if(this.pendingMode){const mode=this.pendingMode,cost=['dungeon','darkness'].includes(mode)?config.mode_entry_chaosite:0;if(g.p.chaosite<cost){g.notice(`Нужно ${cost} Хаосита`);return}this.pendingMode=undefined;this.mode=mode;this.hp=stats(g.p).hp;this.maxHp=this.hp;this.spawn(true);this.entryPaid=cost>0;if(!g.mutate(p=>{if(mode==='dungeon'&&(p.lairAttempt||p.chaosite<cost))return false;p.chaosite-=cost},cost>0)){this.restorePlayer();g.notice('Не удалось сохранить вход в бой');return}}
   this.tuneTeam();this.running=true;this.publish();this.checkpoint();haptic()
  }
  /** Resume only a previously started free encounter. No paid mode, active menu or corrupt save can auto-start. */
  resume(){const g=useGame.getState();if(this.mode==='darkness'&&!realmRun(g.p)&&realmLast(g.p))return;if(this.running||this.phase==='defeat'||this.pendingMode||g.panel||g.recoveryRequired)return;if(this.phase==='walk'&&!this.entryPaid&&(this.mode==='campaign'||this.mode==='dungeon')&&!mayStartLoot())return;if(this.followerSavePending&&!this.saveFollowerAction())return;if(g.p.rewardOffer&&!g.p.rewardOffer.resolved){if(this.mode==='campaign')g.keepReward();else return}this.tuneTeam();this.running=true;this.publish();this.checkpoint()}
  continueAfterLoot(){const g=useGame.getState();if(g.continueOnVictory&&this.phase==='victory'&&g.p.rewardOffer?.resolved&&!g.panel&&!this.running)this.resume()}
- pause(){if(this.running){this.running=false;this.publish()}this.flushTally();this.checkpoint();this.audioFrame()}
+ pause(){if(this.running){this.running=false;this.publish()}this.flushTally();const saved=this.checkpoint();this.audioFrame();return saved}
  /** Quest and mastery counters are buffered during the fight and written in one save. */
  note(key:string,by=1){this.tally[key]=(this.tally[key]??0)+by}
  flushTally(){const keys=Object.keys(this.tally);if(!keys.length||useGame.getState().recoveryRequired)return;const t=this.tally;if(useGame.getState().mutate(p=>{for(const k of keys)bumpCount(p,k,t[k])}))this.tally={}}
@@ -160,9 +162,36 @@ export class Battle implements TeamHost {
   warmRun(id);
  }
  spawn(advance=false){this.hammerKills=0;this.lairRevives=0;this.gear.reset();this.followers=undefined;this.reservePose=0;if(advance)nextSite(this.journey);const p=useGame.getState().p;this.id=newId();this.stage=p.stage;this.wave=p.wave;this.enemyLevel=p.stage;this.rewarded=false;this.intro=0;this.combatTime=0;this.impactStop=0;this.autoDecision=.5;this.hazard={remaining:0,tick:0,damage:0};this.entryPaid=false;this.plan=planFor(p,this.mode);this.curse=0;this.perk={};this.hazardCycle=-1;this.hazardWarn=-1;this.boss=this.plan.boss;this.timer=this.plan.timer||rules.boss_timer_seconds;this.phase='walk';this.heroX=projectX(this.journey.worldX,this.journey.cameraX);this.projectiles=[];this.heroPending=0;this.autoCd=.5;this.compCd=[1.5,5];this.cooldowns=[0,0,0];this.units=this.plan.units.map((f,i)=>({id:f.id,x:(this.boss?680:670)+i*85,y:800+i*5,hp:f.hp,max:f.hp,atk:f.atk,def:f.def,cd:1+i*.7,attack:0,hurt:0,dead:0,size:this.boss?250:170,role:i,windup:0,ability:'',bossPhase:1,specialCd:5+i,actionTime:0,guard:0,exposed:0,strikes:0,...(f.affix?{affix:f.affix}:{}),...(f.title?{title:f.title}:{})}));this.burn=0;this.stun=0;this.buff=0;this.shield=0;this.pressure=0;this.defensePressure=0;this.poison=0;this.poisonTick=0;this.slow=0;this.placeEncounter();this.tuneTeam();this.openFight();this.brain.reset();this.director.onSpawn();this.publish()}
- startMode(mode:string,fresh=false){const g=useGame.getState();if(mode==='darkness'){g.open('realm');return}if(!['campaign','farm','arena','dungeon','darkness'].includes(mode))return;this.pause();if(g.p.rewardOffer&&!g.p.rewardOffer.resolved){g.notice('Сначала разберите трофей босса');return}this.pendingMode=mode===this.mode&&!fresh?undefined:mode;g.open(null);this.publish();this.checkpoint();const cost=this.pendingMode&&['dungeon','darkness'].includes(this.pendingMode)?config.mode_entry_chaosite:0;g.notice(this.pendingMode?`${MODE_TITLES[this.pendingMode]} · нажмите топоры${cost?` · ${cost} Хаосита при старте`:''}`:'Продолжить тот же бой · нажмите топоры')}
+ startMode(mode:string,fresh=false){const g=useGame.getState();if(mode==='darkness'){g.open('realm');return}if(!['campaign','farm','arena','dungeon','darkness'].includes(mode))return;if(!this.pause()&&this.mode==='dungeon'&&this.entryPaid&&!this.rewarded){g.notice('Не удалось сохранить попытку Логова');return}if(mode==='dungeon'&&useGame.getState().p.lairAttempt){g.open('lair');return}if(g.p.rewardOffer&&!g.p.rewardOffer.resolved){g.notice('Сначала разберите трофей босса');return}this.pendingMode=mode===this.mode&&!fresh?undefined:mode;g.open(null);this.publish();this.checkpoint();const cost=this.pendingMode&&['dungeon','darkness'].includes(this.pendingMode)?config.mode_entry_chaosite:0;g.notice(this.pendingMode?`${MODE_TITLES[this.pendingMode]} · нажмите топоры${cost?` · ${cost} Хаосита при старте`:''}`:'Продолжить тот же бой · нажмите топоры')}
  /** «Войти»: choose the main chapter. A chapter fight already in progress is never paused by it. */
  challenge(){if(this.mode==='campaign'&&this.running&&!this.pendingMode){useGame.getState().notice('Основная глава уже идёт · топоры — пауза');return}this.startMode('campaign')}
+ resumeLair(id:string){
+  const g=useGame.getState();
+  if(g.p.rewardOffer&&!g.p.rewardOffer.resolved){g.notice('Сначала разберите трофей босса');return false}
+  if(!g.mutate(p=>{
+   const attempt=p.lairAttempt;
+   if(!attempt||attempt.id!==id)return false;
+   // A pending mode belongs to the main scene, never to the saved Lair attempt.
+   p.encounter={...attempt,pendingMode:undefined};
+  },true)){g.notice('Не удалось восстановить попытку Логова');return false}
+  this.restorePlayer();
+  g.open(null);
+  this.resume();
+  return true;
+ }
+
+ abandonLair(id:string){
+  const g=useGame.getState();
+  if(!g.mutate(p=>{
+   if(p.lairAttempt?.id!==id)return false;
+   delete p.lairAttempt;
+   if(p.encounter?.id===id)delete p.encounter;
+  },true)){g.notice('Не удалось завершить попытку Логова');return false}
+  if(this.id===id)this.restorePlayer();
+  g.notice('Попытка Логова завершена');
+  return true;
+ }
+
  reviveLair(id:string,expected:number){
   const g=useGame.getState(),cost=lairReviveCost(this.stage);
   if(this.id!==id||this.mode!=='dungeon'||this.phase!=='defeat'||this.timer<=0||!this.entryPaid||
@@ -173,8 +202,13 @@ export class Battle implements TeamHost {
   this.poison=0;
   this.slow=0;
   this.lairRevives++;
-  if(!g.mutate(p=>{p.gold-=cost},true)){
-   Object.assign(this,before);
+  if(!g.mutate(p=>{
+   const attempt=p.lairAttempt;
+   if(attempt?.id!==id||attempt.phase!=='defeat'||(attempt.lairRevives??0)!==expected||p.gold<cost)return false;
+   p.gold-=cost;
+  },true)){
+   // If the write found a newer save, keep the engine state restored from that save.
+   if(useGame.getState().p===g.p)Object.assign(this,before);
    g.notice('Не удалось сохранить возрождение');
    return false;
   }
@@ -275,9 +309,21 @@ export class Battle implements TeamHost {
  guardianX(){return projectX(this.journey.dog.worldX,this.journey.cameraX)-48-(this.squad.striker.fly?0:48)}
  guardianAid(guardian=this.squad.guardian){const id=guardian.id;if(id==='capybara_bruiser')this.shield=Math.max(this.shield,Math.round(this.maxHp*.06));if(id==='moss_eater'){this.poison=0;this.slow=0}if(guardian.awake){this.perk.howl=3;this.effect(this.heroX+30,560,'БОЕВОЙ ДУХ','#ffe08a',22)}}
  /** Starts or continues the paid Dark Realm run chosen in its window. The entry was charged by the action. */
- enterRealm(){const g=useGame.getState(),run=realmRun(g.p);if(g.recoveryRequired||!run)return;const same=this.mode==='darkness';this.pause();g.open(null);unlockAudio(g.p.sound);this.pendingMode=undefined;this.mode='darkness';if(!same){if(validEncounter(run.checkpoint)){useGame.setState({p:{...useGame.getState().p,encounter:run.checkpoint}});this.restorePlayer()}else{this.hp=stats(g.p).hp;this.maxHp=this.hp;this.spawn(true)}}if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.entryPaid=true;this.running=true;this.publish();this.checkpoint();haptic()}
+ enterRealm(){const g=useGame.getState(),run=realmRun(g.p);if(g.recoveryRequired||!run)return;const same=this.mode==='darkness';if(!this.pause()&&this.mode==='dungeon'&&this.entryPaid&&!this.rewarded){g.notice('Не удалось сохранить попытку Логова');return}g.open(null);unlockAudio(g.p.sound);this.pendingMode=undefined;this.mode='darkness';if(!same){if(validEncounter(run.checkpoint)){useGame.setState({p:{...useGame.getState().p,encounter:run.checkpoint}});this.restorePlayer()}else{this.hp=stats(g.p).hp;this.maxHp=this.hp;this.spawn(true)}}if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.entryPaid=true;this.running=true;this.publish();this.checkpoint();haptic()}
  continueRealm(){const run=realmRun(useGame.getState().p);if(!run||run.stage.startsWith('CHOICE'))return;this.spawn(true);this.entryPaid=true;this.publish();this.checkpoint()}
- choosePortal(id:string){const g=useGame.getState();if(!this.running||g.panel)return false;let chosen=false;if(!g.mutate(p=>{chosen=realmChoose(p,id)})||!chosen)return false;this.continueRealm();return true}
+ choosePortal(id:string){
+  const g=useGame.getState();
+  // After reload the saved fork is visible but paused. The portal tap itself is
+  // an explicit resume action; never charge the already-paid Realm again.
+  if(g.panel||g.recoveryRequired||!this.realmWaiting())return false;
+  const run=realmRun(g.p);
+  if(!run?.pair?.some(portal=>portal.id===id))return false;
+  if(!this.running)this.resume();
+  if(!this.running||!this.realmWaiting())return false;
+  let chosen=false;
+  if(!g.mutate(p=>{chosen=realmChoose(p,id)})||!chosen)return false;
+  this.continueRealm();return true
+ }
  realmWaiting(){return this.mode==='darkness'&&!!realmRun(useGame.getState().p)?.stage.startsWith('CHOICE')}
  portalTap=(event:PointerEvent)=>{if(!this.realmWaiting())return;const rect=this.canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*864/rect.width,y=(event.clientY-rect.top)*940/rect.height;const run=realmRun(useGame.getState().p),portal=run?.pair&&portalAt(run.pair,x,y);if(portal)this.choosePortal(portal.id)};
  realmView(run=realmRun(useGame.getState().p)):RealmView{
@@ -350,6 +396,7 @@ export class Battle implements TeamHost {
    if((this.mode==='campaign'||this.mode==='dungeon'&&!wasDefeated)&&!mayStartLoot()){
     this.running=false;this.publish();this.checkpoint();return;
    }
+   if(wasDefeated&&this.mode==='dungeon'&&this.entryPaid){this.running=false;this.publish();this.checkpoint();return}
    if(wasDefeated){this.hp=this.maxHp;if(this.mode!=='campaign'&&this.mode!=='farm'&&this.mode!=='arena')this.mode=realm?'campaign':'farm'}
    else if(this.mode==='darkness'&&realmRun(useGame.getState().p)){/* the next room of the same floor */}
    else if(this.mode!=='campaign'&&this.mode!=='farm'&&this.mode!=='arena')this.mode='campaign';
