@@ -1,6 +1,7 @@
 import {useEffect} from 'react';
 import {useGame} from '../core/store';
 import {battle} from '../game/Battle';
+import {hasFlag,setFlag} from '../saga/save';
 import {CardDialog} from './SagaUI';
 
 /** A one-time, persistent end of the six-region story, not a second reward. */
@@ -11,8 +12,8 @@ export function StoryFinale(){
  useEffect(()=>{battle?.pause()},[]);
  const acknowledge=()=>{
   if(!g.mutate(p=>{
-   if(p.claimed.includes('story:done')&&!p.claimed.includes('story:finale-seen'))
-    p.claimed.push('story:finale-seen');
+   if(hasFlag(p,'story:done')&&!hasFlag(p,'story:finale-seen'))
+    setFlag(p,'story:finale-seen');
   },true))g.notice('Не удалось сохранить завершение саги · попробуйте снова');
  };
  return <CardDialog className="story-finale" title="Сага Севера завершена" onClose={acknowledge}>
