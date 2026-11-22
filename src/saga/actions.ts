@@ -2,7 +2,7 @@
  * Player actions of the saga systems. Every action validates, then changes the save in ONE store mutation
  * and reports the result, so a double tap or a reload can never pay or charge twice.
  */
-import {forgeLevel} from '../core/forge';
+import {forgeLevel,applyForgeMastery,withExistingUpgrades} from '../core/forge';
 import {useGame,makeItem,asSetItem,addLoot,mayStartLoot,salvageYield} from '../core/store';
 import type {Item,Player,Slot,HeroClass} from '../core/types';
 import balance from '../../config/test-balance.v1.json';
@@ -23,10 +23,9 @@ export {forgeLevel} from '../core/forge';
 /** Reforging raises an item to the forge's current level and keeps its name, rarity, upgrades, set and perk. */
 export function reforgePlan(item:Item,p:Player){
  const target=forgeLevel(p);if(item.slot==='wings'||item.level>=target)return null;
- const fresh=makeItem(item.slot,target,item.rarity);
+ const fresh=applyForgeMastery(makeItem(item.slot,target,item.rarity),p);
  if(item.masterwork)applyMasterwork(fresh);
- const next:Item={...structuredClone(item),level:target,attack:fresh.attack,hp:fresh.hp,defense:fresh.defense};
- for(let n=0;n<item.upgrade;n++)for(const k of ['attack','hp','defense'] as const)next[k]=Math.ceil(next[k]*balance.gear_rpg_test.upgrade_stat_multiplier);
+ const next=withExistingUpgrades(item,fresh);
  const levels=target-item.level,mats=Math.max(1,Math.ceil(levels/6));return {next,gold:Math.round(30*levels*(1+item.rarity*.4)),mats,material:payMaterial(p,mats)};
 }
 export function reforge(slot:Slot){const p=G().p,item=p.equipment[slot],plan=item&&reforgePlan(item,p);if(!item||!plan)return fail('Предмет уже на уровне кузницы');if(p.gold<plan.gold)return fail('Недостаточно золота');if(matCount(p,plan.material)<plan.mats)return fail(`Нужно ${plan.mats} × ${materials[plan.material].name}`);
@@ -55,7 +54,7 @@ export function craftSet(set:SetId,slot:Slot,masterwork=false){
   p.gold-=plan.gold;
   spend(p,plan.material,plan.mats);
   const rarity=plan.rarity+(!masterwork&&Math.random()<craftRarityBoostChance(p.blessing)?1:0);
-  made=asSetItem(makeItem(slot,plan.level,rarity),set);
+  made=applyForgeMastery(asSetItem(makeItem(slot,plan.level,rarity),set),p);
   if(profession){
    applyMasterwork(made);
    made.masterwork=true;

@@ -15,7 +15,7 @@ import {acceptedMailCarnival} from '../qa/mailAcceptance';
 export {SAVE_KEY,isolatedProfile} from './profile';
 import {validEncounter} from '../game/snapshot';
 import {uniques,uniqueOf,namedDrop,gearRules} from './gear';
-import {upgradePreview,forgeLevel} from './forge';
+import {upgradePreview,forgeLevel,applyForgeMastery} from './forge';
 import type {UniqueId} from './types';
 import {normalizeWorld} from './world';
 import {normalizeSaga,markSeen,bumpCount} from '../saga/save';
@@ -70,7 +70,7 @@ function validBossReward(reward:Reward){
   Object.entries(reward.mats).every(([id,amount])=>materialIds.some(valid=>valid===id)&&count(amount));
 }
 export function freshPlayer():Player {const s=balance.new_player_test_start;return {version:1,progression:{v:1,anchors:{}},level:s.hero_level,xp:0,gold:s.gold,gems:s.gems,redDiamonds:0,shipyard:starterShipyard(),chaosite:s.chaosite,tokens:s.test_shop_tokens,horn:s.horn_charges,hornAt:Date.now(),stage:1,wave:1,kills:0,bosses:0,heroClass:'berserker',inventory:[],equipment:Object.fromEntries(slots.filter(s=>s!=='wings').map(s=>[s,makeItem(s,1,1)])),skills:[1,1,1],runes:[0,0,0],companions:[1,1],talents:[0,0,0],forge:1,blessing:1,daily:'',mission:0,claimed:[],bought:[],savedAt:Date.now(),wingVisible:true,sound:false,arenaWins:0,darkFloor:1,mineAt:Date.now(),relic:0,seasonClaims:[]}}
-function validItem(value:unknown):value is Item {if(!value||typeof value!=='object')return false;const i=value as Item;return typeof i.id==='string'&&i.id.length<=120&&typeof i.name==='string'&&i.name.length<=120&&slots.includes(i.slot)&&['level','rarity','attack','hp','defense','upgrade'].every(k=>Number.isFinite(i[k as keyof Item])&&Number(i[k as keyof Item])>=0)&&Number.isInteger(i.rarity)&&i.rarity<=8&&i.level>=1&&(i.masterwork===undefined||i.masterwork===true)&&(i.salvageGoldCap===undefined||Number.isSafeInteger(i.salvageGoldCap)&&i.salvageGoldCap>=0)&&(i.locked===undefined||typeof i.locked==='boolean')&&(i.origin===undefined||typeof i.origin==='string'&&i.origin.length<=160)&&(i.uniqueId===undefined||typeof i.uniqueId==='string'&&Object.hasOwn(uniques,i.uniqueId)&&uniques[i.uniqueId].slot===i.slot)&&(!i.percent||[i.percent.hp,i.percent.attack,i.percent.defense].every(n=>Number.isFinite(n)&&n>=0))&&[i.set,i.perk,i.engrave].every(v=>v===undefined||typeof v==='string'&&v.length<=24)}
+function validItem(value:unknown):value is Item {if(!value||typeof value!=='object')return false;const i=value as Item;return typeof i.id==='string'&&i.id.length<=120&&typeof i.name==='string'&&i.name.length<=120&&slots.includes(i.slot)&&['level','rarity','attack','hp','defense','upgrade'].every(k=>Number.isFinite(i[k as keyof Item])&&Number(i[k as keyof Item])>=0)&&Number.isInteger(i.rarity)&&i.rarity<=8&&i.level>=1&&(i.enhancementBase===undefined||typeof i.enhancementBase==='object'&&i.enhancementBase!==null&&!Array.isArray(i.enhancementBase)&&['attack','hp','defense'].every(k=>Number.isFinite(i.enhancementBase![k as keyof typeof i.enhancementBase])&&i.enhancementBase![k as keyof typeof i.enhancementBase]>=0))&&(i.masterwork===undefined||i.masterwork===true)&&(i.salvageGoldCap===undefined||Number.isSafeInteger(i.salvageGoldCap)&&i.salvageGoldCap>=0)&&(i.locked===undefined||typeof i.locked==='boolean')&&(i.origin===undefined||typeof i.origin==='string'&&i.origin.length<=160)&&(i.uniqueId===undefined||typeof i.uniqueId==='string'&&Object.hasOwn(uniques,i.uniqueId)&&uniques[i.uniqueId].slot===i.slot)&&(!i.percent||[i.percent.hp,i.percent.attack,i.percent.defense].every(n=>Number.isFinite(n)&&n>=0))&&[i.set,i.perk,i.engrave].every(v=>v===undefined||typeof v==='string'&&v.length<=24)}
 function lairReceipt(p:Player,id:string){
  return p.lastBattleReward===id||p.claimed.includes('battle:'+id);
 }
@@ -98,7 +98,7 @@ export function grantHorn(p:Player,count:number,now=Date.now()){refill(p,now);p.
 export function rollItem(p:Player,forcedSlot?:Slot,setBase:number=dropRules.setChanceHorn){const r=Math.random()*100;let acc=0,rarity=0;for(const [i,x] of balance.loot_test_settings.rarities.entries()){acc+=x.weight_percent;if(r<acc){rarity=i;break}}rarity=Math.min(8,rarity+(Math.random()<rarityBoostChance(p.blessing)?1:0));const item=makeItem(forcedSlot??slots[Math.floor(Math.random()*slots.length)],forgeLevel(p),rarity);
  // Sets belong to regions: the hero finds pieces of the region he is fighting in (or has already freed).
  if(item.slot!=='wings'&&p.stage>1&&Math.random()<setChance(setBase,p.blessing)){const open=Math.min(5,regionIndex(p.stage)+legendLap(p.stage)*6);asSetItem(item,setOfRegion(setBase===dropRules.setChanceHorn?Math.floor(Math.random()*(open+1)):regionIndex(p.stage)))}
- return item}
+ return applyForgeMastery(item,p)}
 const inventoryCapacity=balance.loot_test_settings.starter_inventory_capacity;
 const protectedOrigin=/босс|трофей|награда|покупка|boss|trophy|reward|shop/i;
 export function salvageProtection(p:Player,item:Item):string|undefined{
