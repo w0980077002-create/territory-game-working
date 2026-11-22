@@ -83,10 +83,10 @@ export function hornRefillDue(p:Pick<Player,'horn'|'hornAt'>,now=Date.now()){
 }
 export function refill(p:Pick<Player,'horn'|'hornAt'>,now=Date.now()){const interval=hornConfig.recharge_one_charge_every_seconds*1000;const elapsed=Math.floor(Math.max(0,now-p.hornAt)/interval);if(elapsed>0){p.horn=Math.min(hornConfig.maximum_charges,p.horn+elapsed);p.hornAt+=elapsed*interval}if(p.horn>=hornConfig.maximum_charges)p.hornAt=Math.max(p.hornAt,now);}
 export function grantHorn(p:Player,count:number,now=Date.now()){refill(p,now);p.horn=Math.min(hornConfig.maximum_charges,p.horn+count);if(p.horn>=hornConfig.maximum_charges)p.hornAt=Math.max(p.hornAt,now);}
-export function rollItem(p:Player,forcedSlot?:Slot,setBase:number=dropRules.setChanceHorn){const r=Math.random()*100;let acc=0,rarity=0;for(const [i,x] of balance.loot_test_settings.rarities.entries()){acc+=x.weight_percent;if(r<acc){rarity=i;break}}rarity=Math.min(8,rarity+(Math.random()<rarityBoostChance(p.blessing)?1:0));const item=applyForgeMastery(makeItem(forcedSlot??slots[Math.floor(Math.random()*slots.length)],forgeLevel(p),rarity),p);
+export function rollItem(p:Player,forcedSlot?:Slot,setBase:number=dropRules.setChanceHorn){const r=Math.random()*100;let acc=0,rarity=0;for(const [i,x] of balance.loot_test_settings.rarities.entries()){acc+=x.weight_percent;if(r<acc){rarity=i;break}}rarity=Math.min(8,rarity+(Math.random()<rarityBoostChance(p.blessing)?1:0));const item=makeItem(forcedSlot??slots[Math.floor(Math.random()*slots.length)],forgeLevel(p),rarity);
  // Sets belong to regions: the hero finds pieces of the region he is fighting in (or has already freed).
  if(item.slot!=='wings'&&p.stage>1&&Math.random()<setChance(setBase,p.blessing)){const open=Math.min(5,regionIndex(p.stage)+legendLap(p.stage)*6);asSetItem(item,setOfRegion(setBase===dropRules.setChanceHorn?Math.floor(Math.random()*(open+1)):regionIndex(p.stage)))}
- return item}
+ return applyForgeMastery(item,p)}
 const inventoryCapacity=balance.loot_test_settings.starter_inventory_capacity;
 const protectedOrigin=/босс|трофей|награда|покупка|boss|trophy|reward|shop/i;
 export function salvageProtection(p:Player,item:Item):string|undefined{
