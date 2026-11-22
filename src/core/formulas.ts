@@ -29,7 +29,9 @@ export function stats(p:Player,rank=honorRank(p)):Stats {
 /** Armour never absorbs more than this share of a hit, so late-game enemies stay dangerous. TEST_ONLY. */
 export const MITIGATION_CAP=balance.campaign_curve_test.mitigation_cap;
 export function damage(attack:number,defense:number,level:number,mult=1,crit=false,critDamage=1.5){return Math.max(1,Math.round(attack*mult*(1-Math.min(MITIGATION_CAP,defense/(defense+100+15*level)))*(crit?critDamage:1)))}
-export const xpNeeded=(level:number)=>Math.round(balance.progression_test_settings.level_exp_base*balance.progression_test_settings.level_exp_multiplier**(level-1));
+/** Optional explicit per-level table (TEST_ONLY); otherwise the exponential test curve. */
+const xpTable=()=>(balance.progression_test_settings as {level_exp_table?:number[]}).level_exp_table;
+export const xpNeeded=(level:number)=>{const t=xpTable();if(t?.length)return t[Math.min(Math.max(1,level),t.length)-1];return Math.round(balance.progression_test_settings.level_exp_base*balance.progression_test_settings.level_exp_multiplier**(level-1))};
 export const stageLabel=(stage:number)=>`${Math.floor((stage-1)/10)+1}-${(stage-1)%10+1}`;
 
 export const skillPowerMultiplier=(level:number)=>1+(level-1)*.1;

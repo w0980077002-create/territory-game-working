@@ -36,7 +36,7 @@ export function manage(spend=.5,ordinary=false){
 /** Plays a fresh campaign up to `untilStage`. Returns one log row per cleared stage.
  * advanceTime lets tests advance a mocked wall clock by the same real seconds as update().
  */
-export function playCampaign(heroClass:HeroClass,untilStage:number,opts:{spend?:number;maxSeconds?:number;potions?:boolean;ordinary?:boolean;skillDelay?:number;advanceTime?:(seconds:number)=>void}={}):StageLog[]{
+export function playCampaign(heroClass:HeroClass,untilStage:number,opts:{spend?:number;maxSeconds?:number;potions?:boolean;ordinary?:boolean;skillDelay?:number;maxDefeats?:number;advanceTime?:(seconds:number)=>void}={}):StageLog[]{
  installHeadless();useGame.setState({p:{...freshPlayer(),heroClass},auto:!opts.skillDelay,panel:null,selected:null,recoveryRequired:false});
  const b=new Battle({getContext:()=>({})} as unknown as HTMLCanvasElement),log:StageLog[]=[];b.toggle();
  let defeats=0,waveTime=0,waves=0,simTime=0,farmLeft=0,taken=0;const limit=opts.maxSeconds??200000;
@@ -50,7 +50,7 @@ export function playCampaign(heroClass:HeroClass,untilStage:number,opts:{spend?:
    else if(mode==='farm'&&--farmLeft<=0){manage(opts.spend,opts.ordinary);b.startMode('campaign')}
    manage(opts.spend,opts.ordinary);if(!b.running)b.toggle();
   }
-  if(b.phase==='defeat'&&!b.running){defeats++;if(defeats>(opts.ordinary?6:60))break;manage(opts.spend,opts.ordinary);farmLeft=3+Math.min(10,defeats*2);b.toggle()}
+  if(b.phase==='defeat'&&!b.running){defeats++;if(defeats>(opts.maxDefeats??(opts.ordinary?6:60)))break;manage(opts.spend,opts.ordinary);farmLeft=3+Math.min(10,defeats*2);b.toggle()}
   if(!b.running&&b.phase!=='defeat'){manage(opts.spend,opts.ordinary);G().open(null);b.toggle()}
  }
  b.destroy();return log;
