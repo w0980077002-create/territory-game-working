@@ -155,11 +155,17 @@ const slotNames={weapon:'Оружие',armor:'Доспех',helmet:'Шлем',sh
   await page.getByRole('button',{name:'Новый герой · первый поход'}).tap();await page.getByRole('button',{name:'Начать нового героя'}).tap();
   await page.waitForURL(/hero=hero-/);await page.waitForFunction(()=>window.__lootborn?.battle);
   const fresh=await state();assert.equal(fresh.level,1);
+  const newHero=new URL(page.url()).searchParams.get('hero');
+  const axes=page.locator('.bottom>.central');
+  await axes.tap();await page.waitForFunction(()=>window.__lootborn.battle.running);
+  await axes.tap();await page.waitForFunction(()=>!window.__lootborn.battle.running);
+  await page.waitForFunction(id=>!!localStorage.getItem('lootborn-codex-v1:test:'+id),newHero);
   // 5) the original hero is intact after reload and the new one is listed under «Мои герои»
   await page.goto(url);await page.waitForFunction(()=>window.__lootborn?.battle);
   const back=await state();for(const k of ['level','stage','gold','gems','chaosite'])assert.equal(back[k],saved[k],k);assert.equal(back.inventory.length,saved.inventory.length);
-  await page.getByRole('button',{name:'Меню',exact:true}).tap();
-  await page.locator('summary',{hasText:'Другие герои на этом устройстве'}).tap();
+  await page.getByRole('button',{name:'Меню',exact:true}).tap();await dialog('Меню').waitFor();
+  await page.waitForTimeout(400);
+  await heroes.tap();
   await page.getByRole('heading',{name:'Мои герои'}).waitFor();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal scroll');
   assert.deepEqual(errors,[]);
