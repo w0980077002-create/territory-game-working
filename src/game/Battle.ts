@@ -298,7 +298,13 @@ export class Battle implements TeamHost {
   return blocked;
  }
  chapterBoss(){return firstChapter(this.stage,this.mode)&&this.boss&&this.units[0]?.id==='spider_queen'}
- damageRate(){return this.director.damageRate()*(1-.12*this.curse)*this.auraDamage()}
+ damageRate(){
+  const sets=setCounts(useGame.getState().p);
+  const ember=sets.ember>=4&&this.hp>0&&this.hp<this.maxHp*.5?1.25:1;
+  const stone=sets.stone>=6&&this.shield>0?1.25:1;
+  const legion=sets.legion>=6&&(this.perk.rally??0)>0?1.4:1;
+  return this.director.damageRate()*(1-.12*this.curse)*this.auraDamage()*ember*stone*legion;
+ }
  /** Blessing of the active Dark Realm run, if the hero is fighting there. */
  bless(){return this.mode==='darkness'?realmRun(useGame.getState().p)?.b:undefined}
  auraDamage(){const a=this.aura;return (this.bless()==='fury'?1.2:1)*(1+a.heroDamage)*((this.perk.horn??0)>0?1+a.rally:1)*((this.perk.howl??0)>0?1.15:1)*(a.opening>0&&this.combatTime<6?1+a.opening:1)}

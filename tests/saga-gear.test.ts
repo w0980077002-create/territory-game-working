@@ -36,6 +36,31 @@ test('rune set (6): Thor\'s Hammer strikes four times and shields the hero',()=>
 test('storm set (6): every fifth strike calls lightning on all enemies',()=>{
  const b=fight(p=>wear(p,'storm',6)),other=b.units[1];b.perk.strikes=4;b.heroPending=.01;b.update(.02);assert.equal(b.perk.strikes,5);assert.ok(other.hp<other.max);b.destroy();
 });
+const conditionalSetBonuses=[
+  {id:'ember',pieces:4,expected:1.25,activate:(b:Battle)=>{b.hp=b.maxHp*.49},expire:(b:Battle)=>{b.hp=b.maxHp*.5}},
+  {id:'stone',pieces:6,expected:1.25,activate:(b:Battle)=>{b.shield=1},expire:(b:Battle)=>{b.rawDamage(1)}},
+  {id:'legion',pieces:6,expected:1.4,activate:(b:Battle)=>{b.teamCombo(1)},expire:(b:Battle)=>{for(let i=0;i<81;i++)b.update(.05)}},
+] as const;
+for(const {id,pieces,expected,activate,expire} of conditionalSetBonuses){
+ test(`${id} conditional set bonus changes actual Hammer damage until it expires`,()=>{
+  const b=fight(p=>wear(p,id,pieces-1)),u=b.units[0];
+  const hammer=()=>{b.cooldowns[2]=0;const before=u.hp;b.skill(2);return before-u.hp};
+  try{
+   const withoutThreshold=hammer();
+   activate(b);
+   assert.equal(hammer(),withoutThreshold,id+' below threshold');
+   expire(b);
+
+   G().mutate(p=>{wear(p,id,pieces)});
+   const base=hammer();
+   activate(b);
+   const boosted=hammer();
+   expire(b);
+   assert.equal(hammer(),base,id+' expiry');
+   assert.ok(Math.abs(boosted-base*expected)<=4,`${id}: ${base} → ${boosted} with expected ×${expected}`);
+  }finally{b.destroy()}
+ });
+}
 test('named trophies: boarding cutlass opens with a triple stunning blow; Abyss heart refuses one death',()=>{
  const b=fight(p=>give(p,'cutlass'));b.heroPending=.01;b.update(.02);b.stepProjectiles(1);assert.equal(b.perk.opened,1);assert.ok(b.stun>0);const first=b.units[0].max-b.units[0].hp;
  b.units[0].hp=b.units[0].max;b.stun=0;b.heroPending=.01;b.update(.02);b.stepProjectiles(1);assert.ok(first>(b.units[0].max-b.units[0].hp)*1.6);b.destroy();
