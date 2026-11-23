@@ -85,10 +85,11 @@ export const hazards:Record<HazardId,{name:string;hint:string;period:number;tele
  phalanx:{name:'Строй легиона',hint:'Пока стоят двое и больше — враги получают на 35% меньше урона. Первый павший ломает строй.',period:15,telegraph:2,color:'#ffd27a',warn:'БАЛЛИСТА ЗАРЯЖЕНА'},
  heat:{name:'Жар Бездны',hint:'Чем дольше бой, тем сильнее жар. Вампиризм, пёс и быстрая победа спасают от огня.',period:10,telegraph:2,color:'#ff9a5c',warn:'ЛАВА ПОДНИМАЕТСЯ'}
 };
-export const regionIndex=(stage:number)=>Math.floor((Math.max(1,stage)-1)/STAGES_PER_REGION);
+const numericStage=(stage:number)=>Number.isFinite(stage)?Math.max(1,Math.min(Number.MAX_SAFE_INTEGER,Math.floor(stage))):1;
+export const regionIndex=(stage:number)=>Math.floor((numericStage(stage)-1)/STAGES_PER_REGION);
 /** After the story the six regions return as «Легендарные маршруты» with rising threat. */
 export const regionOf=(stage:number)=>regions[regionIndex(stage)%regions.length];
-export const stageInRegion=(stage:number)=>(Math.max(1,stage)-1)%STAGES_PER_REGION+1;
+export const stageInRegion=(stage:number)=>(numericStage(stage)-1)%STAGES_PER_REGION+1;
 export const legendLap=(stage:number)=>Math.floor(regionIndex(stage)/regions.length);
 const romanDigits=[[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']] as const;
 export function legendTitle(stage:number){
@@ -103,17 +104,27 @@ export function legendTitle(stage:number){
  return `Легенда ${numeral}`;
 }
 export const regionTitle=(stage:number)=>[legendTitle(stage),regionOf(stage).name].filter(Boolean).join(' · ');
-/**
- * Threat multiplier of a stage relative to stage 1. Stages 1–60 come from a table calibrated by the
- * fixed ordinary builds (scripts/sim/fair-tune.ts); later «legend» stages continue the table's last slope.
- */
+const lastCalibratedStage=63;
+const legendSoftening=12;
+
+/** Keep the story and tested Legend opening. The tail starts on the same slope
+ * and then tapers logarithmically, keeping encounter stats within save bounds. */
 export function growth(stage:number,kind:'hp'|'atk'){
- const table:number[]=kind==='hp'?curve.hp_table:curve.attack_table,s=Math.max(1,Math.floor(stage));
+ const table:number[]=kind==='hp'?curve.hp_table:curve.attack_table,s=numericStage(stage);
  if(s<=table.length)return table[s-1];
- const last=table[table.length-1],ratio=(last/table[table.length-11])**.1;return last*ratio**(s-table.length);
+ const last=table.at(-1)!,ratio=(last/table[table.length-11])**.1;
+ if(s<=lastCalibratedStage)return last*ratio**(s-table.length);
+ const rate=Math.log(ratio),anchor=last*ratio**(lastCalibratedStage-table.length);
+ return anchor*(1+legendSoftening*Math.log1p(rate*(s-lastCalibratedStage)/legendSoftening));
 }
-export const stageGold=(stage:number,boss:boolean)=>Math.round((boss?balance.test_rewards.boss_win_gold_base:balance.test_rewards.regular_win_gold_base)*1.14**(Math.min(stage,curve.gold_soft_cap_stage)-1)*(1+Math.max(0,stage-curve.gold_soft_cap_stage)*curve.gold_linear_after_cap));
-export const stageXp=(stage:number,boss:boolean)=>Math.round((boss?balance.combat_test_settings.boss_victory_xp:balance.combat_test_settings.wave_victory_xp)*(1+(stage-1)*curve.xp_linear));
+export const stageGold=(stage:number,boss:boolean)=>{
+ const s=numericStage(stage),base=boss?balance.test_rewards.boss_win_gold_base:balance.test_rewards.regular_win_gold_base;
+ return Math.min(Number.MAX_SAFE_INTEGER,Math.round(base*1.14**(Math.min(s,curve.gold_soft_cap_stage)-1)*(1+Math.max(0,s-curve.gold_soft_cap_stage)*curve.gold_linear_after_cap)));
+};
+export const stageXp=(stage:number,boss:boolean)=>{
+ const base=boss?balance.combat_test_settings.boss_victory_xp:balance.combat_test_settings.wave_victory_xp;
+ return Math.min(Number.MAX_SAFE_INTEGER,Math.round(base*(1+(numericStage(stage)-1)*curve.xp_linear)));
+};
 export interface FoePlan {id:string;hp:number;atk:number;def:number;affix?:AffixId;title?:string}
 export interface EncounterPlan {units:FoePlan[];boss:boolean;finale:boolean;timer:number;title:string;hint:string;role:string;hazard?:HazardId;region:Region;bossName?:string;ultimates?:[string,string]}
 const affixOrder:AffixId[]=['bulwark','frenzy','regen','venom','warded','swift'];

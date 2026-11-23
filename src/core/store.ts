@@ -7,8 +7,9 @@ import {SHIP_RULES,starterShipyard,validShipyard,shipClaimable,shipBuyCost,shipU
 import type {Player,Item,Slot,HeroClass,BattleView,EncounterSnapshot} from './types';
 import balance from '../../config/test-balance.v1.json';
 import {previewMine} from './mine';
+import {gainExperience} from './experience';
 import {slots,slotNames,rarityNames} from '../data/catalog';
-import {itemPower,stats,xpNeeded,odinCallMaxLevel,stageLabel} from './formulas';
+import {itemPower,stats,odinCallMaxLevel,stageLabel} from './formulas';
 import {cloudSave,haptic,readCloud} from './telegram';
 import {lootStorageNotice,observeLootSave} from './lootStorage';
 import {SAVE_KEY,telegramProfile,carnivalNow,mailAcceptanceProfile} from './profile';
@@ -90,7 +91,6 @@ let recoveryRequired=false;
 let observedRaw:string|null=null;
 function read(){if(typeof localStorage==='undefined')return freshPlayer();try{const raw=localStorage.getItem(SAVE_KEY),saved=parseSave(raw,true);if(raw&&!saved){recoveryRequired=true;return freshPlayer()}observedRaw=raw;if(saved){saved.progression=migrateProgression(saved);return saved;}const player=freshPlayer();if(mailAcceptanceProfile)player.carnival=acceptedMailCarnival(player);return player}catch{recoveryRequired=true;return freshPlayer()}}
 export function unreadableSave(){try{const raw=localStorage.getItem(SAVE_KEY);return raw&&!parseSave(raw,true)?raw:localStorage.getItem(SAVE_KEY+':unreadable-cloud')??raw??''}catch{return ''}}
-function xp(p:Player,amount:number){p.xp+=amount;while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++;}}
 export function hornRefillDue(p:Pick<Player,'horn'|'hornAt'>,now=Date.now()){
  return p.horn<hornConfig.maximum_charges&&now-p.hornAt>=hornConfig.recharge_one_charge_every_seconds*1000;
 }
@@ -136,7 +136,7 @@ export function salvageYield(item:Item){
  // Made or bought gear can be recycled for a bounded refund, never used to buy XP.
  return item.salvageGoldCap===undefined?{gold,xp:10+item.level*2}:{gold:Math.min(gold,item.salvageGoldCap),xp:0};
 }
-function salvageReward(p:Player,item:Item){const reward=salvageYield(item);p.gold+=reward.gold;xp(p,reward.xp)}
+function salvageReward(p:Player,item:Item){const reward=salvageYield(item);p.gold+=reward.gold;gainExperience(p,reward.xp)}
 
 export function previewBulkSalvage(p:Player,ids:readonly string[]){
  const selected=new Set(ids);
@@ -360,7 +360,7 @@ export const useGame=create<Store>((set,get)=>{
     p.inventory=p.inventory.filter(i=>!itemIds.has(i.id));
     if(p.pendingLoot)p.pendingLoot=p.pendingLoot.filter(i=>!itemIds.has(i.id));
     p.gold+=plan.gold;
-    xp(p,plan.xp);
+    gainExperience(p,plan.xp);
     bumpCount(p,'carnival:salvage',plan.entries.length);
    })){
     if(get().storageError)g.notice('Не удалось сохранить изменения · вещи остались на месте');
@@ -477,14 +477,14 @@ export const useGame=create<Store>((set,get)=>{
    if(tally)for(const [key,amount] of Object.entries(tally))if(Number.isFinite(amount)&&amount>0)bumpCount(p,key,amount);if(encounterId){p.lastBattleReward=encounterId;p.claimed.push('battle:'+encounterId);trimBattleReceipts(p)}if(snapshot){p.encounter=snapshot;markSeen(p,snapshot.units.map(u=>u.id));for(const u of snapshot.units)bumpCount(p,'kill:'+u.id)}bumpCount(p,'win:'+mode);soloVictory(p,carnivalNow());bumpCount(p,'cls:'+p.heroClass);p.kills++;if(mode==='campaign'){const boss=p.wave===5,bossReward=boss?campaignBossReward(p,now):undefined;
     if(bossReward){grant(p,bossReward,now);if(!bossReward.horn)grantHorn(p,0,now);bossReward.gold=(bossReward.gold??0)+hammerGold}
     else{
-     p.gold+=campaignGold(p,false);xp(p,stageXp(p.stage,false));
+     p.gold+=campaignGold(p,false);gainExperience(p,stageXp(p.stage,false));
      if(Math.random()<dropRules.materialWave*(branchOf(p,0)===1?1.5:1))grantMaterial(p,materialIds[regionIndex(p.stage)%6],1);
     }
     const finale=boss&&stageInRegion(p.stage)===10;
     if(boss){p.bosses++;const named=namedDrop(mode);loot=named?makeUnique(named,p.level,'Босс основной главы · этап '+p.stage):rollItem(p,undefined,dropRules.setChanceBoss);
     // Region finale: the first victory always gives the region's named trophy (or a guaranteed set piece in region 1).
     if(finale){const region=regionIndex(p.stage)%6,perk=([undefined,'cutlass','crown','echo','aquila','heart'] as (PerkId|undefined)[])[region],first=setFlag(p,'finale:'+regionIndex(p.stage));if(perk&&(setFlag(p,'perk:'+perk)||!first&&Math.random()<dropRules.legendFinalePerk))loot=makePerkItem(perk,p.level+2,'Трофей владыки · '+perks[perk].source);else if(first&&!perk){loot=asSetItem(makeItem('armor',p.level+2,4),'frost');loot.origin='Трофей Королевы паутины'}if(p.stage===60)setFlag(p,'story:done')}
-    if(guaranteedBossTrophy(p)){loot=makeItem('weapon',p.level+balance.first_chapter_test.boss_reward_level_bonus,balance.first_chapter_test.boss_reward_min_rarity);loot.name=firstBossTrophyName;loot.origin='Трофей Матриарха';loot.uniqueId='ice_silk';p.claimed.push('first-boss-relic')}loot.origin??='Босс основной главы · этап '+p.stage;disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false,bossReward,hammerGold:hammerGold||undefined};p.stage++;p.wave=1}else{p.wave++;if(Math.random()<gearRules.regular_equipment_chance){loot=rollItem(p,undefined,dropRules.setChanceRegular);loot.origin='Встреча основной главы · этап '+p.stage;disposition=placeLoot(p,loot,true)}}}else if(mode==='farm'){p.gold+=Math.round(baseVictoryGold('farm',p.stage,false)*(1+p.talents[2]*.05)*goldBonus(p));if(Math.random()<.25)grantMaterial(p,materialIds[regionIndex(p.stage)%6],1);xp(p,Math.round(stageXp(p.stage,false)*.6))}else if(mode==='arena'){p.arenaWins++;p.tokens+=10;p.gold+=baseVictoryGold('arena',p.stage,false);xp(p,30);if(p.arenaWins%3===0)addRes(p,'seal',1)}else{if(mode==='dungeon'){if(snapshot?.units[0])noteLairWin(p,snapshot.units[0].id);addRes(p,'shard',2);if(Math.random()<.35){const gem=rollGem(),bag=gemBox(p).bag;bag[gem]=(bag[gem]??0)+1;extra='Камень: '+gemLabel(gem)}if(Math.random()<.1)addRes(p,'seal',1)}p.gold+=baseVictoryGold('dungeon',p.stage,false);p.gems+=5;xp(p,50);const keeper=mode==='dungeon'?snapshot?.units.map(u=>lairTrophy(u.id)).find(Boolean):undefined,trophy=keeper&&setFlag(p,'perk:'+keeper)?keeper:undefined,named=trophy?undefined:namedDrop(mode);loot=trophy?makePerkItem(trophy,p.level+2,'Трофей Логова · '+perks[trophy].source):named?makeUnique(named,p.level,mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы'):rollItem(p);loot.origin??=mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы';disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false,hammerGold:hammerGold||undefined}}bumpCount(p,'carnival:battleGold',p.gold-goldBefore)}))return false;if(loot&&disposition&&disposition!=='duplicate'){
+    if(guaranteedBossTrophy(p)){loot=makeItem('weapon',p.level+balance.first_chapter_test.boss_reward_level_bonus,balance.first_chapter_test.boss_reward_min_rarity);loot.name=firstBossTrophyName;loot.origin='Трофей Матриарха';loot.uniqueId='ice_silk';p.claimed.push('first-boss-relic')}loot.origin??='Босс основной главы · этап '+p.stage;disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false,bossReward,hammerGold:hammerGold||undefined};p.stage++;p.wave=1}else{p.wave++;if(Math.random()<gearRules.regular_equipment_chance){loot=rollItem(p,undefined,dropRules.setChanceRegular);loot.origin='Встреча основной главы · этап '+p.stage;disposition=placeLoot(p,loot,true)}}}else if(mode==='farm'){p.gold+=Math.round(baseVictoryGold('farm',p.stage,false)*(1+p.talents[2]*.05)*goldBonus(p));if(Math.random()<.25)grantMaterial(p,materialIds[regionIndex(p.stage)%6],1);gainExperience(p,Math.round(stageXp(p.stage,false)*.6))}else if(mode==='arena'){p.arenaWins++;p.tokens+=10;p.gold+=baseVictoryGold('arena',p.stage,false);gainExperience(p,30);if(p.arenaWins%3===0)addRes(p,'seal',1)}else{if(mode==='dungeon'){if(snapshot?.units[0])noteLairWin(p,snapshot.units[0].id);addRes(p,'shard',2);if(Math.random()<.35){const gem=rollGem(),bag=gemBox(p).bag;bag[gem]=(bag[gem]??0)+1;extra='Камень: '+gemLabel(gem)}if(Math.random()<.1)addRes(p,'seal',1)}p.gold+=baseVictoryGold('dungeon',p.stage,false);p.gems+=5;gainExperience(p,50);const keeper=mode==='dungeon'?snapshot?.units.map(u=>lairTrophy(u.id)).find(Boolean):undefined,trophy=keeper&&setFlag(p,'perk:'+keeper)?keeper:undefined,named=trophy?undefined:namedDrop(mode);loot=trophy?makePerkItem(trophy,p.level+2,'Трофей Логова · '+perks[trophy].source):named?makeUnique(named,p.level,mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы'):rollItem(p);loot.origin??=mode==='dungeon'?'Логово мини-босса':'Босс Царства тьмы';disposition=placeLoot(p,loot);if(encounterId&&disposition!=='duplicate')p.rewardOffer={encounterId,itemId:loot.id,resolved:false,hammerGold:hammerGold||undefined}}bumpCount(p,'carnival:battleGold',p.gold-goldBefore)}))return false;if(loot&&disposition&&disposition!=='duplicate'){
     const player=get().p,hasOffer=!!encounterId&&player.rewardOffer?.encounterId===encounterId;
     if(!hasOffer||disposition==='stored'||player.preferences?.autoSalvageWeaker)extra=lootNotice(player,loot,disposition,'Добыча: '+loot.name);
    }
@@ -559,7 +559,7 @@ export function compareItem(item:Item,p:Player,base=stats(p).cp){return stats({.
 export function bestUpgrade(p:Player,slot:Slot,keepNamed=false,base=stats(p).cp){const worn=p.equipment[slot];if(keepNamed&&worn&&(uniqueOf(worn)||worn.perk))return undefined;let item:Item|undefined,gain=0;for(const i of p.inventory){if(i.slot!==slot)continue;const d=compareItem(i,p,base);if(d>gain){gain=d;item=i}}return item?{slot,item,gain}:undefined}
 export function bestUpgrades(p:Player){const base=stats(p).cp;return slots.flatMap(slot=>{const b=bestUpgrade(p,slot,true,base);return b?[b]:[]})}
 
-export function claimRealmReward(){let done=false;const ok=useGame.getState().mutate(p=>{const ess=resCount(p,'ess'),gold=p.gold;done=realmClaim(p,{xp:n=>xp(p,n),trophies:(floor,first)=>{const out:string[]=[],named=namedDrop('darkness');if(named){const u=makeUnique(named,p.level,'Владыка Царства тьмы · этаж '+floor);addLoot(p,u);out.push(u.name)}for(const [at,perk] of [[10,'void'],[20,'duskwings']] as [number,PerkId][])if(first&&floor===at&&setFlag(p,'perk:'+perk)){const t=makePerkItem(perk,p.level+2,'Трофей Царства тьмы · этаж '+floor);addLoot(p,t);out.push(t.name)}return out}});if(done){bumpCount(p,'carnival:realmEss',resCount(p,'ess')-ess);bumpCount(p,'carnival:battleGold',p.gold-gold)}});return ok&&done}
+export function claimRealmReward(){let done=false;const ok=useGame.getState().mutate(p=>{const ess=resCount(p,'ess'),gold=p.gold;done=realmClaim(p,{xp:n=>gainExperience(p,n),trophies:(floor,first)=>{const out:string[]=[],named=namedDrop('darkness');if(named){const u=makeUnique(named,p.level,'Владыка Царства тьмы · этаж '+floor);addLoot(p,u);out.push(u.name)}for(const [at,perk] of [[10,'void'],[20,'duskwings']] as [number,PerkId][])if(first&&floor===at&&setFlag(p,'perk:'+perk)){const t=makePerkItem(perk,p.level+2,'Трофей Царства тьмы · этаж '+floor);addLoot(p,t);out.push(t.name)}return out}});if(done){bumpCount(p,'carnival:realmEss',resCount(p,'ess')-ess);bumpCount(p,'carnival:battleGold',p.gold-gold)}});return ok&&done}
 
 function followProfileSave(raw:string){
  const incoming=parseSave(raw,true);if(!incoming)return false;

@@ -3,7 +3,7 @@ import {grantSolo,soloResources,type SoloResource} from './soloEconomy';
 import type {Player} from '../core/types';
 import {grantHorn,grantMaterial} from '../core/store';
 import {addRes,resources,type ResId} from '../dark/rules';
-import {xpNeeded} from '../core/formulas';
+import {gainExperience} from '../core/experience';
 import {materialIds,materials} from './gear';
 import {regionIndex,stageGold} from './regions';
 export interface Reward {gold?:number;gems?:number;horn?:number;chaosite?:number;tokens?:number;xp?:number;mats?:Record<string,number>;solo?:Partial<Record<SoloResource,number>>;res?:Partial<Record<ResId,number>>}
@@ -28,7 +28,7 @@ export const regionMaterial=(p:Player)=>materialIds[regionIndex(p.stage)%6];
 export const stageCoins=(p:Player,bossWins:number)=>Math.round(stageGold(p.stage,true)*bossWins);
 export function grant(p:Player,r:Reward,now=Date.now()){
  p.gold+=r.gold??0;p.gems+=r.gems??0;p.chaosite+=r.chaosite??0;p.tokens+=r.tokens??0;if(r.horn)grantHorn(p,r.horn,now);
- if(r.xp){p.xp+=r.xp;while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++}}
+ if(r.xp)gainExperience(p,r.xp);
  for(const id of Object.keys(resources) as ResId[])if(r.res?.[id])addRes(p,id,r.res[id]);
  for(const [id,n] of Object.entries(r.solo??{}))grantSolo(p,id as SoloResource,n);
  for(const [id,n] of Object.entries(r.mats??{}))grantMaterial(p,id,n);
