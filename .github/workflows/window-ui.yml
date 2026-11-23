@@ -9,6 +9,19 @@ jobs:
   arena:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: vvr_test
+          POSTGRES_PASSWORD: local-vvr-test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vvr_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - name: Verify Arena image from a clean checkout
@@ -19,7 +32,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Verify online Arena on four mobile sizes
+      - name: Verify versioned saves against disposable PostgreSQL
+        env:
+          VVR_TEST_DB_ADMIN_URL: postgresql://postgres:local-vvr-test-only@127.0.0.1:5432/vvr_test
+        run: npm run test:saves
+      - name: Verify online Arena and saves on four mobile sizes
+        env:
+          VVR_DB_URL: postgresql://vvr_save_login:vvr-save-local-only@127.0.0.1:5432/vvr_test
         run: |
           node --import tsx scripts/qa/fixtures.ts
           npm run arena:build

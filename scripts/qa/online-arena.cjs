@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const {spawn} = require('node:child_process');
 const {once} = require('node:events');
+const {randomUUID} = require('node:crypto');
 const {existsSync,mkdtempSync,mkdirSync,rmSync} = require('node:fs');
 const {tmpdir} = require('node:os');
 const {join} = require('node:path');
@@ -73,6 +74,38 @@ async function chat(page,text) {
  await arena.getByText(text,{exact:false}).waitFor();
 }
 
+async function apiSave(page,data) {
+ return page.evaluate(async payload=>{
+  const token=sessionStorage.getItem('vvr-arena-session');
+  const res=await fetch('/arena-api/save',{
+   method:payload?'POST':'GET',
+   headers:{Authorization:'Bearer '+token,'X-Arena-Tab':crypto.randomUUID(),...(payload?{'Content-Type':'application/json'}:{})},
+   body:payload?JSON.stringify(payload):undefined,
+  });
+  return {status:res.status,value:await res.json()};
+ },data);
+}
+
+async function verifySaves(one,two,width) {
+ const earlier=await apiSave(one.page);
+ assert.equal(earlier.status,200);
+ const raw=JSON.stringify(require('./ui-fixture.cjs')(34));
+ const upload={expected:earlier.value.revision,raw,requestId:randomUUID()};
+ if(width===390){
+  await one.context.setOffline(true);
+  try{await assert.rejects(apiSave(one.page,upload),/fetch|Network/i)}
+  finally{await one.context.setOffline(false)}
+ }
+ const saved=await apiSave(one.page,upload);
+ assert.equal(saved.status,200);
+ assert.equal(saved.value.revision,upload.expected+1);
+ const [read,other]=await Promise.all([apiSave(one.page),apiSave(two.page)]);
+ assert.equal(read.value.snapshot.raw,raw);
+ assert.equal(read.value.snapshot.checksum,saved.value.checksum);
+ assert.notEqual(other.value.playerId,read.value.playerId);
+ assert.equal(other.value.snapshot,null);
+}
+
 async function noHorizontalOverflow(page) {
  const sizes=await page.evaluate(()=>{
   const arena=document.querySelector('.online-arena');
@@ -111,6 +144,7 @@ async function noHorizontalOverflow(page) {
    const one=await actor(browser,'alice',{width,height});
    const two=await actor(browser,'boris',{width,height});
    const a=one.page,b=two.page,ar=section(a),br=section(b);
+   if(process.env.VVR_DB_URL)await verifySaves(one,two,width);
    const beforeScore=await score(ar).innerText();
    await ar.getByText(/Тренировочный уровень 6 ·/).waitFor();
    await br.getByText(/Тренировочный уровень 13 ·/).waitFor();
@@ -206,7 +240,8 @@ async function noHorizontalOverflow(page) {
     assert.deepEqual(actor.errors,[]);
     await actor.context.close();
    }
-   console.log(width+' px: independent sessions, levels 6/13, moves, elixir, chat, result and Solo isolation passed');
+   console.log(width+' px: independent sessions, levels 6/13, moves, elixir, chat, result, Solo isolation'+
+    (process.env.VVR_DB_URL?', PostgreSQL save and isolation':'')+' passed');
   }
   const fallback=await actor(browser,'alice',{width:430,height:932});
   const {page}=fallback;
