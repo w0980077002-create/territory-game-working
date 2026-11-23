@@ -16,6 +16,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve,ms));
 const button = (page,name) => page.getByRole('button',{name,exact:true});
 const section = page => page.getByRole('region',{name:'Сетевая Арена 1×1'});
 const round = (page,n) => section(page).getByText(new RegExp('^Раунд '+n+' ·'));
+const score = arena => arena.getByText(/тестовые очки/);
 
 async function openArena(page) {
  await button(page,'Арена').tap();
@@ -33,14 +34,17 @@ async function actor(browser,user,viewport) {
  player.equipment.weapon=stagedWeapon;
  const profileKey=soloKey+':telegram:'+(user==='alice'?'1001':'1002');
  await context.addInitScript(({data,player,profileKey,stagingKey,soloKey})=>{
-  window.__arenaCloudCalls=0;
+  const cloudCall=()=>sessionStorage.setItem('qa-cloud-calls',String(Number(sessionStorage.getItem('qa-cloud-calls'))+1));
   window.Telegram={WebApp:{
    initData:data,ready(){},expand(){},isVersionAtLeast:()=>false,
-   CloudStorage:{getItem(){window.__arenaCloudCalls++},setItem(){window.__arenaCloudCalls++}},
+   CloudStorage:{getItem:cloudCall,setItem:cloudCall},
   }};
-  localStorage.setItem(soloKey,'original-save-sentinel');
-  localStorage.setItem(profileKey,'telegram-save-sentinel');
-  if(!localStorage.getItem(stagingKey))localStorage.setItem(stagingKey,JSON.stringify(player));
+  if(!sessionStorage.getItem('qa-save-initialized')){
+   localStorage.setItem(soloKey,'original-save-sentinel');
+   localStorage.setItem(profileKey,'telegram-save-sentinel');
+   localStorage.setItem(stagingKey,JSON.stringify(player));
+   sessionStorage.setItem('qa-save-initialized','1');
+  }
  },{data:initData,player,profileKey,stagingKey,soloKey});
  const page=await context.newPage();
  const errors=[];
@@ -87,7 +91,7 @@ async function noHorizontalOverflow(page) {
 (async()=>{
  const root=mkdtempSync(join(tmpdir(),'vvr-mobile-arena-'));
  const server=spawn(process.execPath,['.tmp/arena/server.mjs'],{
-  env:{...process.env,PORT:port,ARENA_LOCAL:'1',ARENA_DB:join(root,'arena.sqlite')},
+  env:{...process.env,PORT:port,ARENA_LOCAL:'1',ARENA_TEST_LEVELS:'{"1001":6,"1002":13}',ARENA_DB:join(root,'arena.sqlite')},
   stdio:'inherit',
  });
  let browser;
@@ -107,6 +111,9 @@ async function noHorizontalOverflow(page) {
    const one=await actor(browser,'alice',{width,height});
    const two=await actor(browser,'boris',{width,height});
    const a=one.page,b=two.page,ar=section(a),br=section(b);
+   const beforeScore=await score(ar).innerText();
+   await ar.getByText(/Тренировочный уровень 6 ·/).waitFor();
+   await br.getByText(/Тренировочный уровень 13 ·/).waitFor();
    const arenaOne=a.getByRole('combobox',{name:'Тренировочный комплект'});
    assert.equal(await a.getByRole('combobox',{name:'Класс бойца'}).inputValue(),'ranger');
    assert.equal(await b.getByRole('combobox',{name:'Класс бойца'}).inputValue(),'berserker');
@@ -130,6 +137,8 @@ async function noHorizontalOverflow(page) {
    await ar.getByText('Игрок против игрока',{exact:true}).waitFor();
    await ar.getByText('Борис',{exact:true}).waitFor();
    await br.getByText('Алиса',{exact:true}).waitFor();
+   await ar.getByText('Соперник · ур. 13',{exact:true}).waitFor();
+   await br.getByText('Соперник · ур. 6',{exact:true}).waitFor();
 
    await ar.getByText('Тренировочная экипировка · 7 ячеек',{exact:true}).tap();
    assert.equal(await ar.locator('.online-gear-row').count(),7);
@@ -150,6 +159,9 @@ async function noHorizontalOverflow(page) {
    await pickMove(a,'Голова','Живот','Ноги');
    await button(ar,'Ход принят').waitFor();
    if(width===390){
+    await two.context.setOffline(true);
+    await ar.getByText(/HP · без связи/).waitFor({timeout:15_000});
+    await two.context.setOffline(false);
     await b.reload();
     await openArena(b);
     await button(b,'Продолжить в этой вкладке').tap();
@@ -162,11 +174,20 @@ async function noHorizontalOverflow(page) {
    await button(ar,'Автобой вкл.').tap();
    await button(ar,'Автобой выкл.').waitFor();
 
-   await button(b,'Покинуть поединок').tap();
-   await button(b,'Подтвердить выход').tap();
-   await ar.getByText('Победа',{exact:true}).waitFor();
-   await br.getByText('Поражение',{exact:true}).waitFor();
-   await ar.getByText(/тестовые очки 0/).waitFor();
+   if(width===390){
+    await Promise.all([button(ar,'Автобой выкл.').tap(),button(br,'Автобой выкл.').tap()]);
+    const reason=/Решило здоровье|Лимит раундов/;
+    await Promise.all([ar.getByText(reason).waitFor({timeout:250_000}),br.getByText(reason).waitFor({timeout:250_000})]);
+    const outcome=/^(Победа|Поражение|Ничья)$/;
+    const decisions=await Promise.all([ar.getByText(outcome).innerText(),br.getByText(outcome).innerText()]);
+    assert.ok(decisions.every(result=>result==='Ничья')||decisions.includes('Победа')&&decisions.includes('Поражение'));
+   }else{
+    await button(b,'Покинуть поединок').tap();
+    await button(b,'Подтвердить выход').tap();
+    await ar.getByText('Победа',{exact:true}).waitFor();
+    await br.getByText('Поражение',{exact:true}).waitFor();
+    assert.equal(await score(ar).innerText(),beforeScore,'leaving grants no points');
+   }
    await chat(b,'Спасибо за бой');
    await button(ar,'Боевой чат').tap();
    await ar.getByText('Спасибо за бой',{exact:false}).waitFor();
@@ -175,7 +196,7 @@ async function noHorizontalOverflow(page) {
    for(const actor of [one,two]){
     const storage=await actor.page.evaluate(({soloKey,profileKey,stagingKey})=>({
      original:localStorage.getItem(soloKey),telegram:localStorage.getItem(profileKey),
-     player:JSON.parse(localStorage.getItem(stagingKey)),cloud:window.__arenaCloudCalls,
+     player:JSON.parse(localStorage.getItem(stagingKey)),cloud:Number(sessionStorage.getItem('qa-cloud-calls')),
     }),{soloKey,profileKey:actor.profileKey,stagingKey});
     assert.equal(storage.original,'original-save-sentinel');
     assert.equal(storage.telegram,'telegram-save-sentinel');
@@ -185,8 +206,18 @@ async function noHorizontalOverflow(page) {
     assert.deepEqual(actor.errors,[]);
     await actor.context.close();
    }
-   console.log(width+' px: independent sessions, moves, elixir, chat, result and Solo isolation passed');
+   console.log(width+' px: independent sessions, levels 6/13, moves, elixir, chat, result and Solo isolation passed');
   }
+  const fallback=await actor(browser,'alice',{width:430,height:932});
+  const {page}=fallback;
+  await button(page,'Найти соперника').tap();
+  const queuedAt=Date.now();
+  await section(page).getByText(/Поиск · уровни ±7/).waitFor();
+  await section(page).getByText('Тренировочный бот',{exact:true}).first().waitFor({timeout:25_000});
+  assert.ok(Date.now()-queuedAt>=19_500,'bot fallback waits twenty seconds');
+  assert.match(await round(page,1).innerText(),/· (?:5\d|60) с/);
+  await fallback.context.close();
+  console.log('430 px: 20-second queue fallback and fresh 60-second duel passed');
  }finally{
   if(browser)await browser.close();
   if(server.exitCode===null&&server.signalCode===null){

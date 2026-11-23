@@ -8,7 +8,7 @@ import {companions} from '../../src/dark/rules';
 import balance from '../../config/test-balance.v1.json';
 
 export type Entrant = {
- id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;
+ id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;
 };
 type Fighter = Entrant & {
  seenAt:number;hp:number;maxHp:number;attack:number;defense:number;crit:number;gear:number[];
@@ -223,7 +223,7 @@ export function viewMatch(match:Match,id:string,controller:string,now:number):Ar
  const result=match.result;
  return {
   id:match.id,bot:match.bot,round:match.round,deadline:match.deadline,you:publicFighter(you),opponent:publicFighter(opponent),
-  control:you.controller===controller,nextSequence:you.sequence+1,auto:you.auto,belt:you.belt,itemReadyAt:you.itemAt,
+  control:you.controller===controller,controlRevision:you.controlRevision??0,nextSequence:you.sequence+1,auto:you.auto,belt:you.belt,itemReadyAt:you.itemAt,
   ready:you.ready,log:match.log,chat:match.chat,chatDeadline:result?result.finishedAt+CHAT_MS:null,
   result:result?{outcome:!result.winner?'draw':result.winner===id?'win':'loss',
    reason:result.reason,points:result.winner===id?result.points:0,finishedAt:result.finishedAt}:undefined,

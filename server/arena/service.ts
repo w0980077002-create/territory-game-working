@@ -3,24 +3,27 @@ import {randomUUID} from 'node:crypto';
 import {CHAT_MS,MATCH_WAIT_MS,type ArenaCommand,type ArenaHero,type ArenaKit,type ArenaView} from '../../src/arena/protocol';
 import {advance,appendMessage,applyCommand,compatible,forfeit,newMatch,viewMatch,type Entrant,type Match} from './duel';
 import type {ArenaIdentity} from './auth';
+import {DEFAULT_ARENA_LEVEL} from './roster';
 
 export class ArenaError extends Error {
  constructor(readonly status:number,message:string){super(message)}
 }
-type Queued=Entrant&{since:number;seenAt:number};
+type Queued=Entrant&{ticket:string;since:number;seenAt:number};
 type State={queue:Queued[];matches:Match[]};
 type Profile={id:string;name:string;points:number;wins:number};
 type Actor={id:string;controller:string};
+type Control={target:string;revision:number};
+const ownsControl=(player:Entrant,actor:Actor,revision:number)=>
+ player.id===actor.id&&player.controller===actor.controller&&(player.controlRevision??0)===revision;
 export const QUEUE_IDLE_MS=12_000;
 const MAX_ACTIVE=128;
-const trainingLevel=1;
 const trainingRating=1000;
 const blockedChat=/(https?:\/\/|www\.|t\.me|telegram\.me|startapp\s*=|ref_[a-f\d]{14})/iu;
 
 export class ArenaService {
  private readonly db:DatabaseSync;
 
- constructor(path:string,private readonly rng=Math.random){
+ constructor(path:string,private readonly rng=Math.random,private readonly levels:ReadonlyMap<string,number>=new Map()){
   this.db=new DatabaseSync(path);
   this.db.exec(`
    PRAGMA journal_mode=WAL;
@@ -38,6 +41,8 @@ export class ArenaService {
   this.db.prepare('INSERT INTO profiles(id,name) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name').run(identity.id,identity.name);
  }
 
+ private level(id:string){return this.levels.get(id)??DEFAULT_ARENA_LEVEL}
+
  private profile(id:string):Profile{
   const profile=this.db.prepare('SELECT * FROM profiles WHERE id=?').get(id) as Profile|undefined;
   if(!profile)throw new ArenaError(401,'Войдите в Арену');
@@ -52,7 +57,9 @@ export class ArenaService {
  }
 
  private update(state:State,now:number){
-  state.queue=state.queue.filter(player=>now-player.seenAt<QUEUE_IDLE_MS);
+  state.queue=state.queue.filter(player=>now-player.seenAt<QUEUE_IDLE_MS&&player.level===this.level(player.id));
+  // Pending entries saved before targets were introduced still receive a usable ticket.
+  for(const entry of state.queue)entry.ticket??=randomUUID();
   for(const match of state.matches)advance(match,now,this.rng);
   this.settle(state);
   state.matches=state.matches.filter(match=>!match.result||now<match.result.finishedAt+CHAT_MS);
@@ -115,8 +122,8 @@ export class ArenaService {
   const match=this.current(state,actor.id);
   const past=this.current(state,actor.id,queued?undefined:match?.id,true);
   return {
-   now,level:trainingLevel,points:profile.points,
-   queued:queued?{since:queued.since,control:queued.controller===actor.controller}:undefined,
+   now,level:this.level(actor.id),points:profile.points,
+   queued:queued?{id:queued.ticket,since:queued.since,control:queued.controller===actor.controller,controlRevision:queued.controlRevision??0}:undefined,
    match:match&&!queued?viewMatch(match,actor.id,actor.controller,now):undefined,
    lastResult:past?.result?{id:past.id,chatDeadline:past.result.finishedAt+CHAT_MS}:undefined,
   };
@@ -137,8 +144,8 @@ export class ArenaService {
    const match=this.current(state,actor.id);
    if(match&&!match.result||state.queue.some(player=>player.id===actor.id))return this.view(state,actor,now);
    const profile=this.profile(actor.id);
-   const entry={id:actor.id,name:profile.name,level:trainingLevel,rating:trainingRating,hero,kit,
-    controller:actor.controller,since:now,seenAt:now};
+   const entry={id:actor.id,name:profile.name,level:this.level(actor.id),rating:trainingRating,hero,kit,
+    controller:actor.controller,ticket:randomUUID(),since:now,seenAt:now};
    if(state.queue.length>=MAX_ACTIVE)throw new ArenaError(503,'Очередь заполнена. Повторите позже.');
    state.queue.push(entry);
    this.pairQueue(state,now);
@@ -146,22 +153,26 @@ export class ArenaService {
   });
  }
 
- takeover(actor:Actor,now:number){
+ takeover(actor:Actor,control:Control,now:number){
   return this.transaction(now,state=>{
-   const queued=state.queue.find(player=>player.id===actor.id);
+   const queued=state.queue.find(player=>player.id===actor.id&&player.ticket===control.target);
    const match=this.current(state,actor.id);
-   const player=queued??(!match?.result?match?.players.find(player=>player.id===actor.id):undefined);
-   if(player){player.controller=actor.controller;player.seenAt=now}
+   const player=queued??(match?.id===control.target&&!match.result?match.players.find(player=>player.id===actor.id):undefined);
+   if(player&&(player.controlRevision??0)===control.revision&&player.controller!==actor.controller){
+    player.controller=actor.controller;
+    player.controlRevision=control.revision+1;
+    player.seenAt=now;
+   }
    return this.view(state,actor,now);
   });
  }
 
- leave(actor:Actor,id:string|null,now:number){
+ leave(actor:Actor,control:Control,now:number){
+  const owns=(player:Entrant)=>ownsControl(player,actor,control.revision);
   return this.transaction(now,state=>{
-   const queued=state.queue.find(player=>player.id===actor.id&&player.controller===actor.controller);
-   if(queued&&!id)state.queue=state.queue.filter(player=>player!==queued);
+   state.queue=state.queue.filter(player=>player.ticket!==control.target||!owns(player));
    const match=this.current(state,actor.id);
-   if(match?.id===id&&!match.result&&match.players.some(player=>player.id===actor.id&&player.controller===actor.controller)){
+   if(match?.id===control.target&&!match.result&&match.players.some(owns)){
     forfeit(match,actor.id,now);
     this.settle(state);
    }
@@ -169,10 +180,10 @@ export class ArenaService {
   });
  }
 
- act(actor:Actor,id:string,action:ArenaCommand,round:number,sequence:number,now:number){
+ act(actor:Actor,control:Control,action:ArenaCommand,round:number,sequence:number,now:number){
   return this.transaction(now,state=>{
    const match=this.current(state,actor.id);
-   const controlled=match?.id===id&&match.players.some(player=>player.id===actor.id&&player.controller===actor.controller);
+   const controlled=match?.id===control.target&&match.players.some(player=>ownsControl(player,actor,control.revision));
    if(!match||!controlled||!applyCommand(match,actor.id,action,round,sequence,now,this.rng))
     return {accepted:false,view:this.view(state,actor,now)};
    this.settle(state);

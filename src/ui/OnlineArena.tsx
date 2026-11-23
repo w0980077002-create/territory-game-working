@@ -216,10 +216,12 @@ export function OnlineArena({player}:{player:Player}){
   saveSession(session.token);setToken(session.token);
  });
  const command=(path:string,data:Record<string,unknown>={})=>perform(async()=>setView(await request(path,token,data)));
+ const controlCommand=(path:'resume'|'leave',target:{id:string;controlRevision:number})=>
+  command(path,{target:target.id,revision:target.controlRevision});
  const act=(action:ArenaCommand)=>perform(async()=>{
   if(!view?.match)return;
-  const {id,round,nextSequence}=view.match;
-  const reply=await request<{accepted:boolean;view:ArenaView}>('act',token,{match:id,action,round,sequence:nextSequence});
+  const {id,round,nextSequence,controlRevision}=view.match;
+  const reply=await request<{accepted:boolean;view:ArenaView}>('act',token,{target:id,revision:controlRevision,action,round,sequence:nextSequence});
   setView(reply.view);
   if(!reply.accepted)setMessage('Действие недоступно. Проверьте раунд, ход или перезарядку.');
  });
@@ -251,8 +253,8 @@ export function OnlineArena({player}:{player:Player}){
   </>}
   {queued&&<>
    <p className="online-clock">Поиск · уровни ±7 · {secondsLeft(queued.since+MATCH_WAIT_MS,now)} с</p>
-   {!queued.control?<button className="action" disabled={pending} onClick={()=>command('resume')}>Продолжить в этой вкладке</button>:
-    <button className="action secondary" disabled={pending} onClick={()=>command('leave',{match:null})}>Отменить поиск</button>}
+   {!queued.control?<button className="action" disabled={pending} onClick={()=>controlCommand('resume',queued)}>Продолжить в этой вкладке</button>:
+    <button className="action secondary" disabled={pending} onClick={()=>controlCommand('leave',queued)}>Отменить поиск</button>}
   </>}
   {previous?<button className="action secondary" onClick={()=>setPrevious(undefined)}>К текущей Арене</button>:
    lastResult&&<button className="action secondary" disabled={pending} onClick={()=>perform(async()=>{
@@ -265,14 +267,14 @@ export function OnlineArena({player}:{player:Player}){
    </div>:<div className="online-clock">Раунд {shown.round} · {secondsLeft(shown.deadline,now)} с</div>}
    <div className="online-clock">{shown.bot?'Тренировочный бот':'Игрок против игрока'}</div>
    <div className="online-fighters"><Fighter fighter={shown.you} label="Вы"/><Fighter fighter={shown.opponent} label="Соперник"/></div>
-   {!shown.result&&(!shown.control?<button className="action" disabled={pending} onClick={()=>command('resume')}>Продолжить в этой вкладке</button>:
+   {!shown.result&&(!shown.control?<button className="action" disabled={pending} onClick={()=>controlCommand('resume',shown)}>Продолжить в этой вкладке</button>:
     <RoundControls key={shown.id+':'+shown.round} match={shown} now={now} pending={pending} act={act}/>)}
    <Gear match={shown}/>
    <RoomMessages key={shown.id} match={shown} now={now} pending={pending} send={text=>send(shown.id,text)}/>
    {!shown.result&&shown.control&&(!leaving?<button className="action secondary" onClick={()=>setLeaving(true)}>Покинуть поединок</button>:
     <div className="online-message-tabs">
      <button className="action secondary" disabled={pending} onClick={()=>setLeaving(false)}>Остаться</button>
-     <button className="action" disabled={pending} onClick={()=>{setLeaving(false);void command('leave',{match:shown.id})}}>Подтвердить выход</button>
+     <button className="action" disabled={pending} onClick={()=>{setLeaving(false);void controlCommand('leave',shown)}}>Подтвердить выход</button>
     </div>)}
   </>}
  </section>;
