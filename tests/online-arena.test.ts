@@ -272,9 +272,10 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
     const reply=await restored('act',{target:id,revision:oneState.match.controlRevision,action:attack,round:current,sequence:oneState.match.nextSequence});
     assert.ok(reply.data.accepted);
    }
-   const replyBatch=await Promise.all([1,2].map(()=>two('act',{
+   const opponentMove:Record<string,unknown>={
     target:id,revision:twoState.match.controlRevision,action:legs,round:current,sequence:twoState.match.nextSequence,
-   })));
+   };
+   const replyBatch=await Promise.all([two('act',opponentMove),two('act',opponentMove)]);
    assert.equal(replyBatch.filter(reply=>reply.data.accepted).length,1);
    const reply=replyBatch.find(reply=>reply.data.accepted)!;
    twoState=reply.data.view;
