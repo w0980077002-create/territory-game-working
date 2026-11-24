@@ -17,3 +17,7 @@
 .activity-track li.ready button { border-color: #e4ad43; box-shadow: 0 0 6px #e4ad4380; color: #ffe9a6; }
 .activity-track li.ready em { color: #ffd36b; font-weight: 700; }
 .activity-track li.claimed button { filter: saturate(.5); opacity: .75; }
+.mini-reward .reward-piece { white-space: nowrap; }
+.mini-reward .reward-piece strong { white-space: nowrap; }
+.mini-reward .reward-piece { flex-direction: column; gap: 0; line-height: 1.1; }
+.mini-reward { max-width: 100%; }

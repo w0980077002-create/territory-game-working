@@ -33,3 +33,6 @@
 .coll-wing.worn small { color: #ffd36b; font-weight: 700; }
 .coll-wing:disabled { opacity: 1; }
 .coll-wing.locked strong { color: #8d8172; }
+.mini-reward .reward-piece, .mini-reward .reward-piece strong { white-space: nowrap; }
+.mini-reward .reward-piece { flex-direction: column; gap: 0; line-height: 1.1; }
+.mini-reward { max-width: 100%; }

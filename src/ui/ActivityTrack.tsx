@@ -3,7 +3,8 @@ import {useGame} from '../core/store';
 import {activityView,activityPoints,claimActivity,activityMilestones,ACTIVITY_PER_QUEST} from '../saga/activity';
 import {actualReward} from '../saga/events';
 import {rewardText} from '../saga/rewards';
-import {RewardArt} from './RewardArt';
+
+import {MiniReward} from './MiniReward';
 import './activity.css';
 
 /** Daily activity scale over the claimed daily quests: 20/40/60/80/100, each milestone once a day. */
@@ -20,7 +21,7 @@ export function ActivityTrack({p}:{p:Player}){
   <ol>{view.map(m=><li key={m.at} className={m.claimed?'claimed':m.reached?'ready':''}>
    <button type="button" disabled={!m.reached||m.claimed} onClick={()=>claim(m.index)}
     aria-label={`${m.at} очков · ${rewardText(m.reward)} · ${m.claimed?'получено':m.reached?'получить':'ещё не достигнуто'}`}>
-    <b>{m.at}</b><RewardArt reward={m.reward}/><em>{m.claimed?'✓ получено':m.reached?'Забрать':''}</em>
+    <b>{m.at}</b><MiniReward reward={m.reward}/><em>{m.claimed?'✓ получено':m.reached?'Забрать':''}</em>
    </button>
   </li>)}</ol>
  </section>;

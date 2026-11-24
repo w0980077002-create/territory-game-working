@@ -13,6 +13,7 @@ import {Album} from './SagaPanels';
 import {GameTabs} from './CompactGame';
 import {Icon,gearIcon} from './Icon';
 import {RewardArt} from './RewardArt';
+import {MiniReward} from './MiniReward';
 import './collections.css';
 
 type Tab='album'|CollectionId;
@@ -26,7 +27,7 @@ function Milestones({p,id}:{p:Player;id:CollectionId}){
  const claim=(index:number)=>{let got='';if(soloAction(draft=>{const r=claimCollection(draft,id,index);if(r)got=rewardText(r);return !!r}))useGame.getState().notice('Коллекция: '+got)};
  return <ol className="coll-steps">{collectionMilestones(p,page).map(m=><li key={m.at} className={m.claimed?'claimed':m.reached?'ready':''}>
   <button type="button" disabled={!m.reached||m.claimed} onClick={()=>claim(m.index)} aria-label={`${m.at}% · ${rewardText(m.reward)} · ${m.claimed?'получено':m.reached?'получить':'ещё не собрано'}`}>
-   <b>{m.at}%</b><RewardArt reward={m.reward}/><em>{m.claimed?'✓':m.reached?'Забрать':''}</em>
+   <b>{m.at}%</b><MiniReward reward={m.reward}/><em>{m.claimed?'✓':m.reached?'Забрать':''}</em>
   </button>
  </li>)}</ol>;
 }
