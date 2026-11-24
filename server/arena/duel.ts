@@ -10,7 +10,7 @@ import balance from '../../config/test-balance.v1.json';
 export type Entrant = {
  id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;
 };
-type Fighter = Entrant & {
+export type Fighter = Entrant & {
  seenAt:number;hp:number;maxHp:number;attack:number;defense:number;crit:number;gear:number[];
  sequence:number;turn?:{move:ArenaMove;at:number};auto:boolean;autoAt:number;fought:boolean;
  belt:Record<ArenaElixir,number>;itemAt:Partial<Record<ArenaElixir,number>>;lastChatAt?:number;
@@ -50,7 +50,7 @@ export function compatible(a:Entrant,b:Entrant){
   && ratio(x.maxHp,y.maxHp,3) && ratio(x.attack,y.attack,4) && ratio(x.defense,y.defense,4);
 }
 
-function fighter(player:Entrant,now:number):Fighter{
+export function createFighter(player:Entrant,now:number):Fighter{
  const stats=entrantStats(player);
  const belt=Object.fromEntries(Object.entries(arenaElixirs).map(([id,item])=>[id,item.qty])) as Fighter['belt'];
  return {...player,...stats,hp:stats.maxHp,seenAt:now,sequence:0,auto:player.id===BOT_ID,autoAt:now,
@@ -63,13 +63,15 @@ function schedule(player:Fighter,now:number,rng:()=>number){
 }
 
 export function newMatch(id:string,a:Entrant,b:Entrant,now:number,bot=false,rng=Math.random):Match{
- const players:[Fighter,Fighter]=[fighter(a,now),fighter(b,now)];
+ const players:[Fighter,Fighter]=[createFighter(a,now),createFighter(b,now)];
  for(const player of players)if(player.auto)schedule(player,now,rng);
  return {id,bot,round:1,roundStart:now,roundMs:ROUND_MS,deadline:now+ROUND_MS,
   players,log:[],chat:[],messageId:0};
 }
 
-export function appendMessage(match:Match,now:number,value:string,author?:string){
+type Messages = Pick<Match,'log'|'chat'|'messageId'>;
+
+export function appendMessage(match:Messages,now:number,value:string,author?:string){
  const list=author===undefined?match.log:match.chat;
  list.push({id:++match.messageId,at:now,text:value,author});
  if(list.length>80)list.shift();
@@ -97,14 +99,13 @@ function heal(player:Fighter,amount:number){
  return gain;
 }
 
-function strike(match:Match,a:Fighter,b:Fighter,now:number,rng:()=>number){
- const move=a.turn!.move;
+export function resolveStrike(match:Messages,a:Fighter,b:Fighter,move:ArenaMove,blocks:readonly ArenaZone[],now:number,rng:()=>number){
  const text=a.name+' → '+b.name+': ';
  const impact=zones[move.attack].impact;
  // TERRITORY duel resolver: dodge, independent crit, full block or 80% block
  // penetration, then zone and damage variance. Both start-of-round fighters act.
  if(rng()<.06){appendMessage(match,now,text+'уклонение от удара '+impact);return}
- const blocked=b.turn!.move.blocks.includes(move.attack);
+ const blocked=blocks.includes(move.attack);
  const crit=rng()*100<a.crit;
  const buff=a.buffUntil>now?1.3:1;
  const skillScale=a.hero==='runologist'?1.15:1;
@@ -121,6 +122,10 @@ function strike(match:Match,a:Fighter,b:Fighter,now:number,rng:()=>number){
  }
  b.hp=Math.max(0,b.hp-damage);
  appendMessage(match,now,text+(blocked?'пробитие блока, ':crit?'критический удар ':'удар ')+impact+' · −'+damage+' HP');
+}
+
+function strike(match:Match,a:Fighter,b:Fighter,now:number,rng:()=>number){
+ resolveStrike(match,a,b,a.turn!.move,b.turn!.move.blocks,now,rng);
 }
 
 function resolveRound(match:Match,now:number,rng:()=>number){
