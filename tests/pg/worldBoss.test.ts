@@ -11,7 +11,7 @@ import {promisify} from 'node:util';
 const run=promisify(execFile);
 const host=process.env.VVR_PG_HOST,port=process.env.VVR_PG_PORT??'5432',user=process.env.VVR_PG_USER??'postgres';
 const skip=!host&&'set VVR_PG_HOST to run the world boss SQL tests';
-const migration=new URL('../../supabase/migrations/20261125090000_vvr_world_boss.sql',import.meta.url);
+const migration=new URL('../../supabase/migrations/20261124155539_vvr_world_boss.sql',import.meta.url);
 async function psql(db:string,sql:string){
  const {stdout}=await run('psql',['-X','-q','-A','-t','-v','ON_ERROR_STOP=1','-h',host!,'-p',port,'-U',user,'-d',db,'-c',sql],{maxBuffer:1<<24});
  return stdout.trim();
