@@ -197,7 +197,7 @@ async function workshops({page,button,read},locked=false){
  await slot.tap();
  await page.getByRole('option',{name:'Амулет',exact:true}).tap();
  const before=await read();
- await craft.tap();
+ await craft.evaluate(button=>{button.click();button.click()});
  await page.locator('[data-panel="item"]').waitFor();
  const after=await read(), item=after.inventory.at(-1);
  assert.equal(after.inventory.length,before.inventory.length+1);
@@ -208,6 +208,9 @@ async function workshops({page,button,read},locked=false){
  assert.equal(after.saga.n['masterwork:jeweler'],1);
  await button('← Назад').tap();
  await workshop.waitFor();
+ await masters.getByRole('button',{name:'Ювелир'}).tap();
+ await workshop.getByText('Изготовлено предметов · 1',{exact:true}).waitFor();
+ await page.waitForTimeout(370);
  await button('‹ В гавань').tap();
  await harbor.waitFor();
  await page.reload();
