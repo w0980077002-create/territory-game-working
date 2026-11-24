@@ -4,6 +4,9 @@ on:
     branches: [codex-build]
     paths: ['supabase/**', 'tests/pg/worldBoss.test.ts', 'scripts/qa/world-boss-*', 'src/worldBoss/**', 'src/ui/WorldBossPanel.tsx', 'src/ui/worldBoss.css', 'src/ui/MailPanel.tsx', '.github/workflows/world-boss.yml']
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
