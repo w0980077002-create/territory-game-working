@@ -12,10 +12,13 @@ if(!Number.isInteger(port)||port<1||port>65535)throw new Error('Invalid Arena po
 const allowedUsers=new Set((process.env.ARENA_TEST_USERS??'').split(',').map(value=>value.trim()).filter(Boolean));
 const dbPath=resolve(process.env.ARENA_DB??(local?'.tmp/arena/local.sqlite':'/data/arena.sqlite'));
 mkdirSync(dirname(dbPath),{recursive:true});
+const scoreUrl=process.env.VVR_ARENA_SCORE_URL,scoreToken=process.env.VVR_ARENA_SCORE_TOKEN;
+const scorePublisher=!local&&scoreUrl?.startsWith('https://')&&scoreToken&&/^[a-f0-9]{64}$/.test(scoreToken)
+ ?{url:scoreUrl,token:scoreToken}:undefined;
 const server=createArenaServer({
  dbPath,webRoot:resolve(process.env.ARENA_WEB_ROOT??'.tmp/arena/web'),local,allowedUsers:local||allowedUsers.size===0?undefined:allowedUsers,
  botToken:local?randomBytes(32).toString('hex'):process.env.ARENA_BOT_TOKEN??'',
- testLevels:process.env.ARENA_TEST_LEVELS,
+ testLevels:process.env.ARENA_TEST_LEVELS,scorePublisher,
  sessionKey:local?randomBytes(32).toString('hex'):process.env.ARENA_SESSION_SECRET??'',
 });
 server.listen(port,host,()=>console.log(`Arena listening at http://${host}:${port}`));

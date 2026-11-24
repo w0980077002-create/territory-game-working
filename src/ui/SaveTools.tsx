@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
+import {communityEnabled,CommunityError,readW066Snapshot,storeW066Snapshot} from '../community/client';
 import {stageLabel} from '../core/formulas';
 import {LEGACY_SAVE_KEY, telegramProfile} from '../core/profile';
 import {acknowledgeCloud, exportSave, isolatedProfile, parseSave, SAVE_KEY, unreadableSave, useGame} from '../core/store';
@@ -14,6 +15,8 @@ export function SaveTools() {
   const [candidate,setCandidate] = useState<{player:Player;cloud?:string}>();
   const [backupText,setBackupText] = useState<string>();
   const [pasteOpen,setPasteOpen] = useState(false);
+  const [serverRevision,setServerRevision] = useState<number>();
+  const [serverBusy,setServerBusy] = useState(false);
   const paste = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
   const request = useRef(0);
@@ -23,6 +26,8 @@ export function SaveTools() {
   const current = (id:number) => id===request.current && useGame.getState().panel==='save-tools';
   const beginPreview = () => {
     setCandidate(undefined);
+    setServerRevision(undefined);
+    setServerBusy(false);
     return ++request.current;
   };
   const saveText = () => useGame.getState().recoveryRequired ? unreadableSave() : exportSave();
@@ -56,6 +61,43 @@ export function SaveTools() {
     const player=parseSave(result.raw,true);
     if(player)setCandidate({player,cloud:result.raw});
     else notice('Копия Telegram повреждена · можно восстановиться из файла');
+  };
+  const previewServer = async (previous:boolean) => {
+    const id=beginPreview();
+    setServerBusy(true);
+    try {
+      const snapshot=await readW066Snapshot(previous);
+      if(!current(id))return;
+      if(!snapshot){
+        if(!previous)setServerRevision(0);
+        notice(previous?'Предыдущей копии W066 пока нет':'В W066 пока нет копии');
+        return;
+      }
+      if(!previous)setServerRevision(snapshot.revision);
+      const player=parseSave(snapshot.raw,true);
+      if(player)setCandidate({player});
+      else notice('Копия W066 повреждена · откройте предыдущую версию');
+    }catch{
+      if(current(id))notice('Копия W066 недоступна · попробуйте ещё раз');
+    }finally{if(current(id))setServerBusy(false)}
+  };
+  const saveServer = async () => {
+    if(serverRevision===undefined||useGame.getState().recoveryRequired)return;
+    const id=request.current;
+    setServerBusy(true);
+    try{
+      const revision=await storeW066Snapshot(serverRevision,crypto.randomUUID(),exportSave());
+      if(!current(id))return;
+      setServerRevision(revision);
+      setCandidate(undefined);
+      notice('Копия W066 сохранена');
+    }catch(error){
+      if(!current(id))return;
+      setServerRevision(undefined);
+      notice(error instanceof CommunityError&&error.status===409
+        ?'Копия W066 обновлена на другом устройстве · откройте её заново'
+        :'Не удалось сохранить копию W066');
+    }finally{if(current(id))setServerBusy(false)}
   };
   const previewLocal = (key:string, missing:string, strict:boolean) => {
     beginPreview();
@@ -110,6 +152,12 @@ export function SaveTools() {
       </>}
       <button type="button" className="action secondary" onClick={()=>previewLocal(SAVE_KEY+':before-import','Резервной копии пока нет',false)}>Предыдущая резервная копия</button>
     </div>
+    {communityEnabled&&telegramProfile&&<div className="save-actions">
+      <button type="button" className="action secondary" disabled={serverBusy} onClick={()=>void previewServer(false)}>Открыть копию W066</button>
+      <button type="button" className="action secondary" disabled={serverBusy} onClick={()=>void previewServer(true)}>Предыдущая копия W066</button>
+      {serverRevision!==undefined&&!useGame.getState().recoveryRequired&&<button type="button" className="action secondary"
+        disabled={serverBusy} onClick={()=>void saveServer()}>Сохранить текущую игру в W066</button>}
+    </div>}
     {pasteOpen&&<label>Текст резервной копии
       <textarea ref={paste} rows={3} spellCheck={false} autoComplete="off"/>
       <button type="button" className="action" onClick={previewText}>Проверить копию</button>

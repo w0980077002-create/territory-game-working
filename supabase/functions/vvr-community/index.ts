@@ -5,7 +5,7 @@ const roleKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const sessionKey=Deno.env.get('VVR_SESSION_SECRET')??'';
 const botToken=Deno.env.get('TELEGRAM_BOT_TOKEN')??'';
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','equip','unequip']);
 const maxInput=16_384;
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
@@ -24,6 +24,7 @@ function valid(action:string,body:Record<string,unknown>){
    return body.kind==='list'?keys===4&&isUuid(body.itemId)&&typeof body.price==='number'&&
     Number.isSafeInteger(body.price)&&body.price>=1&&body.price<=1_000_000_000:
     keys===3&&(body.kind==='buy'||body.kind==='cancel')&&isUuid(body.listingId);
+  case 'equip':case 'unequip':return keys===1&&isUuid(body.item);
   case 'guild_boss_claim':return keys===1&&isUuid(body.eventId);
   case 'guild_roster':
    switch(body.kind){
@@ -41,7 +42,7 @@ function valid(action:string,body:Record<string,unknown>){
  }
 }
 
-async function input(request:Request){
+async function input(request:Request,limit=maxInput){
  const stream=request.body?.getReader();
  if(!stream)throw new Error('missing_body');
  const decoder=new TextDecoder(),parts:string[]=[];
@@ -51,7 +52,7 @@ async function input(request:Request){
    const {done,value}=await stream.read();
    if(done)break;
    size+=value.length;
-   if(size>maxInput){await stream.cancel();throw new Error('body_too_large');}
+   if(size>limit){await stream.cancel();throw new Error('body_too_large');}
    parts.push(decoder.decode(value,{stream:true}));
   }
   return JSON.parse(parts.join('')+decoder.decode()) as unknown;
@@ -75,6 +76,42 @@ function rpcError(data:unknown){
  return 503;
 }
 
+async function backup(request:Request,reply:(status:number,body:unknown)=>Response){
+ const bearer=request.headers.get('authorization');
+ const player=bearer?.startsWith('Bearer ')?await readVvrSession(bearer.slice(7),sessionKey,Date.now()):undefined;
+ if(!player)return reply(401,{error:'session_required'});
+ let data:unknown;
+ try{data=await input(request,4_300_000);}catch{return reply(400,{error:'invalid_snapshot'});}
+ if(!isRecord(data))return reply(400,{error:'invalid_snapshot'});
+ let result:{ok:boolean;data:unknown};
+ if(Object.keys(data).length===1&&typeof data.previous==='boolean'){
+  result=await rpc('vvr_snapshot_read',{p_player:player,p_previous:data.previous});
+ }else if(Object.keys(data).length===3&&isUuid(data.requestId)&&typeof data.raw==='string'&&
+  typeof data.expected==='number'&&Number.isInteger(data.expected)&&data.expected>=0&&data.expected<2_147_483_647){
+  result=await rpc('vvr_snapshot_store',{p_player:player,p_expected:data.expected,p_request:data.requestId,p_raw:data.raw});
+ }else return reply(400,{error:'invalid_snapshot'});
+ return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'snapshot_request_rejected'});
+}
+
+async function arenaResult(request:Request,reply:(status:number,body:unknown)=>Response){
+ const bearer=request.headers.get('authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
+ if(!bearer)return reply(401,{error:'arena_publisher_required'});
+ let data:unknown;
+ try{data=await input(request,2048);}catch{return reply(400,{error:'invalid_arena_result'});}
+ if(!isRecord(data)||Object.keys(data).length!==4||!isUuid(data.match)||typeof data.telegram!=='string'||
+  !/^[1-9][0-9]{0,15}$/.test(data.telegram)||typeof data.name!=='string'||
+  Array.from(data.name).length<1||Array.from(data.name).length>32||
+  typeof data.finishedAt!=='string'||!Number.isFinite(Date.parse(data.finishedAt))){
+  return reply(400,{error:'invalid_arena_result'});
+ }
+ const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(bearer)));
+ const result=await rpc('vvr_ingest_arena_result',{
+  p_token_hash:Array.from(hash,byte=>byte.toString(16).padStart(2,'0')).join(''),p_match:data.match,
+  p_telegram:data.telegram,p_name:data.name,p_finished:data.finishedAt,
+ });
+ return result.ok?reply(200,{accepted:true}):reply(rpcError(result.data),{error:'arena_result_rejected'});
+}
+
 Deno.serve(async request=>{
  const requestedOrigin=request.headers.get('origin'),allowed=requestedOrigin===null||requestedOrigin===origin;
  const headers={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'content-type,authorization',
@@ -83,7 +120,14 @@ Deno.serve(async request=>{
  if(!allowed)return reply(403,{error:'origin_forbidden'});
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(request.method!=='POST')return reply(405,{error:'method_not_allowed'});
+ if(new URL(request.url).pathname.endsWith('/arena-result')){
+  if(!project||!roleKey)return reply(503,{error:'unavailable'});
+  try{return await arenaResult(request,reply);}catch{return reply(503,{error:'unavailable'});}
+ }
  if(!project||!roleKey||!botToken||sessionKey.length<32||sessionKey===botToken)return reply(503,{error:'unavailable'});
+ if(new URL(request.url).pathname.endsWith('/backup')){
+  try{return await backup(request,reply);}catch{return reply(503,{error:'unavailable'});}
+ }
  let value:unknown;
  try{value=await input(request);}catch{return reply(400,{error:'invalid_request'});}
  if(!isRecord(value)||Object.keys(value).length!==2||typeof value.action!=='string'||!actions.has(value.action)||
@@ -100,6 +144,18 @@ Deno.serve(async request=>{
   const auth=request.headers.get('authorization');
   const player=auth?.startsWith('Bearer ')?await readVvrSession(auth.slice(7),sessionKey,now):undefined;
   if(!player)return reply(401,{error:'session_required'});
+  if(value.action==='equip'||value.action==='unequip'){
+   const result=await rpc('vvr_equipment',{p_player:player,p_action:value.action,p_item:value.body.item});
+   return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'equipment_request_rejected'});
+  }
+  if(value.action==='auction'){
+   const [market,equipment]=await Promise.all([
+    rpc('vvr_community',{p_player:player,p_action:'auction',p_body:{}}),
+    rpc('vvr_equipment',{p_player:player,p_action:'equipment',p_item:null}),
+   ]);
+   if(!market.ok||!isRecord(market.data)||!equipment.ok)return reply(503,{error:'unavailable'});
+   return reply(200,{...market.data,equipment:equipment.data});
+  }
   const endpoint=value.action.startsWith('guild')?'vvr_guild_community':'vvr_community';
   const {ok,data}=await rpc(endpoint,{p_player:player,p_action:value.action,p_body:value.body});
   return ok?reply(200,data):reply(rpcError(data),{error:'community_request_rejected'});

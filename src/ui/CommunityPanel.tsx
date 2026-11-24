@@ -9,6 +9,7 @@ const tabNames={auction:l('Аукцион','Auction'),chat:l('Общий чат'
 const tradeNames={buy:l('Покупка','Purchase'),list:l('Размещение','Listing'),cancel:l('Снятие лота','Cancellation')};
 const format=(n:number)=>n.toLocaleString(lang);
 const label=(catalog:string)=>({
+ 'world-boss-trophy':l('Клинок победителя','Boss trophy blade'),
  weapon:l('Оружие','Weapon'),shield:l('Щит','Shield'),ring:l('Кольцо','Ring'),
 }[catalog]??catalog);
 type Tab=keyof typeof tabNames;
@@ -67,7 +68,7 @@ export function CommunityPanel(){
   catch(failure){setError(explain(failure));}
   finally{running.current=false;setBusy(false);}
  };
- const send=async(action:'trade'|'post'|'hide'|'guild_roster'|'guild_boss_claim',body:Trade|GuildChange|{text:string}|{message:number}|{eventId:string},done:()=>void)=>{
+ const send=async(action:'trade'|'post'|'hide'|'guild_roster'|'guild_boss_claim'|'equip'|'unequip',body:Trade|GuildChange|{text:string}|{message:number}|{eventId:string}|{item:string},done:()=>void)=>{
   if(running.current)return;
   const fingerprint=JSON.stringify([action,body]);
   const operation=pending.current?.key===fingerprint?pending.current.id:crypto.randomUUID();
@@ -108,9 +109,24 @@ export function CommunityPanel(){
   {!view&&!error&&<p role="status">{l('Загрузка…','Loading…')}</p>}
   {market&&<>
    <p>{l('Золото для торговли','Trading gold')} · {format(market.gold)}</p>
-   {market.items.length>0&&<form onSubmit={event=>{event.preventDefault();if(validPrice&&item)void send('trade',{kind:'list',itemId:item,price:Number(price)},()=>{setItem('');setPrice('');});}}>
+   {market.equipment&&<>
+    <p>{l('Сила атаки героя','Hero attack power')} · {format(market.equipment.attack)}</p>
+    {market.items.some(piece=>piece.catalogId==='world-boss-trophy')&&<details className="saga-disclosure">
+     <summary>{l('Серверная экипировка','Online equipment')}</summary>
+     <ul>{market.items.filter(piece=>piece.catalogId==='world-boss-trophy').map(piece=>{
+      const equipped=piece.id===market.equipment?.equipped;
+      return <li key={piece.id}><span>{label(piece.catalogId)}</span>
+       <button type="button" className="action secondary" disabled={busy}
+        onClick={()=>void send(equipped?'unequip':'equip',{item:piece.id},()=>setItem(''))}>
+        {equipped?l('Снять','Unequip'):l('Надеть','Equip')}
+       </button>
+      </li>;
+     })}</ul>
+    </details>}
+   </>}
+   {market.items.some(piece=>piece.id!==market.equipment?.equipped)&&<form onSubmit={event=>{event.preventDefault();if(validPrice&&item)void send('trade',{kind:'list',itemId:item,price:Number(price)},()=>{setItem('');setPrice('');});}}>
     <label>{l('Выставить предмет','Item to list')} <select value={item} onChange={event=>setItem(event.target.value)}>
-     <option value="">{l('Выбрать','Choose')}</option>{market.items.map(i=><option key={i.id} value={i.id}>{label(i.catalogId)}</option>)}</select></label>
+     <option value="">{l('Выбрать','Choose')}</option>{market.items.filter(piece=>piece.id!==market.equipment?.equipped).map(i=><option key={i.id} value={i.id}>{label(i.catalogId)}</option>)}</select></label>
     <label>{l('Цена в золоте','Price in gold')} <input type="number" min="1" max="1000000000" value={price} onChange={event=>setPrice(event.target.value)}/></label>
     <button className="action" disabled={busy||!validPrice||!item}>{l('Выставить','List item')}</button>
    </form>}

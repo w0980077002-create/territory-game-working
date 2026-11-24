@@ -10,7 +10,7 @@ import {ArenaError,ArenaService} from './service';
 import {readArenaLevels} from './roster';
 
 type Options={dbPath:string;botToken:string;sessionKey:string;webRoot?:string;local?:boolean;clock?:()=>number;rng?:()=>number;
- allowedUsers?:ReadonlySet<string>;testLevels?:string};
+ allowedUsers?:ReadonlySet<string>;testLevels?:string;scorePublisher?:{url:string;token:string}};
 const uuid=/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i;
 const localPeople={
  alice:{id:1001,first_name:'Алиса'},
@@ -220,6 +220,27 @@ export function createArenaServer(options:Options){
  const worker=setInterval(()=>{
   try{service.tick(clock())}catch{console.error('Arena clock could not update its database')}
  },500).unref();
- server.on('close',()=>{clearInterval(worker);service.close()});
+ let publishing=false,closing=false,publishFailed=false;
+ const publisher=options.scorePublisher;
+ const publication=publisher?setInterval(async()=>{
+  if(publishing||closing)return;
+  publishing=true;
+  try{
+   for(const score of service.pendingScores()){
+    const response=await fetch(publisher.url,{
+     method:'POST',headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},
+     body:JSON.stringify(score),redirect:'error',signal:AbortSignal.timeout(4000),
+    });
+    if(!response.ok)throw new Error('Score delivery was rejected');
+    if(closing)break;
+    service.confirmScore(score.match);
+   }
+   publishFailed=false;
+  }catch{
+   if(!closing&&!publishFailed)console.error('W066 Arena score delivery will retry');
+   publishFailed=true;
+  }finally{publishing=false}
+ },5000).unref():undefined;
+ server.on('close',()=>{closing=true;clearInterval(worker);clearInterval(publication);service.close()});
  return server;
 }

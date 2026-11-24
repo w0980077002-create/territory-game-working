@@ -8,14 +8,23 @@ cleanup() {
 }
 trap cleanup EXIT
 docker run --rm -d --name "$container" --network none -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine >/dev/null
+# The image's temporary initialization server listens on a Unix socket only.
+ready=false
 for attempt in $(seq 1 40); do
-  if docker exec "$container" pg_isready -q; then break; fi
+  if docker exec "$container" pg_isready -q -h 127.0.0.1; then ready=true; break; fi
   sleep 1
 done
-pg() { docker exec -i "$container" psql -Xq -v ON_ERROR_STOP=1 -U postgres "$@"; }
+if [[ "$ready" != true ]]; then
+  docker logs "$container" >&2
+  exit 1
+fi
+pg() { docker exec -i "$container" psql -Xq -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres "$@"; }
 pg -c 'create role anon; create role authenticated; create role service_role;'
 for file in supabase/migrations/*.sql; do pg -1 < "$file"; done
 pg < tests/pg/w066-community.sql
+pg < tests/pg/w066-snapshots.sql
+pg < tests/pg/w066-equipment.sql
+pg < tests/pg/w066-arena-scores.sql
 pg < tests/pg/w066-guild-rosters.sql
 pg < tests/pg/w066-guild-boss-quests.sql
 listing=$(pg -At <<'SQL'

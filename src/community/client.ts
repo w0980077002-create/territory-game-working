@@ -5,6 +5,7 @@ export const communityEnabled=!!endpoint;
 export type Metric='world_boss_damage'|'arena_wins';
 export type Trade={kind:'list';itemId:string;price:number}|{kind:'buy'|'cancel';listingId:string};
 export type Market={
+ equipment?:{attack:number;equipped:string|null};
  gold:number;items:{id:string;catalogId:string}[];listings:{id:string;catalogId:string;price:number;mine:boolean}[];
  history:{operationId:string;kind:Trade['kind'];listingId:string;price:number;at:string}[];
 };
@@ -24,11 +25,11 @@ export class CommunityError extends Error {
 }
 let session:Promise<string>|undefined;
 
-async function request<T>(action:string,body:object,token?:string,signal?:AbortSignal):Promise<T>{
+async function request<T>(action:string,body:object,token?:string,signal?:AbortSignal,path=''):Promise<T>{
  if(!endpoint)throw new CommunityError(503);
- const response=await fetch(endpoint,{method:'POST',credentials:'omit',signal,
+ const response=await fetch(endpoint+path,{method:'POST',credentials:'omit',signal,
   headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},
-  body:JSON.stringify({action,body}),
+  body:JSON.stringify(path?body:{action,body}),
  });
  if(!response.ok)throw new CommunityError(response.status);
  return response.json() as Promise<T>;
@@ -45,11 +46,24 @@ export function connectCommunity(){
  return session;
 }
 
-export async function community<T>(action:string,body:object={},signal?:AbortSignal){
+async function authenticated<T>(action:string,body:object,signal?:AbortSignal,path=''){
  const current=connectCommunity();
- try{return await request<T>(action,body,await current,signal);}
+ try{return await request<T>(action,body,await current,signal,path);}
  catch(error){
   if(error instanceof CommunityError&&error.status===401&&session===current)session=undefined;
   throw error;
  }
+}
+
+export function community<T>(action:string,body:object={},signal?:AbortSignal){
+ return authenticated<T>(action,body,signal);
+}
+
+export type W066Snapshot={revision:number;raw:string;at:string};
+export function readW066Snapshot(previous:boolean){
+ return authenticated<W066Snapshot|null>('',{previous},undefined,'/backup');
+}
+
+export function storeW066Snapshot(expected:number,requestId:string,raw:string){
+ return authenticated<number>('',{expected,requestId,raw},undefined,'/backup');
 }

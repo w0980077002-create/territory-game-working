@@ -307,6 +307,13 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
   assert.equal(db.prepare('SELECT count(*) AS count FROM settlements').get()?.count,1);
   db.prepare('UPDATE profiles SET wins=100 WHERE id=1').run();
   assert.equal((await restored('state')).data.level,1,'training wins never raise fighter power');
+  let exporter=new ArenaService(dbPath);
+  try{
+   assert.deepEqual(exporter.pendingScores(),[{match:id,telegram:'1',name:'Герой 1',finishedAt:new Date(finishedAt).toISOString()}]);
+   exporter.confirmScore(id);
+  }finally{exporter.close()}
+  exporter=new ArenaService(dbPath);
+  try{assert.deepEqual(exporter.pendingScores(),[])}finally{exporter.close()}
  }
   finally{db.close()}
  }finally{
