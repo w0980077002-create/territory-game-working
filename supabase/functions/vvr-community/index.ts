@@ -1,9 +1,11 @@
 import {issueVvrSession,readVvrSession,verifyTelegramIdentity} from '../_shared/vvr-identity.ts';
+import {makeSecretReader} from '../_shared/w066-secrets.ts';
 
 const project=Deno.env.get('SUPABASE_URL');
 const roleKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-const sessionKey=Deno.env.get('VVR_SESSION_SECRET')??'';
-const botToken=Deno.env.get('TELEGRAM_BOT_TOKEN')??'';
+const readSecrets=makeSecretReader(project??'',roleKey??'',{
+ sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
+});
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
 const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','equip','unequip']);
 const maxInput=16_384;
@@ -76,7 +78,7 @@ function rpcError(data:unknown){
  return 503;
 }
 
-async function backup(request:Request,reply:(status:number,body:unknown)=>Response){
+async function backup(request:Request,sessionKey:string,reply:(status:number,body:unknown)=>Response){
  const bearer=request.headers.get('authorization');
  const player=bearer?.startsWith('Bearer ')?await readVvrSession(bearer.slice(7),sessionKey,Date.now()):undefined;
  if(!player)return reply(401,{error:'session_required'});
@@ -124,9 +126,10 @@ Deno.serve(async request=>{
   if(!project||!roleKey)return reply(503,{error:'unavailable'});
   try{return await arenaResult(request,reply);}catch{return reply(503,{error:'unavailable'});}
  }
+ const {botToken,sessionKey}=await readSecrets();
  if(!project||!roleKey||!botToken||sessionKey.length<32||sessionKey===botToken)return reply(503,{error:'unavailable'});
  if(new URL(request.url).pathname.endsWith('/backup')){
-  try{return await backup(request,reply);}catch{return reply(503,{error:'unavailable'});}
+  try{return await backup(request,sessionKey,reply);}catch{return reply(503,{error:'unavailable'});}
  }
  let value:unknown;
  try{value=await input(request);}catch{return reply(400,{error:'invalid_request'});}
@@ -153,7 +156,9 @@ Deno.serve(async request=>{
     rpc('vvr_community',{p_player:player,p_action:'auction',p_body:{}}),
     rpc('vvr_equipment',{p_player:player,p_action:'equipment',p_item:null}),
    ]);
-   if(!market.ok||!isRecord(market.data)||!equipment.ok)return reply(503,{error:'unavailable'});
+   if(!market.ok)return reply(rpcError(market.data),{error:'community_request_rejected'});
+   if(!equipment.ok)return reply(rpcError(equipment.data),{error:'equipment_request_rejected'});
+   if(!isRecord(market.data))return reply(503,{error:'unavailable'});
    return reply(200,{...market.data,equipment:equipment.data});
   }
   const endpoint=value.action.startsWith('guild')?'vvr_guild_community':'vvr_community';
