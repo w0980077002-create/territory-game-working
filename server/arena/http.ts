@@ -131,10 +131,11 @@ async function staticFile(req:IncomingMessage,res:ServerResponse,pathname:string
 export function createArenaServer(options:Options){
  if(options.sessionKey.length<32||!options.botToken||options.botToken===options.sessionKey)
   throw new Error('Arena requires independent Telegram and session credentials');
- if(!options.local&&(!options.allowedUsers||options.allowedUsers.size<2||[...options.allowedUsers].some(id=>!/^\d{1,16}$/.test(id))))
-  throw new Error('Arena staging requires at least two allowlisted test accounts');
+ // Allowlist is optional: without it any verified Telegram account may join.
+ if(options.allowedUsers&&[...options.allowedUsers].some(id=>!/^\d{1,16}$/.test(id)))
+  throw new Error('ARENA_TEST_USERS must contain numeric Telegram IDs');
 
- const rosterIds=options.local?new Set(Object.values(localPeople).map(person=>String(person.id))):options.allowedUsers!;
+ const rosterIds=options.local?new Set(Object.values(localPeople).map(person=>String(person.id))):options.allowedUsers;
  const service=new ArenaService(options.dbPath,options.rng,readArenaLevels(options.testLevels,rosterIds));
  const clock=options.clock??Date.now;
  const authLimit=scopedLimit(30,60_000),requestLimit=scopedLimit(60,10_000);

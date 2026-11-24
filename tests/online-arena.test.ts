@@ -78,8 +78,7 @@ test('Solo projection compares ordinary gear, an upgrade and legacy power withou
 });
 
 test('Arena server without a test allowlist only runs in local mode',()=>{
- assert.throws(()=>createArenaServer({dbPath:':memory:',botToken,sessionKey}),/allowlisted test accounts/);
- assert.throws(()=>createArenaServer({dbPath:':memory:',botToken,sessionKey,allowedUsers:new Set(['1'])}),/allowlisted test accounts/);
+ assert.throws(()=>createArenaServer({dbPath:':memory:',botToken,sessionKey,allowedUsers:new Set(['abc'])}),/numeric Telegram IDs/);
 });
 
 test('server roster assigns distinct Arena levels without importing Solo and locks them into the fight',()=>{
