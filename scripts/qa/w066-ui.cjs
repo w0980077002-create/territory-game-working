@@ -64,7 +64,7 @@ const listing='11111111-1111-1111-1111-111111111111';
      if(action==='ranking')data={season:{name:'Северный сезон'},seasons:[],rows:[{rank:1,name:'Алиса',points:70,mine:true}]};
      await route.fulfill({json:data,headers});
     });
-    let roomPolls=0, battleCalls=0, arenaMode='team', teamChat='';
+    let roomPolls=0, battleCalls=0, arenaMode='team', teamChat='', conflictCommand;
     await context.route(endpoint.replace(/vvr-community$/,'vvr-arena'),async route=>{
      const req=route.request();
      const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization'};
@@ -76,6 +76,13 @@ const listing='11111111-1111-1111-1111-111111111111';
      }));
      if(data.action==='join'){arenaMode=data.mode;roomPolls=0;}
      if(data.action==='command'){
+      if(data.command.kind==='strike'&&battleCalls===0){
+       if(!conflictCommand){
+        conflictCommand=data.command;
+        await route.fulfill({status:409,json:{error:'arena_room_changed'},headers});return;
+       }
+       assert.deepEqual(data.command,conflictCommand);
+      }
       battleCalls++;
       if(data.command.kind==='chat')teamChat=data.command.text;
      }
@@ -173,6 +180,7 @@ const listing='11111111-1111-1111-1111-111111111111';
     await guards.getByRole('button',{name:'Грудь'}).tap();
     await guards.getByRole('button',{name:'Ноги'}).tap();
     await battle.getByRole('button',{name:'Ударить'}).tap();
+    await battle.getByRole('button',{name:'Ударить'}).waitFor();
     await battle.getByRole('button',{name:'Боевой чат'}).tap();
     const chatInput=battle.getByRole('textbox',{name:'Сообщение'});
     assert.ok((await chatInput.boundingBox()).width>=70,'chat input must remain usable on a compact phone');

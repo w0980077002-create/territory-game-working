@@ -150,6 +150,10 @@ for(let tick=0;tick<85;tick++){
  trainingView=(await solo({action:'room',room:queue.id})).view;
  if(trainingView.result)break;
 }
+if(!trainingView.result){
+ now+=60_000; // Also exercise settling the practice room after everyone stops polling.
+ trainingView=(await solo({action:'room',room:queue.id})).view;
+}
 assert.ok(trainingView.result,'training fight must reach a terminal outcome');
 assert.equal((await solo({action:'podium'})).wins,0);
 console.log('Arena bot fallback: five training bots, Auto and no ranked award verified');

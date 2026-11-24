@@ -3,7 +3,7 @@ import {classNames} from '../data/catalog';
 import {tg} from '../core/telegram';
 import type {Player} from '../core/types';
 import {useGame} from '../core/store';
-import {communityEnabled,requestTeamArena,type Ranking} from '../community/client';
+import {CommunityError,communityEnabled,requestTeamArena,type Ranking} from '../community/client';
 import {arenaHeroes,zones,type ArenaElixir,type ArenaHero,type ArenaMessage,type ArenaZone} from '../arena/protocol';
 import {ArenaBelt,BattleStage,RoomMessages} from './ArenaBattleParts';
 import {Icon} from './Icon';
@@ -82,10 +82,18 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
  });
  const send=(action:Action)=>perform(async()=>{
   if(!room||isSearch(room))return false;
-  const result=await requestTeamArena<Reply>({action:'command',room:room.id,command:{...action,sequence:room.you.nextSequence}});
-  setRoom(result.view);setNow(Date.now());
-  if(!result.accepted)setNotice('Действие сейчас недоступно');
-  return result.accepted;
+  const command={action:'command',room:room.id,command:{...action,sequence:room.you.nextSequence}};
+  for(let attempt=0;;attempt++){
+   try{
+    const result=await requestTeamArena<Reply>(command);
+    setRoom(result.view);setNow(Date.now());
+    if(!result.accepted)setNotice('Действие сейчас недоступно');
+    return result.accepted;
+   }catch(error){
+    if(!(error instanceof CommunityError)||error.status!==409||attempt===4)throw error;
+    await new Promise(resolve=>setTimeout(resolve,80+Math.random()*180));
+   }
+  }
  });
  if(mode)return <section className="vvr-arena" aria-label="Арена">
   <button className="vvr-arena-back" type="button" disabled={busy} onClick={()=>chooseLobby()}>‹ Арена</button>
