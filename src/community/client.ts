@@ -8,6 +8,14 @@ export type Market={
  gold:number;items:{id:string;catalogId:string}[];listings:{id:string;catalogId:string;price:number;mine:boolean}[];
  history:{operationId:string;kind:Trade['kind'];listingId:string;price:number;at:string}[];
 };
+export type GuildChange={kind:'create';name:string}|{kind:'apply'|'withdraw';guild:string}|
+ {kind:'accept'|'reject';guild:string;applicant:string}|{kind:'leave'};
+type GuildRole='leader'|'member';
+export type GuildState={
+ quests:{id:string;name:string;target:number;damage:number;gold:number;canClaim:boolean;claimed:boolean}[];
+ directory:{id:string;name:string;members:number;applied:boolean}[];
+ guild:{id:string;name:string;role:GuildRole;members:{name:string;role:GuildRole}[];applications:{id:string;name:string}[]}|null;
+};
 export type Chat={moderator:boolean;messages:{id:number;name:string;text:string;at:string}[]};
 type Season={id:string;name:string;starts_at:string;ends_at:string};
 export type Ranking={season:Season|null;seasons:Season[];rows:{rank:number;name:string;points:number;mine:boolean}[]};

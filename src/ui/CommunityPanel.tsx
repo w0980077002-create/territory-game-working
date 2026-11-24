@@ -1,18 +1,19 @@
 import './community.css';
 import {useEffect,useRef,useState} from 'react';
-import {community,CommunityError,connectCommunity,type Chat,type Market,type Metric,type Ranking,type Trade} from '../community/client';
+import {community,CommunityError,connectCommunity,type Chat,type GuildChange,type GuildState,type Market,type Metric,type Ranking,type Trade} from '../community/client';
 import {tg} from '../core/telegram';
 import {lang} from '../i18n';
 
 const l=(ru:string,en:string)=>lang==='en'?en:ru;
-const tabNames={auction:l('Аукцион','Auction'),chat:l('Общий чат','Global chat'),ranking:l('Рейтинги','Rankings')};
+const tabNames={auction:l('Аукцион','Auction'),chat:l('Общий чат','Global chat'),ranking:l('Рейтинги','Rankings'),guild:l('Гильдии','Guilds')};
 const tradeNames={buy:l('Покупка','Purchase'),list:l('Размещение','Listing'),cancel:l('Снятие лота','Cancellation')};
 const format=(n:number)=>n.toLocaleString(lang);
 const label=(catalog:string)=>({
  weapon:l('Оружие','Weapon'),shield:l('Щит','Shield'),ring:l('Кольцо','Ring'),
 }[catalog]??catalog);
 type Tab=keyof typeof tabNames;
-type View=Market|Chat|Ranking;
+type View=Market|Chat|Ranking|GuildState;
+const guildRole={leader:l('Глава','Leader'),member:l('Участник','Member')};
 
 function explain(error:unknown){
  const status=error instanceof CommunityError?error.status:0;
@@ -30,6 +31,7 @@ export function CommunityPanel(){
  const [result,setResult]=useState<{key:string;value:View}|null>(null);
  const [error,setError]=useState(''),[busy,setBusy]=useState(false);
  const [item,setItem]=useState(''),[price,setPrice]=useState(''),[text,setText]=useState('');
+ const [guildName,setGuildName]=useState('');
  const [offer,setOffer]=useState<Market['listings'][number]|null>(null);
  const pending=useRef<{key:string;id:string}|undefined>(undefined),running=useRef(false);
  const key=tab==='ranking'?[tab,metric,season].join(':'):tab;
@@ -65,14 +67,14 @@ export function CommunityPanel(){
   catch(failure){setError(explain(failure));}
   finally{running.current=false;setBusy(false);}
  };
- const send=async(action:'trade'|'post'|'hide',body:Trade|{text:string}|{message:number},done:()=>void)=>{
+ const send=async(action:'trade'|'post'|'hide'|'guild_roster'|'guild_boss_claim',body:Trade|GuildChange|{text:string}|{message:number}|{eventId:string},done:()=>void)=>{
   if(running.current)return;
   const fingerprint=JSON.stringify([action,body]);
   const operation=pending.current?.key===fingerprint?pending.current.id:crypto.randomUUID();
   pending.current={key:fingerprint,id:operation};
   running.current=true;setBusy(true);setError('');
   try{
-   await community(action,action==='hide'?body:{...body,operationId:operation});
+   await community(action,action==='trade'||action==='post'?{...body,operationId:operation}:body);
    pending.current=undefined;
    done();
   }catch(failure){
@@ -92,6 +94,9 @@ export function CommunityPanel(){
  const market=tab==='auction'?view as Market|null:null;
  const chat=tab==='chat'?view as Chat|null:null;
  const ranking=tab==='ranking'?view as Ranking|null:null;
+ const guildView=tab==='guild'?view as GuildState|null:null;
+ const guild=guildView?.guild;
+ const roster=(action:GuildChange)=>void send('guild_roster',action,()=>setGuildName(''));
  const validPrice=Number.isInteger(Number(price))&&Number(price)>=1&&Number(price)<=1_000_000_000;
  return <section className="vvr-community">
   <div className="tabs wrap" role="group" aria-label={l('Разделы сообщества','Community sections')}>
@@ -138,6 +143,49 @@ export function CommunityPanel(){
     <button className="action" disabled={busy||!text.trim()}>{l('Отправить','Send')}</button>
    </form>
   </>}
+  {guildView&&(guild?<section aria-label={l('Моя гильдия','My guild')}>
+    <h3>{guild.name}</h3>
+    <ul>{guild.members.map((member,index)=><li key={index}>{member.name} · {guildRole[member.role]}</li>)}</ul>
+    {guild.role==='leader'&&guild.applications.length>0&&<>
+     <h4>{l('Заявки на вступление','Applications')}</h4>
+     <ul>{guild.applications.map(applicant=><li key={applicant.id}>{applicant.name}
+      <button type="button" className="action secondary" disabled={busy}
+       onClick={()=>roster({kind:'accept',guild:guild.id,applicant:applicant.id})}>{l('Принять','Accept')}</button>
+      <button type="button" className="action secondary" disabled={busy}
+       onClick={()=>roster({kind:'reject',guild:guild.id,applicant:applicant.id})}>{l('Отклонить','Decline')}</button>
+     </li>)}</ul>
+    </>}
+    <details className="saga-disclosure">
+     <summary>{l('Покинуть гильдию','Leave guild')}</summary>
+     <button type="button" className="action secondary" disabled={busy}
+      onClick={()=>roster({kind:'leave'})}>{l('Подтвердить выход','Confirm departure')}</button>
+    </details>
+   </section>:<>
+    <form onSubmit={event=>{event.preventDefault();roster({kind:'create',name:guildName.trim()});}}>
+     <label>{l('Название гильдии','Guild name')} <input required minLength={3} maxLength={32}
+      value={guildName} onChange={event=>setGuildName(event.target.value)}/></label>
+     <button className="action" disabled={busy||guildName.trim().length<3}>{l('Создать гильдию','Create guild')}</button>
+    </form>
+    <h3>{l('Список гильдий','Guild directory')}</h3>
+    {guildView.directory.length===0&&<p>{l('Гильдий пока нет.','There are no guilds yet.')}</p>}
+    <ul>{guildView.directory.map(entry=><li key={entry.id}>{entry.name} · {format(entry.members)}
+     <button type="button" className="action secondary" disabled={busy}
+      onClick={()=>roster({kind:entry.applied?'withdraw':'apply',guild:entry.id})}>
+      {entry.applied?l('Отозвать заявку','Withdraw application'):l('Подать заявку','Apply')}
+     </button>
+    </li>)}</ul>
+   </>)}
+  {!!guildView?.quests?.length&&<section aria-label={l('Задания гильдии','Guild quests')}>
+   <h3>{l('Задания гильдии','Guild quests')}</h3>
+   <ul>{guildView.quests.map(quest=><li key={quest.id}>
+    <strong>{quest.name}</strong>
+    <span>{l('Общий урон','Combined damage')} · {format(quest.damage)} / {format(quest.target)}</span>
+    <span>{l('Награда','Reward')} · {format(quest.gold)} {l('золота','gold')}</span>
+    {quest.claimed&&<span>{l('Награда получена','Reward claimed')}</span>}
+    {quest.canClaim&&<button type="button" className="action" disabled={busy}
+     onClick={()=>void send('guild_boss_claim',{eventId:quest.id},()=>{})}>{l('Получить награду','Claim reward')}</button>}
+   </li>)}</ul>
+  </section>}
   {tab==='ranking'&&<>
    <label>{l('Категория','Category')} <select value={metric} onChange={event=>setMetric(event.target.value as Metric)}>
     <option value="world_boss_damage">{l('Урон мировому боссу','World boss damage')}</option><option value="arena_wins">{l('Победы на Арене','Arena wins')}</option>
