@@ -41,7 +41,7 @@ function valid(action:string,body:Record<string,unknown>){
  }
 }
 
-async function input(request:Request){
+async function input(request:Request,limit=maxInput){
  const stream=request.body?.getReader();
  if(!stream)throw new Error('missing_body');
  const decoder=new TextDecoder(),parts:string[]=[];
@@ -51,7 +51,7 @@ async function input(request:Request){
    const {done,value}=await stream.read();
    if(done)break;
    size+=value.length;
-   if(size>maxInput){await stream.cancel();throw new Error('body_too_large');}
+   if(size>limit){await stream.cancel();throw new Error('body_too_large');}
    parts.push(decoder.decode(value,{stream:true}));
   }
   return JSON.parse(parts.join('')+decoder.decode()) as unknown;
@@ -75,6 +75,23 @@ function rpcError(data:unknown){
  return 503;
 }
 
+async function backup(request:Request,reply:(status:number,body:unknown)=>Response){
+ const bearer=request.headers.get('authorization');
+ const player=bearer?.startsWith('Bearer ')?await readVvrSession(bearer.slice(7),sessionKey,Date.now()):undefined;
+ if(!player)return reply(401,{error:'session_required'});
+ let data:unknown;
+ try{data=await input(request,4_300_000);}catch{return reply(400,{error:'invalid_snapshot'});}
+ if(!isRecord(data))return reply(400,{error:'invalid_snapshot'});
+ let result:{ok:boolean;data:unknown};
+ if(Object.keys(data).length===1&&typeof data.previous==='boolean'){
+  result=await rpc('vvr_snapshot_read',{p_player:player,p_previous:data.previous});
+ }else if(Object.keys(data).length===3&&isUuid(data.requestId)&&typeof data.raw==='string'&&
+  typeof data.expected==='number'&&Number.isInteger(data.expected)&&data.expected>=0&&data.expected<2_147_483_647){
+  result=await rpc('vvr_snapshot_store',{p_player:player,p_expected:data.expected,p_request:data.requestId,p_raw:data.raw});
+ }else return reply(400,{error:'invalid_snapshot'});
+ return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'snapshot_request_rejected'});
+}
+
 Deno.serve(async request=>{
  const requestedOrigin=request.headers.get('origin'),allowed=requestedOrigin===null||requestedOrigin===origin;
  const headers={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'content-type,authorization',
@@ -84,6 +101,9 @@ Deno.serve(async request=>{
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(request.method!=='POST')return reply(405,{error:'method_not_allowed'});
  if(!project||!roleKey||!botToken||sessionKey.length<32||sessionKey===botToken)return reply(503,{error:'unavailable'});
+ if(new URL(request.url).pathname.endsWith('/backup')){
+  try{return await backup(request,reply);}catch{return reply(503,{error:'unavailable'});}
+ }
  let value:unknown;
  try{value=await input(request);}catch{return reply(400,{error:'invalid_request'});}
  if(!isRecord(value)||Object.keys(value).length!==2||typeof value.action!=='string'||!actions.has(value.action)||
