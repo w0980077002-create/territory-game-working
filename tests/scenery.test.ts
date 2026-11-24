@@ -11,9 +11,18 @@ test('approved painted scenery keeps legacy composition and ground contact withi
   for(const o of objects){const [x,y,w,h]=frames[o.kind];assert.ok(x>=0&&y>=0&&x+w<=1536&&y+h<=1024);assert.ok(Math.abs(o.width/o.height-w/h)<.9, 'legacy scene has bounded painted-frame distortion');assert.ok(o.worldY>=706&&o.worldY<=720);}
  }
 });
-test('regional backgrounds preserve the approved painted scenery without screen-wide colour washes',()=>{
- const calls:string[]=[];
- const ctx=new Proxy({},{get:(_,key)=>{if(['save','restore','fillRect'].includes(String(key)))return ()=>calls.push(String(key));throw new Error('Unexpected background construction: '+String(key))},set:()=>true}) as CanvasRenderingContext2D;
- for(const region of regions)paintBiomeBack(ctx,region,12,85000,1,false);
- assert.equal(calls.filter(c=>c==='fillRect').length,0);
+test('regional backgrounds preserve the approved painted scenery without flat screen-wide colour washes',()=>{
+ // Region light is gradient-only (sky and ground bands, hue/soft-light keep the art vivid); the first region stays untouched.
+ const gradient={addColorStop(){}};
+ for(const region of regions){
+  const fills:{style:unknown;rect:number[]}[]=[];let style:unknown;
+  const ctx=new Proxy({},{get:(_,key)=>{const k=String(key);
+   if(['save','restore','beginPath','moveTo','lineTo','closePath','fill','drawImage'].includes(k))return ()=>{};
+   if(k==='createLinearGradient'||k==='createRadialGradient')return ()=>gradient;
+   if(k==='fillRect')return (...rect:number[])=>fills.push({style,rect});
+   throw new Error('Unexpected background construction: '+k)},set:(_,key,value)=>{if(key==='fillStyle')style=value;return true}}) as CanvasRenderingContext2D;
+  paintBiomeBack(ctx,region,12,85000,1,false);
+  if(region.id==='ice')assert.equal(fills.length,0,'approved first region is not recoloured');
+  for(const f of fills)assert.equal(f.style,gradient,region.id+' paints light with gradients, never a flat wash');
+ }
 });

@@ -119,7 +119,7 @@ export function paintRegionGround(c:CanvasRenderingContext2D,region:Region,time:
    c.globalAlpha=a;c.fillStyle=g;c.beginPath();c.moveTo(x,170);c.lineTo(x+30,170);c.lineTo(x-200,820);c.lineTo(x-330,820);c.closePath();c.fill()}
   c.globalCompositeOperation='source-over';
  }
- if(m.signature==='dust'&&!reduced){
+ if(m.signature==='dust'&&!reduced&&typeof document!=='undefined'){
   // Drifting dust veils at mid-depth.
   for(let i=0;i<2;i++){const x=((i*520+time*18-cameraX*.5)%1300+1300)%1300-400;c.globalAlpha=.2;c.drawImage(cloudSprite('#e9d2ac',i),x,560+i*60,560,150)}
  }
