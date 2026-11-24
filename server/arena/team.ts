@@ -1,5 +1,5 @@
-import {ITEM_COOLDOWN_MS,ROUND_MS,zones,type ArenaMessage,type ArenaMove,type ArenaZone} from '../../src/arena/protocol';
-import {appendMessage,createFighter,resolveStrike,type Entrant,type Fighter} from './duel';
+import {ITEM_COOLDOWN_MS,ROUND_MS,zones,type ArenaElixir,type ArenaMessage,type ArenaMove,type ArenaZone} from '../../src/arena/protocol';
+import {appendMessage,applyCompanionSupport,createFighter,drinkStatElixir,resolveStrike,type Entrant,type Fighter} from './duel';
 
 export const teamArenaSize={team:3,chaos:20} as const;
 export type TeamMode=keyof typeof teamArenaSize;
@@ -104,6 +104,16 @@ export function drinkTeamTimeElixir(match:TeamMatch,id:string,sequence:number,no
  return true;
 }
 
+export function drinkTeamElixir(match:TeamMatch,id:string,item:ArenaElixir,sequence:number,now:number,rng=Math.random){
+ if(item==='time')return drinkTeamTimeElixir(match,id,sequence,now,rng);
+ advanceTeamMatch(match,now,rng);
+ const player=match.players.find(fighter=>fighter.id===id);
+ if(match.result||!canCommand(player,sequence)||!drinkStatElixir(match,player,item,now))return false;
+ player.sequence=sequence;
+ player.seenAt=now;
+ return true;
+}
+
 function weakestEnemy(match:TeamMatch,side:Side){
  return match.players.reduce<TeamFighter|undefined>((candidate,player)=>{
   if(player.side===side||!player.hp)return candidate;
@@ -119,6 +129,7 @@ function teamStrike(match:TeamMatch,attacker:TeamFighter,defender:TeamFighter,at
  attacker.seenAt=now;
  match.timePenalty[attacker.side]=0;
  match.sideDeadline[attacker.side]=now+ROUND_MS;
+ applyCompanionSupport(match,attacker,now);
  const before=defender.hp;
  resolveStrike(match,attacker,defender,{attack,blocks,skill:null},defender.blocks,now,rng);
  attacker.damage+=before-defender.hp;

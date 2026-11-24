@@ -8,7 +8,7 @@ import {companions} from '../../src/dark/rules';
 import balance from '../../config/test-balance.v1.json';
 
 export type Entrant = {
- id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;
+ id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;trustedAttack?:number;
 };
 export type Fighter = Entrant & {
  seenAt:number;hp:number;maxHp:number;attack:number;defense:number;crit:number;gear:number[];
@@ -36,7 +36,7 @@ export function entrantStats(player:Entrant){
  const gear = [weapon,armor,8,2,4,2,6];
  return {
   gear, maxHp:Math.round((startingStats.hp+rank*14+gear[2]+gear[4]+gear[6])*(player.hero==='berserker'?1.15:1)),
-  attack:startingStats.attack+rank*3+gear[0],
+  attack:Math.round((startingStats.attack+rank*3+gear[0])*(player.trustedAttack===undefined?1:Math.min(2,Math.max(.5,player.trustedAttack/100)))),
   defense:startingStats.defense+rank*2+gear[1]+gear[3],
   crit:5+gear[5]+(player.hero==='ranger'?5:0),
  };
@@ -128,6 +128,16 @@ function strike(match:Match,a:Fighter,b:Fighter,now:number,rng:()=>number){
  resolveStrike(match,a,b,a.turn!.move,b.turn!.move.blocks,now,rng);
 }
 
+export function applyCompanionSupport(match:Messages,player:Fighter,now:number){
+ if(now>=player.dogAt){
+   const gain=heal(player,Math.round(player.maxHp*dog.base));
+   if(gain){
+    appendMessage(match,now,dog.name+' · '+player.name+' +'+gain+' HP');
+    player.dogAt=now+dog.interval*1000;
+   }
+  }
+}
+
 function resolveRound(match:Match,now:number,rng:()=>number){
  const [a,b]=match.players;
  for(const player of match.players)if(player.auto&&!player.turn)autoMove(player,now,rng);
@@ -142,13 +152,7 @@ function resolveRound(match:Match,now:number,rng:()=>number){
  }
  for(const player of match.players){
   if(player.turn?.move.skill==='call')player.buffUntil=now+5_000;
-  if(now>=player.dogAt){
-   const gain=heal(player,Math.round(player.maxHp*dog.base));
-   if(gain){
-    appendMessage(match,now,dog.name+' · '+player.name+' +'+gain+' HP');
-    player.dogAt=now+dog.interval*1000;
-   }
-  }
+  applyCompanionSupport(match,player,now);
   player.fought=true;
  }
  if(rng()<.5){strike(match,a,b,now,rng);strike(match,b,a,now,rng)}
@@ -164,24 +168,37 @@ function resolveRound(match:Match,now:number,rng:()=>number){
  }
 }
 
-function drinkElixir(match:Match,player:Fighter,item:ArenaElixir,now:number){
+export const blockedBattleChat=/(https?:\/\/|www\.|t\.me|telegram\.me|startapp\s*=|ref_[a-f\d]{14})/iu;
+export function normalizeBattleChat(raw:string){
+ return raw.normalize('NFKC').replace(/\p{Cf}/gu,'').replace(/\p{Cc}/gu,' ').trim().slice(0,200);
+}
+
+export function drinkStatElixir(match:Messages,player:Fighter,item:ArenaElixir,now:number){
  if(!player.belt[item]||now<(player.itemAt[item]??0))return false;
  let detail=arenaElixirs[item].label;
  if(item==='heal_small'||item==='heal_large'){
   if(player.hp===player.maxHp)return false;
   const amount=item==='heal_small'?Math.max(50,Math.round(player.maxHp*.18)):Math.max(150,Math.round(player.maxHp*.35));
   detail+=' · +'+heal(player,amount)+' HP';
- }else if(item==='time'){
-  if(match.roundMs<=30_000)return false;
-  match.roundMs-=10_000;
-  match.deadline=Math.max(now,match.roundStart+match.roundMs);
-  detail+=' · '+match.roundMs/1000+' с на раунд';
  }else if(item==='crit')player.crit=Math.min(75,player.crit+15);
  else if(item==='attack'||item==='defense')player[item]+=Math.max(10,Math.round(player[item]*.25));
- else return false; // Adrenaline has no live teammate to target in a duel.
+ else return false;
+ spendElixir(match,player,item,now,detail);
+ return true;
+}
+
+function spendElixir(match:Messages,player:Fighter,item:ArenaElixir,now:number,detail:string){
  player.belt[item]--;
  player.itemAt[item]=now+ITEM_COOLDOWN_MS;
  appendMessage(match,now,player.name+' · '+detail);
+}
+
+function drinkElixir(match:Match,player:Fighter,item:ArenaElixir,now:number){
+ if(item!=='time')return drinkStatElixir(match,player,item,now);
+ if(!player.belt.time||now<(player.itemAt.time??0)||match.roundMs<=30_000)return false;
+ match.roundMs-=10_000;
+ match.deadline=Math.max(now,match.roundStart+match.roundMs);
+ spendElixir(match,player,item,now,arenaElixirs.time.label+' · '+match.roundMs/1000+' с на раунд');
  return true;
 }
 

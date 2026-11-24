@@ -11,7 +11,7 @@ declare
 begin
  select array_agg(vvr.resolve_player((72000+i)::text,'Arena tester') order by i) into players
   from generate_series(1,8) i;
- assert not has_function_privilege('anon','public.vvr_arena_join(uuid,text)','EXECUTE');
+ assert not has_function_privilege('anon','public.vvr_arena_join(uuid,text,text)','EXECUTE');
  assert not has_function_privilege('authenticated','public.vvr_arena_checkpoint(uuid,bigint,jsonb,boolean)','EXECUTE');
  assert not has_table_privilege('service_role','vvr.arena_rooms','UPDATE');
 

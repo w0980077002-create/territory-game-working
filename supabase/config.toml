@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.vvr-world-boss]
 verify_jwt = false
+
+[functions.vvr-arena]
+verify_jwt = false
