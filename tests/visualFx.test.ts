@@ -26,3 +26,11 @@ test('wings rest still for reduced motion and fold on a hit',()=>{
  assert.ok(wingPose({clock:0,hurt:.5},0).shoulder>.2);
  assert.ok(wingPose({clock:0,attack:.35},0).shoulder<-.2,'strike gives a downbeat');
 });
+
+test('each saga region has its own atmosphere; the approved first region stays untouched',async()=>{
+ const {regionMood}=await import('../src/game/RegionAtmosphere');
+ const {regions}=await import('../src/saga/regions');
+ const ice=regionMood('ice');assert.equal(ice.skyAlpha,0);assert.equal(ice.groundAlpha,0);
+ const sig=new Set(regions.slice(1).map(r=>regionMood(r.id).signature));
+ assert.equal(sig.size,regions.length-1,'every later region has a distinct signature');
+});

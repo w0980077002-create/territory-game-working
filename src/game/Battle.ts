@@ -25,6 +25,7 @@ import {swordTip,swordCanReach,reactionOffset,projectilePoint,projectileVisualPa
 import {layoutLabels,feedbackBands,type CombatLabel,type PlacedLabel} from './CombatLabels';
 import {WorldRenderer} from './WorldRenderer';
 import {heroLook} from './heroLook';
+import {paintRegionSky} from './RegionAtmosphere';
 import {CombatVfx,deviceQualityCap} from './CombatVfx';
 import {drawRealmPortals,portalAt} from '../dark/portals';
 import {RealmWorld,realmSceneIdentity,realmEffectsQuality,type RealmView} from '../dark/RealmWorld';
@@ -555,7 +556,7 @@ export class Battle implements TeamHost {
  draw(){this.syncCanvasResolution();const c=this.ctx,labels:CombatLabel[]=[];c.clearRect(0,0,864,940);const dark=this.mode==='darkness',run=dark?realmRun(useGame.getState().p):undefined,realm=dark?this.realmView(run):undefined;
  const gates=realm?.phase==='waiting'?run?.pair:undefined;
  if(realm)this.realmScenery.drawBack(c,this.journey,realm);
- else{this.scenery.draw(c,this.journey,this.clock,this.world,this.chapterBoss()&&this.phase==='fight'?.08+(this.units[0].bossPhase-1)*.06:0,this.quality,sky=>this.director.life.sky(sky,this.director.env()));paintBiomeBack(c,this.plan.region,this.clock,this.journey.cameraX,this.quality,this.reducedMotion());this.director.back(c);}
+ else{this.scenery.draw(c,this.journey,this.clock,this.world,this.chapterBoss()&&this.phase==='fight'?.08+(this.units[0].bossPhase-1)*.06:0,this.quality,sky=>{paintRegionSky(sky,this.plan.region,this.clock,this.journey.cameraX,this.quality,this.reducedMotion());this.director.life.sky(sky,this.director.env())});paintBiomeBack(c,this.plan.region,this.clock,this.journey.cameraX,this.quality,this.reducedMotion());this.director.back(c);}
  // Environmental light and fog are independent of combat actors and UI.
  c.save();if(this.running&&!this.reducedMotion()){const [sx,sy]=this.comics.offset(false,this.quality);c.translate(Math.max(-4,Math.min(4,sx+(Math.random()-.5)*this.shake)),Math.max(-4,Math.min(4,sy+(Math.random()-.5)*this.shake)));}const p=useGame.getState().p,walking=this.phase==='walk'&&this.journey.velocity>3,attackLunge=this.heroAttack>.2&&p.heroClass==='berserker'?Math.sin(this.heroAttack*5)*20:0;
  if(!dark&&this.phase==='walk'&&!this.director.hidesResident()){
