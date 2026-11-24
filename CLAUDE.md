@@ -1,4 +1,3 @@
-# CLAUDE.md — одна задача с Codex
-Прочитать [AGENTS.md](AGENTS.md), [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) и последнее решение владельца в [Issue #51](https://github.com/w0980077002-create/territory-game-working/issues/51). Solo 1.0 и #39 завершены; не возвращаться к старым поручениям.
+# CLAUDE.md
+Действуют [AGENTS.md](AGENTS.md), [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) и [Issue #81](https://github.com/w0980077002-create/territory-game-working/issues/81). Claude помогает Codex в согласованных непересекающихся блоках. Не ждать двух реальных игроков и не останавливать независимую разработку. Старые поручения архивные.
 
-Claude — согласованный исполнитель UI/арта и визуальной сверки с исходными референсами; Codex — ответственный интегратор. Границы конкретного блока и очередность определяет текущая задача. Не дублировать проверки и работу Codex. Соблюдать правила сохранности данных и приёмки из общего процесса.
