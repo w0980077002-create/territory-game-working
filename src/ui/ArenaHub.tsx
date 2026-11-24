@@ -3,8 +3,8 @@ import {classNames} from '../data/catalog';
 import {tg} from '../core/telegram';
 import type {Player} from '../core/types';
 import {communityEnabled,requestTeamArena,type Ranking} from '../community/client';
-import {arenaElixirs,arenaHeroes,zones,type ArenaElixir,type ArenaHero,type ArenaMessage,type ArenaZone} from '../arena/protocol';
-import {BattleStage,RoomMessages} from './ArenaBattleParts';
+import {arenaHeroes,zones,type ArenaElixir,type ArenaHero,type ArenaMessage,type ArenaZone} from '../arena/protocol';
+import {ArenaBelt,BattleStage,RoomMessages} from './ArenaBattleParts';
 import {Icon} from './Icon';
 import './arenaHub.css';
 
@@ -18,7 +18,7 @@ type TeamMode=Exclude<Mode,'duel'>;
 type Podium=Ranking&{points:number;wins:number;teamLosses:number};
 type Fighter={id:string;side:0|1;name:string;hero:ArenaHero;hp:number;maxHp:number;damage:number;kills:number;bot?:true};
 type TeamBattle={
- id:string;mode:TeamMode;training:boolean;sideDeadline:[number,number];chatDeadline:number|null;log:ArenaMessage[];chat:ArenaMessage[];
+ id:string;mode:TeamMode;training:boolean;rankAwarded?:boolean;sideDeadline:[number,number];chatDeadline:number|null;log:ArenaMessage[];chat:ArenaMessage[];
  players:Fighter[];you:{id:string;side:0|1;auto:boolean;belt:Record<ArenaElixir,number>;itemReadyAt:Partial<Record<ArenaElixir,number>>;
  nextStrikeAt:number;nextSequence:number};
  result?:{winner:0|1|null;reason:'hp'|'time'|'afk';finishedAt:number};
@@ -28,8 +28,6 @@ type Reply={accepted:boolean;view:TeamBattle|TeamSearch};
 type Action={kind:'strike';target:string;attack:ArenaZone;blocks:[ArenaZone,ArenaZone]}|
  {kind:'auto';enabled:boolean}|{kind:'item';item:ArenaElixir}|{kind:'chat';text:string};
 const zoneIds=Object.keys(zones) as ArenaZone[];
-const elixirIds=Object.keys(arenaElixirs) as ArenaElixir[];
-const iconByElixir=['potion','potion','weapon','shield','crown','clock','heart'];
 const left=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
 const isSearch=(view:TeamSearch|TeamBattle):view is TeamSearch=>'queued' in view;
 
@@ -146,7 +144,7 @@ function TeamScene({match,now,busy,send}:{match:TeamBattle;now:number;busy:boole
  return <>
   <div className="online-clock">{match.training?'Тренировка':'Бой игроков'} · {match.mode==='team'?'3×3':'20×20'}</div>
   {result?<p role="status" className="online-status">{result.winner===null?'Ничья':result.winner===me.side?'Победа':'Поражение'}
-   {' · '}{result.reason==='afk'?'Команда пропустила время атаки':result.reason==='time'?'Итог по здоровью':'Команда повержена'}</p>:
+   {' · '}{result.reason==='afk'?'Команда пропустила время атаки':result.reason==='time'?'Итог по здоровью':'Команда повержена'}{match.rankAwarded&&' · +1 к рейтингу'}</p>:
    <div className="online-clock">Ваш отряд {left(match.sideDeadline[me.side],now)} с · соперники {left(match.sideDeadline[opponent.side],now)} с</div>}
   <BattleStage you={display(me)} opponent={display(opponent)}/>
   <label className="online-class">Цель <select value={opponent.id} disabled={locked} onChange={event=>setTarget(event.target.value)}>
@@ -166,11 +164,8 @@ function TeamScene({match,now,busy,send}:{match:TeamBattle;now:number;busy:boole
     <button type="button" className="action" disabled={locked||match.you.auto||blocks.length!==2||match.you.nextStrikeAt>now}
      onClick={()=>send({kind:'strike',target:opponent.id,attack,blocks:[blocks[0],blocks[1]]})}>Ударить</button>
    </div>
-   <div className="vvr-arena-belt" aria-label="Пояс эликсиров">{elixirIds.map((id,index)=>
-    <button type="button" key={id} title={arenaElixirs[id].detail} aria-label={arenaElixirs[id].label}
-     disabled={locked||!match.you.belt[id]||(match.you.itemReadyAt[id]??0)>now}
-     onClick={()=>send({kind:'item',item:id})}><Icon name={iconByElixir[index]}/><small>{match.you.belt[id]}</small></button>
-   )}</div>
+   <ArenaBelt belt={match.you.belt} readyAt={match.you.itemReadyAt} now={now}
+    fullHealth={me.hp===me.maxHp} disabled={locked} onItem={item=>void send({kind:'item',item})}/>
   </>}
   <RoomMessages match={match} now={now} pending={busy} send={text=>send({kind:'chat',text})}/>
   <details className="online-details"><summary>Участники боя · {match.players.length}</summary>

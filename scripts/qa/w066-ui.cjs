@@ -1,5 +1,6 @@
 const assert=require('node:assert/strict');
 const {chromium}=require('playwright');
+const {mkdirSync}=require('node:fs');
 
 const site=process.env.BASE_URL||'http://127.0.0.1:18791/';
 const endpoint=process.env.COMMUNITY_URL||'http://127.0.0.1:18792/functions/v1/vvr-community';
@@ -157,6 +158,9 @@ const listing='11111111-1111-1111-1111-111111111111';
     const hub=page.getByRole('region',{name:'Арена',exact:true});
     await hub.getByRole('heading',{name:'ТОП-50 Арены'}).waitFor();
     await hub.getByText('Бьёрн',{exact:true}).waitFor();
+    const screenshots='.tmp/window-qa/online-arena/';
+    mkdirSync(screenshots,{recursive:true});
+    await hub.screenshot({path:screenshots+'lobby-'+width+'.png'});
     await button(/Отряд.*3×3/).tap();
     await button('Начать поиск').tap();
     await hub.getByText('Участники · 1/6',{exact:true}).waitFor();
@@ -173,6 +177,7 @@ const listing='11111111-1111-1111-1111-111111111111';
     assert.equal(await battle.locator('.vvr-arena-belt button').count(),7);
     const widthFits=await battle.evaluate(node=>node.scrollWidth<=node.clientWidth+2);
     assert.ok(widthFits,'compact battle controls fit the mobile viewport');
+    await battle.screenshot({path:screenshots+'team-'+width+'.png'});
     await button('‹ Арена').tap();
     await button(/Хаос.*20×20/).tap();
     await button('Начать поиск').tap();

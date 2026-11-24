@@ -64,3 +64,10 @@
 .vvr-arena-belt button:disabled { opacity: .55; cursor: default; }
 .vvr-arena-belt .icon { width: min(100%,25px); height: min(100%,25px); }
 .vvr-arena-belt small { position: absolute; right: 3px; bottom: 0; background: #22160c; border-radius: 3px; line-height: 1; }
+@media (prefers-reduced-motion: no-preference) {
+ .vvr-battle-stage .vvr-hero { animation: vvr-arena-strike .28s ease-out; }
+ @keyframes vvr-arena-strike {
+  0% { transform: translateX(-4px); opacity: .7; filter: brightness(1.45); }
+  65% { transform: translateX(2px); }
+ }
+}

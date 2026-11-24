@@ -108,6 +108,7 @@ const story=async(mode:'team'|'chaos',size:number,startId:number)=>{
  assert.equal(battle.result?.winner,0);
  const before=await clients[0]({action:'podium'});
  assert.equal(before.wins,1);
+ assert.equal((await get(0)).view.rankAwarded,true);
  assert.equal((await clients[1]({action:'podium'})).teamLosses,1);
  assert.equal(await sql("select count(*) from vvr.arena_room_seats where room_id=:'room' and outcome='win';",{room}),String(size/2));
  assert.equal(await sql("select count(*) from vvr.score_events e join vvr.arena_room_seats s on s.player_id=e.player_id where s.room_id=:'room' and e.metric='arena_wins';",{room}),String(size/2));

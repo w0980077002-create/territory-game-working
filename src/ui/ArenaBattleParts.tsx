@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {art,heroArt} from '../data/catalog';
-import type {ArenaFighter,ArenaMatchView} from '../arena/protocol';
+import {arenaElixirs,type ArenaElixir,type ArenaFighter,type ArenaMatchView} from '../arena/protocol';
+import {Icon} from './Icon';
 
 const secondsLeft=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
 
@@ -8,7 +9,7 @@ function Fighter({fighter,label}:{fighter:ArenaFighter;label:string}){
  return <div className="online-fighter">
   <div className="vvr-fighter-art">
    <img className="vvr-companion" src={art(label==='Вы'?'goose_aviator':'brown_white_dog')} alt=""/>
-   <img src={art(heroArt[fighter.hero])} alt=""/>
+   <img key={fighter.hp} className="vvr-hero" src={art(heroArt[fighter.hero])} alt=""/>
   </div>
   <strong>{fighter.name}</strong>
   <small>{label} · ур. {fighter.level}</small>
@@ -54,4 +55,21 @@ export function RoomMessages({match,now,pending,send}:{match:Pick<ArenaMatchView
    <button className="action" type="submit" disabled={pending||remain===0||!draft.trim()}>Отправить</button>
   </form>}
  </div>;
+}
+
+
+const elixirIds=Object.keys(arenaElixirs) as ArenaElixir[];
+const iconByElixir=['potion','potion','weapon','shield','crown','clock','heart'];
+
+export function ArenaBelt({belt,readyAt,now,disabled,fullHealth,onItem}:{
+ belt:Record<ArenaElixir,number>;readyAt:Partial<Record<ArenaElixir,number>>;now:number;
+ disabled:boolean;fullHealth:boolean;onItem:(item:ArenaElixir)=>void;
+}){
+ return <div className="vvr-arena-belt" aria-label="Пояс эликсиров">{elixirIds.map((id,index)=>{
+  const cooldown=secondsLeft(readyAt[id]??0,now);
+  const label=arenaElixirs[id].label+' '+belt[id]+(cooldown?' · '+cooldown+' с':'');
+  return <button type="button" key={id} title={label+'. '+arenaElixirs[id].detail} aria-label={label}
+   disabled={disabled||!belt[id]||cooldown>0||(fullHealth&&(id==='heal_small'||id==='heal_large'))}
+   onClick={()=>onItem(id)}><Icon name={iconByElixir[index]}/><small>{cooldown?cooldown+'с':belt[id]}</small></button>;
+ })}</div>;
 }

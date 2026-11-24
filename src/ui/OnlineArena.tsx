@@ -5,12 +5,12 @@ import {arenaApiOrigin} from '../arena/staging';
 import type {Player} from '../core/types';
 import {gearBonusLabels,soloArenaPreview} from '../arena/soloPreview';
 import {
- arenaElixirs,arenaKits,arenaSkills,gearSlots,zones,MATCH_WAIT_MS,
- type ArenaCommand,type ArenaElixir,type ArenaHero,type ArenaKit,
+ arenaKits,arenaSkills,gearSlots,zones,MATCH_WAIT_MS,
+ type ArenaCommand,type ArenaHero,type ArenaKit,
  type ArenaMatchView,type ArenaSkill,type ArenaView,type ArenaZone,
 } from '../arena/protocol';
 import {Icon} from './Icon';
-import {BattleStage,RoomMessages} from './ArenaBattleParts';
+import {ArenaBelt,BattleStage,RoomMessages} from './ArenaBattleParts';
 import {ArenaHub} from './ArenaHub';
 import './onlineArena.css';
 
@@ -20,7 +20,6 @@ const noConnection='Нет связи с Ареной. Восстанавлив�
 const reasons={hp:'Решило здоровье',time:'Лимит раундов',afk:'Пропущен ход',disconnect:'Связь с игроком потеряна',leave:'Игрок покинул бой'};
 const outcomes={win:'Победа',loss:'Поражение',draw:'Ничья'};
 const zoneIds=Object.keys(zones) as ArenaZone[];
-const elixirIds=Object.keys(arenaElixirs) as ArenaElixir[];
 const secondsLeft=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
 
 class ArenaRequestError extends Error{
@@ -79,16 +78,8 @@ function RoundControls({match,now,pending,act}:{match:ArenaMatchView;now:number;
     onClick={()=>act({kind:'move',move:{attack,blocks:[blocks[0],blocks[1]],skill}})}>{match.you.moved?'Ход принят':'Подтвердить ход'}</button>
   </>}
   <details className="online-details"><summary>Пояс эликсиров</summary>
-   <div className="online-supply">{elixirIds.map(id=>{
-    const cooldown=secondsLeft(match.itemReadyAt[id]??0,now);
-    return <div key={id}>
-    <button className="action secondary" type="button" title={arenaElixirs[id].detail}
-     disabled={pending||!match.belt[id]||cooldown>0||
-       ((id==='heal_small'||id==='heal_large')&&match.you.hp===match.you.maxHp)}
-     onClick={()=>act({kind:'item',item:id})}>{arenaElixirs[id].label} {id==='adrenaline'?'· 3×3':match.belt[id]}
-     {cooldown>0&&' · '+cooldown+' с'}</button>
-    </div>;
-   })}</div>
+   <ArenaBelt belt={match.belt} readyAt={match.itemReadyAt} now={now} disabled={pending}
+    fullHealth={match.you.hp===match.you.maxHp} onItem={item=>act({kind:'item',item})}/>
   </details>
  </>;
 }
@@ -210,7 +201,10 @@ function DuelArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:bo
    <button className="action" disabled={pending} onClick={()=>{setPrevious(undefined);void command('join',{hero,kit})}}>Найти соперника</button>
   </>}
   {queued&&<>
-   <p className="online-clock">Поиск · уровни ±7 · {secondsLeft(queued.since+MATCH_WAIT_MS,now)} с</p>
+   <div className="vvr-arena-search">
+    <strong>Поиск · уровни ±7 · {secondsLeft(queued.since+MATCH_WAIT_MS,now)} с</strong>
+    <ul><li>Вы · {classNames[hero]}</li><li>Подбираем соперника…</li></ul>
+   </div>
    {!queued.control?<button className="action" disabled={pending} onClick={()=>controlCommand('resume',queued)}>Продолжить в этой вкладке</button>:
     <button className="action secondary" disabled={pending} onClick={()=>controlCommand('leave',queued)}>Отменить поиск</button>}
   </>}

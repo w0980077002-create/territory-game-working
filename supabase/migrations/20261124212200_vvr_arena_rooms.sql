@@ -21,6 +21,7 @@ create table vvr.arena_room_seats (
  unique (room_id,player_id)
 );
 create unique index arena_one_active_seat on vvr.arena_room_seats(player_id) where not released;
+create index arena_room_seats_player on vvr.arena_room_seats(player_id,room_id);
 alter table vvr.arena_rooms enable row level security;
 alter table vvr.arena_room_seats enable row level security;
 revoke all on vvr.arena_rooms,vvr.arena_room_seats from public,anon,authenticated,service_role;
@@ -33,7 +34,10 @@ as $$
    select jsonb_agg(s.player_id order by s.seat) from vvr.arena_room_seats s where s.room_id=r.id
   ),'[]'::jsonb),'roster',coalesce((
    select jsonb_agg(jsonb_build_object('id',s.player_id,'name',p.display_name,'hero',s.hero,
-    'attackPower',s.attack_power) order by s.seat) from vvr.arena_room_seats s
+    'attackPower',s.attack_power,
+    'rankAwarded',case when s.outcome='win' then exists(select 1 from vvr.score_events score
+     where score.player_id=s.player_id and score.metric='arena_wins'
+      and score.source_id=md5(r.id::text||s.player_id::text)::uuid) else false end) order by s.seat) from vvr.arena_room_seats s
    join vvr.players p on p.id=s.player_id where s.room_id=r.id
   ),'[]'::jsonb)) from vvr.arena_rooms r where r.id=p_room;
 $$;
@@ -153,7 +157,10 @@ begin
   ranked:= p_snapshot#>>'{result,reason}' in ('hp','time') and p_snapshot#>>'{result,winner}' in ('0','1')
    and not exists(select 1 from jsonb_array_elements(p_snapshot->'players') fighter
     where fighter->>'bot'='true' or fighter->>'fought' is distinct from 'true')
-   and (select count(*) from vvr.arena_room_seats where room_id=p_room)=
+   and (select count(*) from vvr.arena_room_seats s where s.room_id=p_room and exists
+    (select 1 from jsonb_array_elements(p_snapshot->'players') fighter where fighter->>'id'=s.player_id::text))
+     =(select case mode when 'team' then 6 else 40 end from vvr.arena_rooms where id=p_room)
+   and jsonb_array_length(p_snapshot->'players')=
      (select case mode when 'team' then 6 else 40 end from vvr.arena_rooms where id=p_room);
   update vvr.arena_room_seats set released=true where room_id=p_room;
   if ranked then

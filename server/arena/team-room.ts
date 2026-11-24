@@ -6,7 +6,7 @@ import {
 
 import {appendMessage,blockedBattleChat,normalizeBattleChat} from './duel';
 
-type Profile={id:string;name:string;hero:ArenaHero;attackPower:number};
+type Profile={id:string;name:string;hero:ArenaHero;attackPower:number;rankAwarded?:boolean};
 export type Ticket={
  id:string;mode:TeamMode;closesAt:string;readyAt:string|null;revision:number;players:string[];roster?:Profile[];snapshot:TeamMatch|null;finishedAt?:string|null;
 };
@@ -26,7 +26,7 @@ function teamView(ticket:Ticket,match:TeamMatch|null,player:string){
  const you=match.players.find(fighter=>fighter.id===player);
  if(!you||you.bot)throw new Error('arena_not_member');
  return {
-  id:match.id,mode:match.mode,sideDeadline:match.sideDeadline,log:match.log,chat:match.chat,result:match.result,training:match.players.some(fighter=>fighter.bot),
+  id:match.id,mode:match.mode,rankAwarded:!!ticket.roster?.find(entry=>entry.id===player)?.rankAwarded,sideDeadline:match.sideDeadline,log:match.log,chat:match.chat,result:match.result,training:match.players.some(fighter=>fighter.bot),
   chatDeadline:ticket.finishedAt?Date.parse(ticket.finishedAt)+CHAT_MS:match.result?match.updatedAt+CHAT_MS:null,
   you:{id:you.id,side:you.side,auto:you.auto,belt:you.belt,itemReadyAt:you.itemAt,nextStrikeAt:you.nextStrikeAt,nextSequence:you.sequence+1},
   players:match.players.map(({id,side,name,hero,hp,maxHp,damage,kills,bot})=>({id,side,name,hero,hp,maxHp,damage,kills,bot})),
