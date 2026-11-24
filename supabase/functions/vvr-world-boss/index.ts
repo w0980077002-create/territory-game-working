@@ -6,7 +6,7 @@ import {handle} from '../_shared/worldBoss.ts';
 declare const Deno:{env:{get(name:string):string|undefined};serve(handler:(req:Request)=>Response|Promise<Response>):void};
 const url=Deno.env.get('SUPABASE_URL')??'',key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'';
 const botToken=Deno.env.get('TELEGRAM_BOT_TOKEN')??'';
-const origins=(Deno.env.get('WORLD_BOSS_ALLOWED_ORIGINS')??'').split(',').map(s=>s.trim()).filter(Boolean);
+const origins=(Deno.env.get('WORLD_BOSS_ALLOWED_ORIGINS')??'https://w0980077002-create.github.io').split(',').map(s=>s.trim()).filter(Boolean);
 
 async function rpc(name:string,args:Record<string,unknown>){
  const res=await fetch(`${url}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(args)});

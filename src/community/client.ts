@@ -5,6 +5,7 @@ export const communityEnabled=!!endpoint;
 export type Metric='world_boss_damage'|'arena_wins';
 export type Trade={kind:'list';itemId:string;price:number}|{kind:'buy'|'cancel';listingId:string};
 export type Market={
+ equipment?:{attack:number;equipped:string|null};
  gold:number;items:{id:string;catalogId:string}[];listings:{id:string;catalogId:string;price:number;mine:boolean}[];
  history:{operationId:string;kind:Trade['kind'];listingId:string;price:number;at:string}[];
 };

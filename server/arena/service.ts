@@ -32,10 +32,24 @@ export class ArenaService {
    INSERT OR IGNORE INTO arena_state VALUES(1,'{"queue":[],"matches":[]}');
    CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, name TEXT NOT NULL, points INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0);
    CREATE TABLE IF NOT EXISTS settlements (id TEXT PRIMARY KEY, winner TEXT, points INTEGER NOT NULL, finished_at INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS w066_score_delivery (match_id TEXT PRIMARY KEY);
+   CREATE INDEX IF NOT EXISTS settlements_ranked ON settlements(finished_at,id) WHERE points=1;
   `);
  }
 
  close(){this.db.close()}
+
+ pendingScores(){
+  const rows=this.db.prepare("SELECT s.id AS match,p.id AS telegram,p.name,s.finished_at AS finishedAt "+
+   "FROM settlements s JOIN profiles p ON p.id=s.winner "+
+   "WHERE s.points=1 AND NOT EXISTS(SELECT 1 FROM w066_score_delivery d WHERE d.match_id=s.id) "+
+   "ORDER BY s.finished_at,s.id LIMIT 20").all() as {match:string;telegram:string;name:string;finishedAt:number}[];
+  return rows.map(row=>({...row,finishedAt:new Date(row.finishedAt).toISOString()}));
+ }
+
+ confirmScore(match:string){
+  this.db.prepare('INSERT OR IGNORE INTO w066_score_delivery VALUES (?)').run(match);
+ }
 
  authenticate(identity:ArenaIdentity){
   this.db.prepare('INSERT INTO profiles(id,name) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name').run(identity.id,identity.name);
