@@ -156,7 +156,9 @@ Deno.serve(async request=>{
     rpc('vvr_community',{p_player:player,p_action:'auction',p_body:{}}),
     rpc('vvr_equipment',{p_player:player,p_action:'equipment',p_item:null}),
    ]);
-   if(!market.ok||!isRecord(market.data)||!equipment.ok)return reply(503,{error:'unavailable'});
+   if(!market.ok)return reply(rpcError(market.data),{error:'community_request_rejected'});
+   if(!equipment.ok)return reply(rpcError(equipment.data),{error:'equipment_request_rejected'});
+   if(!isRecord(market.data))return reply(503,{error:'unavailable'});
    return reply(200,{...market.data,equipment:equipment.data});
   }
   const endpoint=value.action.startsWith('guild')?'vvr_guild_community':'vvr_community';
