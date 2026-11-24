@@ -1,6 +1,7 @@
 import type {CSSProperties} from 'react';
 import {Icon} from './Icon';
 import './harbor.css';
+import './harborLife.css';
 
 type Ship = {id: string; level: number};
 const buildings = [
@@ -30,6 +31,7 @@ export function HarborScene({view,ships,selectedShipId,onNavigate,onChooseShip,b
   const yard = view === 'shipyard';
   return <section className={'harbor-scene harbor-' + view} aria-label={yard ? 'Верфь драккаров' : 'Карта Северной гавани'}>
     <div className="harbor-reflections" aria-hidden="true"/>
+    {yard && <div className="harbor-glints" aria-hidden="true"/>}
     {yard ? <div className="harbor-berths">
       {[0,1,2].map(index => {
         const ship = ships[index];
@@ -45,9 +47,15 @@ export function HarborScene({view,ships,selectedShipId,onNavigate,onChooseShip,b
       <div className="harbor-aurora" aria-hidden="true"/>
       <div className="harbor-forge-light" aria-hidden="true"/>
       <div className="harbor-smoke" aria-hidden="true"><i/><i/></div>
+      <div className="harbor-mist" aria-hidden="true"/>
+      <div className="harbor-glints" aria-hidden="true"/>
+      <div className="harbor-gulls" aria-hidden="true"><i/><i/><i/></div>
       <div className="harbor-live-fleet" aria-hidden="true">
-        {ships.slice(0,3).map((ship,index) => <Icon key={ship.id} name="ship" className={'harbor-bob vessel-'+index}/>)}
+        {ships.slice(0,3).map((ship,index) => <span key={ship.id} className={'harbor-vessel vessel-'+index}>
+          <Icon name="ship" className="harbor-bob"/><i className="harbor-mast-light"/>
+        </span>)}
       </div>
+      <div className="harbor-snow" aria-hidden="true"/>
       <nav className="harbor-links" aria-label="Постройки гавани">
         {buildings.map(({id,label,icon,x,y,color}) => <button key={id} type="button"
           className={'harbor-building sign-' + color} style={{left:x+'%',top:y+'%'} as CSSProperties}

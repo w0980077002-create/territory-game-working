@@ -115,9 +115,6 @@
   object-fit: contain;
   filter: drop-shadow(0 3px 2px #092435c8);
 }
-.harbor-live-fleet .vessel-0 { left: 0; bottom: 8%; }
-.harbor-live-fleet .vessel-1 { left: 35%; bottom: -2%; animation-delay: -1.2s; }
-.harbor-live-fleet .vessel-2 { left: 70%; bottom: 18%; animation-delay: -2.5s; }
 .saga-modal .harbor-shipyard {
   min-height: 174px;
   margin-bottom: 8px;

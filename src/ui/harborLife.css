@@ -1,0 +1,78 @@
+/* Living harbour: water glints, drifting sea mist, gulls, ship wakes and mast lanterns, light snow.
+   Transform/opacity/background-position animations only, so budget Android WebViews stay smooth. */
+.harbor-mist, .harbor-glints, .harbor-gulls, .harbor-snow { position: absolute; pointer-events: none; }
+.harbor-glints {
+  inset: 80% 0 0 28%;
+  background:
+    radial-gradient(1.5px 1px at 12% 30%,#fff6d8 60%,transparent),
+    radial-gradient(2px 1px at 34% 62%,#fff 60%,transparent),
+    radial-gradient(1.5px 1px at 58% 22%,#ffe8b0 60%,transparent),
+    radial-gradient(2px 1px at 76% 70%,#fff 60%,transparent),
+    radial-gradient(1.5px 1px at 90% 40%,#dff6ff 60%,transparent);
+  background-size: 90px 34px;
+  mix-blend-mode: screen;
+  animation: harbor-glint 3.2s steps(8) infinite, harbor-glint-drift 9s linear infinite;
+}
+.harbor-shipyard .harbor-glints { inset: 62% 0 0; }
+.harbor-mist {
+  inset: 70% -30% 6% -30%;
+  background: radial-gradient(40% 55% at 30% 60%,#e6f4ff55,transparent 70%),
+    radial-gradient(35% 50% at 72% 50%,#dcecff44,transparent 70%);
+  filter: blur(2px);
+  animation: harbor-mist 22s ease-in-out infinite alternate;
+}
+.harbor-gulls { inset: 6% 0 70% 0; overflow: hidden; }
+.harbor-gulls i {
+  position: absolute; left: -12%; top: 30%;
+  width: 16px; height: 6px;
+  /* A simple gull silhouette: two curved wing strokes. */
+  background:
+    radial-gradient(60% 120% at 25% 100%,transparent 55%,#26344a 58% 72%,transparent 75%) left / 50% 100% no-repeat,
+    radial-gradient(60% 120% at 75% 100%,transparent 55%,#26344a 58% 72%,transparent 75%) right / 50% 100% no-repeat;
+  animation: harbor-gull 26s linear infinite, harbor-flap .7s ease-in-out infinite alternate;
+}
+.harbor-gulls i:nth-child(2) { top: 55%; width: 12px; height: 5px; animation-delay: -9s,-.3s; animation-duration: 31s,.6s; }
+.harbor-gulls i:nth-child(3) { top: 12%; width: 13px; animation-delay: -18s,-.5s; animation-duration: 28s,.75s; }
+.harbor-vessel { position: absolute; width: 28%; height: 100%; }
+.harbor-live-fleet .harbor-vessel .icon { position: absolute; inset: 0; width: 100%; height: 100%; }
+.harbor-vessel.vessel-0 { left: 0; bottom: 8%; }
+.harbor-vessel.vessel-1 { left: 35%; bottom: -2%; }
+.harbor-vessel.vessel-2 { left: 70%; bottom: 18%; }
+.harbor-vessel.vessel-1 .icon { animation-delay: -1.2s; }
+.harbor-vessel.vessel-2 .icon { animation-delay: -2.5s; }
+/* Wake: soft rings spreading at the waterline. */
+.harbor-vessel::before {
+  content: ""; position: absolute; left: 10%; right: 10%; bottom: 2%; height: 22%;
+  border-radius: 50%; border: 1px solid #e9f7ffaa; opacity: 0;
+  animation: harbor-wake 4.2s ease-out infinite;
+}
+.harbor-vessel.vessel-1::before { animation-delay: -1.2s; }
+.harbor-vessel.vessel-2::before { animation-delay: -2.5s; }
+.harbor-mast-light {
+  position: absolute; left: 52%; top: 8%; width: 6px; height: 6px; border-radius: 50%;
+  background: #ffd98a; box-shadow: 0 0 6px 2px #ffb24d99;
+  animation: harbor-lantern 2.6s ease-in-out infinite alternate;
+}
+.harbor-snow {
+  inset: 0;
+  background:
+    radial-gradient(1.6px 1.6px at 20% 10%,#ffffffd0 70%,transparent),
+    radial-gradient(1.2px 1.2px at 70% 40%,#ffffffb0 70%,transparent),
+    radial-gradient(1.8px 1.8px at 45% 75%,#ffffffc0 70%,transparent),
+    radial-gradient(1.2px 1.2px at 88% 20%,#ffffffa0 70%,transparent);
+  background-size: 120px 140px;
+  opacity: .75;
+  animation: harbor-snowfall 14s linear infinite;
+}
+@keyframes harbor-glint { 0%,100% {opacity:.2} 25% {opacity:.9} 50% {opacity:.45} 75% {opacity:1} }
+@keyframes harbor-glint-drift { from {background-position: 0 0} to {background-position: 90px 0} }
+@keyframes harbor-mist { from {transform: translateX(-6%)} to {transform: translateX(6%)} }
+@keyframes harbor-gull { from {transform: translate(0,0)} 50% {transform: translate(60vw,-6px)} to {transform: translate(125vw,4px)} }
+@keyframes harbor-flap { from {height: 6px} to {height: 3px} }
+@keyframes harbor-wake { 0% {opacity:0; transform: scale(.6,.6)} 20% {opacity:.8} 100% {opacity:0; transform: scale(1.35,1.1)} }
+@keyframes harbor-lantern { from {opacity:.55} to {opacity:1} }
+@keyframes harbor-snowfall { from {background-position: 0 0} to {background-position: 30px 140px} }
+[data-motion="reduced"] :is(.harbor-glints,.harbor-mist,.harbor-gulls i,.harbor-vessel::before,.harbor-mast-light,.harbor-snow) { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.harbor-glints,.harbor-mist,.harbor-gulls i,.harbor-vessel::before,.harbor-mast-light,.harbor-snow) { animation: none; }
+}

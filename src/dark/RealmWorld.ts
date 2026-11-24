@@ -7,6 +7,7 @@ import {SITE_SPACING,type JourneyState} from '../game/Journey';
 import {sceneImage,sceneImageReady} from '../game/sceneImages';
 import {ROOMS,type RealmRun,type RealmLast} from './realm';
 import {portalColors} from './portals';
+import {paintRealmGloom,paintRealmVignette} from './realmAtmosphere';
 export type RealmChamber='entry'|'ruins'|'crypt'|'abyss'|'sanctum';
 export interface RealmView {
  floor:number;chamber:RealmChamber;phase:string;clock:number;combatTime:number;crossing:boolean;
@@ -129,6 +130,7 @@ export class RealmWorld {
     }
    }
   }
+  paintRealmGloom(c,v.clock,delta,v.floor,v.chamber==='sanctum'?'#ff6a8a':v.chamber==='abyss'?'#9dff7a':'#ff4d6a',v.quality,v.reduced);
   // The boss's own rising rune seal is anchored to the arena, not the screen.
   if(sanctum){
    c.save();c.translate(645+delta,807);c.scale(1,.18);c.strokeStyle=p.light;c.globalAlpha=.45+opening*.4;c.lineWidth=4;c.beginPath();c.arc(0,0,115,0,Math.PI*2);c.stroke();
@@ -143,6 +145,7 @@ export class RealmWorld {
  }
  drawFront(c:C,j:JourneyState,v:RealmView){
   const p=chambers[v.chamber],delta=j.targetX-375-j.cameraX,t=v.reduced?0:v.clock,power=realmLighting(j,v);
+  paintRealmVignette(c);
   // Near crystals peek from below the lane. Their silhouettes never cover feet or HP.
   for(const [i,x] of [-60,910].entries())this.prop(c,i?'amethyst':'crag',x+delta*1.12,1080,212,!!i);
   if(!v.reduced){
