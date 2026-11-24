@@ -128,10 +128,11 @@ await story('team',6,74000);
 await story('chaos',40,75000);
 
 const player=await sql("select vvr.resolve_player('76000','Training player');");
+now=Date.now();
 const solo=await client(player);
 const queue=(await solo({action:'join',mode:'team',hero:'ranger'})).view;
 await sql("update vvr.arena_rooms set closes_at=clock_timestamp()-interval '1 second' where id=:'room';",{room:queue.id});
-now+=1_000;
+now=Math.max(now,Date.now());
 const practice=(await solo({action:'room',room:queue.id})).view;
 assert.equal(practice.training,true);
 assert.equal(practice.players.filter((fighter:any)=>fighter.bot).length,5);
