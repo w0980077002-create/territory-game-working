@@ -24,6 +24,7 @@ yarn-error.log*
 
 # Temporary restored ZIP and per-run artifacts: originals already tracked in assets/characters/v2-source
 .tmp/
+supabase/.temp/
 tmp/
 temp/
 art-import-tmp/

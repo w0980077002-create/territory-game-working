@@ -33,6 +33,7 @@ revoke all on vvr.wallets from public, anon, authenticated, service_role;
 
 -- The existing issue_resource function remains the only reward entry point.
 -- A boss supplies a stable event UUID for each reward line. Retries for that line must reuse it.
+lock table vvr.resource_receipts in share row exclusive mode;
 insert into vvr.wallets(player_id,resource,balance)
   select player_id,resource,sum(amount) from vvr.resource_receipts group by player_id,resource;
 

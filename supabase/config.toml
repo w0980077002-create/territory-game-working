@@ -1,0 +1,4 @@
+project_id = "vvr-community"
+
+[functions.vvr-community]
+verify_jwt = false
