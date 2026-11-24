@@ -2,13 +2,13 @@ import {ITEM_COOLDOWN_MS,ROUND_MS,zones,type ArenaMessage,type ArenaMove,type Ar
 import {appendMessage,createFighter,resolveStrike,type Entrant,type Fighter} from './duel';
 
 export const teamArenaSize={team:3,chaos:20} as const;
-type TeamMode=keyof typeof teamArenaSize;
+export type TeamMode=keyof typeof teamArenaSize;
 type Side=0|1;
 type Blocks=ArenaMove['blocks'];
-type TeamEntrant=Entrant&{bot?:true};
+export type TeamEntrant=Entrant&{bot?:true};
 type TeamFighter=Fighter&{bot?:true;side:Side;blocks:ArenaZone[];nextStrikeAt:number;damage:number;kills:number};
-type TeamMatch={
- id:string;mode:TeamMode;startedAt:number;sideDeadline:[number,number];timePenalty:[number,number];players:TeamFighter[];
+export type TeamMatch={
+ id:string;mode:TeamMode;startedAt:number;updatedAt:number;sideDeadline:[number,number];timePenalty:[number,number];players:TeamFighter[];
  log:ArenaMessage[];chat:ArenaMessage[];messageId:number;
  result?:{winner:Side|null;reason:'hp'|'time'|'afk';finishedAt:number};
 };
@@ -25,7 +25,7 @@ export function newTeamMatch(id:string,mode:TeamMode,entrants:readonly TeamEntra
   ...createFighter(player,now),side:index%2===0?0:1,blocks:[],nextStrikeAt:now,damage:0,kills:0,
   bot:player.bot,auto:player.bot===true,autoAt:player.bot?nextAutoAt(now,rng):now,
  }));
- return {id,mode,startedAt:now,sideDeadline:[now+ROUND_MS,now+ROUND_MS],timePenalty:[0,0],players,log:[],chat:[],messageId:0};
+ return {id,mode,startedAt:now,updatedAt:now,sideDeadline:[now+ROUND_MS,now+ROUND_MS],timePenalty:[0,0],players,log:[],chat:[],messageId:0};
 }
 
 export function advanceTeamMatch(match:TeamMatch,now:number,rng=Math.random){
@@ -87,7 +87,7 @@ export function setTeamAuto(match:TeamMatch,id:string,enabled:boolean,sequence:n
  return true;
 }
 
-export function useTeamTimeElixir(match:TeamMatch,id:string,sequence:number,now:number,rng=Math.random){
+export function drinkTeamTimeElixir(match:TeamMatch,id:string,sequence:number,now:number,rng=Math.random){
  advanceTeamMatch(match,now,rng);
  const player=match.players.find(fighter=>fighter.id===id);
  if(match.result||!canCommand(player,sequence)||!player.belt.time||now<(player.itemAt.time??0))return false;

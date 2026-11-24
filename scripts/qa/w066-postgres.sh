@@ -55,6 +55,7 @@ begin
 end;
 $$;
 SQL
+node --import tsx scripts/qa/team-arena-rpc.ts "$container"
 listing=$(pg -At <<'SQL'
 select vvr.resolve_player('71001','Seller') as seller,
        vvr.resolve_player('71002','Buyer A') as buyer_a,

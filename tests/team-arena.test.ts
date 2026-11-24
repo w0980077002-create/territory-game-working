@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {Entrant} from '../server/arena/duel';
-import {advanceTeamMatch,newTeamMatch,setTeamAuto,strikeTeamMatch,teamArenaSize,useTeamTimeElixir} from '../server/arena/team';
+import {advanceTeamMatch,newTeamMatch,setTeamAuto,strikeTeamMatch,teamArenaSize,drinkTeamTimeElixir,type TeamMatch} from '../server/arena/team';
+import {TeamRoomService} from '../server/arena/team-room';
 import {ROUND_MS} from '../src/arena/protocol';
 
 const entrants=(count:number):Entrant[]=>Array.from({length:count},(_,i)=>({
@@ -78,11 +79,41 @@ test('a bot and an Auto player resume after reload without replaying a strike',(
 test('time elixir affects only the other team and resets on their next accepted strike',()=>{
  const match=newTeamMatch('match','team',entrants(6),0);
  const [a,b,ally]=match.players;
- assert.equal(useTeamTimeElixir(match,a.id,1,100,normal),true);
- assert.equal(useTeamTimeElixir(match,a.id,2,200,normal),false);
- assert.equal(useTeamTimeElixir(match,ally.id,1,300,normal),true);
+ assert.equal(drinkTeamTimeElixir(match,a.id,1,100,normal),true);
+ assert.equal(drinkTeamTimeElixir(match,a.id,2,200,normal),false);
+ assert.equal(drinkTeamTimeElixir(match,ally.id,1,300,normal),true);
  assert.deepEqual(match.sideDeadline,[60_000,40_000]);
  assert.equal(strikeTeamMatch(match,b.id,a.id,'chest',['head','legs'],1,39_999,normal),true);
  assert.deepEqual(match.sideDeadline,[60_000,99_999]);
  assert.deepEqual(match.timePenalty,[0,0]);
+});
+
+test('command handler retries concurrent room writes and only exposes the authenticated player controls',async()=>{
+ const roster=entrants(6);
+ const [a,b]=roster;
+ const room={id:'team-room',mode:'team' as const,closesAt:new Date(20_000).toISOString(),
+  readyAt:new Date(0).toISOString(),revision:0,players:roster.map(player=>player.id),snapshot:null as TeamMatch|null};
+ const storage={
+  async read(){return structuredClone(room)},
+  async checkpoint(_room:string,expected:number,match:TeamMatch){
+   if(expected!==room.revision)return null;
+   room.snapshot=structuredClone(match);
+   return ++room.revision;
+  },
+ };
+ const service=new TeamRoomService(storage,async()=>roster,normal);
+ const first={kind:'strike',attack:'head',blocks:['chest','legs'],sequence:1} as const;
+ const results=await Promise.all([
+  service.interact(a.id,room.id,100,{...first,blocks:[...first.blocks],target:b.id}),
+  service.interact(a.id,room.id,100,{...first,blocks:[...first.blocks],target:b.id}),
+  service.interact(b.id,room.id,100,{...first,blocks:[...first.blocks],target:a.id}),
+ ]);
+ assert.equal(results.filter(result=>result.accepted).length,2);
+ assert.equal(room.revision,2);
+ assert.equal(room.snapshot?.log.length,2);
+ await assert.rejects(service.interact('other-player',room.id,100),/arena_not_member/);
+ const {view}=await service.interact(a.id,room.id,200);
+ assert.equal(view.you?.nextSequence,2);
+ assert.equal(room.revision,2);
+ assert.ok(view.players?.every(player=>!('controller' in player)&&!('belt' in player)));
 });
