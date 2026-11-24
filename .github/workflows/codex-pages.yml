@@ -25,6 +25,7 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
+          VITE_ARENA_API_ORIGIN: https://vvr-arena-test-staging.up.railway.app
           VITE_VVR_COMMUNITY_URL: ${{ vars.VVR_COMMUNITY_URL || 'https://cemifozgxyhnbknsexzt.supabase.co/functions/v1/vvr-community' }}
           VITE_WORLD_BOSS_URL: ${{ vars.VVR_WORLD_BOSS_URL || 'https://cemifozgxyhnbknsexzt.supabase.co/functions/v1/vvr-world-boss' }}
       - uses: actions/upload-pages-artifact@v3

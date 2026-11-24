@@ -24,6 +24,20 @@ jobs:
           node --import tsx scripts/qa/fixtures.ts
           npm run arena:build
           node scripts/qa/online-arena.cjs
+      - name: Verify Pages Arena, trade chat, guilds and Telegram save routes
+        env:
+          VITE_ARENA_API_ORIGIN: http://127.0.0.1:18793
+          VITE_VVR_COMMUNITY_URL: http://127.0.0.1:18792/functions/v1/vvr-community
+        run: |
+          npm run build
+          node_modules/.bin/vite preview --host 127.0.0.1 --port 18791 --strictPort &
+          preview=$!
+          trap 'kill "$preview" 2>/dev/null || true' EXIT
+          for n in $(seq 1 15); do
+            if curl -fsS http://127.0.0.1:18791/ >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          node scripts/qa/w066-ui.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
