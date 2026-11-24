@@ -44,7 +44,7 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
   if(!signed||mode)return;
   let alive=true;
   requestTeamArena<Podium>({action:'podium'}).then(data=>{if(alive)setPodium(data)}).catch(()=>{if(alive)setNotice('Рейтинг временно недоступен')});
-  requestTeamArena<Reply|null>({action:'current'}).then(data=>{if(alive&&data)setRoom(data.view)}).catch(()=>{});
+  requestTeamArena<Reply|null>({action:'current'}).then(data=>{if(alive)setRoom(data?.view)}).catch(()=>{});
   return ()=>{alive=false};
  },[mode,signed]);
  useEffect(()=>{
@@ -55,7 +55,12 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
    if(!flight.current)try{
     const next=await requestTeamArena<Reply>({action:'room',room:roomId});
     if(!closed&&version===revision.current){setRoom(next.view);setNow(Date.now());setNotice(current=>current==='Восстанавливаем связь с Ареной…'?'':current);}
-   }catch{if(!closed&&version===revision.current)setNotice('Восстанавливаем связь с Ареной…');}
+   }catch(error){
+    if(!closed&&version===revision.current){
+     if(error instanceof CommunityError&&error.status===403){setRoom(undefined);setNotice('Комната закрыта. Можно начать новый поиск.');}
+     else setNotice('Восстанавливаем связь с Ареной…');
+    }
+   }
    if(!closed)timer=setTimeout(poll,1200);
   };
   timer=setTimeout(poll,500);
