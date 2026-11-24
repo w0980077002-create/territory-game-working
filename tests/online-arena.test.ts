@@ -212,6 +212,21 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
    return {status:response.status,data:await response.json()};
   };
   assert.equal((await fetch(new URL('/health',base))).status,200);
+  const pages='https://w0980077002-create.github.io';
+  const preflight=(origin:string)=>fetch(base+'auth',{method:'OPTIONS',headers:{
+   Origin:origin,'Access-Control-Request-Method':'POST',
+   'Access-Control-Request-Headers':'authorization, content-type, x-arena-tab',
+  }});
+  const allowed=await preflight(pages);
+  assert.equal(allowed.status,204);
+  assert.equal(allowed.headers.get('Access-Control-Allow-Origin'),pages);
+  assert.match(allowed.headers.get('Access-Control-Allow-Headers')??'',/x-arena-tab/i);
+  assert.equal((await preflight('https://outside.example')).headers.get('Access-Control-Allow-Origin'),null);
+  const crossLogin=await fetch(base+'auth',{method:'POST',headers:{Origin:pages,'Content-Type':'application/json'},
+   body:JSON.stringify({initData:sign(1)})});
+  assert.equal(crossLogin.status,200);
+  assert.equal(crossLogin.headers.get('Access-Control-Allow-Origin'),pages);
+  assert.equal((await crossLogin.json()).token.length>0,true);
   assert.equal((await request('auth',{initData:'user=1'})).status,401);
   assert.equal((await request('auth',{initData:sign(4)})).status,403);
   assert.equal((await request('local?user=alice')).status,401);

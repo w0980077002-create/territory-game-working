@@ -11,6 +11,7 @@ import {readArenaLevels} from './roster';
 
 type Options={dbPath:string;botToken:string;sessionKey:string;webRoot?:string;local?:boolean;clock?:()=>number;rng?:()=>number;
  allowedUsers?:ReadonlySet<string>;testLevels?:string;scorePublisher?:{url:string;token:string}};
+const pagesOrigin='https://w0980077002-create.github.io';
 const uuid=/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i;
 const localPeople={
  alice:{id:1001,first_name:'Алиса'},
@@ -144,6 +145,17 @@ export function createArenaServer(options:Options){
    const url=new URL(req.url??'/','http://arena.local');
    const now=clock();
    const {pathname}=url;
+   if(pathname.startsWith('/arena-api/')){
+    res.setHeader('Vary','Origin');
+    if(req.headers.origin===pagesOrigin){
+     res.setHeader('Access-Control-Allow-Origin',pagesOrigin);
+     if(req.method==='OPTIONS'){
+      res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS',
+       'Access-Control-Allow-Headers':'authorization, content-type, x-arena-tab','Access-Control-Max-Age':'600'});
+      res.end();return;
+     }
+    }
+   }
    if((pathname==='/health'||pathname==='/arena-api/health')&&req.method==='GET'){json(res,200,{ok:true});return}
    if(pathname==='/arena-api/local'&&req.method==='GET'&&options.local&&req.socket.remoteAddress==='127.0.0.1'&&/^127\.0\.0\.1(?::\d+)?$/.test(req.headers.host??'')&&req.headers['sec-fetch-site']!=='cross-site'){
     const user=url.searchParams.get('user');
