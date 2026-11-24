@@ -11,9 +11,9 @@ export interface Reply {status:number;body:unknown}
 
 const INIT_MAX_AGE=24*60*60; // Mini App sessions stay open for long; the signature still binds the user.
 const enc=new TextEncoder();
-async function hmac(key:Uint8Array|ArrayBuffer,text:string){
+async function hmac(key:Uint8Array<ArrayBuffer>,text:string){
  const k=await crypto.subtle.importKey('raw',key,{name:'HMAC',hash:'SHA-256'},false,['sign']);
- return new Uint8Array(await crypto.subtle.sign('HMAC',k,enc.encode(text)));
+ return new Uint8Array(await crypto.subtle.sign('HMAC',k,enc.encode(text))) as Uint8Array<ArrayBuffer>;
 }
 const hex=(b:Uint8Array)=>Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');
 function sameHex(a:string,b:string){if(a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a.charCodeAt(i)^b.charCodeAt(i);return d===0}
