@@ -1,0 +1,12 @@
+.lair-record { margin: 8px 0; padding: 8px; border: 1px solid #8a785766; border-radius: 8px; background: #0b141bcc; }
+.lair-record h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 2px; color: #ffe5a8; font-size: 13px; }
+.lair-record h4 .icon { width: 20px; height: 20px; }
+.lair-record small { display: block; color: #cbb88f; font-size: 10.5px; line-height: 1.3; }
+.lair-record ul { display: grid; gap: 4px; margin: 6px 0 0; padding: 0; list-style: none; }
+.lair-record li { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 6px; min-height: 44px; padding: 3px 6px; border: 1px solid #4a3e32; border-radius: 6px; background: #17130f; color: #f0ddbe; font-size: 12px; }
+.lair-record li .action { min-height: 36px; padding: 4px 8px; font-size: 11px; }
+.lair-record li.ready { border-color: #e4ad43; }
+.lair-record li em { font-style: normal; color: #9de08b; font-size: 11px; }
+.lair-record .reward-art { display: flex; gap: 4px; }
+.lair-record .reward-art .icon { width: 18px; height: 18px; }
+@media (max-width: 359px) { .lair-record li { grid-template-columns: 1fr auto; } .lair-record li > :last-child { grid-column: 1 / -1; } }
