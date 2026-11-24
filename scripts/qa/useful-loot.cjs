@@ -173,6 +173,7 @@ async function workshops({page,button,read},locked=false){
  const harbor=page.getByRole('navigation',{name:'Постройки гавани'});
  const workshop=page.getByRole('dialog',{name:'Мастерские'});
  await button('Карта').tap();
+ await harbor.getByRole('button',{name:'Кузница',exact:true}).tap();
  await button('Мастерские').tap();
  await workshop.waitFor();
  assert.equal(await workshop.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
@@ -182,8 +183,8 @@ async function workshops({page,button,read},locked=false){
  if(locked){
   await workshop.getByText(/после победы над владыкой первого региона/).waitFor();
   assert.equal(await craft.isDisabled(),true);
-  await button('‹ В гавань').tap();
-  await harbor.waitFor();
+  await button('В кузницу').tap();
+  await page.getByRole('dialog',{name:'Кузница'}).waitFor();
   return;
  }
  await workshop.getByRole('button',{name:/^Где получить ·/}).tap();
@@ -211,8 +212,8 @@ async function workshops({page,button,read},locked=false){
  await masters.getByRole('button',{name:'Ювелир'}).tap();
  await workshop.getByText('Изготовлено предметов · 1',{exact:true}).waitFor();
  await page.waitForTimeout(370);
- await button('‹ В гавань').tap();
- await harbor.waitFor();
+ await button('В кузницу').tap();
+ await page.getByRole('dialog',{name:'Кузница'}).waitFor();
  await page.reload();
  await page.waitForFunction(()=>!!window.__lootborn?.battle);
  const restored=await read();
