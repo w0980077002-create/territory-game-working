@@ -68,6 +68,11 @@ if (process.argv[2] === 'before') {
 NODE
 }
 start
+if vvr_probe=$(docker exec "$container" node /app/check-saves.mjs 2>&1); then
+  echo 'The database check must fail when no credentials were supplied'
+  exit 1
+fi
+[[ "$vvr_probe" == "VVR cloud check failed."* ]]
 smoke before
 docker stop "$container" >/dev/null
 docker rm "$container" >/dev/null

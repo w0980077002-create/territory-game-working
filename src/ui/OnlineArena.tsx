@@ -1,6 +1,8 @@
 import {useEffect,useRef,useState} from 'react';
 import {classNames,heroArt,art,skillData,slotNames} from '../data/catalog';
-import {tg} from '../core/telegram';
+import {telegramAccountId,tg} from '../core/telegram';
+import {exportSave,parseSave,useGame} from '../core/store';
+import {localArenaActor} from '../arena/staging';
 import type {Player} from '../core/types';
 import {gearBonusLabels,soloArenaPreview} from '../arena/soloPreview';
 import {
@@ -11,7 +13,6 @@ import {
 import {Icon} from './Icon';
 import './onlineArena.css';
 
-const sessionKey='vvr-arena-session';
 let tabId:string;
 const noConnection='Нет связи с Ареной. Восстанавливаем подключение…';
 const reasons={hp:'Решило здоровье',time:'Лимит раундов',afk:'Пропущен ход',disconnect:'Связь с игроком потеряна',leave:'Игрок покинул бой'};
@@ -23,11 +24,23 @@ const secondsLeft=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/10
 class ArenaRequestError extends Error{
  constructor(readonly status:number,message:string){super(message)}
 }
+function arenaSessionKey(){
+ const launch=tg()?.initData;
+ if(launch){
+  const id=telegramAccountId(),hash=new URLSearchParams(launch).get('hash');
+  return id&&hash&&/^[a-f0-9]{64}$/i.test(hash)?'vvr-arena-session:'+id+':'+hash:undefined;
+ }
+ const actor=localArenaActor();
+ return actor?'vvr-arena-session:local:'+actor:undefined;
+}
 function savedSession(){
- try{return sessionStorage.getItem(sessionKey)??''}catch{return ''}
+ try{const key=arenaSessionKey();return key?sessionStorage.getItem(key)??'':''}catch{return ''}
 }
 function saveSession(token:string){
- try{if(token)sessionStorage.setItem(sessionKey,token);else sessionStorage.removeItem(sessionKey)}catch{/* Keep the active in-memory session. */}
+ try{
+  const key=arenaSessionKey();
+  if(key){if(token)sessionStorage.setItem(key,token);else sessionStorage.removeItem(key)}
+ }catch{/* Keep the active in-memory session. */}
 }
 async function request<T>(path:string,token='',data?:Record<string,unknown>):Promise<T>{
  const response=await fetch('/arena-api/'+path,{
@@ -43,8 +56,8 @@ async function request<T>(path:string,token='',data?:Record<string,unknown>):Pro
 async function launchData(){
  const initData=tg()?.initData;
  if(initData)return initData;
- const person=new URLSearchParams(location.search).get('arenaLocal');
- if(location.hostname==='127.0.0.1'&&(person==='alice'||person==='boris'))
+ const person=localArenaActor();
+ if(person)
   return (await request<{initData:string}>('local?user='+person)).initData;
  throw new Error('Откройте эту сборку в Telegram.');
 }
@@ -164,6 +177,85 @@ function RoomMessages({match,now,pending,send}:{match:ArenaMatchView;now:number;
  </div>;
 }
 
+type SaveCopy={
+ revision:number;corrupt:boolean;snapshot:{revision:number;raw:string;checksum:string}|null;
+ backups:{revision:number}[];
+};
+type CopyUpload={expected:number;requestId:string;raw:string};
+
+function ArenaSaveCopies({token}:{token:string}){
+ const [copy,setCopy]=useState<SaveCopy>();
+ const [selected,setSelected]=useState<number>();
+ const [upload,setUpload]=useState<CopyUpload>();
+ const [confirm,setConfirm]=useState(false);
+ const [busy,setBusy]=useState(false);
+ const [feedback,setFeedback]=useState('');
+ const lock=useRef(false);
+
+ const perform=async(work:()=>Promise<void>)=>{
+  if(lock.current)return;
+  lock.current=true;setBusy(true);setFeedback('');
+  try{await work()}
+  catch(error){
+   if(error instanceof ArenaRequestError&&error.status===409){
+    setUpload(undefined);setCopy(undefined);
+   }
+   setFeedback(error instanceof ArenaRequestError
+    ?(error.status===404?'Хранилище копий недоступно.':error.message)
+    :'Нет связи с хранилищем. Локальная копия сохранена.');
+  }finally{lock.current=false;setBusy(false)}
+ };
+ const load=(version?:number)=>perform(async()=>{
+  setConfirm(false);
+  const next=await request<SaveCopy>('save'+(version===undefined?'':'?revision='+version),token);
+  setCopy(next);setSelected(version??next.revision);
+  if(next.corrupt)setFeedback('Контрольная сумма не совпала. Выберите другую версию.');
+ });
+ const save=()=>perform(async()=>{
+  const command=upload??(copy&&{expected:copy.revision,raw:exportSave(),requestId:crypto.randomUUID()});
+  if(!command)return;
+  setUpload(command);
+  const saved=await request<{revision:number}>('save',token,command);
+  setUpload(undefined);setCopy(undefined);setFeedback('Копия записана · версия '+saved.revision);
+ });
+ const restore=()=>perform(async()=>{
+  const snapshot=copy?.snapshot;
+  if(!snapshot)return;
+  setConfirm(false);
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(snapshot.raw));
+  const checksum=Array.from(new Uint8Array(bytes),byte=>byte.toString(16).padStart(2,'0')).join('');
+  const parsed=checksum===snapshot.checksum?parseSave(snapshot.raw,true):null;
+  if(!parsed){setFeedback('Копия повреждена или несовместима. Прогресс на устройстве сохранён.');return}
+  if(useGame.getState().importSave(parsed))setFeedback('Версия '+snapshot.revision+' восстановлена на устройстве.');
+  else setFeedback('Не удалось восстановить копию. Текущий прогресс сохранён.');
+ });
+ return <details className="online-details">
+  <summary>Облачная копия Solo</summary>
+  <p>Копии относятся к этому тренировочному профилю. Восстановление сохраняет прежнюю копию на устройстве.</p>
+  {feedback&&<p role="status" className="online-status">{feedback}</p>}
+  <button className="action secondary" disabled={busy||!!upload} onClick={()=>void load()}>Проверить копии</button>
+  {copy&&<p>{copy.revision?'Текущая версия в облаке · '+copy.revision:'Облачных копий пока нет'}</p>}
+  {copy&&copy.backups.length>1&&<label className="online-class">Версия копии
+   <select value={selected} disabled={busy||!!upload||confirm} onChange={e=>void load(Number(e.target.value))}>
+    {copy.backups.map(entry=><option key={entry.revision} value={entry.revision}>{entry.revision}</option>)}
+   </select>
+  </label>}
+  {(upload||copy&&selected===copy.revision&&!copy.corrupt)&&
+   <button className="action" disabled={busy||confirm} onClick={()=>void save()}>
+    {upload?'Повторить отправку':'Сохранить копию'}
+   </button>}
+  {upload&&<button className="action secondary" disabled={busy} onClick={()=>{
+   setUpload(undefined);setCopy(undefined);setFeedback('');
+  }}>Отменить повтор</button>}
+  {copy?.snapshot&&!upload&&(confirm?<div className="online-message-tabs">
+   <button className="action secondary" disabled={busy} onClick={()=>setConfirm(false)}>Отмена</button>
+   <button className="action" disabled={busy} onClick={()=>void restore()}>Подтвердить восстановление</button>
+  </div>:<button className="action secondary" disabled={busy} onClick={()=>setConfirm(true)}>
+   Восстановить версию {copy.snapshot.revision}
+  </button>)}
+ </details>;
+}
+
 export function OnlineArena({player}:{player:Player}){
  const [active,setActive]=useState(false),[view,setView]=useState<ArenaView>(),[token,setToken]=useState(savedSession);
  const [hero,setHero]=useState<ArenaHero>(player.heroClass),[kit,setKit]=useState<ArenaKit>('balanced');
@@ -243,6 +335,7 @@ export function OnlineArena({player}:{player:Player}){
   {!token&&<button className="action" disabled={pending} onClick={login}>Войти через Telegram</button>}
   {token&&!view&&!message&&<p role="status">Подключение к Арене…</p>}
   {view&&!queued&&!live&&<>
+   <ArenaSaveCopies key={token} token={token}/>
    <label className="online-class">Класс бойца <select value={hero} onChange={e=>setHero(e.target.value as ArenaHero)}>
     {Object.entries(classNames).map(([id,name])=><option value={id} key={id}>{name}</option>)}
    </select></label>

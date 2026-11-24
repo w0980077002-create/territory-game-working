@@ -263,23 +263,40 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
   assert.deepEqual(duplicates.map(reply=>reply.data.accepted).sort(),[false,true]);
   assert.equal((await restored('act',firstAction)).data.accepted,false);
 
+  const checkpoint=(await restored('state')).data.match;
+  assert.equal(checkpoint.you.moved,true);
+  assert.equal(checkpoint.opponent.moved,false);
+  await close();
+  server=createArenaServer(options);
+  base=await listen();
+  now+=1500;
   let oneState=(await restored('state')).data, twoState=(await two('state')).data;
+  assert.equal(oneState.match.id,id);
+  assert.equal(oneState.match.round,checkpoint.round);
+  assert.equal(oneState.match.deadline,checkpoint.deadline);
+  assert.equal(oneState.match.you.hp,checkpoint.you.hp);
+  assert.equal(oneState.match.you.moved,true);
+  assert.equal(oneState.match.nextSequence,checkpoint.nextSequence);
+  assert.equal(oneState.match.chat.at(-1).text,'Хорошего боя');
+  assert.equal(twoState.match.you.moved,false);
+  assert.equal((await restored('act',firstAction)).data.accepted,false);
   while(!twoState.match.result){
    const current=twoState.match.round;
    assert.ok(current<=60);
-   if(!oneState.match.you.moved){
-    const attack={kind:'move',move:{attack:'head',blocks:['belly','legs'],skill:current===2?'hammer':null}};
-    const reply=await restored('act',{target:id,revision:oneState.match.controlRevision,action:attack,round:current,sequence:oneState.match.nextSequence});
-    assert.ok(reply.data.accepted);
-   }
+   const attack={kind:'move',move:{attack:'head',blocks:['belly','legs'],skill:current===2?'hammer':null}};
+   const friendlyMove:Record<string,unknown>={
+    target:id,revision:oneState.match.controlRevision,action:attack,round:current,sequence:oneState.match.nextSequence,
+   };
    const opponentMove:Record<string,unknown>={
     target:id,revision:twoState.match.controlRevision,action:legs,round:current,sequence:twoState.match.nextSequence,
    };
-   const replyBatch=await Promise.all([two('act',opponentMove),two('act',opponentMove)]);
-   assert.equal(replyBatch.filter(reply=>reply.data.accepted).length,1);
-   const reply=replyBatch.find(reply=>reply.data.accepted)!;
-   twoState=reply.data.view;
-   oneState=(await restored('state')).data;
+   const [friendlyReply,...opponentReplies]=await Promise.all([
+    oneState.match.you.moved?undefined:restored('act',friendlyMove),
+    two('act',opponentMove),two('act',opponentMove),
+   ]);
+   if(friendlyReply)assert.equal(friendlyReply.data.accepted,true);
+   assert.equal(opponentReplies.filter(reply=>reply.data.accepted).length,1);
+   [oneState,twoState]=await Promise.all([restored('state').then(reply=>reply.data),two('state').then(reply=>reply.data)]);
    now+=1000;
   }
   assert.equal(oneState.match.result.outcome,'win');

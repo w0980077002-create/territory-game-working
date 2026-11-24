@@ -33,20 +33,23 @@ async function actor(browser,user,viewport) {
  player.skills=[5,2,1];
  const stagedWeapon={...player.equipment.weapon,attack:user==='alice'?1e100:12,upgrade:user==='alice'?9000:0};
  player.equipment.weapon=stagedWeapon;
- const profileKey=soloKey+':telegram:'+(user==='alice'?'1001':'1002');
- await context.addInitScript(({data,player,profileKey,stagingKey,soloKey})=>{
+ const account=user==='alice'?'1001':'1002';
+ const profileKey=soloKey+':telegram:'+account;
+ const actorKey=stagingKey+':player:'+account;
+ await context.addInitScript(({data,player,profileKey,stagingKey,actorKey,soloKey})=>{
   const cloudCall=()=>sessionStorage.setItem('qa-cloud-calls',String(Number(sessionStorage.getItem('qa-cloud-calls'))+1));
   window.Telegram={WebApp:{
-   initData:data,ready(){},expand(){},isVersionAtLeast:()=>false,
+   initData:sessionStorage.getItem('qa-launch-override')??data,ready(){},expand(){},isVersionAtLeast:()=>false,
    CloudStorage:{getItem:cloudCall,setItem:cloudCall},
   }};
   if(!sessionStorage.getItem('qa-save-initialized')){
    localStorage.setItem(soloKey,'original-save-sentinel');
    localStorage.setItem(profileKey,'telegram-save-sentinel');
-   localStorage.setItem(stagingKey,JSON.stringify(player));
+   localStorage.setItem(stagingKey,'legacy-staging-sentinel');
+   localStorage.setItem(actorKey,JSON.stringify(player));
    sessionStorage.setItem('qa-save-initialized','1');
   }
- },{data:initData,player,profileKey,stagingKey,soloKey});
+ },{data:initData,player,profileKey,stagingKey,actorKey,soloKey});
  const page=await context.newPage();
  const errors=[];
  page.on('pageerror',error=>errors.push(error.message));
@@ -54,7 +57,7 @@ async function actor(browser,user,viewport) {
  await openArena(page);
  await button(page,'Войти через Telegram').tap();
  await button(page,'Найти соперника').waitFor();
- return {context,page,errors,player,profileKey};
+ return {context,page,errors,player,profileKey,actorKey};
 }
 
 async function pickMove(page,attack,first,second) {
@@ -76,7 +79,9 @@ async function chat(page,text) {
 
 async function apiSave(page,data) {
  return page.evaluate(async payload=>{
-  const token=sessionStorage.getItem('vvr-arena-session');
+  const launch=new URLSearchParams(window.Telegram.WebApp.initData);
+  const {id}=JSON.parse(launch.get('user'));
+  const token=sessionStorage.getItem('vvr-arena-session:'+id+':'+launch.get('hash'));
   const res=await fetch('/arena-api/save',{
    method:payload?'POST':'GET',
    headers:{Authorization:'Bearer '+token,'X-Arena-Tab':crypto.randomUUID(),...(payload?{'Content-Type':'application/json'}:{})},
@@ -87,23 +92,83 @@ async function apiSave(page,data) {
 }
 
 async function verifySaves(one,two,width) {
- const earlier=await apiSave(one.page);
- assert.equal(earlier.status,200);
- const raw=JSON.stringify(require('./ui-fixture.cjs')(34));
- const upload={expected:earlier.value.revision,raw,requestId:randomUUID()};
+ const ar=section(one.page),br=section(two.page);
+ await ar.getByText('Облачная копия Solo',{exact:true}).tap();
+ await button(ar,'Проверить копии').tap();
+ await button(ar,'Сохранить копию').waitFor();
+ await br.getByText('Облачная копия Solo',{exact:true}).tap();
+ await button(br,'Проверить копии').tap();
+ await br.getByText('Облачных копий пока нет',{exact:true}).waitFor();
+ const matchSaveRequest=request=>request.url().endsWith('/arena-api/save')&&request.method()==='POST';
+ const before=await apiSave(one.page);
+ const upload=one.page.waitForRequest(matchSaveRequest);
  if(width===390){
-  await one.context.setOffline(true);
-  try{await assert.rejects(apiSave(one.page,upload),/fetch|Network/i)}
-  finally{await one.context.setOffline(false)}
- }
- const saved=await apiSave(one.page,upload);
- assert.equal(saved.status,200);
- assert.equal(saved.value.revision,upload.expected+1);
+  // The write reaches PostgreSQL, but this tab loses the acknowledgment.
+  const loseAck=async route=>{
+   if(route.request().method()!=='POST'){await route.continue();return}
+   assert.equal((await route.fetch()).status(),200);
+   await route.abort('connectionreset');
+  };
+  await one.page.route('**/arena-api/save',loseAck);
+  await button(ar,'Сохранить копию').tap();
+  await ar.getByText('Нет связи с хранилищем. Локальная копия сохранена.',{exact:true}).waitFor();
+  await one.page.unroute('**/arena-api/save',loseAck);
+  const retry=one.page.waitForRequest(matchSaveRequest);
+  await button(ar,'Повторить отправку').tap();
+  assert.deepEqual((await retry).postDataJSON(),(await upload).postDataJSON());
+ }else await button(ar,'Сохранить копию').tap();
+
+ const revision=before.value.revision+1;
+ await ar.getByText('Копия записана · версия '+revision,{exact:true}).waitFor();
  const [read,other]=await Promise.all([apiSave(one.page),apiSave(two.page)]);
- assert.equal(read.value.snapshot.raw,raw);
- assert.equal(read.value.snapshot.checksum,saved.value.checksum);
+ assert.equal(read.value.revision,revision);
+ assert.equal(read.value.snapshot.raw,(await upload).postDataJSON().raw);
  assert.notEqual(other.value.playerId,read.value.playerId);
  assert.equal(other.value.snapshot,null);
+ await noHorizontalOverflow(one.page);
+
+ if(width===390){
+  await button(ar,'Проверить копии').tap();
+  await button(ar,'Восстановить версию '+revision).waitFor();
+  const updated=JSON.parse(read.value.snapshot.raw);
+  updated.gold+=42;
+  const another=await apiSave(one.page,{expected:revision,raw:JSON.stringify(updated),requestId:randomUUID()});
+  assert.equal(another.status,200,'the other device advances the cloud revision');
+  await button(ar,'Сохранить копию').tap();
+  await ar.getByText(/Есть более свежая версия/).waitFor();
+  assert.equal(await button(ar,'Сохранить копию').count(),0);
+  await button(ar,'Проверить копии').tap();
+  await button(ar,'Восстановить версию '+(revision+1)).tap();
+  await button(ar,'Подтвердить восстановление').tap();
+  await ar.getByText('Версия '+(revision+1)+' восстановлена на устройстве.',{exact:true}).waitFor();
+  const local=await one.page.evaluate(key=>({
+   current:JSON.parse(localStorage.getItem(key)),backup:JSON.parse(localStorage.getItem(key+':before-import')),
+  }),one.actorKey);
+  assert.equal(local.current.gold,updated.gold);
+  assert.equal(local.backup.gold,one.player.gold);
+  one.player.gold=updated.gold;
+ }
+ await ar.getByText('Облачная копия Solo',{exact:true}).tap();
+ await br.getByText('Облачная копия Solo',{exact:true}).tap();
+}
+
+async function verifyAccountSwitch(actor) {
+ const {initData}=await (await fetch(base+'/arena-api/local?user=boris')).json();
+ await actor.page.evaluate(value=>sessionStorage.setItem('qa-launch-override',value),initData);
+ await actor.page.reload();
+ await openArena(actor.page);
+ await button(actor.page,'Войти через Telegram').waitFor();
+ const ar=section(actor.page);
+ assert.equal(await ar.getByText(/Тренировочный уровень 6 ·/).count(),0);
+ await button(actor.page,'Войти через Telegram').tap();
+ await ar.getByText(/Тренировочный уровень 13 ·/).waitFor();
+ if(process.env.VVR_DB_URL){
+  await ar.getByText('Облачная копия Solo',{exact:true}).tap();
+  await button(ar,'Проверить копии').tap();
+  await ar.getByText('Облачных копий пока нет',{exact:true}).waitFor();
+ }
+ const retained=await actor.page.evaluate(key=>JSON.parse(localStorage.getItem(key)),actor.actorKey);
+ assert.equal(retained.gold,actor.player.gold,'switching Telegram identity leaves the first staged save intact');
 }
 
 async function noHorizontalOverflow(page) {
@@ -228,18 +293,20 @@ async function noHorizontalOverflow(page) {
    await ar.getByText(/До закрытия чата · (29:|30:00)/).waitFor();
    await a.screenshot({path:join(out,width+'-postfight.png')});
    for(const actor of [one,two]){
-    const storage=await actor.page.evaluate(({soloKey,profileKey,stagingKey})=>({
+    const storage=await actor.page.evaluate(({soloKey,profileKey,stagingKey,actorKey})=>({
      original:localStorage.getItem(soloKey),telegram:localStorage.getItem(profileKey),
-     player:JSON.parse(localStorage.getItem(stagingKey)),cloud:Number(sessionStorage.getItem('qa-cloud-calls')),
-    }),{soloKey,profileKey:actor.profileKey,stagingKey});
+     legacy:localStorage.getItem(stagingKey),player:JSON.parse(localStorage.getItem(actorKey)),cloud:Number(sessionStorage.getItem('qa-cloud-calls')),
+    }),{soloKey,profileKey:actor.profileKey,actorKey:actor.actorKey,stagingKey});
     assert.equal(storage.original,'original-save-sentinel');
     assert.equal(storage.telegram,'telegram-save-sentinel');
     assert.equal(storage.cloud,0);
+    assert.equal(storage.legacy,'legacy-staging-sentinel');
     for(const field of ['equipment','inventory','gold','gems','chaosite','tokens','stage','skills'])
      assert.deepEqual(storage.player[field],actor.player[field],'Arena never mutates Solo '+field);
     assert.deepEqual(actor.errors,[]);
-    await actor.context.close();
    }
+   if(width===390)await verifyAccountSwitch(one);
+   await Promise.all([one.context.close(),two.context.close()]);
    console.log(width+' px: independent sessions, levels 6/13, moves, elixir, chat, result, Solo isolation'+
     (process.env.VVR_DB_URL?', PostgreSQL save and isolation':'')+' passed');
   }

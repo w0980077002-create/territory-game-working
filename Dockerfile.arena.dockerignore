@@ -11,3 +11,6 @@
 !server/**
 !src/
 !src/**
+!scripts/
+!scripts/qa/
+!scripts/qa/verify-save-connection.ts
