@@ -14,7 +14,7 @@ ENV NODE_ENV=production PORT=8787 ARENA_WEB_ROOT=/app/web ARENA_DB=/data/arena.s
 WORKDIR /app
 COPY --from=build --chown=node:node /app/.tmp/arena/server.mjs ./server.mjs
 COPY --from=build --chown=node:node /app/.tmp/arena/web ./web
-RUN mkdir /data && chown node:node /data
-USER node
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /data && chown node:node /data
 EXPOSE 8787
-CMD ["node", "server.mjs"]
+CMD ["sh", "-ec", "chown node:node /data; for f in /data/arena.sqlite /data/arena.sqlite-wal /data/arena.sqlite-shm /data/arena.sqlite-journal; do if [ -f \"$f\" ]; then chown node:node \"$f\"; fi; done; exec gosu node node server.mjs"]
