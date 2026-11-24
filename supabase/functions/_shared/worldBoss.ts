@@ -4,6 +4,7 @@
  * the public.vvr_world_boss_* functions) and the bot token. Telegram initData is verified exactly
  * like the Arena server (HMAC-SHA256 with "WebAppData"); the browser never supplies a player id.
  */
+import {verifyTelegramIdentity} from './vvr-identity.ts';
 export interface Identity {telegramId:string;name:string}
 export type Rpc=(name:string,args:Record<string,unknown>)=>Promise<unknown>;
 export interface Deps {botToken:string;rpc:Rpc;now?:()=>number}
@@ -16,27 +17,10 @@ async function hmac(key:Uint8Array<ArrayBuffer>,text:string){
  return new Uint8Array(await crypto.subtle.sign('HMAC',k,enc.encode(text))) as Uint8Array<ArrayBuffer>;
 }
 const hex=(b:Uint8Array)=>Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');
-function sameHex(a:string,b:string){if(a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a.charCodeAt(i)^b.charCodeAt(i);return d===0}
-
 export async function verifyInitData(raw:unknown,botToken:string,nowMs:number):Promise<Identity|undefined>{
- if(typeof raw!=='string'||!botToken||!raw||raw.length>8192)return;
- const fields=new URLSearchParams(raw),hash=fields.get('hash');
- if(!hash||!/^[a-f\d]{64}$/i.test(hash)||new Set(fields.keys()).size!==[...fields.keys()].length)return;
- fields.delete('hash');
- const text=[...fields].sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,v])=>k+'='+v).join('\n');
- const secret=await hmac(enc.encode('WebAppData'),botToken);
- if(!sameHex(hex(await hmac(secret,text)),hash.toLowerCase()))return;
- const date=fields.get('auth_date');
- if(!date||!/^\d+$/.test(date))return;
- const age=Math.floor(nowMs/1000)-Number(date);
- if(age<-30||age>INIT_MAX_AGE)return;
- try{
-  const {id,first_name}=JSON.parse(fields.get('user')??'null');
-  if(Number.isSafeInteger(id)&&id>0){
-   const name=typeof first_name==='string'?first_name.replace(/[\p{Cc}\p{Cf}]/gu,'').trim().slice(0,32):'';
-   return {telegramId:String(id),name:name||'Северный страж'};
-  }
- }catch{/* malformed user: no identity */}
+ if(typeof raw!=='string')return;
+ const identity=await verifyTelegramIdentity(raw,botToken,nowMs,INIT_MAX_AGE);
+ if(identity)return {telegramId:identity.telegramId,name:identity.displayName};
 }
 
 /** Signs initData for local QA only (the same format Telegram produces). */

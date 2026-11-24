@@ -1,0 +1,9 @@
+.vvr-community { min-width: 0; display: grid; gap: 8px; }
+.vvr-community form, .vvr-community label { display: grid; gap: 6px; min-width: 0; }
+.vvr-community :is(input, select, textarea) {
+  box-sizing: border-box; width: 100%; padding: 8px; color: inherit;
+  border: 1px solid #756647; border-radius: 6px; background: #15242d;
+}
+.vvr-community :is(ul, ol) { margin: 0; padding-inline-start: 22px; overflow-wrap: anywhere; }
+.vvr-community li { margin-block: 6px; }
+.vvr-community-chat { max-height: 38dvh; overflow-y: auto; }
