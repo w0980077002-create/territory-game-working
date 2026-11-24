@@ -27,8 +27,9 @@ export const professions=[
 export const professionWorkKey=(id:(typeof professions)[number]['id'])=>`masterwork:${id}`;
 export const professionForSlot=(slot:Slot)=>professions.find(profession=>(profession.slots as readonly Slot[]).includes(slot));
 /** Apply only to fresh base stats, before normal upgrades. */
-export function applyMasterwork(item:Item){
- for(const stat of ['attack','hp','defense'] as const)item[stat]=Math.round(item[stat]*masterworkStatMultiplier);
+export function applyMasterwork(item:Item,bonus?:Item['masterworkBonus']){
+ const multiplier=bonus===undefined?masterworkStatMultiplier:1+bonus/100;
+ for(const stat of ['attack','hp','defense'] as const)item[stat]=Math.round(item[stat]*multiplier);
  return item;
 }
 export type PerkId='cutlass'|'crown'|'echo'|'aquila'|'heart'|'belt'|'boots'|'moss'|'compass'|'void'|'duskwings';
