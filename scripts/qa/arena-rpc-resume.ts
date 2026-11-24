@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {applyCommand,appendMessage,newMatch,viewMatch,type Match,type Entrant} from '../../server/arena/duel';
+import {advance,applyCommand,appendMessage,newMatch,viewMatch,type Match,type Entrant} from '../../server/arena/duel';
 import {CHAT_MS,type ArenaCommand} from '../../src/arena/protocol';
 
 const [box,step]=process.argv.slice(2);
@@ -38,9 +38,14 @@ if(step==='seed'){
 }else{
  const persisted=JSON.parse(sql("select snapshot from public.assessment_rooms where id=1;")) as Match;
  assert.deepEqual(persisted,JSON.parse(JSON.stringify(checkpoint())));
+ const missedTurn=JSON.parse(JSON.stringify(persisted)) as Match;
+ for(const player of missedTurn.players)player.seenAt=missedTurn.deadline-1;
+ advance(missedTurn,missedTurn.deadline,rng);
+ assert.equal(missedTurn.result?.reason,'afk');
+ assert.equal(missedTurn.result?.points,0);
  const later=finish(persisted);
  assert.deepEqual(later,finish(checkpoint()));
  assert.equal(later.chatDeadline,(later.result?.finishedAt??0)+CHAT_MS);
  assert.equal(later.chat[0].text,'Хорошего боя');
- console.log('Same battle engine: persisted first move, health and round recovery, duplicate rejection, matching result and chat window after restart');
+ console.log('Same battle engine: persisted first move, health and round recovery, duplicate rejection, matching result, AFK rule and chat window after restart');
 }

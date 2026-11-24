@@ -81,8 +81,12 @@ commit;
 SQL
 for clients in 2 6 40; do
  echo "Shared room write load, $clients clients"
- docker exec "$box" pgbench -n -M prepared -c "$clients" -j 2 -T 4 -U postgres -f /tmp/update.sql postgres |
-   awk '/transactions actually processed|number of failed transactions|latency average|tps =/'
+ before=$(pg -At -c "select version from public.assessment_rooms where id=1;")
+ metrics=$(docker exec "$box" pgbench -n -M prepared -c "$clients" -j 2 -T 4 -U postgres -f /tmp/update.sql postgres)
+ printf '%s\n' "$metrics" | awk '/transactions actually processed|number of failed transactions|latency average|tps =/'
+ accepted=$(printf '%s\n' "$metrics" | awk '/transactions actually processed/{print $6}')
+ after=$(pg -At -c "select version from public.assessment_rooms where id=1;")
+ [[ "$accepted" =~ ^[0-9]+$ && $((after-before)) == "$accepted" ]]
 done
 [[ $(pg -At -c "select version=(snapshot->>'version')::integer from public.assessment_rooms where id=1;") == t ]]
 echo 'Snapshot version matches committed room version'
