@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {classNames,heroArt,art,skillData,slotNames} from '../data/catalog';
 import {tg} from '../core/telegram';
+import {arenaApiOrigin} from '../arena/staging';
 import type {Player} from '../core/types';
 import {gearBonusLabels,soloArenaPreview} from '../arena/soloPreview';
 import {
@@ -30,7 +31,7 @@ function saveSession(token:string){
  try{if(token)sessionStorage.setItem(sessionKey,token);else sessionStorage.removeItem(sessionKey)}catch{/* Keep the active in-memory session. */}
 }
 async function request<T>(path:string,token='',data?:Record<string,unknown>):Promise<T>{
- const response=await fetch('/arena-api/'+path,{
+ const response=await fetch(arenaApiOrigin+'/arena-api/'+path,{
   method:data?'POST':'GET',signal:AbortSignal.timeout(4500),cache:'no-store',
   headers:{...(token?{Authorization:'Bearer '+token,'X-Arena-Tab':tabId??=crypto.randomUUID()}:{}),
    ...(data?{'Content-Type':'application/json'}:{})},
@@ -44,7 +45,7 @@ async function launchData(){
  const initData=tg()?.initData;
  if(initData)return initData;
  const person=new URLSearchParams(location.search).get('arenaLocal');
- if(location.hostname==='127.0.0.1'&&(person==='alice'||person==='boris'))
+ if(!arenaApiOrigin&&location.hostname==='127.0.0.1'&&(person==='alice'||person==='boris'))
   return (await request<{initData:string}>('local?user='+person)).initData;
  throw new Error('Откройте эту сборку в Telegram.');
 }
@@ -164,8 +165,8 @@ function RoomMessages({match,now,pending,send}:{match:ArenaMatchView;now:number;
  </div>;
 }
 
-export function OnlineArena({player}:{player:Player}){
- const [active,setActive]=useState(false),[view,setView]=useState<ArenaView>(),[token,setToken]=useState(savedSession);
+export function OnlineArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:boolean}){
+ const [active,setActive]=useState(initiallyOpen),[view,setView]=useState<ArenaView>(),[token,setToken]=useState(savedSession);
  const [hero,setHero]=useState<ArenaHero>(player.heroClass),[kit,setKit]=useState<ArenaKit>('balanced');
  const [message,setMessage]=useState(''),[pending,setPending]=useState(false);
  const [previous,setPrevious]=useState<ArenaMatchView>();
@@ -236,7 +237,7 @@ export function OnlineArena({player}:{player:Player}){
  const shown=previous??match;
  return <section className="online-arena" aria-label="Сетевая Арена 1×1">
   <div className="online-heading"><Icon name="arena"/><strong>Сетевая Арена 1×1</strong></div>
-  <p>Тренировочные поединки · без рейтинга и наград Solo</p>
+  <p>Поединки 1×1. Если соперник не найден за 20 секунд, начнётся тренировка с ботом.</p>
   {view&&<small>Тренировочный уровень {view.level} · тестовые очки {view.points}</small>}
   {!queued&&!live&&<SoloPreview player={player}/>}
   {message&&<p role="status" className="online-status">{message}</p>}

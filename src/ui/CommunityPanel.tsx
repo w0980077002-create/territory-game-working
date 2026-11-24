@@ -5,14 +5,13 @@ import {tg} from '../core/telegram';
 import {lang} from '../i18n';
 
 const l=(ru:string,en:string)=>lang==='en'?en:ru;
-const tabNames={auction:l('Аукцион','Auction'),chat:l('Общий чат','Global chat'),ranking:l('Рейтинги','Rankings'),guild:l('Гильдии','Guilds')};
 const tradeNames={buy:l('Покупка','Purchase'),list:l('Размещение','Listing'),cancel:l('Снятие лота','Cancellation')};
 const format=(n:number)=>n.toLocaleString(lang);
 const label=(catalog:string)=>({
  'world-boss-trophy':l('Клинок победителя','Boss trophy blade'),
  weapon:l('Оружие','Weapon'),shield:l('Щит','Shield'),ring:l('Кольцо','Ring'),
 }[catalog]??catalog);
-type Tab=keyof typeof tabNames;
+type Section='auction'|'ranking'|'guild';
 type View=Market|Chat|Ranking|GuildState;
 const guildRole={leader:l('Глава','Leader'),member:l('Участник','Member')};
 
@@ -26,8 +25,8 @@ function explain(error:unknown){
  return l('Связь прервана. Попробуйте ещё раз.','Connection interrupted. Try again.');
 }
 
-export function CommunityPanel(){
- const [tab,setTab]=useState<Tab>('auction'),[metric,setMetric]=useState<Metric>('world_boss_damage');
+export function CommunityPanel({section}:{section:Section}){
+ const [tradingChat,setTradingChat]=useState(false),[metric,setMetric]=useState<Metric>('world_boss_damage');
  const [season,setSeason]=useState(''),[version,refresh]=useState(0),[signed,setSigned]=useState(false);
  const [result,setResult]=useState<{key:string;value:View}|null>(null);
  const [error,setError]=useState(''),[busy,setBusy]=useState(false);
@@ -35,6 +34,7 @@ export function CommunityPanel(){
  const [guildName,setGuildName]=useState('');
  const [offer,setOffer]=useState<Market['listings'][number]|null>(null);
  const pending=useRef<{key:string;id:string}|undefined>(undefined),running=useRef(false);
+ const tab=section==='auction'&&tradingChat?'chat':section;
  const key=tab==='ranking'?[tab,metric,season].join(':'):tab;
  const view=result?.key===key?result.value:null;
  useEffect(()=>{
@@ -100,10 +100,12 @@ export function CommunityPanel(){
  const roster=(action:GuildChange)=>void send('guild_roster',action,()=>setGuildName(''));
  const validPrice=Number.isInteger(Number(price))&&Number(price)>=1&&Number(price)<=1_000_000_000;
  return <section className="vvr-community">
-  <div className="tabs wrap" role="group" aria-label={l('Разделы сообщества','Community sections')}>
-   {(Object.keys(tabNames) as Tab[]).map(id=><button key={id} type="button" aria-pressed={tab===id} className={tab===id?'selected':''} disabled={busy}
-    onClick={()=>{setTab(id);setOffer(null);setError('');}}>{tabNames[id]}</button>)}
-  </div>
+  {section==='auction'&&<div className="tabs wrap" role="group" aria-label={l('Разделы аукциона','Auction sections')}>
+   <button type="button" aria-pressed={!tradingChat} className={!tradingChat?'selected':''} disabled={busy}
+    onClick={()=>{setTradingChat(false);setError('');}}>{l('Лоты','Listings')}</button>
+   <button type="button" aria-pressed={tradingChat} className={tradingChat?'selected':''} disabled={busy}
+    onClick={()=>{setTradingChat(true);setOffer(null);setError('');}}>{l('Торговый чат','Trade chat')}</button>
+  </div>}
   <button type="button" className="action secondary" disabled={busy} onClick={()=>{setError('');refresh(v=>v+1);}}>{l('Обновить','Refresh')}</button>
   {error&&<p role="alert">{error}</p>}
   {!view&&!error&&<p role="status">{l('Загрузка…','Loading…')}</p>}
