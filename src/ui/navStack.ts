@@ -16,9 +16,11 @@ export function startNavStack(){
  });
 }
 /** Previous window, if the current one was opened from inside another window. */
+/** Harbor buildings keep their own «‹ В гавань» return (DialogShell). */
+const harborWindows=new Set(['shipyard','forge','blessing','talents','darkgear','gems','relic','companions']);
 export function backTarget(current:string|null){
  const target=stack[stack.length-1];
- return current&&target&&target!==current&&target!=='item'?target:undefined;
+ return current&&!harborWindows.has(current)&&target&&target!==current&&target!=='item'?target:undefined;
 }
 export function goBack(){
  const target=stack.pop();
