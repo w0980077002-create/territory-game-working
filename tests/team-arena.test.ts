@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {Entrant} from '../server/arena/duel';
-import {advanceTeamMatch,newTeamMatch,strikeTeamMatch,teamArenaSize} from '../server/arena/team';
+import {advanceTeamMatch,newTeamMatch,setTeamAuto,strikeTeamMatch,teamArenaSize,useTeamTimeElixir} from '../server/arena/team';
 import {ROUND_MS} from '../src/arena/protocol';
 
 const entrants=(count:number):Entrant[]=>Array.from({length:count},(_,i)=>({
@@ -52,4 +52,37 @@ test('late targeting is resolved against another live enemy and the last defeat 
  advanceTeamMatch(match,200_000);
  assert.equal(strikeTeamMatch(match,a.id,b.id,'head',['chest','legs'],20,200_000,normal),false);
  assert.deepEqual(match.result,{winner:0,reason:'hp',finishedAt:54_001});
+});
+
+test('a bot and an Auto player resume after reload without replaying a strike',()=>{
+ const roster=entrants(6);
+ const match=newTeamMatch('match','team',[roster[0],{...roster[1],bot:true},...roster.slice(2)],0,normal);
+ assert.equal(setTeamAuto(match,roster[0].id,true,1,0,normal),true);
+ assert.equal(setTeamAuto(match,roster[1].id,false,1,0,normal),false);
+ assert.equal(strikeTeamMatch(match,roster[1].id,roster[0].id,'head',['chest','legs'],1,100,normal),false);
+ advanceTeamMatch(match,6_499,normal);
+ assert.equal(match.log.length,0);
+ const restored:typeof match=JSON.parse(JSON.stringify(match));
+ advanceTeamMatch(restored,6_500,normal);
+ assert.equal(restored.log.length,2);
+ assert.deepEqual(restored.sideDeadline,[ROUND_MS+6_500,ROUND_MS+6_500]);
+ advanceTeamMatch(restored,6_500,normal);
+ assert.equal(restored.log.length,2);
+ assert.equal(restored.players[0].sequence,1);
+ assert.equal(setTeamAuto(restored,roster[0].id,false,2,7_000,normal),true);
+ advanceTeamMatch(restored,13_000,normal);
+ assert.equal(restored.sideDeadline[0],ROUND_MS+6_500);
+ assert.equal(restored.sideDeadline[1],ROUND_MS+13_000);
+});
+
+test('time elixir affects only the other team and resets on their next accepted strike',()=>{
+ const match=newTeamMatch('match','team',entrants(6),0);
+ const [a,b,ally]=match.players;
+ assert.equal(useTeamTimeElixir(match,a.id,1,100,normal),true);
+ assert.equal(useTeamTimeElixir(match,a.id,2,200,normal),false);
+ assert.equal(useTeamTimeElixir(match,ally.id,1,300,normal),true);
+ assert.deepEqual(match.sideDeadline,[60_000,40_000]);
+ assert.equal(strikeTeamMatch(match,b.id,a.id,'chest',['head','legs'],1,39_999,normal),true);
+ assert.deepEqual(match.sideDeadline,[60_000,99_999]);
+ assert.deepEqual(match.timePenalty,[0,0]);
 });
