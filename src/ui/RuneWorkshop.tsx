@@ -1,4 +1,5 @@
-import {combatAura} from '../dark/rules';
+import './passivePath.css';
+import {combatAura,statNames} from '../dark/rules';
 import {useState} from 'react';
 import type {Player} from '../core/types';
 import {useGame} from '../core/store';
@@ -18,9 +19,10 @@ import {useRepeatAction} from './useRepeatAction';
 
 const groups=[['skills','Навыки'],['runes','Руны'],['passives','Пассивы'],['resonance','Резонанс']] as const;
 const skillIcons=['axe','horn','lightning'],runeIcons=['fire','lightning','potion','crown','shield','refresh','axe','lightning','coins'];
+const pathIcons:Record<string,string>={critDamage:'axes',lifesteal:'heart',skill:'lightning',dodge:'boots',reduction:'shield',crit:'axe',hpPct:'heart',atkPct:'axes',defPct:'armor'};
 const passiveIcons=['heart','axes','armor'],resonanceIcons=['axes','heart','lightning','shield','rune','armor'];
 const number=(value:number)=>value.toLocaleString('ru',{maximumFractionDigits:1});
-type Detail={kind:'skill'|'rune'|'passive'|'resonance';id:number}|{kind:'summon'|'dust'};
+type Detail={kind:'skill'|'rune'|'passive'|'resonance';id:number}|{kind:'path';row:number;id:number}|{kind:'summon'|'dust'};
 
 export function RuneWorkshop({p}:{p:Player}){
  const game=useGame.getState(),repeat=useRepeatAction();
@@ -75,7 +77,16 @@ export function RuneWorkshop({p}:{p:Player}){
    </div>
    <GameTiles>{state.ranks.map((level,id)=><GameTile key={id} label={runeName(id)} icon={runeIcons[id]} value={level?'Ранг '+level:'Без ранга'} active={p.runes[Math.floor(id/3)]===id%3} onClick={()=>inspect({kind:'rune',id})}/>)}</GameTiles>
   </>}
-  {tab==='passives'&&<GameTiles>{runeRules.passives.map((rule,id)=><GameTile key={id} label={rule.name} icon={passiveIcons[id]} value={p.level<rule.level?'Ур. '+rule.level:rule.text} active={state.passive===id} locked={p.level<rule.level} onClick={()=>inspect({kind:'passive',id})}/>)}</GameTiles>}
+  {tab==='passives'&&<div className="passive-path">
+   <section><h4>База <small>ур. {runeRules.passives[0].level}</small></h4><GameTiles>{runeRules.passives.map((rule,id)=><GameTile key={id} label={rule.name} icon={passiveIcons[id]} value={p.level<rule.level?'Ур. '+rule.level:rule.text} active={state.passive===id} locked={p.level<rule.level} onClick={()=>inspect({kind:'passive',id})}/>)}</GameTiles></section>
+   {runeRules.path.map((row,r)=><section key={row.name} className={p.level<row.level?'locked':''}><h4>{row.name} <small>{p.level<row.level?'откроется на ур. '+row.level:'ур. '+row.level}</small></h4>
+    <GameTiles>{row.options.map((opt,id)=><GameTile key={id} label={opt.name} icon={pathIcons[opt.key]??'rune'} value={p.level<row.level?'Ур. '+row.level:opt.text} active={state.path?.[r]===id} locked={p.level<row.level} onClick={()=>inspect({kind:'path',row:r,id})}/>)}</GameTiles></section>)}
+   {(()=>{const totals=new Map<string,number>();
+    const chosen=[...(state.passive!==null&&p.level>=runeRules.passives[state.passive].level?[runeRules.passives[state.passive]]:[]),...runeRules.path.flatMap((row,r)=>{const n=state.path?.[r];return n===null||n===undefined||p.level<row.level?[]:[row.options[n]]})];
+    for(const b of chosen)totals.set(b.key,(totals.get(b.key)??0)+b.amount);
+    return totals.size?<p className="passive-total"><b>Итого пассивы</b>{[...totals].map(([k,v])=><span key={k}>{statNames[k as keyof typeof statNames]} {k==='reduction'?'−':'+'}{number(v*100)}%</span>)}</p>:null})()}
+   <p className="hint">В каждом ряду действует один выбранный пассив. Смена бесплатна; бонусы видны в «Источниках силы» героя.</p>
+  </div>}
   {tab==='resonance'&&<><div className="rune-emblem"><Icon name="rune"/><b>Резонанс · {rank}</b></div><GameTiles>{runeRules.resonance.map((rule,id)=><GameTile key={id} label={rule.name} icon={resonanceIcons[id]} value={(rank>=rule.ranks?'✓ ':'')+rule.ranks} locked={rank<rule.ranks} onClick={()=>inspect({kind:'resonance',id})}/>)}</GameTiles></>}
   {detail?.kind==='skill'&&skillDetail(detail.id)}
   {detail?.kind==='rune'&&runeDetail(detail.id)}
@@ -85,6 +96,13 @@ export function RuneWorkshop({p}:{p:Player}){
     <button className="action" disabled={p.level<rule.level||state.passive===id} onClick={()=>{if(!confirm)setConfirm(true);else if(apply({kind:'passive',id},'Пассивный навык выбран'))close()}}>{confirm?'Подтвердить':'Выбрать'}</button>
     <button className="action secondary" onClick={close}>Отмена</button>
    </div>}><p>{rule.text} · ур. героя {rule.level}</p>{confirm&&<p>Заменить действующий пассивный навык?</p>}</CardDialog>;
+  })()}
+  {detail?.kind==='path'&&(()=>{
+   const row=runeRules.path[detail.row],opt=row.options[detail.id],chosen=state.path?.[detail.row],current=chosen===null||chosen===undefined?null:row.options[chosen];
+   return <CardDialog className="game-detail" title={opt.name} onClose={close} actions={<div className="game-actions">
+    <button className="action" disabled={p.level<row.level||chosen===detail.id} onClick={()=>{if(current&&!confirm)setConfirm(true);else if(apply({kind:'path',row:detail.row,id:detail.id},'Пассивный навык выбран'))close()}}>{chosen===detail.id?'Выбран':confirm?'Подтвердить':'Выбрать'}</button>
+    <button className="action secondary" onClick={close}>Отмена</button>
+   </div>}><p>{row.name} · {opt.text} · ур. героя {row.level}</p>{current&&chosen!==detail.id&&<p>Сейчас действует «{current.name}» ({current.text}).{confirm?' Заменить?':''}</p>}</CardDialog>;
   })()}
   {detail?.kind==='resonance'&&(()=>{const rule=runeRules.resonance[detail.id];return <CardDialog className="game-detail" title={rule.name} onClose={close}><p>+{number(rule.amount*100)}% · {Math.min(rank,rule.ranks)}/{rule.ranks} рангов</p><p>Учитываются ранги всех открытых рун.</p></CardDialog>})()}
   {detail?.kind==='summon'&&<CardDialog className="game-detail" title="Призыв рун" onClose={close} actions={<button className="action" disabled={scrolls<runeRules.summon} onClick={()=>repeat(()=>apply({kind:'summon'},'Результат призыва сохранён'))}>Призвать руну · {runeRules.summon} свитков</button>}>

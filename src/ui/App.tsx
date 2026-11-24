@@ -54,6 +54,7 @@ import {backTarget,goBack} from './navStack';
 import {communityEnabled} from '../community/client';
 import {lang,setLang} from '../i18n';
 import {BlessingOdds} from './BlessingOdds';
+import {AdventureRules} from './AdventureRules';
 import {resCount,resources,duskCount,type ResId} from '../dark/rules';
 import {materials,matCount,materialIds,blessingEffects,blessingCanImprove} from '../saga/gear';
 import {shopQuote} from '../saga/shop';
@@ -469,7 +470,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  {panel==='adventure'&&<><div className="adventure-destinations">{[['campaign','map','Основная глава',`Этап ${stageLabel(p.stage)}`],['dungeon','lair-keeper','Логово мини-босса',`${balance.combat_test_settings.mode_entry_chaosite} Хаосита`],['darkness','portal','Царство тьмы',`Этаж ${p.darkFloor}`],['farm','coins','Бесконечный фарм','Золото и опыт'],...(worldBossEnabled()?[['worldboss','crown','Мировой босс','Битва всех героев']]:[])].map(([mode,icon,name,detail])=><button key={mode} className={'adventure-route route-'+mode} onClick={()=>mode==='darkness'?g.open('realm'):mode==='dungeon'?g.open('lair'):mode==='worldboss'?g.open('worldboss'):battle?.startMode(mode)}><Icon name={icon}/><strong>{name}</strong><small>{detail}</small></button>)}
   {onlineArenaEnabled&&<button className="adventure-route" onClick={()=>g.open('arena')}><Icon name="arena"/><strong>Арена</strong><small>Сетевые поединки 1×1</small></button>}
   {Community&&<button className="adventure-route" onClick={()=>g.open('guild')}><Icon name="handshake"/><strong>{titles.guild}</strong><small>{lang==='en'?'Guild quests':'Командные задания'}</small></button>}
- </div><h3>Сила героя</h3><DarkHub p={p}/></>}
+ </div><AdventureRules stage={p.stage}/><h3>Сила героя</h3><DarkHub p={p}/></>}
  {panel==='arena'&&<ArenaPanel/>}
  {Community&&(panel==='auction'||panel==='guild'||panel==='rankings')&&
   <Suspense fallback={null}><Community key={panel} section={panel==='rankings'?'ranking':panel}/></Suspense>}

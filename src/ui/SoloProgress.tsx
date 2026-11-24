@@ -8,6 +8,8 @@ import {useGame} from '../core/store';
 import {art} from '../data/catalog';
 import {balanceOf,soloResources} from '../saga/soloEconomy';
 import {WingLookGallery} from './CollectionHub';
+import {statSources,statRows,type StatId} from '../saga/statSources';
+import './statTable.css';
 import {heroTracks,trackClaimed,claimTrack,wingRank,wingRules,wingBonuses,growWings,wingLooks} from '../saga/soloProgress';
 import {soloAction} from '../saga/soloAction';
 import {RewardDetails} from './RewardArt';
@@ -54,20 +56,21 @@ export function WingGrowth({p,gear}:{p:Player;gear:ReactNode}){
 }
 
 export function DetailedStats({p}:{p:Player}){
- const s=stats(p);
- const percent=(value:number)=>(value*100).toLocaleString('ru',{maximumFractionDigits:1})+'%';
- return <details className="saga-disclosure"><summary><Icon name="chart"/><span>Характеристики</span></summary>
-  <div className="bonus-card">
-   <b>Основные</b>
-   <span>Здоровье {s.hp} · уровень, снаряжение, стойкость, крылья и дружина.</span>
-   <span>Атака {s.attack} · уровень, оружие, ярость, крылья, реликвии и руны.</span>
-   <span>Защита {s.defense} · уровень, доспехи, стойкость и крылья. Снижает входящий урон с учётом уровня врага.</span>
-   <b>Вторичные</b>
-   <span>Крит {percent(s.crit)} · шанс нанести {percent(s.critDamage)} обычного урона. Вклад дают класс, ярость, комплекты, руны и камни.</span>
-   <span>Скорость {s.aspd.toLocaleString('ru')} удара/с. Её меняют класс и комплект бури.</span>
-   <span>Вампиризм {percent(s.lifesteal)} · доля урона обычного удара, возвращаемая здоровьем. Вклад дают класс, комплект углей и камни.</span>
-   <span>Уклонение {percent(s.dodge)}, снижение урона {percent(s.reduction)} · стойкость, крылья Сумрака, тёмные вещи, руны и спутники.</span>
-   <span>Урон навыков ×{s.skillDamage.toLocaleString('ru',{maximumFractionDigits:2})} от класса, комплектов и рунического резонанса. Ранги выбранных рун учитываются при применении.</span>
-  </div>
+ const [open,setOpen]=useState(false),[pick,setPick]=useState<StatId|null>(null);
+ const data=open?statSources(p):null;
+ const fmt=(id:StatId,v:number,sign=false)=>{const row=statRows.find(r=>r.id===id)!,txt=id==='skillDamage'?'×'+v.toLocaleString('ru',{maximumFractionDigits:2}):id==='aspd'?v.toLocaleString('ru',{maximumFractionDigits:2})+'/с':row.percent?(v*100).toLocaleString('ru',{maximumFractionDigits:1})+'%':Math.round(v).toLocaleString('ru');return sign&&v>0?'+'+txt:txt};
+ const delta=(id:StatId,v:number)=>id==='skillDamage'?'+'+(v*100).toLocaleString('ru',{maximumFractionDigits:1})+'%':fmt(id,v,true);
+ return <details className="saga-disclosure" onToggle={e=>setOpen((e.currentTarget as HTMLDetailsElement).open)}><summary><Icon name="chart"/><span>Характеристики</span></summary>
+  {data&&<div className="stat-table">
+   <dl>{statRows.map(r=><button type="button" key={r.id} className={pick===r.id?'picked':''} aria-pressed={pick===r.id} onClick={()=>setPick(pick===r.id?null:r.id)}><dt>{r.name}</dt><dd>{fmt(r.id,data.total[r.id])}</dd></button>)}</dl>
+   <p className="stat-cp">Сила героя · <b>{data.total.cp.toLocaleString('ru')}</b></p>
+   {pick?<div className="stat-sources">
+    <h4>{statRows.find(r=>r.id===pick)!.name}: откуда</h4>
+    <ul><li><span>Уровень и класс</span><b>{fmt(pick,data.base[pick])}</b></li>
+     {data.sources.filter(s=>s.delta[pick]).map(s=><li key={s.id}><span>{s.name}</span><b className={s.delta[pick]!<0?'neg':''}>{delta(pick,s.delta[pick]!)}</b></li>)}
+    </ul>
+    <small>Вклад источника — насколько изменится показатель, если его убрать. Источники усиливают друг друга, поэтому сумма может отличаться от итога.</small>
+   </div>:<small className="hint">Нажмите на показатель, чтобы увидеть, откуда он складывается.</small>}
+  </div>}
  </details>;
 }
