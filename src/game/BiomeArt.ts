@@ -5,9 +5,12 @@
  */
 import type {Region,HazardId} from '../saga/regions';
 import {hazards} from '../saga/regions';
+import {paintRegionGround,paintDistrictMist} from './RegionAtmosphere';
+import {FIRST_SITE,SITE_SPACING} from './Journey';
 const hash=(n:number)=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v)};
 /** After the painted scenery, before props and actors. */
-export function paintBiomeBack(c:CanvasRenderingContext2D,region:Region,_time:number,_cameraX:number,_quality:number,_reduced:boolean){
+export function paintBiomeBack(c:CanvasRenderingContext2D,region:Region,time:number,cameraX:number,quality:number,reduced:boolean){
+ paintRegionGround(c,region,time,cameraX,quality,reduced);
  // Keep the owner's approved painted scenery: region-wide colour washes and
  // dark veils made the original art dull, rather than supplying a true new biome.
  const look=region.look;
@@ -22,6 +25,7 @@ export function paintBiomeBack(c:CanvasRenderingContext2D,region:Region,_time:nu
 }
 /** In front of the actors: sparse weather so the fighters stay readable. */
 export function paintBiomeFront(c:CanvasRenderingContext2D,region:Region,time:number,cameraX:number,quality:number,reduced:boolean){
+ paintDistrictMist(c,region,time,cameraX,quality,reduced,FIRST_SITE,SITE_SPACING);
  const kind=region.look.particles;if(kind==='snow'||reduced)return;c.save();
  if(kind==='rain'){c.strokeStyle='#cfeaff';c.lineWidth=1.6;for(let i=0;i<Math.round(46*quality);i++){const x=((i*71+time*(260+i%5*30)-cameraX*.9)%940+940)%940-40,y=(i*137+time*(820+i%7*60))%880;c.globalAlpha=.22+(i%4)*.07;c.beginPath();c.moveTo(x,y);c.lineTo(x+9,y-30);c.stroke()}}
  else if(kind==='spores'){for(let i=0;i<Math.round(22*quality);i++){const age=(time*.07+i*.045)%1,x=((i*97-cameraX*.6+Math.sin(time*.7+i)*30)%900+900)%900,y=820-age*520;c.globalAlpha=Math.sin(age*Math.PI)*.75;c.fillStyle=i%3?'#a8ffc6':'#d9b8ff';c.beginPath();c.arc(x,y,1.8+(i%3),0,Math.PI*2);c.fill()}}

@@ -23,15 +23,16 @@ export class WorldRenderer {
  private ready(id:string){const i=this.textures.get(id);return sceneImageReady(i)?i:null}
  private objectRange='';
  private nearby:WorldObject[]=[];
- private panorama(c:CanvasRenderingContext2D,img:HTMLImageElement,camera:number,depth:number,y:number,width:number,height:number,phase=0){
+ private panorama(c:CanvasRenderingContext2D,img:HTMLImageElement|HTMLCanvasElement,camera:number,depth:number,y:number,width:number,height:number,phase=0){
   const shift=camera*depth+phase,index=Math.floor(shift/width),tileWidth=width+1,visibleHeight=Math.min(height,940-y);
   for(let n=index;n<=index+1;n++){
    const flip=!!(n%2),x=n*width-shift-Number(flip),left=Math.max(0,-x),right=Math.min(tileWidth,864-x);
    if(right<=left)continue;
    // Crop in source space before scaling. The projection and the mirrored seam
    // stay identical; Canvas only samples the part that can reach the viewport.
-   const sourceX=(flip?tileWidth-right:left)*img.naturalWidth/tileWidth;
-   const sourceWidth=(right-left)*img.naturalWidth/tileWidth,sourceHeight=visibleHeight*img.naturalHeight/height;
+   const iw='naturalWidth' in img?img.naturalWidth:img.width,ih='naturalHeight' in img?img.naturalHeight:img.height;
+   const sourceX=(flip?tileWidth-right:left)*iw/tileWidth;
+   const sourceWidth=(right-left)*iw/tileWidth,sourceHeight=visibleHeight*ih/height;
    if(flip){
     c.save();c.translate(x+right,y);c.scale(-1,1);
     c.drawImage(img,sourceX,0,sourceWidth,sourceHeight,0,0,right-left,visibleHeight);c.restore();
@@ -43,13 +44,15 @@ export class WorldRenderer {
   if(this.objectRange!==key){this.objectRange=key;this.nearby=worldObjectsAround(cameraX)}
   return this.nearby;
  }
- draw(c:CanvasRenderingContext2D,j:JourneyState,time:number,fallback:HTMLImageElement,tension=0,quality=1,skyLayer?:(c:CanvasRenderingContext2D)=>void){
+ draw(c:CanvasRenderingContext2D,j:JourneyState,time:number,fallback:HTMLImageElement,tension=0,quality=1,skyLayer?:(c:CanvasRenderingContext2D)=>void,
+  /** Optional regional re-light of the far panoramas, prepared once per region (see RegionAtmosphere). */
+  tint?:(id:'mountains'|'city',img:HTMLImageElement)=>HTMLImageElement|HTMLCanvasElement){
   const sky=this.ready('mountains'),city=this.ready('city'),atlas=this.ready('landmarks'),road=this.ready('road');
   c.fillStyle='#1286ed';c.fillRect(0,0,864,940);
-  if(sky)this.panorama(c,sky,j.cameraX,.085,35,3900,1300,1700);
+  if(sky)this.panorama(c,tint?tint('mountains',sky):sky,j.cameraX,.085,35,3900,1300,1700);
   else if(sceneImageReady(fallback))c.drawImage(fallback,0,0,864,1040);
   skyLayer?.(c);
-  if(city)this.panorama(c,city,j.cameraX,.27,55,2050,683);
+  if(city)this.panorama(c,tint?tint('city',city):city,j.cameraX,.27,55,2050,683);
   if(atlas){
 
    for(const o of this.objects(j.cameraX)){
