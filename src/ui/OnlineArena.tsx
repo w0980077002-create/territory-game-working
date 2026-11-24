@@ -1,15 +1,17 @@
 import {useEffect,useRef,useState} from 'react';
-import {classNames,heroArt,art,skillData,slotNames} from '../data/catalog';
+import {classNames,skillData,slotNames} from '../data/catalog';
 import {tg} from '../core/telegram';
 import {arenaApiOrigin} from '../arena/staging';
 import type {Player} from '../core/types';
 import {gearBonusLabels,soloArenaPreview} from '../arena/soloPreview';
 import {
  arenaElixirs,arenaKits,arenaSkills,gearSlots,zones,MATCH_WAIT_MS,
- type ArenaCommand,type ArenaElixir,type ArenaFighter,type ArenaHero,type ArenaKit,
+ type ArenaCommand,type ArenaElixir,type ArenaHero,type ArenaKit,
  type ArenaMatchView,type ArenaSkill,type ArenaView,type ArenaZone,
 } from '../arena/protocol';
 import {Icon} from './Icon';
+import {BattleStage,RoomMessages} from './ArenaBattleParts';
+import {ArenaHub} from './ArenaHub';
 import './onlineArena.css';
 
 const sessionKey='vvr-arena-session';
@@ -48,16 +50,6 @@ async function launchData(){
  if(!arenaApiOrigin&&location.hostname==='127.0.0.1'&&(person==='alice'||person==='boris'))
   return (await request<{initData:string}>('local?user='+person)).initData;
  throw new Error('Откройте эту сборку в Telegram.');
-}
-
-function Fighter({fighter,label}:{fighter:ArenaFighter;label:string}){
- return <div className="online-fighter">
-  <img src={art(heroArt[fighter.hero])} alt=""/>
-  <strong>{fighter.name}</strong>
-  <small>{label} · ур. {fighter.level}</small>
-  <progress aria-label={'Здоровье · '+label} value={fighter.hp} max={fighter.maxHp}/>
-  <small>{fighter.hp}/{fighter.maxHp} HP{!fighter.online&&' · без связи'}</small>
- </div>;
 }
 
 function RoundControls({match,now,pending,act}:{match:ArenaMatchView;now:number;pending:boolean;act:(action:ArenaCommand)=>void}){
@@ -130,42 +122,7 @@ function SoloPreview({player}:{player:Player}){
  </details>;
 }
 
-function RoomMessages({match,now,pending,send}:{match:ArenaMatchView;now:number;pending:boolean;send:(text:string)=>Promise<boolean>}){
- const [channel,setChannel]=useState<'log'|'chat'>('log');
- const [draft,setDraft]=useState('');
- const messageBox=useRef<HTMLDivElement>(null), stick=useRef(true);
- const messages=match[channel];
- const lastMessage=messages.at(-1)?.id;
- useEffect(()=>{
-  const node=messageBox.current;
-  if(node&&stick.current)node.scrollTop=node.scrollHeight;
- },[channel,lastMessage]);
- const remain=match.chatDeadline===null?null:secondsLeft(match.chatDeadline,now);
- return <div className="online-messages">
-  <div className="online-message-tabs">
-   <button className="action secondary" type="button" aria-pressed={channel==='log'} onClick={()=>{stick.current=true;setChannel('log')}}>Журнал боя</button>
-   <button className="action secondary" type="button" aria-pressed={channel==='chat'} onClick={()=>{stick.current=true;setChannel('chat')}}>Боевой чат</button>
-  </div>
-  {channel==='chat'&&remain!==null&&<small>До закрытия чата · {Math.floor(remain/60)}:{String(remain%60).padStart(2,'0')}</small>}
-  <div className="online-message-box" aria-label={channel==='chat'?'Сообщения комнаты':'События боя'} ref={messageBox} onScroll={e=>{
-   const node=e.currentTarget;
-   stick.current=node.scrollHeight-node.clientHeight-node.scrollTop<35;
-  }}>
-   {messages.length===0&&<small>Пока тихо</small>}
-   {messages.map(event=><p key={event.id}>{event.author&&<strong>{event.author}: </strong>}{event.text}</p>)}
-  </div>
-  {channel==='chat'&&<form onSubmit={async event=>{
-   event.preventDefault();
-   const text=draft.trim();
-   if(text&&await send(text))setDraft(current=>current===draft?'':current);
-  }}>
-   <input aria-label="Сообщение" placeholder="Написать…" maxLength={200} value={draft} disabled={remain===0} onChange={e=>setDraft(e.target.value)}/>
-   <button className="action" type="submit" disabled={pending||remain===0||!draft.trim()}>Отправить</button>
-  </form>}
- </div>;
-}
-
-export function OnlineArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:boolean}){
+function DuelArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:boolean}){
  const [active,setActive]=useState(initiallyOpen),[view,setView]=useState<ArenaView>(),[token,setToken]=useState(savedSession);
  const [hero,setHero]=useState<ArenaHero>(player.heroClass),[kit,setKit]=useState<ArenaKit>('balanced');
  const [message,setMessage]=useState(''),[pending,setPending]=useState(false);
@@ -267,7 +224,7 @@ export function OnlineArena({player,initiallyOpen=false}:{player:Player;initiall
     {shown.result.points>0&&<> · +{shown.result.points} тестовое очко</>}
    </div>:<div className="online-clock">Раунд {shown.round} · {secondsLeft(shown.deadline,now)} с</div>}
    <div className="online-clock">{shown.bot?'Тренировочный бот':'Игрок против игрока'}</div>
-   <div className="online-fighters"><Fighter fighter={shown.you} label="Вы"/><Fighter fighter={shown.opponent} label="Соперник"/></div>
+   <BattleStage you={shown.you} opponent={shown.opponent}/>
    {!shown.result&&(!shown.control?<button className="action" disabled={pending} onClick={()=>controlCommand('resume',shown)}>Продолжить в этой вкладке</button>:
     <RoundControls key={shown.id+':'+shown.round} match={shown} now={now} pending={pending} act={act}/>)}
    <Gear match={shown}/>
@@ -279,4 +236,10 @@ export function OnlineArena({player,initiallyOpen=false}:{player:Player;initiall
     </div>)}
   </>}
  </section>;
+}
+
+
+export function OnlineArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:boolean}){
+ if(!initiallyOpen)return <DuelArena player={player}/>;
+ return <ArenaHub player={player} duel={<DuelArena player={player} initiallyOpen/>}/>;
 }
