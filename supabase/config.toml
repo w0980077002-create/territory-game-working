@@ -2,3 +2,6 @@ project_id = "vvr-community"
 
 [functions.vvr-community]
 verify_jwt = false
+
+[functions.vvr-world-boss]
+verify_jwt = false

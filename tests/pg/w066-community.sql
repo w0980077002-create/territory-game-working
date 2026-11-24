@@ -86,6 +86,56 @@ begin
 end;
 $$;
 
+-- Exercise #101 without changing its shared-HP and reward mechanics.
+do $$
+declare
+ starter uuid:=vvr.resolve_player('70201','Новичок');
+ trained uuid:=vvr.resolve_player('70202','Мастер');
+ normal_hit uuid:=gen_random_uuid();
+ trained_hit uuid:=gen_random_uuid();
+ event_id uuid;
+ first_hit jsonb;
+ strong_hit jsonb;
+ boss_claim jsonb;
+ boss_listing uuid;
+begin
+ assert not has_function_privilege('service_role','vvr.set_hero_attack(uuid,bigint,integer)','EXECUTE');
+ assert not has_function_privilege('authenticated','vvr.set_hero_attack(uuid,bigint,integer)','EXECUTE');
+ assert vvr.set_hero_attack(trained,2,200);
+ assert not vvr.set_hero_attack(trained,1,900);
+ assert not vvr.set_hero_attack(trained,2,200);
+ begin
+  perform vvr.set_hero_attack(trained,2,999);
+  raise exception 'conflicting hero revision accepted';
+ exception when unique_violation then null;
+ end;
+ insert into vvr.world_boss_admins(telegram_id) values ('70201');
+ perform public.vvr_world_boss_admin_start('70201','Общая битва','minotaur_echo',
+  now()-interval '10 sec',30,1000,'{"damageMin":100,"damageMax":100,"critChance":0}');
+ select id into event_id from vvr.world_boss_events where status='open';
+ first_hit:=public.vvr_world_boss_attack('70201','Новичок',normal_hit)->'hit';
+ strong_hit:=public.vvr_world_boss_attack('70202','Мастер',trained_hit)->'hit';
+ assert (first_hit->>'damage')::integer=100;
+ assert (strong_hit->>'damage')::integer=200;
+ assert (public.vvr_world_boss_attack('70202','Мастер',trained_hit)->'hit'->>'repeated')::boolean;
+ assert (select hp from vvr.world_boss_events where id=event_id)=700;
+ assert (select points from vvr.season_totals where metric='world_boss_damage' and player_id=trained)=200;
+ assert (public.vvr_community(trained,'ranking','{"metric":"world_boss_damage"}')->'rows'->0->>'points')::int=200;
+
+ perform public.vvr_world_boss_admin_end('70201',event_id);
+ boss_claim:=public.vvr_world_boss_claim('70202',event_id,'participation');
+ assert (boss_claim->>'firstClaim')::boolean;
+ assert not (public.vvr_world_boss_claim('70202',event_id,'participation')->>'firstClaim')::boolean;
+ assert (public.vvr_community(trained,'auction','{}')->>'gold')::int=2500;
+ assert (select balance from vvr.wallets where player_id=trained and resource='chaosite')=10;
+ boss_listing:=(public.vvr_community(starter,'trade',jsonb_build_object('kind','list','operationId',gen_random_uuid(),
+  'itemId',vvr.issue_item(starter,'fixtures',gen_random_uuid(),'shield'),'price',500))->>'listingId')::uuid;
+ perform public.vvr_community(trained,'trade',jsonb_build_object('kind','buy','operationId',gen_random_uuid(),
+  'listingId',boss_listing));
+ assert (public.vvr_community(trained,'auction','{}')->>'gold')::int=2000;
+end;
+$$;
+
 -- Exercise the exact service role and reward writer path used by separate modules.
 set local role service_role;
 select public.vvr_resolve_player('70104','Дружинник') as player \gset

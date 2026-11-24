@@ -19,6 +19,8 @@ jobs:
       - run: npm ci
       - name: World boss migration, concurrency, last hit and one-time rewards (scratch cluster)
         run: bash scripts/qa/world-boss-pg.sh
+      - name: Shared W066 identity, boss rewards, rankings and auction concurrency
+        run: bash scripts/qa/w066-postgres.sh
       - run: npx playwright install --with-deps chromium
       - name: World boss in the game UI (scratch database, local server, 320–430 px)
         run: bash scripts/qa/world-boss-e2e.sh

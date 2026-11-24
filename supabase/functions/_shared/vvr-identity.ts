@@ -11,7 +11,7 @@ async function hmacKey(key:string|Uint8Array<ArrayBuffer>){
 const serialize=(bytes:Uint8Array)=>btoa(String.fromCharCode(...bytes)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
 const deserialize=(text:string)=>Uint8Array.from(atob(text.replace(/-/g,'+').replace(/_/g,'/')),letter=>letter.charCodeAt(0));
 
-export async function verifyTelegramIdentity(raw:string,botToken:string,now:number){
+export async function verifyTelegramIdentity(raw:string,botToken:string,now:number,maxAgeSeconds=600){
  if(!botToken||!raw||raw.length>8192)return;
  const params=new URLSearchParams(raw),hash=params.get('hash');
  if(!hash||!/^[a-f\d]{64}$/i.test(hash)||new Set(params.keys()).size!==params.size)return;
@@ -24,7 +24,7 @@ export async function verifyTelegramIdentity(raw:string,botToken:string,now:numb
  const timestamp=params.get('auth_date');
  if(!timestamp||!/^\d+$/.test(timestamp))return;
  const age=Math.floor(now/1000)-Number(timestamp);
- if(age<-30||age>600)return;
+ if(age<-30||age>maxAgeSeconds)return;
  try{
   const {id,first_name}=JSON.parse(params.get('user')??'null');
   if(!Number.isSafeInteger(id)||id<=0)return;

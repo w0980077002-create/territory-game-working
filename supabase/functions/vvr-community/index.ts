@@ -3,7 +3,7 @@ import {issueVvrSession,readVvrSession,verifyTelegramIdentity} from '../_shared/
 const project=Deno.env.get('SUPABASE_URL');
 const roleKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const sessionKey=Deno.env.get('VVR_SESSION_SECRET')??'';
-const botToken=Deno.env.get('VVR_BOT_TOKEN')??'';
+const botToken=Deno.env.get('TELEGRAM_BOT_TOKEN')??'';
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
 const actions=new Set(['login','auction','trade','chat','post','hide','ranking']);
 const maxInput=16_384;
