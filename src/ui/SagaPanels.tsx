@@ -91,9 +91,15 @@ export function ForgeBench({slot,p}:{slot:Slot;p:Player}){
  </div>;
 }
 export function Materials({p}:{p:Player}){return <div className="material-row">{[...materialIds,'dusk'].map(id=><span key={id} style={{'--tone':materials[id].color} as React.CSSProperties} title={materials[id].name}><Icon name={materialIcon(id)}/><b>{matCount(p,id)}</b><small>{materials[id].name}</small></span>)}</div>}
+function initialRecipe(p:Player,personal:boolean){
+ const owned=personal?personalWorkshop(p):undefined;
+ const regions=workshopMastery(owned?.xp??0).current.regions;
+ const unlocked=setIds.filter(id=>setUnlocked(p,id)&&(!personal||sets[id].region<regions));
+ return (personal?unlocked.find(id=>matCount(p,sets[id].material)>=practiceMaterials):unlocked.at(-1))??unlocked[0]??'frost';
+}
 /** Shared set recipes and material exchange for the forge and workshops. */
 export function Recipes({p,onFreeSpace,workshop=false}:{p:Player;onFreeSpace:()=>void;workshop?:boolean}){
- const openSource=useGame(s=>s.open),[set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost');
+ const openSource=useGame(s=>s.open),[set,setSet]=useState<SetId>(()=>initialRecipe(p,workshop&&!!personalWorkshop(p)));
  const [slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice');
  const [master,setMaster]=useState<(typeof professions)[number]['id']|undefined>(workshop?professions[0].id:undefined);
  const [workshopPage,setWorkshopPage]=useState<'personal'|'npc'>(()=>personalWorkshop(p)?'personal':'npc');
@@ -108,6 +114,11 @@ export function Recipes({p,onFreeSpace,workshop=false}:{p:Player;onFreeSpace:()=
  const recipe=personal?workshopRecipe(p,set):undefined;
  const {current,next}=workshopMastery(owned?.xp??0);
  const selectedProfession=professions.find(entry=>entry.id===candidate);
+ const switchWorkshop=(page:'personal'|'npc')=>{
+  if(page===workshopPage)return;
+  setSet(initialRecipe(p,page==='personal'));
+  setWorkshopPage(page);
+ };
  const chooseMaster=(next?:typeof profession)=>{
   setMaster(next?.id);
   if(next&&!(next.slots as readonly Slot[]).includes(slot))setSlot(next.slots[0]);
@@ -118,8 +129,8 @@ export function Recipes({p,onFreeSpace,workshop=false}:{p:Player;onFreeSpace:()=
  return <div className="saga-section">
   {workshop&&<>
    <div className="tabs wrap" role="group" aria-label="Вид мастерской">
-    <button type="button" aria-pressed={personal} className={personal?'selected':''} onClick={()=>setWorkshopPage('personal')}>Личная мастерская</button>
-    <button type="button" aria-pressed={!personal} className={!personal?'selected':''} onClick={()=>setWorkshopPage('npc')}>Мастера гавани</button>
+    <button type="button" aria-pressed={personal} className={personal?'selected':''} onClick={()=>switchWorkshop('personal')}>Личная мастерская</button>
+    <button type="button" aria-pressed={!personal} className={!personal?'selected':''} onClick={()=>switchWorkshop('npc')}>Мастера гавани</button>
    </div>
    <details className="saga-disclosure"><summary>Справочник профессий</summary>
     <ul>{professions.map(entry=><li key={entry.id}><strong>{entry.name}</strong> · {entry.slots.map(id=>slotNames[id]).join(', ')}</li>)}</ul>

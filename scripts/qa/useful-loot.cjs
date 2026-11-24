@@ -223,6 +223,48 @@ async function workshops({page,button,read},locked=false){
  assert.equal(restored.saga.n['masterwork:jeweler'],1);
 }
 
+async function personalWorkshop({page,button,read}){
+ const workshop=page.getByRole('dialog',{name:'Мастерские'});
+ const open=async()=>{
+  await button('Карта').tap();
+  await page.getByRole('navigation',{name:'Постройки гавани'}).getByRole('button',{name:'Кузница',exact:true}).tap();
+  await button('Мастерские').tap();
+ };
+ await open();
+ await workshop.getByText('Справочник профессий',{exact:true}).tap();
+ await workshop.getByText(/Остальные профессии доступны/).waitFor();
+ await workshop.getByText('Справочник профессий',{exact:true}).tap();
+ await button('Личная мастерская').tap();
+ await workshop.getByRole('group',{name:'Выбор профессии'}).getByRole('button',{name:'Ювелир',exact:true}).tap();
+ await button('Подтвердить выбор').tap();
+ await workshop.getByRole('heading',{name:'Ювелир · Подмастерье'}).waitFor();
+ assert.equal(await workshop.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
+ const sets=workshop.getByRole('group',{name:'Комплекты для ковки'});
+ const craft=workshop.getByRole('button',{name:/^Выковать/});
+ await sets.getByRole('button',{name:/Рунный круг/}).tap();
+ assert.equal(await craft.isDisabled(),true);
+ await sets.getByRole('button',{name:'Ледяной шёлк',exact:true}).tap();
+ const practice=workshop.getByRole('button',{name:/^Тренировать мастерство/});
+ for(const xp of [3,6,9,12]){
+  await practice.tap();
+  await workshop.getByText(new RegExp(`^Опыт профессии ${xp} /`)).waitFor();
+ }
+ assert.equal((await read()).saga.n['mat:ice'],18);
+ await sets.getByRole('button',{name:'Рунный круг',exact:true}).tap();
+ await craft.tap();
+ await page.locator('[data-panel="item"]').waitFor();
+ const after=await read(),item=after.inventory.at(-1);
+ assert.equal(item.masterworkBonus,27);
+ assert.equal(item.slot,'ring1');
+ assert.equal(after.saga.n['mat:forest'],7);
+ assert.deepEqual(after.saga.box.workshop,{profession:'jeweler',xp:16});
+ await page.reload();
+ await page.waitForFunction(()=>!!window.__lootborn?.battle);
+ await open();
+ await workshop.getByRole('heading',{name:'Ювелир · Ремесленник'}).waitFor();
+ assert.deepEqual((await read()).inventory.at(-1),item);
+}
+
 async function recommendation({page,button,close,read},variant){
  const mission=page.locator('.mission');
  assert.match(await mission.innerText(),/Основную Главу 2-1/);
@@ -272,6 +314,10 @@ async function recommendation({page,button,close,read},variant){
    const apprentice=fixture(34,true);
    apprentice.saga.n['mat:peaks']=25;
    await withProfile(browser,{width,height},`workshops-${width}-${height}`,apprentice,workshops);
+   const owner=fixture(34,true);
+   owner.saga.n['mat:ice']=30;
+   owner.saga.n['mat:forest']=25;
+   await withProfile(browser,{width,height},`personal-workshop-${width}-${height}`,owner,personalWorkshop);
    console.log(`${width}×${height} equipment navigation, backpack filter and harbor workshop passed`);
   }
   const viewport={width:390,height:844};

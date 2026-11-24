@@ -24,7 +24,7 @@ export function personalWorkshop(p:Player):PersonalWorkshop|undefined{
 
 export function workshopMastery(xp:number){
  const upcoming=workshopRanks.findIndex(entry=>entry.xp>xp);
- return {current:workshopRanks[upcoming<0?workshopRanks.length-1:Math.max(0,upcoming-1)],next:workshopRanks[upcoming]};
+ return {current:workshopRanks[upcoming<0?workshopRanks.length-1:Math.max(0,upcoming-1)],next:upcoming<0?undefined:workshopRanks[upcoming]};
 }
 
 export function workshopRecipe(p:Player,set:SetId){
