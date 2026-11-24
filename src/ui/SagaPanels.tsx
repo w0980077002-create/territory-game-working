@@ -1,4 +1,5 @@
 import balance from '../../config/test-balance.v1.json';
+import {ActivityTrack} from './ActivityTrack';
 import {CompactFilter} from './CompactFilter';
 /** Saga windows: chapter map, album and (later) every long-term system. Rendered inside the shared DialogShell. */
 import {useGame} from '../core/store';
@@ -237,6 +238,7 @@ export function QuestBoard({p,tab,setTab,onGo}:{p:Player;tab:QuestTab;setTab:(ta
  const count=(list:{done:boolean;claimed:boolean}[])=>list.filter(q=>q.done&&!q.claimed).length,story=activeStory(p),m=masteryView(p);
  return <div className="quest-board">
   {tab!=='mastery'&&<div className="tabs compact-tabs">{([['day','День',count(daily)],['week','Неделя',count(weekly)],['story','Сага',count(story)]] as const).map(([id,name,n])=><button key={id} className={tab===id?'selected':''} aria-pressed={tab===id} onClick={()=>setTab(id)}>{name}{n?<em>{n}</em>:null}</button>)}</div>}
+  {tab==='day'&&<ActivityTrack p={p}/>}
   {tab==='day'&&<QuestRows rows={daily.map(q=>({id:q.def.id,route:questActivity(q.def.keys),q:boardRow(q),onGo:()=>onGo(questActivity(q.def.keys)),onClaim:()=>claim(p=>claimBoard(p,'day',q.def.id))}))}/>}
   {tab==='week'&&<QuestRows rows={weekly.map(q=>({id:q.def.id,route:questActivity(q.def.keys),q:boardRow(q),onGo:()=>onGo(questActivity(q.def.keys)),onClaim:()=>claim(p=>claimBoard(p,'week',q.def.id))}))}/>}
   {tab==='story'&&<>{p.stage>STORY_STAGES&&<small>Награды завершённой кампании</small>}<QuestRows rows={story.map(q=>({id:q.id,route:'campaign',q,onGo:()=>onGo('campaign'),onClaim:()=>claim(p=>claimStory(p,q.id))}))}/></>}

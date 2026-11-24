@@ -1,7 +1,8 @@
 import balance from '../../config/test-balance.v1.json';
 import type {EncounterSnapshot,Player} from '../core/types';
 import {miniIds} from '../data/catalog';
-import {bumpCount,count,peekBox,sagaOf} from './save';
+import {bumpCount,count,peekBox,sagaOf,hasFlag,setFlag} from './save';
+import {grant} from './rewards';
 import {utcDay} from './soloEconomy';
 
 export const lairRules={
@@ -28,8 +29,32 @@ export function lairCleared(p:Player,id:string){
  const trophy=lairTrophy(id);
  return count(p,'lair:clear:'+id)>0||!!trophy&&!!p.saga?.flags.includes('perk:'+trophy);
 }
-export function noteLairWin(p:Player,keeper:string){
- if(miniIds.includes(keeper))bumpCount(p,'lair:clear:'+keeper);
+export function noteLairWin(p:Player,keeper:string,seconds?:number){
+ if(!miniIds.includes(keeper))return;
+ bumpCount(p,'lair:clear:'+keeper);
+ if(typeof seconds==='number'&&Number.isFinite(seconds)&&seconds>0){
+  const tenths=Math.max(1,Math.round(seconds*10)),best=lairRecord(p,keeper);
+  if(!best||tenths<best)sagaOf(p).n['lair:best:'+keeper]=tenths;
+ }
+}
+/** Personal record: the fastest victory over a keeper, in tenths of a second of real combat time (0 = none). */
+export const lairRecord=(p:Player,keeper:string)=>count(p,'lair:best:'+keeper);
+/** Personal trials of each keeper: win faster than these limits. Each pays once, ever. */
+export const lairTrials=[
+ {seconds:60,reward:{gems:10,res:{shard:2}}},
+ {seconds:40,reward:{gems:20,chaosite:15}},
+ {seconds:25,reward:{gems:40,res:{shard:6}}},
+] as const;
+export function lairTrialView(p:Player,keeper:string){
+ const best=lairRecord(p,keeper);
+ return lairTrials.map((t,index)=>({...t,index,done:best>0&&best<=t.seconds*10,claimed:hasFlag(p,`lair:trial:${keeper}:${index}`)}));
+}
+export const lairTrialReady=(p:Player,keeper:string)=>lairTrialView(p,keeper).some(t=>t.done&&!t.claimed);
+export function claimLairTrial(p:Player,keeper:string,index:number){
+ const t=lairTrialView(p,keeper)[index];
+ if(!miniIds.includes(keeper)||!t||!t.done||t.claimed||!setFlag(p,`lair:trial:${keeper}:${index}`))return null;
+ grant(p,t.reward);
+ return t.reward;
 }
 export function selectLair(p:Player,id:string){
  if(!lairAvailable(p,id))return false;

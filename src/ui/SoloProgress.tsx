@@ -7,6 +7,7 @@ import {stats} from '../core/formulas';
 import {useGame} from '../core/store';
 import {art} from '../data/catalog';
 import {balanceOf,soloResources} from '../saga/soloEconomy';
+import {WingLookGallery} from './CollectionHub';
 import {heroTracks,trackClaimed,claimTrack,wingRank,wingRules,wingBonuses,growWings,wingLooks} from '../saga/soloProgress';
 import {soloAction} from '../saga/soloAction';
 import {RewardDetails} from './RewardArt';
@@ -48,7 +49,7 @@ export function WingGrowth({p,gear}:{p:Player;gear:ReactNode}){
    <details className="saga-disclosure"><summary>Где получить перья</summary><p>{soloResources.wing.source}.</p></details>
    {!!cost&&value<cost&&<small>Не хватает {cost-value} перьев.</small>}
   </>:<p>Наденьте крылья, чтобы открыть рост.</p>)}
-  {tab==='looks'&&(wings?<><GameTiles columns={2}>{wingLooks.map((name,i)=><GameTile key={name} label={name} icon={i===0?'wings':'cloak'} active={p.wingVisible===(i===0)} onClick={()=>soloAction(draft=>{draft.wingVisible=i===0;return true})}/>)}</GameTiles><small>Внешний вид сохраняется отдельно от силы.</small></>:<p>Сначала наденьте крылья.</p>)}
+  {tab==='looks'&&(wings?<><WingLookGallery p={p}/><GameTiles columns={2}><GameTile label={wingLooks[1]} icon="cloak" active={!p.wingVisible} value={p.wingVisible?'Скрыть крылья':'Крылья скрыты'} onClick={()=>soloAction(draft=>{draft.wingVisible=!draft.wingVisible;return true})}/></GameTiles><small>Внешний вид сохраняется отдельно от силы.</small></>:<p>Сначала наденьте крылья.</p>)}
  </section>;
 }
 

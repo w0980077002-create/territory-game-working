@@ -15,7 +15,9 @@ export const backSockets:Record<string,readonly Socket[]>={
 
 /** What the body is doing right now; drives the wing rhythm only (purely cosmetic). */
 export interface WingMotion {clock:number;walking?:boolean;attack?:number;hurt?:number;death?:number;victory?:boolean}
-export interface ActorAttachments {wings?:HTMLImageElement;reducedMotion?:boolean;motion?:WingMotion;weapon?:WeaponAura}
+export type WingArt=HTMLImageElement|HTMLCanvasElement;
+const artSize=(a:WingArt)=>'naturalWidth' in a?(a.complete?[a.naturalWidth,a.naturalHeight]:[0,0]):[a.width,a.height];
+export interface ActorAttachments {wings?:WingArt;reducedMotion?:boolean;motion?:WingMotion;weapon?:WeaponAura}
 
 export function wingAttachment(id:string,frame:number,height:number,fallback=false){
  const sockets=backSockets[id];if(!sockets)return null;
@@ -55,13 +57,13 @@ const SPLIT=.42,ELBOW_Y=58/220;
 /** Both halves hinge at the same point behind the torso. Flapping can never
  * move that joint. Draw inside the actor's translation, mirror and fade. */
 export function drawAttachedWings(ctx:CanvasRenderingContext2D,id:string,frame:number,height:number,time:number,attachments:ActorAttachments|undefined,fallback=false){
- const img=attachments?.wings;if(!attachments||!img?.complete||!img.naturalWidth)return;
+ const img=attachments?.wings;if(!attachments||!img)return;const [iw,ih]=artSize(img);if(!iw)return;
  const socket=wingAttachment(id,frame,height,fallback);if(!socket)return;
- const half=img.naturalWidth/2,rootY=img.naturalHeight*(124/220);
- const scale=socket.span/img.naturalWidth;
+ const half=iw/2,rootY=ih*(124/220);
+ const scale=socket.span/iw;
  const pose=wingPose(attachments.motion,time,!!attachments.reducedMotion);
  const inner=Math.round(half*SPLIT),overlap=3,outer=half-inner+overlap;
- const elbowY=img.naturalHeight*ELBOW_Y-rootY;
+ const elbowY=ih*ELBOW_Y-rootY;
  ctx.save();ctx.translate(socket.x,socket.y);ctx.rotate(socket.angle);
  for(const sign of [1,-1]){
   ctx.save();
@@ -72,11 +74,11 @@ export function drawAttachedWings(ctx:CanvasRenderingContext2D,id:string,frame:n
   ctx.scale(scale*(sign===1?.62:1),scale*pose.squash);
   // Inner membrane: its root column stays exactly on the back socket.
   const innerSx=sign<0?half-inner:half;
-  ctx.drawImage(img,innerSx,0,inner,img.naturalHeight,sign<0?-inner:0,-rootY,inner,img.naturalHeight);
+  ctx.drawImage(img,innerSx,0,inner,ih,sign<0?-inner:0,-rootY,inner,ih);
   // Outer feathers: rotate around the elbow for a soft, lagging wave.
   ctx.translate(sign*(inner-overlap),elbowY);ctx.rotate(sign*pose.tip*lag);ctx.translate(0,-elbowY);
   const outerSx=sign<0?0:half+inner-overlap;
-  ctx.drawImage(img,outerSx,0,outer,img.naturalHeight,sign<0?-outer:0,-rootY,outer,img.naturalHeight);
+  ctx.drawImage(img,outerSx,0,outer,ih,sign<0?-outer:0,-rootY,outer,ih);
   ctx.restore();
  }
  ctx.restore();
