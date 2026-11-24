@@ -9,7 +9,7 @@
 .coll-steps .reward-art { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px 3px; }
 .coll-steps .reward-piece { display: inline-flex; align-items: center; gap: 1px; }
 .coll-steps .reward-piece strong { font-size: 10px; color: #fff0d2; }
-.coll-steps .icon { width: 18px; height: 18px; }
+.collection-hub .coll-steps .reward-art .reward-piece .icon { width: 18px; height: 18px; min-width: 0; }
 .coll-steps em { font-style: normal; min-height: 12px; color: #ffd36b; font-weight: 700; }
 .coll-steps .ready button { border-color: #e4ad43; box-shadow: 0 0 6px #e4ad4380; }
 .coll-steps .claimed button { opacity: .7; }
