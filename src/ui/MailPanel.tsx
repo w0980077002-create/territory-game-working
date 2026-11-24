@@ -10,6 +10,8 @@ import {Icon, gearIcon} from './Icon';
 import {RewardArt} from './RewardArt';
 import {CardDialog, DialogShell} from './SagaUI';
 import './mail.css';
+import {WorldBossMail} from './WorldBossPanel';
+import {worldBossEnabled} from '../worldBoss/client';
 
 const dateFormat = new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'});
 const monthFormat = new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'});
@@ -18,6 +20,7 @@ export function MailPanel({p}: {p:Player}) {
   const action = useGame(state => state.mailAction);
   const [selected,setSelected] = useState<string>();
   const [slot,setSlot] = useState<Slot>();
+  const [bossLetters,setBossLetters] = useState(0);
   const letters = mailbox(p,carnivalNow());
   const letter = letters.find(entry => entry.id === selected);
   const gear = letter?.gear;
@@ -28,6 +31,7 @@ export function MailPanel({p}: {p:Player}) {
       onClick={()=>action({kind:'claimAll'})}>Забрать всё</button>
   </footer>;
   return <DialogShell panel="mail" title="Почта" footer={footer}>
+    {worldBossEnabled()&&<WorldBossMail p={p} onLetters={setBossLetters}/>}
     {letters.length ? <ul className="mail-list">{letters.map(entry => <li key={entry.id}>
       <button type="button" className="mail-letter" data-unread={!entry.read} onClick={()=>{
         if(!entry.read)action({kind:'read',id:entry.id});
@@ -42,7 +46,7 @@ export function MailPanel({p}: {p:Player}) {
         {!entry.read && <span className="mail-unread" aria-label="Непрочитанное письмо"/>}
         <b aria-hidden="true">›</b>
       </button>
-    </li>)}</ul> : <div className="mail-empty">
+    </li>)}</ul> : bossLetters ? null : <div className="mail-empty">
       <Icon name="mail"/><strong>Писем пока нет</strong>
       <small>Сюда приходят незабранные награды завершённых событий.</small>
     </div>}
