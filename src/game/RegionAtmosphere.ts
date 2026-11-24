@@ -7,15 +7,21 @@
  * Region 1 keeps its approved look; it only gains slow, light clouds.
  */
 import type {Region} from '../saga/regions';
+import {deviceQualityCap} from './CombatVfx';
 
-interface Mood {sky:[string,string];skyAlpha:number;cloud:string;cloudAlpha:number;clouds:number;cloudSpeed:number;haze:string;hazeAlpha:number;ground:string;groundAlpha:number;signature:'none'|'storm'|'shafts'|'dust'|'sun'|'smoke';dim?:string}
+/** Non-separable blends (hue, soft-light) are the costly part on budget GPUs: weak devices, or a
+ * sustained slow frame rate, get a cheap translucent tint with the same palette instead. */
+const LOW_END=deviceQualityCap()<1;
+export const liteAtmosphere=(quality:number)=>LOW_END||quality<.6;
+
+interface Mood {sky:[string,string];skyAlpha:number;cloud:string;cloudAlpha:number;clouds:number;cloudSpeed:number;haze:string;hazeAlpha:number;ground:string;groundAlpha:number;signature:'none'|'storm'|'shafts'|'dust'|'sun'|'smoke';dim?:string;mist?:string}
 const MOODS:Record<string,Mood>={
  ice:{sky:['#ffffff','#ffffff'],skyAlpha:0,cloud:'#ffffff',cloudAlpha:.32,clouds:4,cloudSpeed:6,haze:'#e6f6ff',hazeAlpha:0,ground:'#ffffff',groundAlpha:0,signature:'none'},
  harbor:{sky:['#16283a','#6d8ea6'],skyAlpha:.6,cloud:'#55687c',cloudAlpha:.55,clouds:6,cloudSpeed:22,haze:'#b9cfdf',hazeAlpha:.28,ground:'#8ea8bd',groundAlpha:.32,signature:'storm',dim:'#8ea3b8'},
- forest:{sky:['#0f2c26','#5f9c86'],skyAlpha:.42,cloud:'#6f9c87',cloudAlpha:.4,clouds:5,cloudSpeed:7,haze:'#a8f0c8',hazeAlpha:.32,ground:'#8fc9a0',groundAlpha:.34,signature:'shafts'},
+ forest:{sky:['#0f2c26','#5f9c86'],skyAlpha:.42,cloud:'#6f9c87',cloudAlpha:.4,clouds:5,cloudSpeed:7,haze:'#a8f0c8',hazeAlpha:.32,ground:'#8fc9a0',groundAlpha:.34,signature:'shafts',mist:'#dff5e8'},
  peaks:{sky:['#3e3a36','#a8988a'],skyAlpha:.5,cloud:'#a99a8c',cloudAlpha:.45,clouds:5,cloudSpeed:12,haze:'#f0d6a8',hazeAlpha:.34,ground:'#c9b8a2',groundAlpha:.36,signature:'dust'},
  limes:{sky:['#b8611f','#ffc46a'],skyAlpha:.5,cloud:'#f3c98e',cloudAlpha:.42,clouds:5,cloudSpeed:9,haze:'#ffe2a8',hazeAlpha:.26,ground:'#f0d2a0',groundAlpha:.3,signature:'sun'},
- ember:{sky:['#1e0603','#c2421a'],skyAlpha:.6,cloud:'#3b2420',cloudAlpha:.6,clouds:6,cloudSpeed:10,haze:'#ff7a3a',hazeAlpha:.3,ground:'#8c7166',groundAlpha:.5,signature:'smoke',dim:'#a0705c'},
+ ember:{sky:['#1e0603','#c2421a'],skyAlpha:.6,cloud:'#3b2420',cloudAlpha:.6,clouds:6,cloudSpeed:10,haze:'#ff7a3a',hazeAlpha:.3,ground:'#8c7166',groundAlpha:.5,signature:'smoke',dim:'#a0705c',mist:'#d8cbc4'},
 };
 export const regionMood=(id:string)=>MOODS[id]??MOODS.ice;
 
@@ -35,7 +41,11 @@ function cloudSprite(color:string,variant:number){
 
 /** Re-light the painted blue sky in the region's hue. 'hue' keeps the art's own saturation and
  * light, so the picture stays vivid instead of washed out; soft-light adds the mood's contrast. */
-function skyLight(c:CanvasRenderingContext2D,m:Mood,strength:number){
+function skyLight(c:CanvasRenderingContext2D,m:Mood,strength:number,lite=false){
+ if(lite){
+  const g=c.createLinearGradient(0,0,0,600);g.addColorStop(0,m.dim??m.sky[0]);g.addColorStop(.6,m.sky[1]);g.addColorStop(1,m.sky[1]+'00');
+  c.globalAlpha=Math.min(.75,m.skyAlpha*.95*strength);c.fillStyle=g;c.fillRect(0,0,864,600);c.globalAlpha=1;return;
+ }
  const hue=c.createLinearGradient(0,0,0,600);hue.addColorStop(0,m.sky[1]);hue.addColorStop(.7,m.sky[1]);hue.addColorStop(1,m.sky[1]+'00');
  c.globalCompositeOperation='hue';c.globalAlpha=Math.min(1,m.skyAlpha*1.35*strength);c.fillStyle=hue;c.fillRect(0,0,864,600);
  const g=c.createLinearGradient(0,0,0,600);g.addColorStop(0,m.sky[0]);g.addColorStop(.6,m.sky[1]);g.addColorStop(1,m.sky[1]+'00');
@@ -48,7 +58,7 @@ export function paintRegionSky(c:CanvasRenderingContext2D,region:Region,time:num
  if(typeof document==='undefined')return;
  const m=regionMood(region.id);
  c.save();
- if(m.skyAlpha>0)skyLight(c,m,1);
+ if(m.skyAlpha>0)skyLight(c,m,1,liteAtmosphere(quality));
  // Storm flash: a rare, soft brightening of the clouds, never a strobe.
  let flash=0;
  if(m.signature==='storm'&&!reduced){const slot=Math.floor(time/7),t=time-slot*7-hash(slot)*4;if(hash(slot+11)>.45&&t>0&&t<.5)flash=Math.sin(t/.5*Math.PI)*(t<.12?1:.6)}
@@ -68,10 +78,10 @@ export function paintRegionSky(c:CanvasRenderingContext2D,region:Region,time:num
   c.globalAlpha=.75;c.fillStyle=g;c.fillRect(x-260,y-260,520,520);
  }
  if(m.signature==='smoke'&&!reduced){
-  // Distant smoke columns rising from the burning lands.
-  for(let k=0;k<3;k++){const base=((k*331+140-cameraX*.1)%1100+1100)%1100-120;
-   for(let p=0;p<Math.round(6*quality)+2;p++){const age=(time*.05+p/8+hash(k))%1,r=24+age*70;
-    c.globalAlpha=(1-age)*.32;c.drawImage(cloudSprite('#2a1714',k%3),base+Math.sin(age*3+k)*30+age*60-r,470-age*380-r*.4,r*2,r*.8)}}
+  // Distant smoke plumes rising from the burning lands: few, wide and soft.
+  for(let k=0;k<2;k++){const base=((k*470+180-cameraX*.1)%1100+1100)%1100-120;
+   for(let p=0;p<3;p++){const age=(time*.03+p/3+hash(k))%1,w=180+age*260;
+    c.globalAlpha=Math.sin(age*Math.PI)*.22;c.drawImage(cloudSprite('#2a1714',(k+p)%3),base+age*90-w/2,430-age*300,w,w*.45)}}
  }
  c.restore();
 }
@@ -81,8 +91,9 @@ export function paintRegionGround(c:CanvasRenderingContext2D,region:Region,time:
  const m=regionMood(region.id);if(m.groundAlpha<=0&&m.hazeAlpha<=0)return;
  c.save();
  // The painted city carries its own blue sky; give it the same light so the horizon agrees.
- if(m.skyAlpha>0)skyLight(c,m,.5);
- if(m.groundAlpha>0){
+ const lite=liteAtmosphere(quality);
+ if(m.skyAlpha>0)skyLight(c,m,.5,lite);
+ if(m.groundAlpha>0&&!lite){
   const tone=c.createLinearGradient(0,700,0,940);tone.addColorStop(0,m.ground+'00');tone.addColorStop(.3,m.ground);tone.addColorStop(1,m.ground);
   c.globalCompositeOperation='hue';c.globalAlpha=m.groundAlpha;c.fillStyle=tone;c.fillRect(0,700,864,240);c.globalCompositeOperation='source-over';
  }
@@ -130,7 +141,7 @@ export function paintRegionGround(c:CanvasRenderingContext2D,region:Region,time:
  * The party walks through it, so each new district is entered like a scene change. Stateless. */
 export function paintDistrictMist(c:CanvasRenderingContext2D,region:Region,time:number,cameraX:number,quality:number,reduced:boolean,firstSite:number,spacing:number){
  if(typeof document==='undefined')return;
- const m=regionMood(region.id),color=m.hazeAlpha>0?m.haze:'#eef8ff';
+ const m=regionMood(region.id),color=m.mist??(m.hazeAlpha>0?m.haze:'#eef8ff');
  const i=Math.round((cameraX+432-firstSite+spacing/2)/spacing);
  if(i<1)return;
  const mid=firstSite+i*spacing-spacing/2,x=(mid-cameraX-432)*1.3+432;
@@ -139,7 +150,7 @@ export function paintDistrictMist(c:CanvasRenderingContext2D,region:Region,time:
  c.save();
  for(let n=0;n<(quality<.6?3:5);n++){
   const drift=reduced?0:Math.sin(time*.4+n*1.7)*26,w=420+n*40,y=300+n*120;
-  c.globalAlpha=(.3+.4*near*near)*(n===2||n===3?1:.85);
+  c.globalAlpha=(.26+.24*near*near)*(n===2||n===3?1:.85);
   c.drawImage(cloudSprite(color,n%3),x-w/2+drift+(n%2?60:-60),y-w*.2,w,w*.42);
  }
  c.restore();
