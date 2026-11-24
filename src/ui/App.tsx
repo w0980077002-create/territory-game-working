@@ -49,6 +49,7 @@ import {activityReady} from '../saga/activity';
 import {collectionReady} from '../saga/collections';
 import {CollectionHub} from './CollectionHub';
 import {backTarget,goBack} from './navStack';
+import {communityEnabled} from '../community/client';
 import {lang,setLang} from '../i18n';
 import {BlessingOdds} from './BlessingOdds';
 import {resCount,resources,duskCount,type ResId} from '../dark/rules';
@@ -64,6 +65,7 @@ import {PORTALS,portalColors} from '../dark/portals';
 import {realmRun,realmLast,floorName,portalConfig} from '../dark/realm';
 import {RealmPanel,DarkGearPanel,GemsPanel,RelicsPanel,SquadPanel,DarkHub,PowerSources} from './DarkPanels';
 const OnlineArena=arenaStaging?lazy(()=>import('./OnlineArena').then(module=>({default:module.OnlineArena}))):null;
+const Community=communityEnabled?lazy(()=>import('./CommunityPanel').then(module=>({default:module.CommunityPanel}))):null;
 const INVITE_URL='https://t.me/VikingRomeGame';
 const currencyNames:Record<string,string>={gold:'Золото',gems:'Самоцветы',chaosite:'Хаосит',tokens:'Жетоны Арены',horn:'Заряды Рога Трофеев',ess:'Тёмная эссенция',shard:'Осколки реликвий',seal:'Печати призыва',dusk:'Камни Сумрака'};
 const sourceTitle=(kind:string)=>`Где получить · ${currencyNames[kind]??materials[kind]?.name??kind}`;
@@ -281,7 +283,7 @@ export default function App(){
  <nav className="bottom"><button onClick={()=>g.open('port')}><img className="icon illustrated adventure-map-art" src={new URL('../../public/art/interface/adventure-map.svg',import.meta.url).href} alt="" aria-hidden="true" draggable={false}/><span>Карта</span></button><button onClick={()=>g.open('skills')}><Icon name="book"/><span>Навыки</span></button><button className="central" onClick={()=>battle?.toggle()} aria-label={b.running?"Остановить бой":"Начать или продолжить бой"} aria-pressed={b.running}><img className="forged-axes-art" src={new URL('../../public/art/interface/forged-axes.svg',import.meta.url).href} alt="" aria-hidden="true" draggable={false}/></button><button onClick={()=>g.open('adventure')}><Icon name="scroll"/><span>Приключения</span></button><button onClick={()=>g.open('shop')}><Icon name="market"/><span>Магазин</span></button></nav><button className="horn-counter" onClick={()=>g.open('loot')}><Icon name="horn"/>{p.horn}<small>Рог Трофеев</small></button>
  <LevelUpFeedback/><WorldHud hideRoad={inRealm}/>{g.recoveryRequired&&!g.panel&&<DialogShell panel="recovery" title="Восстановление прогресса" dismissible={false} footer={<footer className="modal-footer"><span>Исходное сохранение защищено</span></footer>}><p>Исходный файл сохранён на устройстве. Автосохранение и бой остановлены, чтобы не заменить ваш прогресс.</p><Action onClick={()=>g.open('save-tools')}>Открыть импорт и резервную копию</Action><Action kind="secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([unreadableSave()],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='lootborn-recovery.json';a.click();URL.revokeObjectURL(url)}}>Скачать исходное сохранение</Action></DialogShell>}{g.toast&&!g.panel&&<div className="toast" role="status"><RewardNotice message={g.toast} reward={g.toastReward}/></div>}{g.storageError&&<div className="storage-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{hasFlag(p,'story:done')&&!hasFlag(p,'story:finale-seen')&&!g.panel&&!trophy&&!g.recoveryRequired&&!inRealm&&<StoryFinale/>}{g.panel==='autobattle'?<AutobattleDialog/>:g.panel&&<Panel questTab={questTab} setQuestTab={setQuestTab}/>}</div></main>
 }
-const titles:Record<string,string>={equipment:'Экипировка',controls:'Управление боем',hero:'Северный страж',skills:'Навыки и руны',inventory:'Рюкзак',loot:'Рог Трофеев',wings:'Крылья',quests:'Путь героя','hero-path':'Трактат и фонды',rewards:'Ежедневная награда',events:'События',season:'Северный сезон',carnival:'Великий карнавал',friends:'Поделиться игрой',invite:'Приглашение',collection:'Коллекция',shop:'Лавка сокровищ',port:'Северная гавань',workshops:'Мастерские',shipyard:'Верфь драккаров',adventure:'Приключения',arena:'Арена',lair:'Логово мини-босса','lair-revive':'Возрождение в Логове',battle:'Боевая сводка',menu:'Меню',forge:'Кузница',blessing:'Благословение',companions:'Спутники',talents:'Таланты',relic:'Реликвии',realm:'Царство тьмы',darkgear:'Тёмная энергия',gems:'Драгоценные камни',item:'Новая добыча','source:gold':'Где получить золото','source:gems':'Где получить самоцветы','source:chaosite':'Где получить Хаосит'};
+const titles:Record<string,string>={equipment:'Экипировка',controls:'Управление боем',hero:'Северный страж',skills:'Навыки и руны',inventory:'Рюкзак',loot:'Рог Трофеев',wings:'Крылья',quests:'Путь героя','hero-path':'Трактат и фонды',rewards:'Ежедневная награда',events:'События',season:'Северный сезон',carnival:'Великий карнавал',friends:'Поделиться игрой',invite:'Приглашение',collection:'Коллекция',shop:'Лавка сокровищ',port:'Северная гавань',workshops:'Мастерские',shipyard:'Верфь драккаров',adventure:'Приключения',arena:'Арена',lair:'Логово мини-босса','lair-revive':'Возрождение в Логове',battle:'Боевая сводка',community:lang==='en'?'Community':'Сообщество',menu:'Меню',forge:'Кузница',blessing:'Благословение',companions:'Спутники',talents:'Таланты',relic:'Реликвии',realm:'Царство тьмы',darkgear:'Тёмная энергия',gems:'Драгоценные камни',item:'Новая добыча','source:gold':'Где получить золото','source:gems':'Где получить самоцветы','source:chaosite':'Где получить Хаосит'};
 function PanelIntro({icon,title,children}: {icon:string;title:string;children:React.ReactNode}){
  return <section className="panel-intro"><Icon name={icon}/><div><h3>{title}</h3><p>{children}</p></div></section>;
 }
@@ -460,6 +462,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  })()}
  {panel==='adventure'&&<><div className="adventure-destinations">{[['campaign','map','Основная глава',`Этап ${stageLabel(p.stage)}`],['dungeon','lair-keeper','Логово мини-босса',`${balance.combat_test_settings.mode_entry_chaosite} Хаосита`],['darkness','portal','Царство тьмы',`Этаж ${p.darkFloor}`],['farm','coins','Бесконечный фарм','Золото и опыт']].map(([mode,icon,name,detail])=><button key={mode} className={'adventure-route route-'+mode} onClick={()=>mode==='darkness'?g.open('realm'):mode==='dungeon'?g.open('lair'):battle?.startMode(mode)}><Icon name={icon}/><strong>{name}</strong><small>{detail}</small></button>)}</div><h3>Сила героя</h3><DarkHub p={p}/></>}
  {panel==='arena'&&<ArenaPanel/>}
+ {panel==='community'&&Community&&<Suspense fallback={null}><Community/></Suspense>}
  {panel.startsWith('source:')&&<ResourceSources kind={panel.split(':')[1]} returnTo={panel.split(':')[2]}/>}
  {panel==='shop'&&<TreasureShop p={p} onFreeSpace={freeSpace} source={kind=><ResourceSources kind={kind} returnTo="shop"/>} sources={sourceTitle}/>}
  {panel==='menu'&&<>
@@ -470,6 +473,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
    <Action kind="secondary" onClick={()=>g.mutate(p=>{p.reducedMotion=!(p.reducedMotion??window.matchMedia('(prefers-reduced-motion: reduce)').matches)})}>Уменьшение движения: {(p.reducedMotion??window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'ВКЛ':'ВЫКЛ'}</Action>
   </section>
   <nav className="menu-links" aria-label="Разделы меню">
+   {Community&&<button type="button" onClick={()=>g.open('community')}><Icon name="handshake"/><span>{titles.community}</span><b aria-hidden="true">›</b></button>}
    <button type="button" onClick={()=>g.open('controls')}><Icon name="shield"/><span>Управление боем</span><b aria-hidden="true">›</b></button>
    <button type="button" onClick={()=>g.open('equipment')}><Icon name="armor"/><span>Экипировка</span><b aria-hidden="true">›</b></button>
    <button type="button" onClick={()=>g.open('save-tools')}><Icon name="chest"/><span>Сохранение и восстановление</span><b aria-hidden="true">›</b></button>
