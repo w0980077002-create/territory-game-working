@@ -1,6 +1,8 @@
 import postgres from 'postgres';
 import {PlayerSaves} from './store';
 
+const VVR_PROJECT_REF='cemifozgxyhnbknsexzt';
+
 export function saveDatabaseUrl(raw:string,ref:string|undefined,local:boolean){
  let url:URL|undefined;
  try{url=new URL(raw)}catch{/* Keep credentials out of errors. */}
@@ -9,7 +11,7 @@ export function saveDatabaseUrl(raw:string,ref:string|undefined,local:boolean){
  if(local){
   if(url.hostname!=='127.0.0.1'||url.username!=='vvr_save_login')throw new Error('Local VVR saves require a loopback database and vvr_save_login');
  }else{
-  const project=ref&&/^[a-z0-9]{20}$/.test(ref);
+  const project=ref===VVR_PROJECT_REF;
   const direct=url.hostname===`db.${ref}.supabase.co`&&url.username==='vvr_save_login';
   const pooler=/^[a-z0-9-]+\.pooler\.supabase\.com$/.test(url.hostname)&&url.username===`vvr_save_login.${ref}`;
   if(!project||!(direct||pooler)||(url.port&&url.port!=='5432')||url.pathname!=='/postgres')
@@ -18,9 +20,12 @@ export function saveDatabaseUrl(raw:string,ref:string|undefined,local:boolean){
  return url.toString();
 }
 
-export function openPlayerSaves(url:string|undefined,ref:string|undefined,local:boolean){
- if(!url)return;
- return new PlayerSaves(postgres(saveDatabaseUrl(url,ref,local),{
+export function createSaveConnection(url:string,ref:string|undefined,local:boolean){
+ return postgres(saveDatabaseUrl(url,ref,local),{
   ssl:local?false:{rejectUnauthorized:true},max:4,prepare:false,connect_timeout:5,idle_timeout:20,
- }));
+ });
+}
+
+export function openPlayerSaves(url:string|undefined,ref:string|undefined,local:boolean){
+ if(url)return new PlayerSaves(createSaveConnection(url,ref,local));
 }

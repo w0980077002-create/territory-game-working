@@ -26,7 +26,7 @@ function signed(id:number){
 }
 
 test('database configuration only accepts the dedicated role, project and verified TLS endpoint',()=>{
- const ref='abcdefghijabcdefghij';
+ const ref='cemifozgxyhnbknsexzt';
  const direct='postgresql://vvr_save_login:fixture@db.'+ref+'.supabase.co:5432/postgres';
  assert.equal(saveDatabaseUrl(direct,ref,false),direct);
  const pooler='postgresql://vvr_save_login.'+ref+':fixture@aws-0-eu-1.pooler.supabase.com:5432/postgres';
@@ -36,6 +36,8 @@ test('database configuration only accepts the dedicated role, project and verifi
   direct.replace('supabase.co','other.invalid'),pooler.replace(':5432',':6543'),direct+'?sslmode=disable',
  ])assert.throws(()=>saveDatabaseUrl(invalid,ref,false));
  assert.throws(()=>saveDatabaseUrl(direct,ref,true));
+ const other='abcdefghijabcdefghij';
+ assert.throws(()=>saveDatabaseUrl(direct.replace(ref,other),other,false));
 });
 
 test('two signed sessions use isolated accounts and versioned PostgreSQL saves across devices and restart',async()=>{
@@ -73,6 +75,9 @@ test('two signed sessions use isolated accounts and versioned PostgreSQL saves a
   const directory='supabase/migrations';
   for(const file of readdirSync(directory).filter(name=>name.endsWith('.sql')).sort())
    await admin.begin(tx=>tx.unsafe(readFileSync(join(directory,file),'utf8')));
+  const [index]=await admin`select indexdef from pg_indexes where schemaname='vvr'
+   and indexname='solo_snapshots_player_id_restored_from_idx'`;
+  assert.match(index.indexdef,/USING btree \(player_id, restored_from\)/);
   await admin.unsafe("create role vvr_save_login login in role vvr_save_api password 'vvr-save-local-only'");
   const a=await start(),b=await start();
   const logIn=async(id:number)=>{
@@ -127,6 +132,20 @@ test('two signed sessions use isolated accounts and versioned PostgreSQL saves a
    assert.deepEqual([...(await tx`select id from vvr.players`)], [{id:other.playerId}]);
    assert.equal((await tx`select revision from vvr.solo_snapshots where player_id=${playerId}`).length,0);
   });
+  await assert.rejects(admin.begin(async tx=>{
+   await tx`set local role vvr_save_api`;
+   await tx`select set_config('vvr.telegram_id','2102',true)`;
+   await tx`insert into vvr.solo_snapshots (player_id, revision, request_id, raw, checksum)
+    values (${playerId},4,${randomUUID()},${raw},${checksum})`;
+  }),{code:'42501'});
+  for(const command of ['update','delete']){
+   await assert.rejects(admin.begin(async tx=>{
+    await tx`set local role vvr_save_api`;
+    await tx`select set_config('vvr.telegram_id','2102',true)`;
+    if(command==='update')await tx`update vvr.solo_snapshots set raw=${raw} where player_id=${playerId}`;
+    else await tx`delete from vvr.solo_snapshots where player_id=${playerId}`;
+   }),{code:'42501'});
+  }
   for(const role of ['anon','authenticated','service_role']){
    await assert.rejects(admin.begin(async tx=>{
     await tx`set local role ${tx(role)}`;
