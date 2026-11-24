@@ -1,0 +1,52 @@
+/* Rarity you can read at a glance, on calm dark plates (the 12 + wings layout is unchanged).
+   Colours come from the slot's own --rarity; tiers are matched on that colour value. */
+.game .gear:not(.empty) > .gear-face::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  /* A low pool of the rarity's light under the item, no bright surface. */
+  background: radial-gradient(ellipse 70% 45% at 50% 62%,color-mix(in srgb,var(--rarity) 26%,transparent),transparent 72%);
+}
+/* Common and coarse gear stay plain. */
+.game .gear:is([style*="#8c9198"],[style*="#b6c9bd"]) > .gear-face::before { background: none; }
+/* Epic and above: a gem-cut corner notch in the rarity colour. */
+.game .gear:is([style*="#c97aff"],[style*="#ffb343"],[style*="#ff6262"],[style*="#fff3b1"],[style*="#a15dff"]) > .gear-face {
+  box-shadow: inset 0 0 0 2px #0b0b10, inset 0 0 14px color-mix(in srgb,var(--rarity) 30%,transparent), inset 0 -9px 12px #0a080eb0, 0 2px 0 #0a090a;
+}
+/* Legendary tiers: one slow light sweep. Fabled, mythic, flawless and dusk only. */
+.game .gear:is([style*="#ffb343"],[style*="#ff6262"],[style*="#fff3b1"],[style*="#a15dff"]) > .gear-face::after {
+  content: ""; position: absolute; inset: -20% -60%; pointer-events: none;
+  background: linear-gradient(105deg,transparent 42%,color-mix(in srgb,var(--rarity) 34%,#ffffff40) 50%,transparent 58%);
+  transform: translateX(-60%);
+  animation: gear-sheen 5.5s ease-in-out infinite;
+}
+.game .gear[style*="#ff6262"] > .gear-face::after { animation-duration: 4.5s; }
+.game .gear[style*="#a15dff"] > .gear-face::after { animation-duration: 6.5s; }
+@keyframes gear-sheen { 0%,62% { transform: translateX(-60%); } 100% { transform: translateX(60%); } }
+/* The level label stays on top of the light. */
+.game .gear-face > span { z-index: 1; }
+/* Narrow amulet / extra plates: keep «ур.37 +3» whole instead of clipping the upgrade. */
+.game :is(.gear-amulet,.gear-extra1) .gear-face > span { font-size: 14px; letter-spacing: -.4px; }
+[data-motion="reduced"] .game .gear > .gear-face::after { animation: none; display: none; }
+@media (prefers-reduced-motion: reduce) { .game .gear > .gear-face::after { animation: none; display: none; } }
+
+/* Backpack and storage cards: the same tier language as the worn slots (their base glow already exists). */
+.saga-modal .inventory-grid > button { position: relative; overflow: hidden; isolation: isolate; }
+/* Coarse gear is visibly duller than ordinary; the two greys no longer read the same. */
+.saga-modal .inventory-grid > button[style*="#8c9198"] .icon { filter: saturate(.4) brightness(.82) drop-shadow(0 3px 3px #000c); }
+.saga-modal .inventory-grid > button:is([style*="#ffb343"],[style*="#ff6262"],[style*="#fff3b1"],[style*="#a15dff"])::after {
+  inset: -20% -70%; height: auto; opacity: 1; z-index: 1; pointer-events: none;
+  background: linear-gradient(105deg,transparent 44%,color-mix(in srgb,var(--rarity) 30%,#ffffff38) 50%,transparent 56%);
+  transform: translateX(-60%); animation: gear-sheen 6s ease-in-out infinite;
+}
+/* Dusk differs from epic purple by its smoky, breathing core. */
+.saga-modal[data-panel] .inventory-grid > button[style*="#a15dff"] { box-shadow: inset 0 0 0 2px #000b, inset 0 0 18px #12061f, inset 0 0 6px #a15dff, 0 0 4px #a15dff, 0 3px 3px #000b; }
+.saga-modal .inventory-grid > button[style*="#a15dff"]::before,
+.game .gear[style*="#a15dff"] > .gear-face::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 70% 50% at 50% 42%,#a15dff66,#1a0b2e88 60%,transparent 82%);
+  animation: dusk-breathe 3.4s ease-in-out infinite alternate;
+}
+.game .gear[style*="#a15dff"] > .gear-face { box-shadow: inset 0 0 0 2px #0b0b10, inset 0 0 18px #12061f, inset 0 0 6px #a15dff, 0 2px 0 #0a090a; }
+@keyframes dusk-breathe { from { opacity: .5; } to { opacity: 1; } }
+[data-motion="reduced"] :is(.inventory-grid > button,.game .gear > .gear-face)::before,
+[data-motion="reduced"] .inventory-grid > button::after { animation: none; }
+@media (prefers-reduced-motion: reduce) { :is(.inventory-grid > button,.game .gear > .gear-face)::before,.inventory-grid > button::after { animation: none; } }
