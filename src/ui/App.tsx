@@ -275,7 +275,7 @@ export default function App(){
  <nav className="bottom"><button onClick={()=>g.open('port')}><img className="icon illustrated adventure-map-art" src={new URL('../../public/art/interface/adventure-map.svg',import.meta.url).href} alt="" aria-hidden="true" draggable={false}/><span>Карта</span></button><button onClick={()=>g.open('skills')}><Icon name="book"/><span>Навыки</span></button><button className="central" onClick={()=>battle?.toggle()} aria-label={b.running?"Остановить бой":"Начать или продолжить бой"} aria-pressed={b.running}><img className="forged-axes-art" src={new URL('../../public/art/interface/forged-axes.svg',import.meta.url).href} alt="" aria-hidden="true" draggable={false}/></button><button onClick={()=>g.open('adventure')}><Icon name="scroll"/><span>Приключения</span></button><button onClick={()=>g.open('shop')}><Icon name="market"/><span>Магазин</span></button></nav><button className="horn-counter" onClick={()=>g.open('loot')}><Icon name="horn"/>{p.horn}<small>Рог Трофеев</small></button>
  <LevelUpFeedback/><WorldHud hideRoad={inRealm}/>{g.recoveryRequired&&!g.panel&&<DialogShell panel="recovery" title="Восстановление прогресса" dismissible={false} footer={<footer className="modal-footer"><span>Исходное сохранение защищено</span></footer>}><p>Исходный файл сохранён на устройстве. Автосохранение и бой остановлены, чтобы не заменить ваш прогресс.</p><Action onClick={()=>g.open('save-tools')}>Открыть импорт и резервную копию</Action><Action kind="secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([unreadableSave()],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='lootborn-recovery.json';a.click();URL.revokeObjectURL(url)}}>Скачать исходное сохранение</Action></DialogShell>}{g.toast&&!g.panel&&<div className="toast" role="status"><RewardNotice message={g.toast} reward={g.toastReward}/></div>}{g.storageError&&<div className="storage-error" role="alert">Не удалось сохранить. Освободите место в браузере.</div>}{hasFlag(p,'story:done')&&!hasFlag(p,'story:finale-seen')&&!g.panel&&!trophy&&!g.recoveryRequired&&!inRealm&&<StoryFinale/>}{g.panel==='autobattle'?<AutobattleDialog/>:g.panel&&<Panel questTab={questTab} setQuestTab={setQuestTab}/>}</div></main>
 }
-const titles:Record<string,string>={equipment:'Экипировка',controls:'Управление боем',hero:'Северный страж',skills:'Навыки и руны',inventory:'Рюкзак',loot:'Рог Трофеев',wings:'Крылья',quests:'Путь героя','hero-path':'Трактат и фонды',rewards:'Ежедневная награда',events:'События',season:'Северный сезон',carnival:'Великий карнавал',friends:'Поделиться игрой',invite:'Приглашение',collection:'Альбом персонажей',shop:'Лавка сокровищ',port:'Северная гавань',shipyard:'Верфь драккаров',adventure:'Приключения',arena:'Арена',lair:'Логово мини-босса','lair-revive':'Возрождение в Логове',battle:'Боевая сводка',menu:'Меню',forge:'Кузница',blessing:'Благословение',companions:'Спутники',talents:'Таланты',relic:'Реликвии',realm:'Царство тьмы',darkgear:'Тёмная энергия',gems:'Драгоценные камни',item:'Новая добыча','source:gold':'Где получить золото','source:gems':'Где получить самоцветы','source:chaosite':'Где получить Хаосит'};
+const titles:Record<string,string>={equipment:'Экипировка',controls:'Управление боем',hero:'Северный страж',skills:'Навыки и руны',inventory:'Рюкзак',loot:'Рог Трофеев',wings:'Крылья',quests:'Путь героя','hero-path':'Трактат и фонды',rewards:'Ежедневная награда',events:'События',season:'Северный сезон',carnival:'Великий карнавал',friends:'Поделиться игрой',invite:'Приглашение',collection:'Альбом персонажей',shop:'Лавка сокровищ',port:'Северная гавань',workshops:'Мастерские',shipyard:'Верфь драккаров',adventure:'Приключения',arena:'Арена',lair:'Логово мини-босса','lair-revive':'Возрождение в Логове',battle:'Боевая сводка',menu:'Меню',forge:'Кузница',blessing:'Благословение',companions:'Спутники',talents:'Таланты',relic:'Реликвии',realm:'Царство тьмы',darkgear:'Тёмная энергия',gems:'Драгоценные камни',item:'Новая добыча','source:gold':'Где получить золото','source:gems':'Где получить самоцветы','source:chaosite':'Где получить Хаосит'};
 function PanelIntro({icon,title,children}: {icon:string;title:string;children:React.ReactNode}){
  return <section className="panel-intro"><Icon name={icon}/><div><h3>{title}</h3><p>{children}</p></div></section>;
 }
@@ -330,7 +330,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  const [journal,setJournal]=useState<'tasks'|'path'|'achievements'>('tasks');
  const [questDestination,setQuestDestination]=useState<string|null>(null);
  const [realmFromHarbor,setRealmFromHarbor]=useState(false);
- const returnToHarbor=panel==='realm'&&realmFromHarbor;
+ const returnToHarbor=panel==='workshops'||(panel==='realm'&&realmFromHarbor);
  const sourceBack=panel.startsWith('source:')?panel.split(':')[2]:undefined;
  const returnToQuest=panel===questDestination;
  const goFromQuest=(route:string)=>{
@@ -416,6 +416,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  {panel==='carnival'&&<CarnivalPanel/>}
  {(panel==='friends'||panel==='invite')&&<><PanelIntro icon="handshake" title="В поход с друзьями">Отправьте ссылку другу, чтобы он открыл игру в Telegram.</PanelIntro><Action onClick={copyInvite}>Скопировать ссылку на игру</Action>{shareAddress&&<label>Адрес для копирования <input type="url" readOnly value={shareAddress} onFocus={event=>event.currentTarget.select()}/></label>}</>}
  {panel==='collection'&&<Album p={p}/>}
+ {panel==='workshops'&&<Recipes p={p} onFreeSpace={freeSpace} workshop/>}
  {panel==='port'&&<div className={harborHelp?'harbor-workspace guide-open':'harbor-workspace'}>
   <div className="harbor-map">
   <HarborScene view="port" ships={fleet.ships} badges={claimable>0?{shipyard:'+'+claimable}:undefined} onNavigate={destination=>{setRealmFromHarbor(destination==='realm');g.open(destination)}}/>
@@ -426,7 +427,10 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
    <li><button type="button" onClick={()=>g.open('gems')}><Icon name="gem"/><span><b>Камни</b><small>В гнёзда 12 основных слотов</small></span></button></li>
   </ul>
   </div>
-  <div className="workspace-actions"><MineCollection/></div>
+  <div className="workspace-actions">
+   <Action kind="secondary" onClick={()=>g.open('workshops')}>Мастерские</Action>
+   <MineCollection/>
+  </div>
  </div>}
  {panel==='shipyard'&&<>
   <HarborScene view="shipyard" ships={fleet.ships} selectedShipId={currentShip.id} onChooseShip={setSelectedShipId}/>
