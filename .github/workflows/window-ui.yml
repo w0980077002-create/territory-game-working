@@ -54,7 +54,8 @@ jobs:
           if-no-files-found: error
   windows:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Browser dependency installation varies across hosted runners.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
