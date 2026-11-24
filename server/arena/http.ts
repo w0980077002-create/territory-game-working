@@ -7,9 +7,11 @@ import {arenaElixirs,arenaHeroes,arenaKits,arenaSkills,zones,
  type ArenaCommand,type ArenaElixir,type ArenaKit,type ArenaSkill,type ArenaZone} from '../../src/arena/protocol';
 import {issueSession,readSession,verifyTelegram} from './auth';
 import {ArenaError,ArenaService} from './service';
+import {readArenaLevels} from './roster';
+import {MAX_SAVE_BYTES,SaveError,type PlayerSaves} from '../saves/store';
 
 type Options={dbPath:string;botToken:string;sessionKey:string;webRoot?:string;local?:boolean;clock?:()=>number;rng?:()=>number;
- allowedUsers?:ReadonlySet<string>};
+ allowedUsers?:ReadonlySet<string>;testLevels?:string;saves?:PlayerSaves};
 const uuid=/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i;
 const localPeople={
  alice:{id:1001,first_name:'Алиса'},
@@ -29,15 +31,15 @@ function json(res:ServerResponse,status:number,value:unknown){
  res.end(JSON.stringify(value));
 }
 
-async function body(req:IncomingMessage):Promise<Record<string,unknown>>{
+async function body(req:IncomingMessage,maxBytes=9_000):Promise<Record<string,unknown>>{
  if(req.headers['content-type']?.split(';')[0]!=='application/json')
   throw new ArenaError(415,'Ожидается JSON');
- if(Number(req.headers['content-length'])>9_000)throw new ArenaError(413,'Запрос слишком большой');
+ if(Number(req.headers['content-length'])>maxBytes)throw new ArenaError(413,'Запрос слишком большой');
  const chunks:Buffer[]=[];
  let size=0;
  for await(const chunk of req){
   size+=chunk.length;
-  if(size>9_000)throw new ArenaError(413,'Запрос слишком большой');
+  if(size>maxBytes)throw new ArenaError(413,'Запрос слишком большой');
   chunks.push(chunk);
  }
  try{
@@ -50,6 +52,16 @@ async function body(req:IncomingMessage):Promise<Record<string,unknown>>{
 function exact(input:Record<string,unknown>,...fields:string[]){
  if(Object.keys(input).length!==fields.length||fields.some(key=>!Object.hasOwn(input,key)))
   throw new ArenaError(400,'Некорректные параметры');
+}
+
+function parseControl({target,revision}:Record<string,unknown>){
+ if(typeof target!=='string'||!uuid.test(target)||typeof revision!=='number'||!Number.isSafeInteger(revision)||revision<0)
+  throw new ArenaError(400,'Укажите текущий бой или поиск');
+ return {target,revision};
+}
+
+function saveRevision(value:unknown,min:number):value is number{
+ return typeof value==='number'&&Number.isInteger(value)&&value>=min&&value<2_147_483_647;
 }
 
 function object(value:unknown):value is Record<string,unknown>{
@@ -126,9 +138,12 @@ export function createArenaServer(options:Options){
   throw new Error('Arena requires independent Telegram and session credentials');
  if(!options.local&&(!options.allowedUsers||options.allowedUsers.size<2||[...options.allowedUsers].some(id=>!/^\d{1,16}$/.test(id))))
   throw new Error('Arena staging requires at least two allowlisted test accounts');
- const service=new ArenaService(options.dbPath,options.rng);
+
+ const rosterIds=options.local?new Set(Object.values(localPeople).map(person=>String(person.id))):options.allowedUsers!;
+ const service=new ArenaService(options.dbPath,options.rng,readArenaLevels(options.testLevels,rosterIds));
  const clock=options.clock??Date.now;
  const authLimit=scopedLimit(30,60_000),requestLimit=scopedLimit(60,10_000);
+ const saveWriteLimit=scopedLimit(10,60_000);
  const server=createServer({requestTimeout:10_000,headersTimeout:8_000,maxHeaderSize:16_384},async(req,res)=>{
   try{
    const url=new URL(req.url??'/','http://arena.local');
@@ -161,6 +176,29 @@ export function createArenaServer(options:Options){
    if(options.allowedUsers&&!options.allowedUsers.has(session.id))throw new ArenaError(403,'Этот аккаунт не приглашён на Арену');
    requestLimit(session.id,now);
    const actor={id:session.id,controller:session.lease+':'+tab};
+   if(options.saves&&(pathname==='/arena-api/save'||pathname==='/arena-api/save/restore')){
+    if(req.method==='GET'&&pathname==='/arena-api/save'){
+     const selected=url.searchParams.get('revision'),revision=selected===null?undefined:Number(selected);
+     if(selected!==null&&(!/^\d+$/.test(selected)||!saveRevision(revision,1)))
+      throw new ArenaError(400,'Некорректная версия сохранения');
+     json(res,200,await options.saves.read(session.id,revision));return;
+    }
+    if(req.method!=='POST')throw new ArenaError(405,'Действие недоступно');
+    saveWriteLimit(session.id,now);
+    const restore=pathname.endsWith('/restore');
+    const input=await body(req,restore?9_000:MAX_SAVE_BYTES*2+1024);
+    exact(input,'expected','requestId',restore?'revision':'raw');
+    const {expected,requestId}=input;
+    if(!saveRevision(expected,0)||typeof requestId!=='string'||!uuid.test(requestId))
+     throw new ArenaError(400,'Некорректная версия или номер запроса');
+    if(restore&&saveRevision(input.revision,1)){
+     json(res,200,await options.saves.write(session.id,{expected,requestId,restore:input.revision}));return;
+    }
+    if(!restore&&typeof input.raw==='string'){
+     json(res,200,await options.saves.write(session.id,{expected,requestId,raw:input.raw}));return;
+    }
+    throw new ArenaError(400,'Некорректное сохранение');
+   }
    if(req.method==='GET'&&pathname==='/arena-api/state'){json(res,200,service.read(actor,now));return}
    if(req.method==='GET'&&pathname==='/arena-api/room'){
     const id=url.searchParams.get('match');
@@ -178,17 +216,18 @@ export function createArenaServer(options:Options){
      json(res,200,service.join(actor,hero,input.kit as ArenaKit,actionTime));return;
     }
     case '/arena-api/resume':
-     exact(input);json(res,200,service.takeover(actor,actionTime));return;
+     exact(input,'target','revision');
+     json(res,200,service.takeover(actor,parseControl(input),actionTime));return;
     case '/arena-api/leave':
-     exact(input,'match');
-     if(input.match!==null&&(typeof input.match!=='string'||!uuid.test(input.match)))throw new ArenaError(400,'Неизвестный бой');
-     json(res,200,service.leave(actor,input.match,actionTime));return;
+     exact(input,'target','revision');
+     json(res,200,service.leave(actor,parseControl(input),actionTime));return;
     case '/arena-api/act':{
-     exact(input,'match','action','round','sequence');
-     const {match,action,round,sequence}=input;
-     if(typeof match!=='string'||!uuid.test(match)||typeof round!=='number'||!Number.isSafeInteger(round)||round<1||round>60||
+     exact(input,'target','revision','action','round','sequence');
+     const control=parseControl(input);
+     const {action,round,sequence}=input;
+     if(typeof round!=='number'||!Number.isSafeInteger(round)||round<1||round>60||
        typeof sequence!=='number'||!Number.isSafeInteger(sequence)||sequence<=0)throw new ArenaError(400,'Некорректное действие');
-     json(res,200,service.act(actor,match,parseCommand(action),round,sequence,actionTime));return;
+     json(res,200,service.act(actor,control,parseCommand(action),round,sequence,actionTime));return;
     }
     case '/arena-api/chat':{
      exact(input,'match','text');
@@ -201,7 +240,7 @@ export function createArenaServer(options:Options){
    }
   }catch(error){
    if(res.headersSent){res.destroy();return}
-   if(error instanceof ArenaError){json(res,error.status,{error:error.message});return}
+   if(error instanceof ArenaError||error instanceof SaveError){json(res,error.status,{error:error.message});return}
    console.error('Arena request could not be completed',error instanceof Error?error.name:'UnknownError');
    json(res,503,{error:'Арена временно недоступна'});
   }
@@ -209,6 +248,10 @@ export function createArenaServer(options:Options){
  const worker=setInterval(()=>{
   try{service.tick(clock())}catch{console.error('Arena clock could not update its database')}
  },500).unref();
- server.on('close',()=>{clearInterval(worker);service.close()});
+ server.on('close',()=>{
+  clearInterval(worker);
+  service.close();
+  void options.saves?.close().catch(()=>console.error('VVR save database could not close cleanly'));
+ });
  return server;
 }

@@ -16,7 +16,7 @@ start() {
     --env ARENA_MODE=staging \
     --env ARENA_BOT_TOKEN=container-test-bot \
     --env ARENA_SESSION_SECRET=container-test-secret-at-least-32-chars \
-    --env ARENA_TEST_USERS=1101,1102 "$image")
+    --env ARENA_TEST_USERS=1101,1102 --env 'ARENA_TEST_LEVELS={"1101":6,"1102":13}' "$image")
 }
 smoke() {
   docker exec -i "$container" node --input-type=module - "$1" <<'NODE'
@@ -63,11 +63,16 @@ if (process.argv[2] === 'before') {
   const auth = JSON.parse(readFileSync(proof, 'utf8'));
   const {status, data} = await api('state', undefined, auth);
   assert.equal(status, 200, 'The invitee profile still exists in SQLite after container replacement');
-  assert.equal(data.level, 1);
+  assert.equal(data.level, 6);
 }
 NODE
 }
 start
+if vvr_probe=$(docker exec "$container" node /app/check-saves.mjs 2>&1); then
+  echo 'The database check must fail when no credentials were supplied'
+  exit 1
+fi
+[[ "$vvr_probe" == "VVR cloud check failed."* ]]
 smoke before
 docker stop "$container" >/dev/null
 docker rm "$container" >/dev/null

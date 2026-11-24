@@ -2,7 +2,7 @@ import tseslint from 'typescript-eslint';
 import hooks from 'eslint-plugin-react-hooks';
 // The window refactor is linted independently of unrelated legacy code.
 export default tseslint.config({
- files: ['src/ui/{App,DarkPanels,SagaUI,HarborScene,OnlineArena}.tsx','src/ui/carnival/*.{ts,tsx}','scripts/qa/carnival-*.{ts,tsx}','src/core/store.ts','src/arena/*.ts','server/arena/*.ts','tests/{notices,online-arena}.test.ts'],
+ files: ['src/ui/{App,DarkPanels,SagaUI,HarborScene,OnlineArena}.tsx','src/ui/carnival/*.{ts,tsx}','scripts/qa/carnival-*.{ts,tsx}','scripts/qa/verify-save-connection.ts','src/core/store.ts','src/arena/*.ts','server/{arena,saves}/*.ts','tests/{notices,online-arena}.test.ts','tests/pg/*.test.ts'],
  languageOptions: {parser: tseslint.parser, parserOptions: {ecmaFeatures: {jsx: true}}},
  plugins: {'@typescript-eslint':tseslint.plugin,'react-hooks':hooks},
  rules: {

@@ -1,4 +1,4 @@
-import {arenaStaging} from '../arena/staging';
+import {arenaStaging,localArenaActor} from '../arena/staging';
 import {telegramAccountId,tg} from './telegram';
 
 const params=new URLSearchParams(typeof window==='undefined'?'':window.location?.search??'');
@@ -15,6 +15,8 @@ export const isolatedProfile=!!requested&&/^[a-z0-9_-]{1,32}$/.test(requested);
 export const mailAcceptanceProfile=requested==='mail-acceptance';
 export const LEGACY_SAVE_KEY=arenaStaging?'lootborn-arena-staging-v1':'lootborn-codex-v1';
 export const telegramProfile=isolatedProfile||arenaStaging?undefined:telegramAccountId();
-export const SAVE_KEY=LEGACY_SAVE_KEY+(isolatedProfile?':test:'+requested:telegramProfile?':telegram:'+telegramProfile:'');
-const localLockProfile=isolatedProfile?requested:telegramProfile?'telegram:'+telegramProfile:'owner';
+// The old shared staging key is left intact: its Telegram owner cannot be inferred.
+const arenaOwner=arenaStaging?(telegramAccountId()??localArenaActor()??'guest'):undefined;
+export const SAVE_KEY=LEGACY_SAVE_KEY+(isolatedProfile?':test:'+requested:arenaOwner?':player:'+arenaOwner:telegramProfile?':telegram:'+telegramProfile:'');
+const localLockProfile=isolatedProfile?requested:arenaOwner??(telegramProfile?'telegram:'+telegramProfile:'owner');
 export const saveLockProfile=arenaStaging?'arena-staging:'+localLockProfile:localLockProfile;

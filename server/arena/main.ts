@@ -2,6 +2,7 @@ import {mkdirSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 import {randomBytes} from 'node:crypto';
 import {createArenaServer} from './http';
+import {openPlayerSaves} from '../saves/config';
 
 const local=process.env.ARENA_LOCAL==='1';
 const mode=process.env.ARENA_MODE??(local?'staging':undefined);
@@ -15,6 +16,8 @@ mkdirSync(dirname(dbPath),{recursive:true});
 const server=createArenaServer({
  dbPath,webRoot:resolve(process.env.ARENA_WEB_ROOT??'.tmp/arena/web'),local,allowedUsers:local?undefined:allowedUsers,
  botToken:local?randomBytes(32).toString('hex'):process.env.ARENA_BOT_TOKEN??'',
+ testLevels:process.env.ARENA_TEST_LEVELS,
+ saves:openPlayerSaves(process.env.VVR_DB_URL,process.env.VVR_DB_PROJECT_REF,local),
  sessionKey:local?randomBytes(32).toString('hex'):process.env.ARENA_SESSION_SECRET??'',
 });
 server.listen(port,host,()=>console.log(`Arena listening at http://${host}:${port}`));
