@@ -98,6 +98,9 @@ declare
  strong_hit jsonb;
  boss_claim jsonb;
  boss_listing uuid;
+ next_event uuid;
+ guild uuid;
+ replay jsonb;
 begin
  assert not has_function_privilege('service_role','vvr.set_hero_attack(uuid,bigint,integer)','EXECUTE');
  assert not has_function_privilege('authenticated','vvr.set_hero_attack(uuid,bigint,integer)','EXECUTE');
@@ -133,6 +136,31 @@ begin
  perform public.vvr_community(trained,'trade',jsonb_build_object('kind','buy','operationId',gen_random_uuid(),
   'listingId',boss_listing));
  assert (public.vvr_community(trained,'auction','{}')->>'gold')::int=2000;
+
+ perform public.vvr_world_boss_admin_start('70201','Следующий босс','minotaur_echo',
+  now()-interval '10 sec',30,1000,'{"damageMin":100,"damageMax":100,"critChance":0}');
+ select id into next_event from vvr.world_boss_events where status='open';
+ guild:=vvr.change_guild_roster(starter,'create',p_name=>'Дозор');
+ perform vvr.change_guild_roster(trained,'apply',guild);
+ perform vvr.change_guild_roster(starter,'accept',guild,trained);
+ perform vvr.configure_guild_boss_quest(next_event,100,50);
+ replay:=public.vvr_world_boss_attack('70202','Мастер',trained_hit)->'hit';
+ assert (replay->>'repeated')::boolean, 'retry from a previous boss must not become a new hit';
+ assert (replay->>'damage')::integer=200;
+ assert (select hp from vvr.world_boss_events where id=next_event)=1000;
+ assert (select points from vvr.season_totals where metric='world_boss_damage' and player_id=trained)=200;
+ assert not exists(select 1 from vvr.world_boss_participants as participant where participant.event_id=next_event);
+ assert not has_function_privilege('authenticated','public.vvr_world_boss_attack(text,text,uuid)','EXECUTE');
+ assert has_function_privilege('service_role','public.vvr_world_boss_attack(text,text,uuid)','EXECUTE');
+ assert not has_function_privilege('service_role','vvr.vvr_world_boss_attack(text,text,uuid)','EXECUTE');
+ replay:=public.vvr_world_boss_attack('70201','Новичок',trained_hit)->'hit';
+ assert not (replay->>'repeated')::boolean, 'request identifiers are scoped to their player';
+ assert (select hp from vvr.world_boss_events where id=next_event)=900;
+ assert (vvr.guild_boss_claim(starter,next_event)->>'firstClaim')::boolean;
+ assert not (vvr.guild_boss_claim(starter,next_event)->>'firstClaim')::boolean;
+ assert (public.vvr_community(starter,'auction','{}')->>'gold')::int=550;
+ assert not exists(select 1 from vvr.guild_boss_progress as progress
+   where progress.event_id=next_event and progress.player_id=trained);
 end;
 $$;
 
