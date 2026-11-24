@@ -21,8 +21,12 @@ test('flapping hinges stay on the same back joint after movement and mirroring',
  for(const id of Object.keys(backSockets))for(let frame=0;frame<8;frame++)for(const flip of [false,true])for(const time of [0,.1,.25,1.1]){
   let matrix=[flip?-1:1,0,0,1,417,792],stack:number[][]=[];const roots:number[][]=[];
   const multiply=(b:number[])=>{const [a,c,e,f,x,y]=matrix;matrix=[a*b[0]+e*b[1],c*b[0]+f*b[1],a*b[2]+e*b[3],c*b[2]+f*b[3],a*b[4]+e*b[5]+x,c*b[4]+f*b[5]+y]};
-  const ctx={save(){stack.push([...matrix])},restore(){matrix=stack.pop()!},translate(x:number,y:number){multiply([1,0,0,1,x,y])},rotate(a:number){multiply([Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0])},scale(x:number,y:number){multiply([x,0,0,y,0,0])},drawImage(...args:unknown[]){const sx=args[1] as number,dx=args[5] as number,dy=args[6] as number;const px=dx+(sx===0?110:0),py=dy+124;roots.push([matrix[0]*px+matrix[2]*py+matrix[4],matrix[1]*px+matrix[3]*py+matrix[5]])}} as unknown as CanvasRenderingContext2D;
-  drawAttachedWings(ctx,id,frame,200,time,{wings:img});
+  const ctx={save(){stack.push([...matrix])},restore(){matrix=stack.pop()!},translate(x:number,y:number){multiply([1,0,0,1,x,y])},rotate(a:number){multiply([Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0])},scale(x:number,y:number){multiply([x,0,0,y,0,0])},drawImage(...args:unknown[]){const sx=args[1] as number,sw=args[3] as number,dx=args[5] as number,dy=args[6] as number;draws++;
+   // Only the inner membrane reaches the back: its source touches the image centre column.
+   if(sx+sw!==110&&sx!==110)return;const px=dx+(sx===110?0:sw),py=dy+124;roots.push([matrix[0]*px+matrix[2]*py+matrix[4],matrix[1]*px+matrix[3]*py+matrix[5]])}} as unknown as CanvasRenderingContext2D;
+  let draws=0;
+  drawAttachedWings(ctx,id,frame,200,time,{wings:img,motion:{clock:time,walking:frame%2===1,attack:frame===3?.4:0,hurt:frame===6?.2:0,victory:frame===5}});
+  assert.equal(draws,4,'inner membrane and outer feathers per wing');
   const socket=wingAttachment(id,frame,200)!;
   assert.equal(roots.length,2);
   for(const root of roots){assert.ok(Math.abs(root[0]-(417+(flip?-socket.x:socket.x)))<1e-8,id+' attached x');assert.ok(Math.abs(root[1]-(792+socket.y))<1e-8,id+' attached y')}

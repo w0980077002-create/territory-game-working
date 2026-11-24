@@ -4,6 +4,7 @@ import {sceneImage,sceneImageReady} from './sceneImages';
 import {clips,frameGeometry,legacyBodyHeight,poseFrame} from './actorGeometry';
 import {bossTextures,drawBoss} from './bossAnimation';
 import {drawAttachedWings,type ActorAttachments} from './heroAttachments';
+import {drawWeaponAura} from './weaponAura';
 const atlases=new Map<string,HTMLImageElement>();
 const dolls=new Map<string,HTMLCanvasElement>();
 function dressedFrame(img:HTMLImageElement,id:string,frame:number,sx:number,sy:number,sw:number,sh:number){
@@ -71,10 +72,12 @@ export function drawActor(ctx:CanvasRenderingContext2D,id:string,x:number,y:numb
  const g=frameGeometry(clipId,frame,0,0,height),[sx,sy,sw,sh]=g.source;
  ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);
  if(death>0)ctx.globalAlpha=Math.max(0,1-(death-.5)*1.8);
- drawAttachedWings(ctx,clipId,frame,height,time,attachments);
+ const motion=attachments?.motion?{...attachments.motion,walking,attack,hurt,death,victory}:undefined;
+ drawAttachedWings(ctx,clipId,frame,height,time,attachments&&{...attachments,motion});
  const doll=dressedFrame(img,id,frame,sx,sy,sw,sh);
  if(doll)ctx.drawImage(doll,g.x,g.y,g.width,g.height);
  else ctx.drawImage(img,sx,sy,sw,sh,g.x,g.y,g.width,g.height);
+ if(attachments?.weapon&&death<=0)drawWeaponAura(ctx,img,clipId,frame,g.source,g,attachments.weapon);
  ctx.restore();return true;
 }
 export function drawFallback(ctx:CanvasRenderingContext2D,img:HTMLImageElement,id:string,x:number,y:number,size:number,registeredHeight=false,flip=false,attachments?:ActorAttachments){
