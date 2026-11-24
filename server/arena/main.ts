@@ -13,8 +13,9 @@ const allowedUsers=new Set((process.env.ARENA_TEST_USERS??'').split(',').map(val
 const dbPath=resolve(process.env.ARENA_DB??(local?'.tmp/arena/local.sqlite':'/data/arena.sqlite'));
 mkdirSync(dirname(dbPath),{recursive:true});
 const server=createArenaServer({
- dbPath,webRoot:resolve(process.env.ARENA_WEB_ROOT??'.tmp/arena/web'),local,allowedUsers:local?undefined:allowedUsers,
+ dbPath,webRoot:resolve(process.env.ARENA_WEB_ROOT??'.tmp/arena/web'),local,allowedUsers:local||allowedUsers.size===0?undefined:allowedUsers,
  botToken:local?randomBytes(32).toString('hex'):process.env.ARENA_BOT_TOKEN??'',
+ testLevels:process.env.ARENA_TEST_LEVELS,
  sessionKey:local?randomBytes(32).toString('hex'):process.env.ARENA_SESSION_SECRET??'',
 });
 server.listen(port,host,()=>console.log(`Arena listening at http://${host}:${port}`));

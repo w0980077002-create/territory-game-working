@@ -8,9 +8,10 @@ import {DatabaseSync} from 'node:sqlite';
 import {verifyTelegram,issueSession,readSession} from '../server/arena/auth';
 import {createArenaServer} from '../server/arena/http';
 import {ArenaService} from '../server/arena/service';
+import {readArenaLevels} from '../server/arena/roster';
 import {soloArenaPreview} from '../src/arena/soloPreview';
 import {freshPlayer} from '../src/core/store';
-import {advance,applyCommand,compatible,newMatch,viewMatch,type Entrant} from '../server/arena/duel';
+import {advance,applyCommand,compatible,entrantStats,newMatch,viewMatch,type Entrant} from '../server/arena/duel';
 import {CHAT_MS,ITEM_COOLDOWN_MS,MATCH_WAIT_MS,ROUND_MS,type ArenaCommand} from '../src/arena/protocol';
 
 const start=1_800_000_000_000;
@@ -77,8 +78,58 @@ test('Solo projection compares ordinary gear, an upgrade and legacy power withou
 });
 
 test('Arena server without a test allowlist only runs in local mode',()=>{
- assert.throws(()=>createArenaServer({dbPath:':memory:',botToken,sessionKey}),/allowlisted test accounts/);
- assert.throws(()=>createArenaServer({dbPath:':memory:',botToken,sessionKey,allowedUsers:new Set(['1'])}),/allowlisted test accounts/);
+ assert.throws(()=>createArenaServer({dbPath:':memory:',botToken,sessionKey,allowedUsers:new Set(['abc'])}),/numeric Telegram IDs/);
+});
+
+test('server roster assigns distinct Arena levels without importing Solo and locks them into the fight',()=>{
+ const root=mkdtempSync(join(tmpdir(),'vvr-roster-')),dbPath=join(root,'arena.sqlite');
+ const allowed=new Set(['1','2','3']);
+ const levels=readArenaLevels('{"1":6,"2":13,"3":14}',allowed);
+ for(const raw of ['{"4":2}','{"1":3.5}','{"1":101}','{"1":"4"}','[]','null'])
+  assert.throws(()=>readArenaLevels(raw,allowed),/ARENA_TEST_LEVELS/);
+ let service=new ArenaService(dbPath,()=>.5,levels);
+ const other={id:'3',controller:'third-view'};
+ try{
+  for(const id of allowed)service.authenticate({id,name:'Игрок '+id});
+  const queue=service.join(alice,'ranger','offensive',start).queued!;
+  const tooFar=service.join(other,'ranger','offensive',start).queued!;
+  assert.ok(tooFar.id!==queue.id);
+  assert.equal(service.read(alice,start).match,undefined);
+  const opening=service.join(boris,'berserker','balanced',start).match!;
+  assert.equal(opening.bot,false);
+  assert.equal(opening.you.level,13);
+  assert.equal(opening.opponent.level,6);
+  assert.equal(opening.opponent.maxHp,entrantStats({...a,level:6}).maxHp);
+  service.close();
+  service=new ArenaService(dbPath,()=>.5,readArenaLevels('{"1":9,"2":20,"3":15}',allowed));
+  const recovered=service.read(alice,start+1000);
+  assert.equal(recovered.level,9);
+  assert.equal(recovered.match?.id,opening.id);
+  assert.equal(recovered.match?.you.level,6);
+  assert.equal(recovered.match?.opponent.level,13);
+  assert.equal(service.read(other,start+1000).queued,undefined,'changed assignment invalidates the old search');
+ }finally{
+  service.close();
+  rmSync(root,{recursive:true,force:true});
+ }
+});
+
+test('a delayed cancellation cannot cancel a new search or reclaim control',()=>{
+ const service=new ArenaService(':memory:');
+ const tab={...alice,controller:'new-view'};
+ try{
+  service.authenticate(a);
+  const first=service.join(alice,'ranger','balanced',start).queued!;
+  const old={target:first.id,revision:first.controlRevision};
+  assert.equal(service.leave(alice,old,start).queued,undefined);
+  const second=service.join(alice,'ranger','balanced',start).queued!;
+  assert.notEqual(first.id,second.id);
+  assert.equal(service.leave(alice,old,start).queued?.id,second.id);
+  assert.equal(service.takeover(tab,old,start).queued?.control,false);
+  const current={target:second.id,revision:second.controlRevision};
+  assert.equal(service.takeover(tab,current,start).queued?.control,true);
+  assert.equal(service.takeover(alice,current,start).queued?.control,false);
+ }finally{service.close()}
 });
 
 test('20 seconds is the queue window, the bot is explicit, and a duel round lasts 60 seconds',()=>{
@@ -187,20 +238,28 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
   assert.equal((await stranger('room?match='+id)).status,404);
   assert.equal((await stranger('chat',{match:id,text:'Вне комнаты'})).status,404);
   assert.equal((await one('chat',{match:id,text:'https://t.me/abc'})).status,400);
-  assert.equal((await one('chat',{match:id,text:'Хорошего боя'})).status,200);
-  assert.equal((await one('chat',{match:id,text:'Спам'})).status,429);
+  const chatReplies=await Promise.all([1,2].map(()=>one('chat',{match:id,text:'Хорошего боя'})));
+  assert.deepEqual(chatReplies.map(reply=>reply.status).sort(),[200,429]);
   assert.equal((await two('state')).data.match.chat[0].text,'Хорошего боя');
 
   const newTab=randomUUID();
   const restored=(path:string,data?:Record<string,unknown>)=>one(path,data,newTab);
+  const originalControl={target:id,revision:opening.controlRevision};
   assert.equal((await restored('state')).data.match.control,false);
-  const firstAction={match:id,action:head,round:1,sequence:1};
-  assert.equal((await restored('act',firstAction)).data.accepted,false);
+  assert.equal((await restored('act',{...originalControl,action:head,round:1,sequence:1})).data.accepted,false);
   now+=1000;
-  assert.equal((await restored('resume',{})).data.match.control,true);
+  const switched=(await restored('resume',originalControl)).data.match;
+  assert.equal(switched.control,true);
+  assert.equal(switched.controlRevision,1);
+  assert.equal((await one('resume',originalControl)).data.match.control,false);
+  assert.equal((await one('leave',originalControl)).data.match.result,undefined);
+  const firstAction={target:id,revision:switched.controlRevision,action:head,round:1,sequence:1};
   assert.equal((await one('act',firstAction)).data.accepted,false);
+  assert.equal((await restored('act',{...firstAction,revision:0})).data.accepted,false);
+  assert.equal((await restored('act',{...firstAction,action:{...head,damage:1e30,hp:1e30}})).status,400);
   assert.equal((await restored('act',{...firstAction,action:{kind:'move',move:{attack:'head',blocks:['head','head'],skill:null}}})).status,400);
-  assert.equal((await restored('act',firstAction)).data.accepted,true);
+  const duplicates=await Promise.all([restored('act',firstAction),restored('act',firstAction)]);
+  assert.deepEqual(duplicates.map(reply=>reply.data.accepted).sort(),[false,true]);
   assert.equal((await restored('act',firstAction)).data.accepted,false);
 
   let oneState=(await restored('state')).data, twoState=(await two('state')).data;
@@ -209,11 +268,15 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
    assert.ok(current<=60);
    if(!oneState.match.you.moved){
     const attack={kind:'move',move:{attack:'head',blocks:['belly','legs'],skill:current===2?'hammer':null}};
-    const reply=await restored('act',{match:id,action:attack,round:current,sequence:oneState.match.nextSequence});
+    const reply=await restored('act',{target:id,revision:oneState.match.controlRevision,action:attack,round:current,sequence:oneState.match.nextSequence});
     assert.ok(reply.data.accepted);
    }
-   const reply=await two('act',{match:id,action:legs,round:current,sequence:twoState.match.nextSequence});
-   assert.ok(reply.data.accepted);
+   const opponentMove:Record<string,unknown>={
+    target:id,revision:twoState.match.controlRevision,action:legs,round:current,sequence:twoState.match.nextSequence,
+   };
+   const replyBatch=await Promise.all([two('act',opponentMove),two('act',opponentMove)]);
+   assert.equal(replyBatch.filter(reply=>reply.data.accepted).length,1);
+   const reply=replyBatch.find(reply=>reply.data.accepted)!;
    twoState=reply.data.view;
    oneState=(await restored('state')).data;
    now+=1000;
@@ -234,6 +297,7 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
   assert.equal(after.match.chatDeadline,deadline);
   assert.equal(after.match.chat.at(-1).text,'Спасибо за бой');
   assert.equal((await restored('act',firstAction)).data.accepted,false);
+  assert.equal((await one('result',{match:id,winner:'1',points:20})).status,404);
   assert.equal((await two('chat',{match:id,text:'До встречи'})).status,200);
   now=deadline;
   assert.equal((await two('chat',{match:id,text:'Поздно'})).status,404);

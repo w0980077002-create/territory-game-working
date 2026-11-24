@@ -7,9 +7,10 @@ import {arenaElixirs,arenaHeroes,arenaKits,arenaSkills,zones,
  type ArenaCommand,type ArenaElixir,type ArenaKit,type ArenaSkill,type ArenaZone} from '../../src/arena/protocol';
 import {issueSession,readSession,verifyTelegram} from './auth';
 import {ArenaError,ArenaService} from './service';
+import {readArenaLevels} from './roster';
 
 type Options={dbPath:string;botToken:string;sessionKey:string;webRoot?:string;local?:boolean;clock?:()=>number;rng?:()=>number;
- allowedUsers?:ReadonlySet<string>};
+ allowedUsers?:ReadonlySet<string>;testLevels?:string};
 const uuid=/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i;
 const localPeople={
  alice:{id:1001,first_name:'Алиса'},
@@ -50,6 +51,12 @@ async function body(req:IncomingMessage):Promise<Record<string,unknown>>{
 function exact(input:Record<string,unknown>,...fields:string[]){
  if(Object.keys(input).length!==fields.length||fields.some(key=>!Object.hasOwn(input,key)))
   throw new ArenaError(400,'Некорректные параметры');
+}
+
+function parseControl({target,revision}:Record<string,unknown>){
+ if(typeof target!=='string'||!uuid.test(target)||typeof revision!=='number'||!Number.isSafeInteger(revision)||revision<0)
+  throw new ArenaError(400,'Укажите текущий бой или поиск');
+ return {target,revision};
 }
 
 function object(value:unknown):value is Record<string,unknown>{
@@ -124,9 +131,12 @@ async function staticFile(req:IncomingMessage,res:ServerResponse,pathname:string
 export function createArenaServer(options:Options){
  if(options.sessionKey.length<32||!options.botToken||options.botToken===options.sessionKey)
   throw new Error('Arena requires independent Telegram and session credentials');
- if(!options.local&&(!options.allowedUsers||options.allowedUsers.size<2||[...options.allowedUsers].some(id=>!/^\d{1,16}$/.test(id))))
-  throw new Error('Arena staging requires at least two allowlisted test accounts');
- const service=new ArenaService(options.dbPath,options.rng);
+ // Allowlist is optional: without it any verified Telegram account may join.
+ if(options.allowedUsers&&[...options.allowedUsers].some(id=>!/^\d{1,16}$/.test(id)))
+  throw new Error('ARENA_TEST_USERS must contain numeric Telegram IDs');
+
+ const rosterIds=options.local?new Set(Object.values(localPeople).map(person=>String(person.id))):options.allowedUsers;
+ const service=new ArenaService(options.dbPath,options.rng,readArenaLevels(options.testLevels,rosterIds));
  const clock=options.clock??Date.now;
  const authLimit=scopedLimit(30,60_000),requestLimit=scopedLimit(60,10_000);
  const server=createServer({requestTimeout:10_000,headersTimeout:8_000,maxHeaderSize:16_384},async(req,res)=>{
@@ -178,17 +188,18 @@ export function createArenaServer(options:Options){
      json(res,200,service.join(actor,hero,input.kit as ArenaKit,actionTime));return;
     }
     case '/arena-api/resume':
-     exact(input);json(res,200,service.takeover(actor,actionTime));return;
+     exact(input,'target','revision');
+     json(res,200,service.takeover(actor,parseControl(input),actionTime));return;
     case '/arena-api/leave':
-     exact(input,'match');
-     if(input.match!==null&&(typeof input.match!=='string'||!uuid.test(input.match)))throw new ArenaError(400,'Неизвестный бой');
-     json(res,200,service.leave(actor,input.match,actionTime));return;
+     exact(input,'target','revision');
+     json(res,200,service.leave(actor,parseControl(input),actionTime));return;
     case '/arena-api/act':{
-     exact(input,'match','action','round','sequence');
-     const {match,action,round,sequence}=input;
-     if(typeof match!=='string'||!uuid.test(match)||typeof round!=='number'||!Number.isSafeInteger(round)||round<1||round>60||
+     exact(input,'target','revision','action','round','sequence');
+     const control=parseControl(input);
+     const {action,round,sequence}=input;
+     if(typeof round!=='number'||!Number.isSafeInteger(round)||round<1||round>60||
        typeof sequence!=='number'||!Number.isSafeInteger(sequence)||sequence<=0)throw new ArenaError(400,'Некорректное действие');
-     json(res,200,service.act(actor,match,parseCommand(action),round,sequence,actionTime));return;
+     json(res,200,service.act(actor,control,parseCommand(action),round,sequence,actionTime));return;
     }
     case '/arena-api/chat':{
      exact(input,'match','text');
