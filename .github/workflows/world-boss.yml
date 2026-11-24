@@ -2,14 +2,14 @@ name: World boss · SQL on PostgreSQL
 on:
   pull_request:
     branches: [codex-build]
-    paths: ['supabase/**', 'tests/pg/worldBoss.test.ts', 'scripts/qa/world-boss-pg.sh', 'src/worldBoss/**', '.github/workflows/world-boss.yml']
+    paths: ['supabase/**', 'tests/pg/worldBoss.test.ts', 'scripts/qa/world-boss-*', 'src/worldBoss/**', 'src/ui/WorldBossPanel.tsx', 'src/ui/worldBoss.css', 'src/ui/MailPanel.tsx', '.github/workflows/world-boss.yml']
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   sql:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,3 +19,12 @@ jobs:
       - run: npm ci
       - name: World boss migration, concurrency, last hit and one-time rewards (scratch cluster)
         run: bash scripts/qa/world-boss-pg.sh
+      - run: npx playwright install --with-deps chromium
+      - name: World boss in the game UI (scratch database, local server, 320–430 px)
+        run: bash scripts/qa/world-boss-e2e.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: world-boss-ui
+          path: .tmp/world-boss/
+          if-no-files-found: ignore
