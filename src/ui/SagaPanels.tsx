@@ -42,7 +42,8 @@ import {slotNames,slots,rarityNames,classNames} from '../data/catalog';
 import {sets,setIds,setOf,setCounts,perkOf,perks,perkIds,engravings,engraveOf,materials,materialIds,matCount,dropRules,setChance,professions,professionWorkKey,masterworkStartStage,masterworkStatMultiplier,type SetId,type EngraveId} from '../saga/gear';
 import {specs,specIndex} from '../saga/specs';
 import {branches,branchOf,evoName,evoPower,nextEvolution,BRANCH_LEVEL,combos} from '../saga/companions';
-import {reforge,reforgePlan,engrave,engravePlan,craftSet,craftPlan,setUnlocked,trade,pickSpec,pickBranch,buildsOf,saveBuild,applyBuild,forgeLevel} from '../saga/actions';
+import {reforge,reforgePlan,engrave,engravePlan,craftSet,craftPlan,setUnlocked,trade,pickSpec,pickBranch,buildsOf,saveBuild,applyBuild,forgeLevel,learnProfession,practiceProfession} from '../saga/actions';
+import {personalWorkshop,workshopMastery,workshopRecipe,workshopRanks,workshopMaxXp,practiceMaterials,practiceXp,personalCraftXp,type ProfessionId} from '../saga/professions';
 import {dailyView,weeklyView,storyQuests,activeStory,masteryView,masteryTiers,masteryGems,claimBoard,claimStory,claimMastery,ensureQuests,type QuestView} from '../saga/quests';
 import {actualReward} from '../saga/events';
 import {rewardText,type Reward} from '../saga/rewards';
@@ -95,34 +96,72 @@ export function Recipes({p,onFreeSpace,workshop=false}:{p:Player;onFreeSpace:()=
  const openSource=useGame(s=>s.open),[set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost');
  const [slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice');
  const [master,setMaster]=useState<(typeof professions)[number]['id']|undefined>(workshop?professions[0].id:undefined);
+ const [workshopPage,setWorkshopPage]=useState<'personal'|'npc'>(()=>personalWorkshop(p)?'personal':'npc');
+ const [candidate,setCandidate]=useState<ProfessionId>();
  const recipePanel=workshop?'workshops':'forge';
- const profession=professions.find(entry=>entry.id===master);
+ const personal=workshop&&workshopPage==='personal',owned=personalWorkshop(p);
+ const profession=professions.find(entry=>entry.id===(personal?owned?.profession:master));
  const craftSlots:readonly Slot[]=profession?.slots??slots.filter(s=>s!=='wings');
+ const selectedSlot=craftSlots.includes(slot)?slot:craftSlots[0];
  const mastersOpen=p.stage>=masterworkStartStage,open=setUnlocked(p,set),n=setCounts(p)[set];
  const plan=craftPlan(set,p,!!profession);
+ const recipe=personal?workshopRecipe(p,set):undefined;
+ const {current,next}=workshopMastery(owned?.xp??0);
+ const selectedProfession=professions.find(entry=>entry.id===candidate);
  const chooseMaster=(next?:typeof profession)=>{
   setMaster(next?.id);
   if(next&&!(next.slots as readonly Slot[]).includes(slot))setSlot(next.slots[0]);
  };
- const bonus=Math.round((masterworkStatMultiplier-1)*100);
+ const bonus=recipe?.mastery.bonus??Math.round((masterworkStatMultiplier-1)*100);
  const full=p.inventory.length>=balance.loot_test_settings.starter_inventory_capacity;
- const ready=!full&&open&&(!profession||mastersOpen)&&p.gold>=plan.gold&&matCount(p,plan.material)>=plan.mats;
- return <div className="saga-section"><h3>Рецепты комплектов</h3><Materials p={p}/>
-  <div className="tabs wrap" role="group" aria-label={workshop?'Мастерские гавани':'Мастера кузницы'}>
+ const ready=!full&&open&&(!profession||mastersOpen)&&(!recipe||recipe.available)&&p.gold>=plan.gold&&matCount(p,plan.material)>=plan.mats;
+ return <div className="saga-section">
+  {workshop&&<>
+   <div className="tabs wrap" role="group" aria-label="Вид мастерской">
+    <button type="button" aria-pressed={personal} className={personal?'selected':''} onClick={()=>setWorkshopPage('personal')}>Личная мастерская</button>
+    <button type="button" aria-pressed={!personal} className={!personal?'selected':''} onClick={()=>setWorkshopPage('npc')}>Мастера гавани</button>
+   </div>
+   <details className="saga-disclosure"><summary>Справочник профессий</summary>
+    <ul>{professions.map(entry=><li key={entry.id}><strong>{entry.name}</strong> · {entry.slots.map(id=>slotNames[id]).join(', ')}</li>)}</ul>
+    <p>Материалы дают победы в регионах. Тренируйтесь и изготавливайте вещи, чтобы открывать рецепты и улучшать качество.</p>
+    <ul>{workshopRanks.map(rank=><li key={rank.xp}>{rank.name} · {rank.xp} опыта · {rank.regions} комплекта · +{rank.bonus}%</li>)}</ul>
+    <p>Остальные профессии доступны через заказы мастерам гавани.</p>
+   </details>
+  </>}
+  {personal&&!owned?<>
+   <h3>Выбор профессии</h3>
+   {mastersOpen?<>
+    <p className="hint">Выберите одну постоянную специальность для этого героя.</p>
+    <div className="tabs wrap" role="group" aria-label="Выбор профессии">{professions.map(entry=><button key={entry.id} type="button" aria-pressed={candidate===entry.id} className={candidate===entry.id?'selected':''} onClick={()=>setCandidate(entry.id)}>{entry.name}</button>)}</div>
+    {selectedProfession&&<><p>{selectedProfession.slots.map(id=>slotNames[id]).join(', ')}</p><Btn onClick={()=>learnProfession(selectedProfession.id)}>Подтвердить выбор</Btn></>}
+   </>:<p className="hint">Личная мастерская открывается после победы над владыкой первого региона.</p>}
+  </>:<>
+  {personal&&owned&&profession&&<>
+   <h3>{profession.name} · {current.name}</h3>
+   {next?<><p>Опыт профессии {owned.xp} / {next.xp} · далее {next.name}</p><progress aria-label="Опыт профессии" value={owned.xp} max={next.xp}/></>:<p>Максимальное мастерство · {workshopMaxXp} опыта</p>}
+  </>}
+  <h3>Рецепты комплектов</h3><Materials p={p}/>
+  {!personal&&<div className="tabs wrap" role="group" aria-label={workshop?'Мастерские гавани':'Мастера кузницы'}>
    {!workshop&&<button type="button" aria-pressed={!master} className={!master?'selected':''} onClick={()=>chooseMaster()}>Обычные рецепты</button>}
    {professions.map(entry=><button type="button" key={entry.id} aria-pressed={master===entry.id} className={master===entry.id?'selected':''} onClick={()=>chooseMaster(entry)}>{entry.name}</button>)}
-  </div>
+  </div>}
   {profession&&<p className="hint">{mastersOpen?`+${bonus}% к базовым характеристикам · редкий предмет без случайного броска`:'Мастера принимают заказы после победы над владыкой первого региона.'}</p>}
   {workshop&&mastersOpen&&profession&&<p className="hint">Изготовлено предметов · {count(p,professionWorkKey(profession.id))}</p>}
-  <div className="tabs wrap" role="group" aria-label="Комплекты для ковки">{setIds.map(id=><button key={id} aria-pressed={set===id} className={set===id?'selected':''} onClick={()=>setSet(id)} style={{'--tone':sets[id].color} as React.CSSProperties}>{setUnlocked(p,id)?'':'🔒 '}{sets[id].name}</button>)}</div>
+  <div className="tabs wrap" role="group" aria-label="Комплекты для ковки">{setIds.map(id=><button key={id} aria-pressed={set===id} className={set===id?'selected':''} onClick={()=>setSet(id)} style={{'--tone':sets[id].color} as React.CSSProperties}>{setUnlocked(p,id)&&(!personal||workshopRecipe(p,id).available)?'':'🔒 '}{sets[id].name}</button>)}</div>
   <div className="set-line" style={{'--tone':sets[set].color} as React.CSSProperties}><strong>{sets[set].name} · {sets[set].tag} · надето {n}/6</strong><ol>{sets[set].bonuses.map((b,i)=><li key={i} className={n>=(i+1)*2?'on':''}><b>{(i+1)*2}</b><span>{b}</span></li>)}</ol></div>
-  <div className="inventory-order"><span>Слот</span><CompactFilter label="Слот для ковки" value={slot} onChange={v=>setSlot(v as Slot)} options={craftSlots.map(s=>({value:s,label:slotNames[s]+(setOf(p.equipment[s])===set?' ✓':'')}))}/></div>
+  <div className="inventory-order"><span>Слот</span><CompactFilter label="Слот для ковки" value={selectedSlot} onChange={v=>setSlot(v as Slot)} options={craftSlots.map(s=>({value:s,label:slotNames[s]+(setOf(p.equipment[s])===set?' ✓':'')}))}/></div>
+  {recipe&&!recipe.available&&<p className="hint">Требуется звание «{recipe.required.name}». Этот комплект можно заказать мастеру гавани.</p>}
   {full&&<div className="capacity-help"><p className="hint">Рюкзак полон. Для готовой вещи нужно свободное место. В рюкзаке можно разобрать выбранную вещь.</p><Btn kind="secondary" onClick={onFreeSpace}>Освободить место</Btn></div>}
-  <Btn disabled={!ready} onClick={()=>{if(useGame.getState().panel===recipePanel)craftSet(set,slot,!!profession)}}>{open?`Выковать ур.${plan.level} · ${rarityNames[plan.rarity]}${profession?'':'+'} · ${plan.gold.toLocaleString('ru')} золота · ${plan.mats} × ${materials[plan.material].name}`:`Откроется в регионе «${regions[sets[set].region].name}»`}</Btn>
+  <Btn disabled={!ready} onClick={()=>{if(useGame.getState().panel===recipePanel)craftSet(set,selectedSlot,personal?'personal':!!profession)}}>{open?`Выковать ур.${plan.level} · ${rarityNames[plan.rarity]}${profession?'':'+'} · ${plan.gold.toLocaleString('ru')} золота · ${plan.mats} × ${materials[plan.material].name}`:`Откроется в регионе «${regions[sets[set].region].name}»`}</Btn>
+  {personal&&owned&&recipe&&next&&<>
+   <p className="hint">Своя ковка даёт до {Math.min(personalCraftXp,workshopMaxXp-owned.xp)} опыта профессии.</p>
+   <Btn kind="secondary" disabled={!open||!recipe.available||recipe.stock<practiceMaterials} onClick={()=>practiceProfession(set,owned.xp)}>Тренировать мастерство · +{Math.min(practiceXp,workshopMaxXp-owned.xp)} опыта за {practiceMaterials} × {materials[recipe.material].name}</Btn>
+  </>}
   <Btn kind="secondary" onClick={()=>openSource(`source:${plan.material}:${recipePanel}`)}>Где получить · {materials[plan.material].name}</Btn>
   <p className="hint">Материалы дают победы в регионе: {Math.round(dropRules.materialWave*100)}% за встречу, {dropRules.materialBoss} за стража, {dropRules.materialFinale} за владыку. {!profession&&' Благословение даёт шанс выковать вещь на ступень лучше.'}</p>
   <div className="inventory-order"><span>Обмен 3 → 1</span><CompactFilter label="Материал для обмена" value={from} onChange={setFrom} options={materialIds.map(id=>({value:id,label:`${materials[id].name} (${matCount(p,id)})`}))}/></div>
   <Btn kind="secondary" disabled={matCount(p,from)<3||from===plan.material} onClick={()=>trade(from,plan.material)}>Обменять на {materials[plan.material].name}</Btn>
+  </>}
  </div>;
 }
 /** Honest drop table of sets and named trophies. */
