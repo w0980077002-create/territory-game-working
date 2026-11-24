@@ -2,6 +2,7 @@ import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {classNames} from '../data/catalog';
 import {tg} from '../core/telegram';
 import type {Player} from '../core/types';
+import {useGame} from '../core/store';
 import {communityEnabled,requestTeamArena,type Ranking} from '../community/client';
 import {arenaHeroes,zones,type ArenaElixir,type ArenaHero,type ArenaMessage,type ArenaZone} from '../arena/protocol';
 import {ArenaBelt,BattleStage,RoomMessages} from './ArenaBattleParts';
@@ -32,6 +33,8 @@ const left=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
 const isSearch=(view:TeamSearch|TeamBattle):view is TeamSearch=>'queued' in view;
 
 export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
+ const open=useGame(state=>state.open);
+ const [rulesOpen,setRulesOpen]=useState(false);
  const [mode,setMode]=useState<Mode>(),[podium,setPodium]=useState<Podium>(),[notice,setNotice]=useState('');
  const [room,setRoom]=useState<Reply['view']>(),[hero,setHero]=useState<ArenaHero>(player.heroClass),[busy,setBusy]=useState(false);
  const [now,setNow]=useState(Date.now()), flight=useRef(false),revision=useRef(0);
@@ -106,14 +109,17 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
  </section>;
  function chooseLobby(){setMode(undefined);setNotice('');}
  return <section className="vvr-arena" aria-label="Арена">
-  <div className="vvr-arena-banner" aria-hidden="true"/>
+  <div className="vvr-arena-banner">
+   <button type="button" className="vvr-banner-city" aria-label="Город" onClick={()=>open('port')}/>
+   <button type="button" className="vvr-banner-rules" aria-label="Правила Арены" aria-expanded={rulesOpen} onClick={()=>setRulesOpen(open=>!open)}/>
+  </div>
   <div className="vvr-arena-stats" aria-label="Статистика Арены">
    {[['Рейтинг',podium?.points,'trophy'],['Победы',podium?.wins,'laurel'],['Поражения в отряде',podium?.teamLosses,'skull']].map(([label,value,icon])=>
     <div key={label}><img alt="" src={arenaArt('icon-'+icon+'.svg')}/><strong>{value??'—'}</strong><small>{label}</small></div>)}
   </div>
-  <details className="vvr-arena-rules"><summary>Правила</summary>
+  {rulesOpen&&<div className="vvr-arena-rules">
    <p>Поиск длится 20 секунд в Дуэли и Отряде и 30 секунд в Хаосе. Сетевые бои не расходуют энергию. Бой с ботами — тренировка. Рейтинговое очко получает победитель завершённого боя с игроками. Чат доступен во время боя и ещё 30 минут.</p>
-  </details>
+  </div>}
   <section className="vvr-arena-podium" aria-label="ТОП-50 Арены">
    <h3><Icon name="crown"/> ТОП-50 Арены</h3>
    {podium?.rows.length?<><ol className="vvr-podium">{podium.rows.slice(0,3).map((row,index)=>
