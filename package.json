@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "arena:build": "VITE_ARENA_ENABLED=1 vite build --outDir .tmp/arena/web && esbuild server/arena/main.ts --bundle --platform=node --target=node22 --format=esm --outfile=.tmp/arena/server.mjs",
+    "arena:edge:build": "esbuild supabase/functions/vvr-arena/index.ts --bundle --minify --platform=browser --format=esm --target=es2022 --outfile=.tmp/arena-edge/index.js",
     "arena:local": "ARENA_LOCAL=1 node .tmp/arena/server.mjs",
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "test": "tsx --test tests/*.test.ts",
-    "lint": "eslint src/ui/carnival src/ui/App.tsx src/ui/DarkPanels.tsx src/ui/SagaUI.tsx src/ui/HarborScene.tsx src/ui/OnlineArena.tsx src/ui/CommunityPanel.tsx src/community src/arena server/arena src/core/store.ts tests/notices.test.ts tests/online-arena.test.ts",
+    "lint": "eslint src/ui/carnival src/ui/App.tsx src/ui/DarkPanels.tsx src/ui/SagaUI.tsx src/ui/HarborScene.tsx src/ui/OnlineArena.tsx src/ui/ArenaHub.tsx src/ui/ArenaBattleParts.tsx src/ui/CommunityPanel.tsx src/community src/arena server/arena src/core/store.ts tests/notices.test.ts tests/online-arena.test.ts",
     "test:windows": "node scripts/qa/windows.cjs",
     "test:buttons": "node scripts/qa/button-routes.cjs",
     "test:natural": "node scripts/qa/natural-start.cjs"

@@ -67,3 +67,19 @@ export function readW066Snapshot(previous:boolean){
 export function storeW066Snapshot(expected:number,requestId:string,raw:string){
  return authenticated<number>('',{expected,requestId,raw},undefined,'/backup');
 }
+
+export async function requestTeamArena<T>(body:object):Promise<T>{
+ if(!endpoint)throw new CommunityError(503);
+ const url=new URL(endpoint,location.href);
+ url.pathname=url.pathname.replace(/vvr-community\/?$/,'vvr-arena');
+ const response=await fetch(url,{
+  method:'POST',credentials:'omit',signal:AbortSignal.timeout(7500),
+  headers:{'Content-Type':'application/json',Authorization:'Bearer '+await connectCommunity()},
+  body:JSON.stringify(body),
+ });
+ if(!response.ok){
+  if(response.status===401)session=undefined;
+  throw new CommunityError(response.status);
+ }
+ return response.json() as Promise<T>;
+}

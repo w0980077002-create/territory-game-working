@@ -25,8 +25,37 @@ pg < tests/pg/w066-community.sql
 pg < tests/pg/w066-snapshots.sql
 pg < tests/pg/w066-equipment.sql
 pg < tests/pg/w066-arena-scores.sql
+pg < tests/pg/w066-arena-rooms.sql
 pg < tests/pg/w066-guild-rosters.sql
 pg < tests/pg/w066-guild-boss-quests.sql
+pg -c "select vvr.resolve_player((73000+i)::text,'Arena simultaneous client') from generate_series(0,39) i" >/dev/null
+docker exec -i "$container" sh -c 'cat > /tmp/arena-join.sql' <<'SQL'
+select public.vvr_arena_join(id,'chaos') from vvr.players where telegram_id=(73000+:client_id)::text;
+SQL
+docker exec "$container" pgbench -n -c 40 -j 4 -t 1 -U postgres -f /tmp/arena-join.sql postgres > "$results/arena"
+grep -Fq 'number of transactions actually processed: 40/40' "$results/arena"
+pg <<'SQL'
+do $$
+begin
+ assert (select count(*) from vvr.arena_rooms)=1;
+ assert (select count(*) from vvr.arena_room_seats)=40;
+ assert (select ready_at is not null from vvr.arena_rooms);
+end;
+$$;
+SQL
+docker exec -i "$container" sh -c 'cat > /tmp/arena-checkpoint.sql' <<'SQL'
+select public.vvr_arena_checkpoint(id,0,jsonb_build_object('id',id,'client',:client_id),false) from vvr.arena_rooms;
+SQL
+docker exec "$container" pgbench -n -c 40 -j 4 -t 1 -U postgres -f /tmp/arena-checkpoint.sql postgres > "$results/arena"
+grep -Fq 'number of transactions actually processed: 40/40' "$results/arena"
+pg <<'SQL'
+do $$
+begin
+ assert (select revision=1 and (snapshot->>'client')::int between 0 and 39 from vvr.arena_rooms);
+end;
+$$;
+SQL
+node --import tsx scripts/qa/team-arena-rpc.ts "$container"
 listing=$(pg -At <<'SQL'
 select vvr.resolve_player('71001','Seller') as seller,
        vvr.resolve_player('71002','Buyer A') as buyer_a,

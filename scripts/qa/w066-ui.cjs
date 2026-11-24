@@ -1,5 +1,6 @@
 const assert=require('node:assert/strict');
 const {chromium}=require('playwright');
+const {mkdirSync}=require('node:fs');
 
 const site=process.env.BASE_URL||'http://127.0.0.1:18791/';
 const endpoint=process.env.COMMUNITY_URL||'http://127.0.0.1:18792/functions/v1/vvr-community';
@@ -62,6 +63,40 @@ const listing='11111111-1111-1111-1111-111111111111';
      }
      if(action==='ranking')data={season:{name:'Северный сезон'},seasons:[],rows:[{rank:1,name:'Алиса',points:70,mine:true}]};
      await route.fulfill({json:data,headers});
+    });
+    let roomPolls=0, battleCalls=0, arenaMode='team', teamChat='', conflictCommand;
+    await context.route(endpoint.replace(/vvr-community$/,'vvr-arena'),async route=>{
+     const req=route.request();
+     const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization'};
+     if(req.method()==='OPTIONS'){await route.fulfill({status:204,headers});return;}
+     assert.equal(req.headers().authorization,'Bearer isolated-session');
+     const data=req.postDataJSON();
+     const players=Array.from({length:arenaMode==='team'?6:40},(_,i)=>({
+      id:i?'fighter-'+i:listing,hero:i?'berserker':'ranger',name:i?'Боец '+i:'Алиса',side:i%2,hp:100,maxHp:100,damage:0,kills:0,
+     }));
+     if(data.action==='join'){arenaMode=data.mode;roomPolls=0;}
+     if(data.action==='command'){
+      if(data.command.kind==='strike'&&battleCalls===0){
+       if(!conflictCommand){
+        conflictCommand=data.command;
+        await route.fulfill({status:409,json:{error:'arena_room_changed'},headers});return;
+       }
+       assert.deepEqual(data.command,conflictCommand);
+      }
+      battleCalls++;
+      if(data.command.kind==='chat')teamChat=data.command.text;
+     }
+     const view=data.action==='join'||data.action==='room'&&++roomPolls<2?
+      {id:listing,mode:arenaMode,closesAt:new Date(Date.now()+20_000).toISOString(),queued:1,roster:[{id:listing,name:'Алиса'}]}:
+      {id:listing,mode:arenaMode,training:false,sideDeadline:[Date.now()+60_000,Date.now()+60_000],chatDeadline:null,
+       players,log:[],chat:teamChat?[{id:1,text:teamChat,author:'Алиса'}]:[],you:{
+        id:listing,side:0,auto:false,belt:{heal_small:2,heal_large:1,attack:1,defense:1,crit:1,time:1,adrenaline:0},
+        itemReadyAt:{},nextStrikeAt:0,nextSequence:battleCalls+1,
+       }};
+     const result=data.action==='podium'?{points:10,wins:10,teamLosses:2,rows:[
+      {rank:1,name:'Алиса',points:10,mine:true},{rank:2,name:'Бьёрн',points:2},{rank:3,name:'Ивар',points:1},
+     ]}:data.action==='current'?null:{accepted:true,view};
+     await route.fulfill({json:result,headers});
     });
     const page=await context.newPage();
     page.setDefaultTimeout(10000);
@@ -127,10 +162,48 @@ const listing='11111111-1111-1111-1111-111111111111';
     await previous().click();
     await page.getByRole('dialog',{name:'Приключения'}).getByRole('button',{name:/^Арена/}).tap();
     assert.equal(await page.locator('details:has-text("Одиночный поединок")').getAttribute('open'),null);
+    const hub=page.getByRole('region',{name:'Арена',exact:true});
+    await hub.getByRole('heading',{name:'ТОП-50 Арены'}).waitFor();
+    await hub.getByText('Бьёрн',{exact:true}).waitFor();
+    await button('Правила Арены').tap();
+    await hub.getByText(/Сетевые бои не расходуют энергию/).waitFor();
+    await button('Правила Арены').tap();
+    const screenshots='.tmp/window-qa/online-arena/';
+    mkdirSync(screenshots,{recursive:true});
+    await hub.screenshot({path:screenshots+'lobby-'+width+'.png'});
+    await button(/Отряд.*3×3/).tap();
+    await button('Начать поиск').tap();
+    await hub.getByText('Участники · 1/6',{exact:true}).waitFor();
+    const battle=hub.getByRole('region',{name:'Арена 3×3'});
+    await battle.getByText('Бой игроков · 3×3',{exact:true}).waitFor();
+    const guards=battle.getByRole('group',{name:'Защита · 2 зоны'});
+    await guards.getByRole('button',{name:'Грудь'}).tap();
+    await guards.getByRole('button',{name:'Ноги'}).tap();
+    await battle.getByRole('button',{name:'Ударить'}).tap();
+    await battle.getByRole('button',{name:'Ударить'}).waitFor();
+    await battle.getByRole('button',{name:'Боевой чат'}).tap();
+    const chatInput=battle.getByRole('textbox',{name:'Сообщение'});
+    assert.ok((await chatInput.boundingBox()).width>=70,'chat input must remain usable on a compact phone');
+    await chatInput.fill('Держим строй!');
+    await battle.getByRole('button',{name:'Отправить'}).tap();
+    await battle.getByText(/Держим строй!/).waitFor();
+    assert.equal(await battle.locator('.vvr-arena-belt button').count(),7);
+    const widthFits=await battle.evaluate(node=>node.scrollWidth<=node.clientWidth+2);
+    assert.ok(widthFits,'compact battle controls fit the mobile viewport');
+    await battle.locator('.vvr-battle-stage').scrollIntoViewIfNeeded();
+    await page.screenshot({path:screenshots+'team-'+width+'.png'});
+    await button('‹ Арена').tap();
+    await button(/Хаос.*20×20/).tap();
+    await button('Начать поиск').tap();
+    await hub.getByText('Участники · 1/40',{exact:true}).waitFor();
+    await hub.getByText('Бой игроков · 20×20',{exact:true}).waitFor();
+    await button('‹ Арена').tap();
+    await button(/Дуэль.*1×1/).tap();
     await button('Войти через Telegram').click();
     await button('Найти соперника').waitFor();
     await page.reload();
     await button('Арена').tap();
+    await button(/Дуэль.*1×1/).tap();
     await button('Найти соперника').waitFor();
     console.log(width+' px: verified Pages Arena connection, Solo save, auction, trade chat, rankings and guilds');
    }finally{await context.close();}

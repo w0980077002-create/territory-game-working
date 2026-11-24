@@ -1,7 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {CHAT_MS,MATCH_WAIT_MS,type ArenaCommand,type ArenaHero,type ArenaKit,type ArenaView} from '../../src/arena/protocol';
-import {advance,appendMessage,applyCommand,compatible,forfeit,newMatch,viewMatch,type Entrant,type Match} from './duel';
+import {advance,appendMessage,applyCommand,blockedBattleChat,compatible,forfeit,newMatch,normalizeBattleChat,viewMatch,type Entrant,type Match} from './duel';
 import type {ArenaIdentity} from './auth';
 import {DEFAULT_ARENA_LEVEL} from './roster';
 
@@ -18,7 +18,6 @@ const ownsControl=(player:Entrant,actor:Actor,revision:number)=>
 export const QUEUE_IDLE_MS=12_000;
 const MAX_ACTIVE=128;
 const trainingRating=1000;
-const blockedChat=/(https?:\/\/|www\.|t\.me|telegram\.me|startapp\s*=|ref_[a-f\d]{14})/iu;
 
 export class ArenaService {
  private readonly db:DatabaseSync;
@@ -218,9 +217,9 @@ export class ArenaService {
    const match=state.matches.find(room=>room.id===id);
    const player=match?.players.find(other=>other.id===actor.id);
    if(!match||!player)throw new ArenaError(404,'Комната недоступна');
-   const value=raw.normalize('NFKC').replace(/\p{Cf}/gu,'').replace(/\p{Cc}/gu,' ').trim().slice(0,200);
+   const value=normalizeBattleChat(raw);
    if(!value)throw new ArenaError(400,'Введите сообщение');
-   if(blockedChat.test(value))throw new ArenaError(400,'Ссылки в боевом чате запрещены');
+   if(blockedBattleChat.test(value))throw new ArenaError(400,'Ссылки в боевом чате запрещены');
    if(player.lastChatAt!==undefined&&now-player.lastChatAt<1000)
     throw new ArenaError(429,'Подождите секунду перед отправкой');
    player.lastChatAt=now;

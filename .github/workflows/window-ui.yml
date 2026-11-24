@@ -38,6 +38,8 @@ jobs:
             sleep 1
           done
           node scripts/qa/w066-ui.cjs
+      - name: Build the W066 Arena Edge Function
+        run: npm run arena:edge:build
       - name: Measure local PostgreSQL Arena queue and checkpoint recovery
         run: bash scripts/qa/arena-rpc-assessment.sh
       - uses: actions/upload-artifact@v4

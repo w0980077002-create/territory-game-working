@@ -1,0 +1,81 @@
+.vvr-arena { display: grid; gap: 8px; color: #f9e9ca; min-width: 0; }
+.vvr-arena-banner {
+  position: relative; aspect-ratio: 941 / 267; border: 1px solid #9b7242; border-radius: 10px;
+  background: #33251b url('../../public/art/arena/stadium.webp') center / cover;
+  box-shadow: 0 3px 12px #19120d9e;
+}
+.vvr-arena-stats {
+  display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 3px;
+  background: #29201b url('../../public/art/arena/arena-stats-ornament.svg') center / 100% 100%;
+  border: 1px solid #9e774c; border-radius: 8px; padding: 8px 5px;
+}
+.vvr-arena-stats > div { display: grid; grid-template-columns: 25px minmax(0,1fr); align-items: center; gap: 2px 5px; text-align: left; }
+.vvr-arena-stats img { width: 24px; height: 26px; grid-row: 1 / span 2; }
+.vvr-arena-stats strong { font-size: 17px; line-height: 1; color: #ffe4a8; }
+.vvr-arena-stats small { font-size: 10px; line-height: 1.1; overflow-wrap: anywhere; }
+.vvr-arena-podium,.vvr-arena-rules,.vvr-arena-search {
+  background: linear-gradient(145deg,#382a22,#1b1a22); border: 1px solid #7d6855; border-radius: 8px; padding: 8px;
+}
+.vvr-arena-podium h3 { margin: 0 0 6px; display: flex; gap: 6px; align-items: center; color: #ffe8ac; }
+.vvr-arena-podium h3 .icon { height: 20px; width: 20px; }
+.vvr-arena-podium ol { margin: 6px 0 0; padding: 0; list-style: none; }
+.vvr-arena-podium .vvr-podium { display: grid; align-items: end; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
+.vvr-podium li { display: grid; justify-items: center; gap: 3px; background: #503b2b; border: 1px solid #a68554; border-radius: 6px; padding: 5px; overflow: hidden; text-align: center; }
+.vvr-podium li:first-child { grid-column: 2; grid-row: 1; background: linear-gradient(#6e4c1e,#352618); border-color: #dcad5e; padding-top: 10px; }
+.vvr-podium li:nth-child(2) { grid-column: 1; grid-row: 1; }
+.vvr-podium li:nth-child(3) { grid-column: 3; grid-row: 1; }
+.vvr-podium strong { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.vvr-podium b { color: #ffdf87; }
+.vvr-arena-modes { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; }
+.vvr-arena-mode {
+  min-width: 0; padding: 0 0 5px; overflow: hidden; display: grid; gap: 2px; justify-items: center;
+  background: linear-gradient(#382711,#211811); border: 1px solid #a78652; border-radius: 8px; color: #ffebc4; cursor: pointer;
+  text-align: center; box-shadow: inset 0 1px #ffde8142,0 3px 6px #09080780;
+}
+.vvr-arena-mode img { width: 100%; aspect-ratio: 1.05; object-fit: cover; object-position: center 40%; }
+.vvr-arena-mode strong { text-transform: uppercase; letter-spacing: .035em; font-size: 13px; }
+.vvr-arena-mode b { color: #fbe7b3; font-size: 13px; }
+.vvr-arena-mode small { font-size: 10px; padding: 0 3px; }
+.vvr-arena-mode.mode-team { background: linear-gradient(#21414a,#17252e); border-color: #7194a3; }
+.vvr-arena-mode.mode-chaos { background: linear-gradient(#4b2b25,#271e23); border-color: #ac6c55; }
+.vvr-arena-back {
+  justify-self: start; color: #ffebc4; border: 1px solid #9b7242; background: #3b2b24;
+  border-radius: 6px; padding: 8px 12px; font: inherit; min-height: 38px; cursor: pointer;
+}
+.vvr-arena-search ul { max-height: 170px; overflow: auto; padding-left: 20px; }
+.vvr-arena .online-arena { background: linear-gradient(#271c17,#19151a); }
+.vvr-battle-stage {
+  background: linear-gradient(#24151306 35%,#170d05a8),url('../../public/art/arena/battle.webp') center 52% / cover;
+  border: 1px solid #9d794f; border-radius: 8px; gap: 10px; padding: 6px;
+  box-shadow: inset 0 0 18px #23130e99;
+}
+.vvr-battle-stage .online-fighter { grid-template-rows: minmax(75px,1fr) auto auto auto auto; font-size: 12px; color: white; text-shadow: 0 2px 3px #150901; }
+.vvr-fighter-art { position: relative; display: flex; align-items: end; justify-content: center; width: 100%; }
+.vvr-battle-stage .vvr-fighter-art img { width: min(100%,105px); height: 99px; filter: drop-shadow(0 4px 3px #170c04a6); }
+.vvr-battle-stage .vvr-fighter-art .vvr-companion { width: 36px; height: 34px; position: absolute; inset: auto auto 0 0; z-index: 1; }
+.vvr-battle-stage .online-fighter:nth-child(2) .vvr-fighter-art { transform: scaleX(-1); }
+.vvr-battle-stage progress { height: 9px; accent-color: #9dc565; }
+.vvr-battle-stage .online-fighter:nth-child(2) progress { accent-color: #df6c56; }
+.vvr-arena-belt { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 3px; }
+.vvr-arena-belt button {
+  position: relative; aspect-ratio: 1; border: 1px solid #977953; border-radius: 5px; background: #281f19; color: #ffdf99;
+  min-width: 0; padding: 3px; cursor: pointer;
+}
+.vvr-arena-belt button:disabled { opacity: .55; cursor: default; }
+.vvr-arena-belt .icon { width: min(100%,25px); height: min(100%,25px); }
+.vvr-arena-belt small { position: absolute; right: 3px; bottom: 0; background: #22160c; border-radius: 3px; line-height: 1; }
+@media (prefers-reduced-motion: no-preference) {
+ .vvr-battle-stage .vvr-hero { animation: vvr-arena-strike .28s ease-out; }
+ @keyframes vvr-arena-strike {
+  0% { transform: translateX(-4px); opacity: .7; filter: brightness(1.45); }
+  65% { transform: translateX(2px); }
+ }
+}
+ .vvr-arena-banner button {
+  position: absolute; top: 15%; width: 24%; height: 48%; border: 0; border-radius: 7px;
+  background: transparent; cursor: pointer;
+ }
+ .vvr-arena-banner button:focus-visible { outline: 2px solid #ffedbc; }
+ .vvr-banner-city { left: 1%; }
+ .vvr-banner-rules { right: 1%; }
+ .online-arena .online-messages form .action { flex: 0 0 auto; width: auto; padding-inline: 8px; font-size: 12px; }
