@@ -16,6 +16,7 @@ pg() { docker exec -i "$container" psql -Xq -v ON_ERROR_STOP=1 -U postgres "$@";
 pg -c 'create role anon; create role authenticated; create role service_role;'
 for file in supabase/migrations/*.sql; do pg -1 < "$file"; done
 pg < tests/pg/w066-community.sql
+pg < tests/pg/w066-guild-rosters.sql
 listing=$(pg -At <<'SQL'
 select vvr.resolve_player('71001','Seller') as seller,
        vvr.resolve_player('71002','Buyer A') as buyer_a,
