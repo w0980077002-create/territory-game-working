@@ -1,0 +1,11 @@
+.blessing-odds { margin: 8px 0; padding: 8px; border: 1px solid #8a785766; border-radius: 8px; background: #0b141bcc; }
+.blessing-odds h4 { margin: 0 0 6px; color: #ffe5a8; font-size: 13px; }
+.blessing-odds ul { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.blessing-odds li { display: grid; grid-template-columns: 86px 1fr auto; align-items: center; gap: 6px; font-size: 11px; color: #f0ddbe; }
+.blessing-odds li span { color: var(--rarity); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.blessing-odds li i { height: 8px; border-radius: 4px; background: #2a2622; overflow: hidden; }
+.blessing-odds li i b { display: block; height: 100%; background: var(--rarity); border-radius: 4px; }
+.blessing-odds li em { font-style: normal; text-align: right; white-space: nowrap; min-width: 96px; }
+.blessing-odds li small.up { color: #9de08b; }
+.blessing-odds li small.down { color: #e0a08b; }
+@media (max-width: 359px) { .blessing-odds li { grid-template-columns: 72px 1fr auto; } .blessing-odds li em { min-width: 84px; } }

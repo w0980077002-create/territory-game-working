@@ -50,6 +50,7 @@ import {collectionReady} from '../saga/collections';
 import {CollectionHub} from './CollectionHub';
 import {backTarget,goBack} from './navStack';
 import {lang,setLang} from '../i18n';
+import {BlessingOdds} from './BlessingOdds';
 import {resCount,resources,duskCount,type ResId} from '../dark/rules';
 import {materials,matCount,materialIds,blessingEffects,blessingCanImprove} from '../saga/gear';
 import {shopQuote} from '../saga/shop';
@@ -391,6 +392,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   const percent=(value:number)=>(value*100).toLocaleString('ru',{maximumFractionDigits:1})+'%';
   const change=(key:keyof typeof current)=>percent(current[key])+(next[key]>current[key]?' → '+percent(next[key]):'');
   return <><div className="game-metrics"><span className="game-metric"><Icon name="crown"/>Ур. {p.blessing}</span><span>Редкость · {change('rarity')}</span></div>
+   <BlessingOdds level={p.blessing} canImprove={improves}/>
    <details className="saga-disclosure"><summary><Icon name="chest"/><span>Шансы добычи и ковки</span></summary>
     <div className="bonus-card"><span>+1 к редкости добычи · {change('rarity')}</span>
      <span>+1 к редкости обычной ковки · {change('craft')}</span>

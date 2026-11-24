@@ -16,3 +16,15 @@ test('exact strings, patterns and dot-separated parts translate; unknown text st
 test('Russian is the default without a saved choice or Telegram language',()=>{
  assert.equal(detectLang(),'ru');
 });
+test('adjacent placeholders may be empty, as in «ур.{0}{1}»',()=>{
+ loadDictionary({'ур.{0}{1}':'Lv.{0}{1}'});
+ assert.equal(translate('ур.1'),'Lv.1');assert.equal(translate('ур.37 +3'),'Lv.37 +3');
+});
+test('composite strings translate part by part, with numbers kept',()=>{
+ loadDictionary({'Золото':'Gold','Огонь · ожог 4 сек':'Fire · burn 4 s','бесплатно':'free','самоцветов':'gems','Купить':'Buy','· не надето':'· not equipped','Крылья':'Wings'});
+ assert.equal(translate('Золото × 250'),'Gold × 250');
+ assert.equal(translate('Огонь'),'Fire','split part of a known «·» entry');
+ assert.equal(translate('Огонь · бесплатно'),'Fire · free');
+ assert.equal(translate('Купить · 8 самоцветов'),'Buy · 8 gems');
+ assert.equal(translate('Крылья · не надето'),'Wings · not equipped');
+});
