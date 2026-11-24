@@ -42,14 +42,14 @@ export type ArenaResult = {
 export type ArenaMessage = {id:number;at:number;text:string;author?:string};
 export type ArenaMatchView = {
  id:string;bot:boolean;round:number;deadline:number;you:ArenaFighter;opponent:ArenaFighter;
- control:boolean;nextSequence:number;auto:boolean;belt:Record<ArenaElixir,number>;
+ control:boolean;controlRevision:number;nextSequence:number;auto:boolean;belt:Record<ArenaElixir,number>;
  itemReadyAt:Partial<Record<ArenaElixir,number>>;
  ready:Record<ArenaSkill,number>;log:ArenaMessage[];chat:ArenaMessage[];chatDeadline:number|null;
  result?:ArenaResult;
 };
 export type ArenaView = {
  now:number;level:number;points:number;
- queued?:{since:number;control:boolean};match?:ArenaMatchView;
+ queued?:{id:string;since:number;control:boolean;controlRevision:number};match?:ArenaMatchView;
  lastResult?:{id:string;chatDeadline:number};
 };
 export const LEVEL_RANGE = 7;
