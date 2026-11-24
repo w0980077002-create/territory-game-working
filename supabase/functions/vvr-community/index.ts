@@ -5,7 +5,7 @@ const roleKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const sessionKey=Deno.env.get('VVR_SESSION_SECRET')??'';
 const botToken=Deno.env.get('TELEGRAM_BOT_TOKEN')??'';
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim']);
 const maxInput=16_384;
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
@@ -24,6 +24,7 @@ function valid(action:string,body:Record<string,unknown>){
    return body.kind==='list'?keys===4&&isUuid(body.itemId)&&typeof body.price==='number'&&
     Number.isSafeInteger(body.price)&&body.price>=1&&body.price<=1_000_000_000:
     keys===3&&(body.kind==='buy'||body.kind==='cancel')&&isUuid(body.listingId);
+  case 'guild_boss_claim':return keys===1&&isUuid(body.eventId);
   case 'guild_roster':
    switch(body.kind){
     case 'create':return keys===2&&typeof body.name==='string'&&body.name.trim().length>=3&&body.name.length<=64;
@@ -99,7 +100,7 @@ Deno.serve(async request=>{
   const auth=request.headers.get('authorization');
   const player=auth?.startsWith('Bearer ')?await readVvrSession(auth.slice(7),sessionKey,now):undefined;
   if(!player)return reply(401,{error:'session_required'});
-  const endpoint=value.action==='guild'||value.action==='guild_roster'?'vvr_guild_community':'vvr_community';
+  const endpoint=value.action.startsWith('guild')?'vvr_guild_community':'vvr_community';
   const {ok,data}=await rpc(endpoint,{p_player:player,p_action:value.action,p_body:value.body});
   return ok?reply(200,data):reply(rpcError(data),{error:'community_request_rejected'});
  }catch{return reply(503,{error:'unavailable'});}

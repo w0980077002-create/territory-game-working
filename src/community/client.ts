@@ -12,6 +12,7 @@ export type GuildChange={kind:'create';name:string}|{kind:'apply'|'withdraw';gui
  {kind:'accept'|'reject';guild:string;applicant:string}|{kind:'leave'};
 type GuildRole='leader'|'member';
 export type GuildState={
+ quests:{id:string;name:string;target:number;damage:number;gold:number;canClaim:boolean;claimed:boolean}[];
  directory:{id:string;name:string;members:number;applied:boolean}[];
  guild:{id:string;name:string;role:GuildRole;members:{name:string;role:GuildRole}[];applications:{id:string;name:string}[]}|null;
 };

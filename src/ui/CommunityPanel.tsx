@@ -67,7 +67,7 @@ export function CommunityPanel(){
   catch(failure){setError(explain(failure));}
   finally{running.current=false;setBusy(false);}
  };
- const send=async(action:'trade'|'post'|'hide'|'guild_roster',body:Trade|GuildChange|{text:string}|{message:number},done:()=>void)=>{
+ const send=async(action:'trade'|'post'|'hide'|'guild_roster'|'guild_boss_claim',body:Trade|GuildChange|{text:string}|{message:number}|{eventId:string},done:()=>void)=>{
   if(running.current)return;
   const fingerprint=JSON.stringify([action,body]);
   const operation=pending.current?.key===fingerprint?pending.current.id:crypto.randomUUID();
@@ -175,6 +175,17 @@ export function CommunityPanel(){
      </button>
     </li>)}</ul>
    </>)}
+  {!!guildView?.quests?.length&&<section aria-label={l('Задания гильдии','Guild quests')}>
+   <h3>{l('Задания гильдии','Guild quests')}</h3>
+   <ul>{guildView.quests.map(quest=><li key={quest.id}>
+    <strong>{quest.name}</strong>
+    <span>{l('Общий урон','Combined damage')} · {format(quest.damage)} / {format(quest.target)}</span>
+    <span>{l('Награда','Reward')} · {format(quest.gold)} {l('золота','gold')}</span>
+    {quest.claimed&&<span>{l('Награда получена','Reward claimed')}</span>}
+    {quest.canClaim&&<button type="button" className="action" disabled={busy}
+     onClick={()=>void send('guild_boss_claim',{eventId:quest.id},()=>{})}>{l('Получить награду','Claim reward')}</button>}
+   </li>)}</ul>
+  </section>}
   {tab==='ranking'&&<>
    <label>{l('Категория','Category')} <select value={metric} onChange={event=>setMetric(event.target.value as Metric)}>
     <option value="world_boss_damage">{l('Урон мировому боссу','World boss damage')}</option><option value="arena_wins">{l('Победы на Арене','Arena wins')}</option>
