@@ -77,7 +77,8 @@ const story=async(mode:'team'|'chaos',size:number,startId:number)=>{
  const ordered=ready.players.map(({id}:{id:string})=>ids.indexOf(id));
  const fighter=(battle:any,index:number)=>battle.players.find((entry:any)=>entry.id===ids[index]);
  const move=(target:string,sequence:number)=>({kind:'strike',attack:'head',blocks:['chest','legs'],target,sequence});
- now+=1000;
+ const readyAt=Number(await sql("select floor(extract(epoch from ready_at)*1000) from vvr.arena_rooms where id=:'room';",{room}));
+ now=Math.max(now,readyAt)+1000;
  const pairs=await Promise.all([send(0,move(ids[1],1)),send(0,move(ids[1],1))]);
  assert.equal(pairs.filter(reply=>reply.accepted).length,1);
  let battle=pairs.find(reply=>reply.accepted).view;
