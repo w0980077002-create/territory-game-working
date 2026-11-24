@@ -11,14 +11,16 @@ import {deviceQualityCap} from './CombatVfx';
 
 /** Non-separable blends (hue, soft-light) are the costly part on budget GPUs: weak devices, or a
  * sustained slow frame rate, get a cheap translucent tint with the same palette instead. */
-const LOW_END=deviceQualityCap()<1;
-export const liteAtmosphere=(quality:number)=>LOW_END||quality<.6;
+let lowEnd=deviceQualityCap()<1;
+/** Tests pin the device tier so both looks are verified on any machine. */
+export function setAtmosphereTier(low:boolean){lowEnd=low}
+export const liteAtmosphere=(quality:number)=>lowEnd||quality<.6;
 
 interface Mood {sky:[string,string];skyAlpha:number;cloud:string;cloudAlpha:number;clouds:number;cloudSpeed:number;haze:string;hazeAlpha:number;ground:string;groundAlpha:number;signature:'none'|'storm'|'shafts'|'dust'|'sun'|'smoke';dim?:string;mist?:string}
 const MOODS:Record<string,Mood>={
  ice:{sky:['#ffffff','#ffffff'],skyAlpha:0,cloud:'#ffffff',cloudAlpha:.32,clouds:4,cloudSpeed:6,haze:'#e6f6ff',hazeAlpha:0,ground:'#ffffff',groundAlpha:0,signature:'none'},
  harbor:{sky:['#16283a','#6d8ea6'],skyAlpha:.6,cloud:'#55687c',cloudAlpha:.55,clouds:6,cloudSpeed:22,haze:'#b9cfdf',hazeAlpha:.28,ground:'#8ea8bd',groundAlpha:.32,signature:'storm',dim:'#8ea3b8'},
- forest:{sky:['#0f2c26','#5f9c86'],skyAlpha:.42,cloud:'#6f9c87',cloudAlpha:.4,clouds:5,cloudSpeed:7,haze:'#a8f0c8',hazeAlpha:.32,ground:'#8fc9a0',groundAlpha:.34,signature:'shafts',mist:'#dff5e8'},
+ forest:{sky:['#16302a','#6a9a8a'],skyAlpha:.3,cloud:'#6f9c87',cloudAlpha:.4,clouds:5,cloudSpeed:7,haze:'#a8f0c8',hazeAlpha:.32,ground:'#8fc9a0',groundAlpha:.34,signature:'shafts',mist:'#dff5e8'},
  peaks:{sky:['#3e3a36','#a8988a'],skyAlpha:.5,cloud:'#a99a8c',cloudAlpha:.45,clouds:5,cloudSpeed:12,haze:'#f0d6a8',hazeAlpha:.34,ground:'#c9b8a2',groundAlpha:.36,signature:'dust'},
  limes:{sky:['#b8611f','#ffc46a'],skyAlpha:.5,cloud:'#f3c98e',cloudAlpha:.42,clouds:5,cloudSpeed:9,haze:'#ffe2a8',hazeAlpha:.26,ground:'#f0d2a0',groundAlpha:.3,signature:'sun'},
  ember:{sky:['#1e0603','#c2421a'],skyAlpha:.6,cloud:'#3b2420',cloudAlpha:.6,clouds:6,cloudSpeed:10,haze:'#ff7a3a',hazeAlpha:.3,ground:'#8c7166',groundAlpha:.5,signature:'smoke',dim:'#a0705c',mist:'#d8cbc4'},
@@ -53,12 +55,35 @@ function skyLight(c:CanvasRenderingContext2D,m:Mood,strength:number,lite=false){
  if(m.dim){const d=c.createLinearGradient(0,0,0,600);d.addColorStop(0,m.dim);d.addColorStop(1,m.dim+'00');c.globalCompositeOperation='multiply';c.globalAlpha=strength;c.fillStyle=d;c.fillRect(0,0,864,600)}
  c.globalCompositeOperation='source-over';
 }
+const panoramas=new Map<string,HTMLCanvasElement>();
+/** The far mountains and city re-lit once per region at half resolution, so every device gets the
+ * region's sky with no per-frame blending. Only the current region's two textures are kept. */
+export function regionPanorama(region:Region,id:'mountains'|'city',img:HTMLImageElement):HTMLImageElement|HTMLCanvasElement{
+ const m=regionMood(region.id);
+ if(m.skyAlpha<=0||typeof document==='undefined'||!img.naturalWidth)return img;
+ const key=region.id+':'+id+':'+img.src;let out=panoramas.get(key);if(out)return out;
+ for(const k of [...panoramas.keys()])if(!k.startsWith(region.id+':'))panoramas.delete(k);
+ out=document.createElement('canvas');out.width=Math.ceil(img.naturalWidth/2);out.height=Math.ceil(img.naturalHeight/2);
+ const c=out.getContext('2d');if(!c)return img;
+ c.drawImage(img,0,0,out.width,out.height);
+ // Screen mapping: mountains span the whole sky; the city's sky is its upper part only.
+ const fade=id==='city'?.62:1,h=out.height;
+ const tint=(mode:GlobalCompositeOperation,alpha:number,top:string,bottom:string)=>{const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,top);g.addColorStop(fade*.75,bottom);g.addColorStop(Math.min(1,fade),bottom+'00');c.globalCompositeOperation=mode;c.globalAlpha=alpha;c.fillStyle=g;c.fillRect(0,0,out!.width,h)};
+ tint('hue',Math.min(1,m.skyAlpha*1.35),m.sky[1],m.sky[1]);
+ tint('soft-light',m.skyAlpha,m.sky[0],m.sky[1]);
+ if(m.dim)tint('multiply',1,m.dim,m.dim);
+ // Keep transparency of the city cut-out exactly as painted.
+ c.globalCompositeOperation='destination-in';c.globalAlpha=1;c.drawImage(img,0,0,out.width,out.height);
+ c.globalCompositeOperation='source-over';
+ panoramas.set(key,out);return out;
+}
 /** Between the far mountains and the city: sky light and the cloud deck. */
 export function paintRegionSky(c:CanvasRenderingContext2D,region:Region,time:number,cameraX:number,quality:number,reduced:boolean){
  if(typeof document==='undefined')return;
  const m=regionMood(region.id);
  c.save();
- if(m.skyAlpha>0)skyLight(c,m,1,liteAtmosphere(quality));
+ // The far panorama starts a little below the canvas top; extend its re-lit top edge over that strip.
+ if(m.skyAlpha>0&&c.canvas&&typeof c.getTransform==='function'){const k=c.getTransform().a||1;c.drawImage(c.canvas,0,Math.round(37*k),c.canvas.width,2,0,0,864,37)}
  // Storm flash: a rare, soft brightening of the clouds, never a strobe.
  let flash=0;
  if(m.signature==='storm'&&!reduced){const slot=Math.floor(time/7),t=time-slot*7-hash(slot)*4;if(hash(slot+11)>.45&&t>0&&t<.5)flash=Math.sin(t/.5*Math.PI)*(t<.12?1:.6)}
