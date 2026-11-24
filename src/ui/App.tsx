@@ -54,6 +54,7 @@ import {backTarget,goBack} from './navStack';
 import {communityEnabled} from '../community/client';
 import {lang,setLang} from '../i18n';
 import {BlessingOdds} from './BlessingOdds';
+import {AdventureRules} from './AdventureRules';
 import {resCount,resources,duskCount,type ResId} from '../dark/rules';
 import {materials,matCount,materialIds,blessingEffects,blessingCanImprove} from '../saga/gear';
 import {shopQuote} from '../saga/shop';
@@ -463,7 +464,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
    <Action disabled={p.gold<cost||attempt.timer<=0||used>=lairRules.revives} onClick={()=>battle?.reviveLair(attempt.id,used)}>Подтвердить · {cost} золота</Action>
    <Action kind="secondary" onClick={()=>g.open(null)}>Отмена</Action></>;
  })()}
- {panel==='adventure'&&<><div className="adventure-destinations">{[['campaign','map','Основная глава',`Этап ${stageLabel(p.stage)}`],['dungeon','lair-keeper','Логово мини-босса',`${balance.combat_test_settings.mode_entry_chaosite} Хаосита`],['darkness','portal','Царство тьмы',`Этаж ${p.darkFloor}`],['farm','coins','Бесконечный фарм','Золото и опыт'],...(worldBossEnabled()?[['worldboss','crown','Мировой босс','Битва всех героев']]:[])].map(([mode,icon,name,detail])=><button key={mode} className={'adventure-route route-'+mode} onClick={()=>mode==='darkness'?g.open('realm'):mode==='dungeon'?g.open('lair'):mode==='worldboss'?g.open('worldboss'):battle?.startMode(mode)}><Icon name={icon}/><strong>{name}</strong><small>{detail}</small></button>)}</div><h3>Сила героя</h3><DarkHub p={p}/></>}
+ {panel==='adventure'&&<><div className="adventure-destinations">{[['campaign','map','Основная глава',`Этап ${stageLabel(p.stage)}`],['dungeon','lair-keeper','Логово мини-босса',`${balance.combat_test_settings.mode_entry_chaosite} Хаосита`],['darkness','portal','Царство тьмы',`Этаж ${p.darkFloor}`],['farm','coins','Бесконечный фарм','Золото и опыт'],...(worldBossEnabled()?[['worldboss','crown','Мировой босс','Битва всех героев']]:[])].map(([mode,icon,name,detail])=><button key={mode} className={'adventure-route route-'+mode} onClick={()=>mode==='darkness'?g.open('realm'):mode==='dungeon'?g.open('lair'):mode==='worldboss'?g.open('worldboss'):battle?.startMode(mode)}><Icon name={icon}/><strong>{name}</strong><small>{detail}</small></button>)}</div><AdventureRules stage={p.stage}/><h3>Сила героя</h3><DarkHub p={p}/></>}
  {panel==='arena'&&<ArenaPanel/>}
  {panel==='community'&&Community&&<Suspense fallback={null}><Community/></Suspense>}
  {panel.startsWith('source:')&&<ResourceSources kind={panel.split(':')[1]} returnTo={panel.split(':')[2]}/>}
