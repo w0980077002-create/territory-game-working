@@ -1,5 +1,5 @@
 import './passivePath.css';
-import {combatAura} from '../dark/rules';
+import {combatAura,statNames} from '../dark/rules';
 import {useState} from 'react';
 import type {Player} from '../core/types';
 import {useGame} from '../core/store';
@@ -81,6 +81,10 @@ export function RuneWorkshop({p}:{p:Player}){
    <section><h4>База <small>ур. {runeRules.passives[0].level}</small></h4><GameTiles>{runeRules.passives.map((rule,id)=><GameTile key={id} label={rule.name} icon={passiveIcons[id]} value={p.level<rule.level?'Ур. '+rule.level:rule.text} active={state.passive===id} locked={p.level<rule.level} onClick={()=>inspect({kind:'passive',id})}/>)}</GameTiles></section>
    {runeRules.path.map((row,r)=><section key={row.name} className={p.level<row.level?'locked':''}><h4>{row.name} <small>{p.level<row.level?'откроется на ур. '+row.level:'ур. '+row.level}</small></h4>
     <GameTiles>{row.options.map((opt,id)=><GameTile key={id} label={opt.name} icon={pathIcons[opt.key]??'rune'} value={p.level<row.level?'Ур. '+row.level:opt.text} active={state.path?.[r]===id} locked={p.level<row.level} onClick={()=>inspect({kind:'path',row:r,id})}/>)}</GameTiles></section>)}
+   {(()=>{const totals=new Map<string,number>();
+    const chosen=[...(state.passive!==null&&p.level>=runeRules.passives[state.passive].level?[runeRules.passives[state.passive]]:[]),...runeRules.path.flatMap((row,r)=>{const n=state.path?.[r];return n===null||n===undefined||p.level<row.level?[]:[row.options[n]]})];
+    for(const b of chosen)totals.set(b.key,(totals.get(b.key)??0)+b.amount);
+    return totals.size?<p className="passive-total"><b>Итого пассивы</b>{[...totals].map(([k,v])=><span key={k}>{statNames[k as keyof typeof statNames]} {k==='reduction'?'−':'+'}{number(v*100)}%</span>)}</p>:null})()}
    <p className="hint">В каждом ряду действует один выбранный пассив. Смена бесплатна; бонусы видны в «Источниках силы» героя.</p>
   </div>}
   {tab==='resonance'&&<><div className="rune-emblem"><Icon name="rune"/><b>Резонанс · {rank}</b></div><GameTiles>{runeRules.resonance.map((rule,id)=><GameTile key={id} label={rule.name} icon={resonanceIcons[id]} value={(rank>=rule.ranks?'✓ ':'')+rule.ranks} locked={rank<rule.ranks} onClick={()=>inspect({kind:'resonance',id})}/>)}</GameTiles></>}

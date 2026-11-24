@@ -34,3 +34,17 @@ test('old saves without a path read cleanly and corrupt path values are ignored'
  (sagaOf(p).box.runes as {path:unknown}).path=[7,'x',-1,2];
  assert.deepEqual(runeState(p).path,[null,null,null,2]);
 });
+
+test('owner-approved maxima: rows stack to +13% skill, +25% crit damage, 5% damage reduction',()=>{
+ const p=freshPlayer();p.level=100;
+ const base=stats(p);
+ const pick=(row:number,id:number)=>assert.ok(applyRuneAction(p,{kind:'path',row,id},runeState(p).revision));
+ pick(0,2);pick(3,0); // Рунная мощь + Гнев богов
+ assert.ok(Math.abs(stats(p).skillDamage/base.skillDamage-1.13)<1e-9,'skill damage ×1.13');
+ pick(0,0);pick(3,1); // Ярость клинка + Сокрушение
+ assert.ok(Math.abs(stats(p).critDamage-base.critDamage-.25)<1e-9,'crit damage +25 points');
+ pick(1,1);pick(3,2); // Стойкий строй + Щит Асгарда
+ assert.ok(Math.abs(stats(p).reduction-base.reduction-.05)<1e-9,'damage reduction +5 points');
+ // One choice per row: switching the final row away removes its share again.
+ pick(3,0);assert.ok(Math.abs(stats(p).reduction-base.reduction-.02)<1e-9);
+});
