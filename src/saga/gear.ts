@@ -24,6 +24,7 @@ export const professions=[
  {id:'tailor',name:'Портной',slots:['armor','cloak']},
  {id:'jeweler',name:'Ювелир',slots:['ring1','ring2','amulet']},
 ] as const satisfies ReadonlyArray<{id:string;name:string;slots:readonly Slot[]}>;
+export const professionWorkKey=(id:(typeof professions)[number]['id'])=>`masterwork:${id}`;
 export const professionForSlot=(slot:Slot)=>professions.find(profession=>(profession.slots as readonly Slot[]).includes(slot));
 /** Apply only to fresh base stats, before normal upgrades. */
 export function applyMasterwork(item:Item){

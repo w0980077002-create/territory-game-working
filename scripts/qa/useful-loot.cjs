@@ -169,6 +169,60 @@ async function harvest({page,button,close,read},now){
  assert.equal((await read()).redDiamonds,(p.redDiamonds??0)+1);
 }
 
+async function workshops({page,button,read},locked=false){
+ const harbor=page.getByRole('navigation',{name:'Постройки гавани'});
+ const workshop=page.getByRole('dialog',{name:'Мастерские'});
+ await button('Карта').tap();
+ await harbor.getByRole('button',{name:'Кузница',exact:true}).tap();
+ await button('Мастерские').tap();
+ await workshop.waitFor();
+ assert.equal(await workshop.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
+ const masters=workshop.getByRole('group',{name:'Мастерские гавани'});
+ assert.deepEqual(await masters.getByRole('button').allTextContents(),['Кузнец','Кожевник','Портной','Ювелир']);
+ const craft=workshop.getByRole('button',{name:/^Выковать/});
+ if(locked){
+  await workshop.getByText(/после победы над владыкой первого региона/).waitFor();
+  assert.equal(await craft.isDisabled(),true);
+  await button('В кузницу').tap();
+  await page.getByRole('dialog',{name:'Кузница'}).waitFor();
+  return;
+ }
+ await workshop.getByRole('button',{name:/^Где получить ·/}).tap();
+ await button('Назад').tap();
+ await workshop.waitFor();
+ await masters.getByRole('button',{name:'Ювелир'}).tap();
+ const slot=workshop.getByRole('button',{name:'Слот для ковки: Кольцо I'});
+ await slot.scrollIntoViewIfNeeded();
+ // Let the native smooth scroll settle before opening a popover that dismisses on scroll.
+ await page.waitForTimeout(370);
+ await slot.tap();
+ await page.getByRole('option',{name:'Амулет',exact:true}).tap();
+ const before=await read();
+ await craft.evaluate(button=>{button.click();button.click()});
+ await page.locator('[data-panel="item"]').waitFor();
+ const after=await read(), item=after.inventory.at(-1);
+ assert.equal(after.inventory.length,before.inventory.length+1);
+ assert.equal(item.slot,'amulet');
+ assert.equal(item.masterwork,true);
+ assert.equal(after.gold,before.gold-90*item.level);
+ assert.equal(after.saga.n['mat:peaks'],before.saga.n['mat:peaks']-18);
+ assert.equal(after.saga.n['masterwork:jeweler'],1);
+ await button('← Назад').tap();
+ await workshop.waitFor();
+ await masters.getByRole('button',{name:'Ювелир'}).tap();
+ await workshop.getByText('Изготовлено предметов · 1',{exact:true}).waitFor();
+ await page.waitForTimeout(370);
+ await button('В кузницу').tap();
+ await page.getByRole('dialog',{name:'Кузница'}).waitFor();
+ await page.reload();
+ await page.waitForFunction(()=>!!window.__lootborn?.battle);
+ const restored=await read();
+ assert.deepEqual(restored.inventory.at(-1),item);
+ assert.equal(restored.gold,after.gold);
+ assert.equal(restored.saga.n['mat:peaks'],after.saga.n['mat:peaks']);
+ assert.equal(restored.saga.n['masterwork:jeweler'],1);
+}
+
 async function recommendation({page,button,close,read},variant){
  const mission=page.locator('.mission');
  assert.match(await mission.innerText(),/Основную Главу 2-1/);
@@ -215,9 +269,16 @@ async function recommendation({page,button,close,read},variant){
  try{
   for(const [width,height] of [[320,568],[360,780],[390,844],[430,932],[320,480]]){
    await withProfile(browser,{width,height},`useful-loot-${width}-${height}`,fixture(34),args=>navigation(args,width,height));
-   console.log(`${width}×${height} equipment back, scroll, backpack filter and close passed`);
+   const apprentice=fixture(34,true);
+   apprentice.saga.n['mat:peaks']=25;
+   await withProfile(browser,{width,height},`workshops-${width}-${height}`,apprentice,workshops);
+   console.log(`${width}×${height} equipment navigation, backpack filter and harbor workshop passed`);
   }
   const viewport={width:390,height:844};
+  const lockedWorkshop=fixture(1,true);
+  lockedWorkshop.stage=10;
+  lockedWorkshop.bosses=9;
+  await withProfile(browser,viewport,'workshops-locked',lockedWorkshop,args=>workshops(args,true));
   const full=fixture(60);
   full.saga.n['mat:ember']=25;
   full.inventory[0]={...full.inventory[0],id:'qa-free-space',name:'Свободное место QA',rarity:0,upgrade:0,set:undefined,perk:undefined,engrave:undefined,uniqueId:undefined};

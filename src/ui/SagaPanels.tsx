@@ -39,7 +39,7 @@ export function Album({p}:{p:Player}){
 import {useEffect,useState} from 'react';
 import type {Item,Slot} from '../core/types';
 import {slotNames,slots,rarityNames,classNames} from '../data/catalog';
-import {sets,setIds,setOf,setCounts,perkOf,perks,perkIds,engravings,engraveOf,materials,materialIds,matCount,dropRules,setChance,professions,masterworkStartStage,masterworkStatMultiplier,type SetId,type EngraveId} from '../saga/gear';
+import {sets,setIds,setOf,setCounts,perkOf,perks,perkIds,engravings,engraveOf,materials,materialIds,matCount,dropRules,setChance,professions,professionWorkKey,masterworkStartStage,masterworkStatMultiplier,type SetId,type EngraveId} from '../saga/gear';
 import {specs,specIndex} from '../saga/specs';
 import {branches,branchOf,evoName,evoPower,nextEvolution,BRANCH_LEVEL,combos} from '../saga/companions';
 import {reforge,reforgePlan,engrave,engravePlan,craftSet,craftPlan,setUnlocked,trade,pickSpec,pickBranch,buildsOf,saveBuild,applyBuild,forgeLevel} from '../saga/actions';
@@ -90,11 +90,12 @@ export function ForgeBench({slot,p}:{slot:Slot;p:Player}){
  </div>;
 }
 export function Materials({p}:{p:Player}){return <div className="material-row">{[...materialIds,'dusk'].map(id=><span key={id} style={{'--tone':materials[id].color} as React.CSSProperties} title={materials[id].name}><Icon name={materialIcon(id)}/><b>{matCount(p,id)}</b><small>{materials[id].name}</small></span>)}</div>}
-/** Set recipes and material exchange inside the Forge. */
-export function Recipes({p,onFreeSpace}:{p:Player;onFreeSpace:()=>void}){
+/** Shared set recipes and material exchange for the forge and workshops. */
+export function Recipes({p,onFreeSpace,workshop=false}:{p:Player;onFreeSpace:()=>void;workshop?:boolean}){
  const openSource=useGame(s=>s.open),[set,setSet]=useState<SetId>(()=>setIds.filter(id=>setUnlocked(p,id)).at(-1)??'frost');
  const [slot,setSlot]=useState<Slot>('weapon'),[from,setFrom]=useState('ice');
- const [master,setMaster]=useState<(typeof professions)[number]['id']>();
+ const [master,setMaster]=useState<(typeof professions)[number]['id']|undefined>(workshop?professions[0].id:undefined);
+ const recipePanel=workshop?'workshops':'forge';
  const profession=professions.find(entry=>entry.id===master);
  const craftSlots:readonly Slot[]=profession?.slots??slots.filter(s=>s!=='wings');
  const mastersOpen=p.stage>=masterworkStartStage,open=setUnlocked(p,set),n=setCounts(p)[set];
@@ -107,17 +108,18 @@ export function Recipes({p,onFreeSpace}:{p:Player;onFreeSpace:()=>void}){
  const full=p.inventory.length>=balance.loot_test_settings.starter_inventory_capacity;
  const ready=!full&&open&&(!profession||mastersOpen)&&p.gold>=plan.gold&&matCount(p,plan.material)>=plan.mats;
  return <div className="saga-section"><h3>Рецепты комплектов</h3><Materials p={p}/>
-  <div className="tabs wrap" role="group" aria-label="Мастера кузницы">
-   <button type="button" aria-pressed={!master} className={!master?'selected':''} onClick={()=>chooseMaster()}>Обычные рецепты</button>
+  <div className="tabs wrap" role="group" aria-label={workshop?'Мастерские гавани':'Мастера кузницы'}>
+   {!workshop&&<button type="button" aria-pressed={!master} className={!master?'selected':''} onClick={()=>chooseMaster()}>Обычные рецепты</button>}
    {professions.map(entry=><button type="button" key={entry.id} aria-pressed={master===entry.id} className={master===entry.id?'selected':''} onClick={()=>chooseMaster(entry)}>{entry.name}</button>)}
   </div>
-  {profession&&<p className="hint">{mastersOpen?`+${bonus}% к базовым характеристикам · редкий предмет без случайного броска`:'Мастера принимают заказы после первого финала кампании.'}</p>}
+  {profession&&<p className="hint">{mastersOpen?`+${bonus}% к базовым характеристикам · редкий предмет без случайного броска`:'Мастера принимают заказы после победы над владыкой первого региона.'}</p>}
+  {workshop&&mastersOpen&&profession&&<p className="hint">Изготовлено предметов · {count(p,professionWorkKey(profession.id))}</p>}
   <div className="tabs wrap" role="group" aria-label="Комплекты для ковки">{setIds.map(id=><button key={id} aria-pressed={set===id} className={set===id?'selected':''} onClick={()=>setSet(id)} style={{'--tone':sets[id].color} as React.CSSProperties}>{setUnlocked(p,id)?'':'🔒 '}{sets[id].name}</button>)}</div>
   <div className="set-line" style={{'--tone':sets[set].color} as React.CSSProperties}><strong>{sets[set].name} · {sets[set].tag} · надето {n}/6</strong><ol>{sets[set].bonuses.map((b,i)=><li key={i} className={n>=(i+1)*2?'on':''}><b>{(i+1)*2}</b><span>{b}</span></li>)}</ol></div>
   <div className="inventory-order"><span>Слот</span><CompactFilter label="Слот для ковки" value={slot} onChange={v=>setSlot(v as Slot)} options={craftSlots.map(s=>({value:s,label:slotNames[s]+(setOf(p.equipment[s])===set?' ✓':'')}))}/></div>
   {full&&<div className="capacity-help"><p className="hint">Рюкзак полон. Для готовой вещи нужно свободное место. В рюкзаке можно разобрать выбранную вещь.</p><Btn kind="secondary" onClick={onFreeSpace}>Освободить место</Btn></div>}
-  <Btn disabled={!ready} onClick={()=>{if(useGame.getState().panel==='forge')craftSet(set,slot,!!profession)}}>{open?`Выковать ур.${plan.level} · ${rarityNames[plan.rarity]}${profession?'':'+'} · ${plan.gold.toLocaleString('ru')} золота · ${plan.mats} × ${materials[plan.material].name}`:`Откроется в регионе «${regions[sets[set].region].name}»`}</Btn>
-  <Btn kind="secondary" onClick={()=>openSource(`source:${plan.material}:forge`)}>Где получить · {materials[plan.material].name}</Btn>
+  <Btn disabled={!ready} onClick={()=>{if(useGame.getState().panel===recipePanel)craftSet(set,slot,!!profession)}}>{open?`Выковать ур.${plan.level} · ${rarityNames[plan.rarity]}${profession?'':'+'} · ${plan.gold.toLocaleString('ru')} золота · ${plan.mats} × ${materials[plan.material].name}`:`Откроется в регионе «${regions[sets[set].region].name}»`}</Btn>
+  <Btn kind="secondary" onClick={()=>openSource(`source:${plan.material}:${recipePanel}`)}>Где получить · {materials[plan.material].name}</Btn>
   <p className="hint">Материалы дают победы в регионе: {Math.round(dropRules.materialWave*100)}% за встречу, {dropRules.materialBoss} за стража, {dropRules.materialFinale} за владыку. {!profession&&' Благословение даёт шанс выковать вещь на ступень лучше.'}</p>
   <div className="inventory-order"><span>Обмен 3 → 1</span><CompactFilter label="Материал для обмена" value={from} onChange={setFrom} options={materialIds.map(id=>({value:id,label:`${materials[id].name} (${matCount(p,id)})`}))}/></div>
   <Btn kind="secondary" disabled={matCount(p,from)<3||from===plan.material} onClick={()=>trade(from,plan.material)}>Обменять на {materials[plan.material].name}</Btn>

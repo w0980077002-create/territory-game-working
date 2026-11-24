@@ -7,7 +7,7 @@ import {useGame,makeItem,asSetItem,addLoot,mayStartLoot,salvageYield} from '../c
 import type {Item,Player,Slot,HeroClass} from '../core/types';
 import balance from '../../config/test-balance.v1.json';
 import {slots} from '../data/catalog';
-import {craftRarityBoostChance,sets,engravings,matKey,matCount,materials,materialIds,masterworkStartStage,professionForSlot,applyMasterwork,type SetId,type EngraveId} from './gear';
+import {craftRarityBoostChance,sets,engravings,matKey,matCount,materials,materialIds,masterworkStartStage,professionForSlot,professionWorkKey,applyMasterwork,type SetId,type EngraveId} from './gear';
 import {regionIndex} from './regions';
 import {chooseSpec,specIndex} from './specs';
 import {chooseBranch} from './companions';
@@ -42,7 +42,7 @@ export function craftPlan(set:SetId,p:Player,masterwork=false){
 export function craftSet(set:SetId,slot:Slot,masterwork=false){
  const p=G().p,profession=masterwork?professionForSlot(slot):undefined;
  if(slot==='wings'||!slots.includes(slot)||!Object.hasOwn(sets,set)||masterwork&&!profession)return false;
- if(profession&&p.stage<masterworkStartStage)return fail('Мастера открываются после первого финала кампании');
+ if(profession&&p.stage<masterworkStartStage)return fail('Мастера открываются после победы над владыкой первого региона');
  if(!setUnlocked(p,set))return fail('Сначала дойдите до региона этого комплекта');
  const plan=craftPlan(set,p,masterwork);
  if(p.inventory.length>=capacity)return fail('Рюкзак полон');
@@ -59,6 +59,7 @@ export function craftSet(set:SetId,slot:Slot,masterwork=false){
    applyMasterwork(made);
    made.masterwork=true;
    made.salvageGoldCap=salvageYield(made).gold;
+   bumpCount(p,professionWorkKey(profession.id));
   }
   made.origin=profession?`Мастерская · ${profession.name} · ${sets[set].name}`:'Рецепт кузницы · '+sets[set].name;
   addLoot(p,made);

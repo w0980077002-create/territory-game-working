@@ -12,7 +12,7 @@ import {RewardNotice} from './RewardArt';
 export const TAP_GUARD_MS=350;
 
 export type Material='chest'|'forge'|'rune'|'sea'|'roman'|'moon'|'gold';
-const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',mail:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',blessing:'gold',relic:'rune',realm:'rune',darkgear:'moon',gems:'chest',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',honor:'gold',companions:'moon',shop:'chest',rewards:'gold',events:'gold',carnival:'gold',collection:'moon'};
+const themes:Record<string,Material>={equipment:'chest',inventory:'chest',item:'chest',mail:'chest',loot:'gold',wings:'moon',skills:'rune',talents:'rune',forge:'forge',workshops:'forge',blessing:'gold',relic:'rune',realm:'rune',darkgear:'moon',gems:'chest',arena:'roman',battle:'roman',controls:'roman',autobattle:'roman',hero:'moon',honor:'gold',companions:'moon',shop:'chest',rewards:'gold',events:'gold',carnival:'gold',collection:'moon'};
 const panelIcons:Record<string,string>={
  'gear:wings':'wings',season:'banner',lair:'lair-keeper',adventure:'map',arena:'arena',carnival:'event',collection:'book',equipment:'armor',events:'banner',
  friends:'handshake',honor:'crown',invite:'handshake',inventory:'chest',loot:'horn',mail:'mail',port:'ship',
