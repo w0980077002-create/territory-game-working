@@ -231,6 +231,7 @@ async function personalWorkshop({page,button,read}){
   await button('Мастерские').tap();
  };
  await open();
+ await page.waitForTimeout(370);
  await workshop.getByText('Справочник профессий',{exact:true}).tap();
  await workshop.getByText(/Остальные профессии доступны/).waitFor();
  await workshop.getByText('Справочник профессий',{exact:true}).tap();
