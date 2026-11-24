@@ -75,6 +75,12 @@ export class AuctionLedger {
   return items.map(({id,catalogId})=>({id,catalogId}));
  }
 
+ openListings(){
+  return this.db.prepare(`SELECT l.id,l.price,i.catalog_id FROM auction_listings l
+   JOIN auction_items i ON i.id=l.item_id WHERE l.state='open' ORDER BY l.rowid DESC LIMIT 50`)
+   .all().map(row=>({id:String(row.id),price:Number(row.price),catalogId:String(row.catalog_id)}));
+ }
+
  history(player:string){
   return this.db.prepare(`SELECT r.result FROM auction_receipts r WHERE r.actor=? OR (
    json_extract(r.result,'$.kind')='buy' AND EXISTS(
