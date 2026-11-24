@@ -12,7 +12,8 @@ import {setCounts,setTier,sets,perks,setIds,matKey,matCount,professions,type Set
 import {specs,specId} from '../src/saga/specs';
 import {freshSaga} from "../src/saga/save";
 import {branchOf,evoTier,evoPower} from '../src/saga/companions';
-import {reforge,reforgePlan,engrave,craftPlan,craftSet,trade,pickSpec,pickBranch,saveBuild,applyBuild,buildsOf} from '../src/saga/actions';
+import {reforge,reforgePlan,engrave,craftPlan,craftSet,trade,pickSpec,pickBranch,saveBuild,applyBuild,buildsOf,learnProfession,practiceProfession} from '../src/saga/actions';
+import {personalWorkshop,workshopRecipe} from '../src/saga/professions';
 import {ensureQuests,dailyView,weeklyView,claimBoard,storyQuests,claimStory,masteryView,claimMastery,goals,DAILY_COUNT,WEEKLY_COUNT,dailyPool} from '../src/saga/quests';
 const G=()=>useGame.getState();
 beforeEach(()=>{useGame.setState({p:freshPlayer(),auto:false,panel:null,selected:null,recoveryRequired:false})});
@@ -213,6 +214,52 @@ test('masterwork survives reload, upgrading and reforging without multiplying th
  assert.equal(item.set,'frost');
  assert.deepEqual(salvageYield(item),salvageYield(made));
  assert.deepEqual(parseSave(exportSave())?.equipment.weapon,item);
+});
+
+test('personal workshop separates choice, training and crafting while NPC recipes remain available',()=>{
+ const {p:legacy}=G();
+ assert.equal(personalWorkshop(legacy),undefined);
+ assert.equal(learnProfession('smith'),false);
+ G().mutate(p=>{
+  p.stage=51;p.level=20;p.gold=10000;p.saga=freshSaga();
+  for(const id of ['ice','forest','ember'])p.saga.n[matKey(id)]=80;
+ });
+ assert.ok(learnProfession('smith'));
+ assert.equal(learnProfession('tailor'),false);
+ assert.equal(craftSet('ember','weapon','personal'),false);
+ assert.equal(craftSet('frost','ring1','personal'),false);
+ assert.ok(craftSet('ember','ring1',true));
+ assert.equal(personalWorkshop(G().p)?.xp,0);
+ assert.equal(workshopRecipe(G().p,'rune').available,false);
+ for(const xp of [0,3,6,9])assert.ok(practiceProfession('frost',xp));
+ assert.equal(practiceProfession('frost',9),false);
+ assert.equal(matCount(G().p,'ice'),68);
+ assert.equal(G().p.inventory.length,1);
+ assert.equal(workshopRecipe(G().p,'rune').available,true);
+ assert.ok(craftSet('rune','weapon','personal'));
+ const crafted=G().p.inventory.at(-1)!;
+ assert.equal(crafted.masterworkBonus,27);
+ assert.equal(crafted.attack,Math.round(makeItem('weapon',crafted.level,3).attack*1.27));
+ assert.equal(matCount(G().p,'forest'),62);
+ assert.equal(personalWorkshop(G().p)?.xp,16);
+ const before=G().p,write=localStorage.setItem;
+ localStorage.setItem=()=>{throw new Error('storage full')};
+ try{
+  assert.equal(practiceProfession('frost',16),false);
+  assert.equal(craftSet('rune','weapon','personal'),false);
+  assert.deepEqual(G().p,before);
+ }finally{localStorage.setItem=write}
+ for(const xp of [16,19,22,25,28])assert.ok(practiceProfession('frost',xp));
+ assert.equal(practiceProfession('frost',30),false);
+ assert.ok(craftSet('ember','weapon','personal'));
+ const master=G().p.inventory.at(-1)!;
+ assert.equal(master.masterworkBonus,30);
+ const loaded=parseSave(exportSave())!;
+ assert.deepEqual(personalWorkshop(loaded),{profession:'smith',xp:30});
+ assert.deepEqual(loaded.inventory.at(-1),master);
+ const upgradedPlayer={...loaded,level:40};
+ assert.equal(reforgePlan(master,upgradedPlayer)?.next.attack,Math.round(makeItem('weapon',40,3).attack*1.3));
+ assert.deepEqual(salvageYield(reforgePlan(master,upgradedPlayer)!.next),salvageYield(master));
 });
 
 test('campaign random named trophies occupy exactly four percent and keep both effects',()=>{

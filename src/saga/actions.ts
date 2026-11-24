@@ -7,11 +7,12 @@ import {useGame,makeItem,asSetItem,addLoot,mayStartLoot,salvageYield} from '../c
 import type {Item,Player,Slot,HeroClass} from '../core/types';
 import balance from '../../config/test-balance.v1.json';
 import {slots} from '../data/catalog';
-import {craftRarityBoostChance,sets,engravings,matKey,matCount,materials,materialIds,masterworkStartStage,professionForSlot,professionWorkKey,applyMasterwork,type SetId,type EngraveId} from './gear';
+import {craftRarityBoostChance,sets,engravings,matKey,matCount,materials,materialIds,masterworkStartStage,professions,professionForSlot,professionWorkKey,applyMasterwork,type SetId,type EngraveId} from './gear';
 import {regionIndex} from './regions';
 import {chooseSpec,specIndex} from './specs';
 import {chooseBranch} from './companions';
-import {boxOf,peekBox,bumpCount} from './save';
+import {boxOf,peekBox,bumpCount,sagaOf} from './save';
+import {personalWorkshop,workshopKey,workshopRecipe,workshopMaxXp,practiceMaterials,practiceXp,personalCraftXp,type ProfessionId} from './professions';
 const G=()=>useGame.getState(),capacity=balance.loot_test_settings.starter_inventory_capacity;
 const fail=(text:string)=>{G().notice(text);return false};
 const done=(text:string)=>{G().notice(text);return true};
@@ -24,7 +25,7 @@ export {forgeLevel} from '../core/forge';
 export function reforgePlan(item:Item,p:Player){
  const target=forgeLevel(p);if(item.slot==='wings'||item.level>=target)return null;
  const fresh=applyForgeMastery(makeItem(item.slot,target,item.rarity),p);
- if(item.masterwork)applyMasterwork(fresh);
+ if(item.masterwork)applyMasterwork(fresh,item.masterworkBonus);
  const next=withExistingUpgrades(item,fresh);
  const levels=target-item.level,mats=Math.max(1,Math.ceil(levels/6));return {next,gold:Math.round(30*levels*(1+item.rarity*.4)),mats,material:payMaterial(p,mats)};
 }
@@ -38,13 +39,36 @@ export function craftPlan(set:SetId,p:Player,masterwork=false){
  const level=forgeLevel(p);
  return {level,gold:(masterwork?90:60)*level,mats:masterwork?18:12,material:sets[set].material,rarity:3};
 }
-/** Both recipe types produce a chosen set piece in the ordinary equipment inventory. */
-export function craftSet(set:SetId,slot:Slot,masterwork=false){
+export function learnProfession(id:ProfessionId){
+ const p=G().p;
+ if(p.stage<masterworkStartStage||personalWorkshop(p)||!professions.some(entry=>entry.id===id))return false;
+ if(!G().mutate(draft=>{sagaOf(draft).box[workshopKey]={profession:id,xp:0}}))return saveFailed();
+ return done('Личная мастерская открыта');
+}
+
+export function practiceProfession(set:SetId,expectedXp:number){
+ const p=G().p,workshop=personalWorkshop(p);
+ if(!Object.hasOwn(sets,set)||!workshop||p.stage<masterworkStartStage||workshop.xp!==expectedXp||workshop.xp>=workshopMaxXp||!setUnlocked(p,set))return false;
+ const {material,stock,available}=workshopRecipe(p,set);
+ if(!available||stock<practiceMaterials)return false;
+ const xp=Math.min(workshopMaxXp,workshop.xp+practiceXp);
+ if(!G().mutate(draft=>{
+  spend(draft,material,practiceMaterials);
+  sagaOf(draft).box[workshopKey]={...workshop,xp};
+ }))return saveFailed();
+ return done(`Опыт профессии +${xp-workshop.xp}`);
+}
+
+/** Forge, NPC and personal recipes share the price and inventory transaction. */
+export function craftSet(set:SetId,slot:Slot,masterwork:boolean|'personal'=false){
  const p=G().p,profession=masterwork?professionForSlot(slot):undefined;
  if(slot==='wings'||!slots.includes(slot)||!Object.hasOwn(sets,set)||masterwork&&!profession)return false;
  if(profession&&p.stage<masterworkStartStage)return fail('Мастера открываются после победы над владыкой первого региона');
  if(!setUnlocked(p,set))return fail('Сначала дойдите до региона этого комплекта');
- const plan=craftPlan(set,p,masterwork);
+ const workshop=masterwork==='personal'?personalWorkshop(p):undefined;
+ if(masterwork==='personal'&&(!workshop||workshop.profession!==profession?.id||!workshopRecipe(p,set).available))return false;
+ const bonus=workshop?workshopRecipe(p,set).mastery.bonus:25;
+ const plan=craftPlan(set,p,!!masterwork);
  if(p.inventory.length>=capacity)return fail('Рюкзак полон');
  if(p.gold<plan.gold)return fail('Недостаточно золота');
  if(matCount(p,plan.material)<plan.mats)return fail(`Нужно ${plan.mats} × ${materials[plan.material].name}`);
@@ -56,12 +80,14 @@ export function craftSet(set:SetId,slot:Slot,masterwork=false){
   const rarity=plan.rarity+(!masterwork&&Math.random()<craftRarityBoostChance(p.blessing)?1:0);
   made=applyForgeMastery(asSetItem(makeItem(slot,plan.level,rarity),set),p);
   if(profession){
-   applyMasterwork(made);
+   if(bonus!==25)made.masterworkBonus=bonus;
+   applyMasterwork(made,made.masterworkBonus);
    made.masterwork=true;
    made.salvageGoldCap=salvageYield(made).gold;
    bumpCount(p,professionWorkKey(profession.id));
+   if(workshop)sagaOf(p).box[workshopKey]={...workshop,xp:Math.min(workshopMaxXp,workshop.xp+personalCraftXp)};
   }
-  made.origin=profession?`Мастерская · ${profession.name} · ${sets[set].name}`:'Рецепт кузницы · '+sets[set].name;
+  made.origin=profession?`${workshop?'Личная мастерская':'Мастерская'} · ${profession.name} · ${sets[set].name}`:'Рецепт кузницы · '+sets[set].name;
   addLoot(p,made);
   bumpCount(p,'craft');
  }))return saveFailed();
