@@ -1,0 +1,19 @@
+.activity-track { margin: 0 0 8px; padding: 8px; border: 1px solid #8a785766; border-radius: 8px; background: #0b141bcc; }
+.activity-track header { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.activity-track header strong { color: #ffe5a8; font-size: 13px; }
+.activity-track header span { color: #fff; font-weight: 800; font-size: 13px; }
+.activity-track header small { flex-basis: 100%; color: #cbb88f; font-size: 10.5px; }
+.activity-bar { height: 6px; margin: 6px 0; border-radius: 3px; background: #2a2622; overflow: hidden; }
+.activity-bar i { display: block; height: 100%; background: linear-gradient(90deg,#d79a3c,#ffe08a); transition: width .3s; }
+.activity-track ol { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
+.activity-track li button { display: grid; justify-items: center; gap: 1px; width: 100%; min-height: 58px; padding: 3px 2px; border: 1px solid #5a4a3a; border-radius: 6px; background: #1a1714; color: #cbb88f; font-size: 10px; }
+.activity-track li button:disabled { opacity: 1; }
+.activity-track li .reward-art { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px 3px; max-width: 100%; }
+.activity-track li .reward-piece { display: inline-flex; align-items: center; gap: 1px; }
+.activity-track li .reward-piece strong { font-size: 10px; color: #fff0d2; }
+.activity-track li .icon { width: 18px; height: 18px; }
+.activity-track li b { color: #ffe08a; font-size: 12px; line-height: 1; padding: 1px 5px; border-radius: 6px; background: #2b2118; }
+.activity-track li em { font-style: normal; font-size: 10px; min-height: 12px; color: #9de08b; }
+.activity-track li.ready button { border-color: #e4ad43; box-shadow: 0 0 6px #e4ad4380; color: #ffe9a6; }
+.activity-track li.ready em { color: #ffd36b; font-weight: 700; }
+.activity-track li.claimed button { filter: saturate(.5); opacity: .75; }
