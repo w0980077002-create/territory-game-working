@@ -19,7 +19,7 @@ start() {
     --env ARENA_TEST_USERS=1101,1102 --env 'ARENA_TEST_LEVELS={"1101":6,"1102":13}' "$image")
 }
 smoke() {
-  docker exec -i "$container" node --input-type=module - "$1" <<'NODE'
+  docker exec -i --user node "$container" node --input-type=module - "$1" <<'NODE'
 import assert from 'node:assert/strict';
 import {createHmac,randomUUID} from 'node:crypto';
 import {readFileSync,writeFileSync} from 'node:fs';
@@ -41,6 +41,8 @@ for (let attempt = 0; attempt < 30 && !health; attempt++) {
   if (!health) await new Promise(resolve => setTimeout(resolve, 200));
 }
 assert.ok(health, 'Arena health endpoint is ready');
+assert.match(readFileSync('/proc/1/status', 'utf8'), /^Uid:\s+1000\s+1000\s+1000\s+1000$/m,
+  'The Arena server drops root privileges after preparing the mounted volume');
 assert.equal((await fetch(url)).status, 200);
 assert.equal((await api('state')).status, 401);
 assert.equal((await api('local?user=alice')).status, 401);

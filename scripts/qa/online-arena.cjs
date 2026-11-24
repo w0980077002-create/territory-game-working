@@ -209,15 +209,30 @@ async function noHorizontalOverflow(page) {
    console.log(width+' px: independent sessions, levels 6/13, moves, elixir, chat, result and Solo isolation passed');
   }
   const fallback=await actor(browser,'alice',{width:430,height:932});
-  const {page}=fallback;
+  const {page}=fallback, arena=section(page);
+  const beforeBotScore=await score(arena).innerText();
   await button(page,'Найти соперника').tap();
   const queuedAt=Date.now();
-  await section(page).getByText(/Поиск · уровни ±7/).waitFor();
-  await section(page).getByText('Тренировочный бот',{exact:true}).first().waitFor({timeout:25_000});
+  await arena.getByText(/Поиск · уровни ±7/).waitFor();
+  await arena.getByText('Тренировочный бот',{exact:true}).first().waitFor({timeout:25_000});
   assert.ok(Date.now()-queuedAt>=19_500,'bot fallback waits twenty seconds');
   assert.match(await round(page,1).innerText(),/· (?:5\d|60) с/);
+  await arena.getByText('Пояс эликсиров',{exact:true}).tap();
+  await button(arena,'Сила 1').tap();
+  await arena.getByRole('button',{name:/^Сила 0 · /}).waitFor();
+  await arena.getByText('Пояс эликсиров',{exact:true}).tap();
+  await pickMove(page,'Голова','Живот','Ноги');
+  await round(page,2).waitFor();
+  await button(arena,'Автобой выкл.').tap();
+  await button(arena,'Автобой вкл.').waitFor();
+  await arena.getByText(/Решило здоровье|Лимит раундов/).waitFor({timeout:250_000});
+  await arena.getByText(/^(Победа|Поражение|Ничья)$/).waitFor();
+  assert.equal(await score(arena).innerText(),beforeBotScore,'bot fights do not award competitive points');
+  await chat(page,'Тренировка завершена');
+  await arena.getByText(/До закрытия чата · (29:|30:00)/).waitFor();
+  assert.deepEqual(fallback.errors,[]);
   await fallback.context.close();
-  console.log('430 px: 20-second queue fallback and fresh 60-second duel passed');
+  console.log('430 px: 20-second fallback, full bot duel, elixir, Auto, result and post-fight chat passed');
  }finally{
   if(browser)await browser.close();
   if(server.exitCode===null&&server.signalCode===null){
