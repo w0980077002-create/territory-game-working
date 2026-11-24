@@ -36,3 +36,32 @@ begin
   assert not has_table_privilege('service_role','vvr.guild_members','INSERT');
 end;
 $$;
+
+begin;
+select vvr.resolve_player('72911','Captain') as captain,
+       vvr.resolve_player('72912','Member') as member,
+       vvr.resolve_player('72913','Pending') as pending \gset
+set local role service_role;
+select public.vvr_guild_community(:'captain','guild_roster','{"kind":"create","name":"Guild RPC"}')->'guild'->>'id' as guild \gset
+select public.vvr_guild_community(:'member','guild_roster',jsonb_build_object('kind','apply','guild',:'guild')) is not null as result \gset
+select public.vvr_guild_community(:'captain','guild_roster',
+  jsonb_build_object('kind','accept','guild',:'guild','applicant',:'member')) is not null as result \gset
+select public.vvr_guild_community(:'pending','guild_roster',jsonb_build_object('kind','apply','guild',:'guild')) is not null as result \gset
+select set_config('test.guild_ids',jsonb_build_array(:'captain',:'member',:'pending')::text,true) as ids \gset
+do $$
+declare
+  ids jsonb := current_setting('test.guild_ids')::jsonb;
+  captain jsonb := public.vvr_guild_community((ids->>0)::uuid,'guild','{}');
+  member jsonb := public.vvr_guild_community((ids->>1)::uuid,'guild','{}');
+  pending jsonb := public.vvr_guild_community((ids->>2)::uuid,'guild','{}');
+begin
+  assert jsonb_array_length(captain->'guild'->'applications')=1;
+  assert jsonb_array_length(member->'guild'->'applications')=0;
+  assert jsonb_array_length(member->'guild'->'members')=2;
+  assert pending->'guild'='null'::jsonb;
+  assert exists(select from jsonb_array_elements(pending->'directory') entry
+    where entry->>'id'=captain->'guild'->>'id' and (entry->>'applied')::boolean);
+  assert not has_function_privilege('authenticated','public.vvr_guild_community(uuid,text,jsonb)','EXECUTE');
+end;
+$$;
+rollback;
