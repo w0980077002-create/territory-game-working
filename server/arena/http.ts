@@ -129,6 +129,23 @@ async function staticFile(req:IncomingMessage,res:ServerResponse,pathname:string
  stream.pipe(res);
 }
 
+async function readW066Attack(publisher:Options['scorePublisher'],telegram:string,name:string){
+ if(!publisher)return;
+ try{
+  const endpoint=new URL(publisher.url);
+  if(!endpoint.pathname.endsWith('/arena-result'))return;
+  endpoint.pathname=endpoint.pathname.replace(/arena-result$/,'arena-profile');
+  const response=await fetch(endpoint,{
+   method:'POST',redirect:'error',signal:AbortSignal.timeout(1500),
+   headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},
+   body:JSON.stringify({telegram,name}),
+  });
+  if(!response.ok)return;
+  const {attack}=await response.json();
+  if(Number.isSafeInteger(attack)&&attack>=1&&attack<=1_000_041)return attack as number;
+ }catch{/* W066 outages leave local duels available as training. */}
+}
+
 export function createArenaServer(options:Options){
  if(options.sessionKey.length<32||!options.botToken||options.botToken===options.sessionKey)
   throw new Error('Arena requires independent Telegram and session credentials');
@@ -197,7 +214,8 @@ export function createArenaServer(options:Options){
      exact(input,'hero','kit');
      const hero=arenaHeroes.find(value=>value===input.hero);
      if(!hero||!hasKey(arenaKits,input.kit))throw new ArenaError(400,'Выберите класс героя и экипировку');
-     json(res,200,service.join(actor,hero,input.kit as ArenaKit,actionTime));return;
+     const attack=await readW066Attack(options.scorePublisher,actor.id,service.playerName(actor.id));
+    json(res,200,service.join(actor,hero,input.kit as ArenaKit,clock(),attack,options.local===true||attack!==undefined));return;
     }
     case '/arena-api/resume':
      exact(input,'target','revision');

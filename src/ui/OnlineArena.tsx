@@ -217,7 +217,7 @@ function DuelArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:bo
     <strong>{outcomes[shown.result.outcome]}</strong> · {reasons[shown.result.reason]}
     {shown.result.points>0&&<> · +{shown.result.points} тестовое очко</>}
    </div>:<div className="online-clock">Раунд {shown.round} · {secondsLeft(shown.deadline,now)} с</div>}
-   <div className="online-clock">{shown.bot?'Тренировочный бот':'Игрок против игрока'}</div>
+   <div className="online-clock">{shown.bot?'Тренировочный бот':shown.training?'Тренировка без рейтинга':'Игрок против игрока'}</div>
    <BattleStage you={shown.you} opponent={shown.opponent}/>
    {!shown.result&&(!shown.control?<button className="action" disabled={pending} onClick={()=>controlCommand('resume',shown)}>Продолжить в этой вкладке</button>:
     <RoundControls key={shown.id+':'+shown.round} match={shown} now={now} pending={pending} act={act}/>)}

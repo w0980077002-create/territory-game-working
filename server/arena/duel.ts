@@ -8,7 +8,7 @@ import {companions} from '../../src/dark/rules';
 import balance from '../../config/test-balance.v1.json';
 
 export type Entrant = {
- id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;trustedAttack?:number;
+ id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;trustedAttack?:number;rankEligible?:boolean;
 };
 export type Fighter = Entrant & {
  seenAt:number;hp:number;maxHp:number;attack:number;defense:number;crit:number;gear:number[];
@@ -46,7 +46,7 @@ export function entrantStats(player:Entrant){
 export function compatible(a:Entrant,b:Entrant){
  const x=entrantStats(a), y=entrantStats(b);
  const ratio=(left:number,right:number,limit:number)=>Math.max(left,right)<=limit*Math.max(1,Math.min(left,right));
- return a.id!==b.id && Math.abs(a.level-b.level)<=LEVEL_RANGE && Math.abs(a.rating-b.rating)<=700
+ return a.id!==b.id && (a.rankEligible!==false)===(b.rankEligible!==false) && Math.abs(a.level-b.level)<=LEVEL_RANGE && Math.abs(a.rating-b.rating)<=700
   && ratio(x.maxHp,y.maxHp,3) && ratio(x.attack,y.attack,4) && ratio(x.defense,y.defense,4);
 }
 
@@ -79,7 +79,7 @@ export function appendMessage(match:Messages,now:number,value:string,author?:str
 
 function finish(match:Match,now:number,reason:ArenaReason,winner:string|null){
  if(match.result)return;
- const eligible=!match.bot && match.players.every(player=>player.fought);
+ const eligible=!match.bot && match.players.every(player=>player.fought&&player.rankEligible!==false);
  match.result={winner,reason,points:eligible&&winner&&(reason==='hp'||reason==='time')?1:0,finishedAt:now};
 }
 
@@ -244,7 +244,7 @@ export function viewMatch(match:Match,id:string,controller:string,now:number):Ar
   online:online(p,now),moved:!!p.turn,gear:p.gear});
  const result=match.result;
  return {
-  id:match.id,bot:match.bot,round:match.round,deadline:match.deadline,you:publicFighter(you),opponent:publicFighter(opponent),
+  id:match.id,bot:match.bot,training:match.bot||match.players.some(player=>player.rankEligible===false),round:match.round,deadline:match.deadline,you:publicFighter(you),opponent:publicFighter(opponent),
   control:you.controller===controller,controlRevision:you.controlRevision??0,nextSequence:you.sequence+1,auto:you.auto,belt:you.belt,itemReadyAt:you.itemAt,
   ready:you.ready,log:match.log,chat:match.chat,chatDeadline:result?result.finishedAt+CHAT_MS:null,
   result:result?{outcome:!result.winner?'draw':result.winner===id?'win':'loss',

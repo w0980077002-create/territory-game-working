@@ -7,7 +7,7 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','equip','unequip']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','equip','unequip','enhance']);
 const maxInput=16_384;
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
@@ -26,6 +26,8 @@ function valid(action:string,body:Record<string,unknown>){
    return body.kind==='list'?keys===4&&isUuid(body.itemId)&&typeof body.price==='number'&&
     Number.isSafeInteger(body.price)&&body.price>=1&&body.price<=1_000_000_000:
     keys===3&&(body.kind==='buy'||body.kind==='cancel')&&isUuid(body.listingId);
+  case 'enhance':return keys===3&&isUuid(body.item)&&isUuid(body.operationId)&&
+   Number.isSafeInteger(body.expectedRank)&&Number(body.expectedRank)>=0&&Number(body.expectedRank)<62;
   case 'equip':case 'unequip':return keys===1&&isUuid(body.item);
   case 'guild_boss_claim':return keys===1&&isUuid(body.eventId);
   case 'guild_roster':
@@ -95,20 +97,25 @@ async function backup(request:Request,sessionKey:string,reply:(status:number,bod
  return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'snapshot_request_rejected'});
 }
 
-async function arenaResult(request:Request,reply:(status:number,body:unknown)=>Response){
+async function arenaPublisher(request:Request,profile:boolean,reply:(status:number,body:unknown)=>Response){
  const bearer=request.headers.get('authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
  if(!bearer)return reply(401,{error:'arena_publisher_required'});
  let data:unknown;
  try{data=await input(request,2048);}catch{return reply(400,{error:'invalid_arena_result'});}
- if(!isRecord(data)||Object.keys(data).length!==4||!isUuid(data.match)||typeof data.telegram!=='string'||
+ if(!isRecord(data)||Object.keys(data).length!==(profile?2:4)||typeof data.telegram!=='string'||
   !/^[1-9][0-9]{0,15}$/.test(data.telegram)||typeof data.name!=='string'||
   Array.from(data.name).length<1||Array.from(data.name).length>32||
-  typeof data.finishedAt!=='string'||!Number.isFinite(Date.parse(data.finishedAt))){
+  (!profile&&(!isUuid(data.match)||typeof data.finishedAt!=='string'||!Number.isFinite(Date.parse(data.finishedAt))))){
   return reply(400,{error:'invalid_arena_result'});
  }
  const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(bearer)));
+ const tokenHash=Array.from(hash,byte=>byte.toString(16).padStart(2,'0')).join('');
+ if(profile){
+  const result=await rpc('vvr_arena_hero',{p_token_hash:tokenHash,p_telegram:data.telegram,p_name:data.name});
+  return result.ok?reply(200,{attack:result.data}):reply(rpcError(result.data),{error:'arena_profile_rejected'});
+ }
  const result=await rpc('vvr_ingest_arena_result',{
-  p_token_hash:Array.from(hash,byte=>byte.toString(16).padStart(2,'0')).join(''),p_match:data.match,
+  p_token_hash:tokenHash,p_match:data.match,
   p_telegram:data.telegram,p_name:data.name,p_finished:data.finishedAt,
  });
  return result.ok?reply(200,{accepted:true}):reply(rpcError(result.data),{error:'arena_result_rejected'});
@@ -122,9 +129,10 @@ Deno.serve(async request=>{
  if(!allowed)return reply(403,{error:'origin_forbidden'});
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(request.method!=='POST')return reply(405,{error:'method_not_allowed'});
- if(new URL(request.url).pathname.endsWith('/arena-result')){
+ const path=new URL(request.url).pathname;
+ if(path.endsWith('/arena-result')||path.endsWith('/arena-profile')){
   if(!project||!roleKey)return reply(503,{error:'unavailable'});
-  try{return await arenaResult(request,reply);}catch{return reply(503,{error:'unavailable'});}
+  try{return await arenaPublisher(request,path.endsWith('/arena-profile'),reply);}catch{return reply(503,{error:'unavailable'});}
  }
  const {botToken,sessionKey}=await readSecrets();
  if(!project||!roleKey||!botToken||sessionKey.length<32||sessionKey===botToken)return reply(503,{error:'unavailable'});
@@ -147,6 +155,11 @@ Deno.serve(async request=>{
   const auth=request.headers.get('authorization');
   const player=auth?.startsWith('Bearer ')?await readVvrSession(auth.slice(7),sessionKey,now):undefined;
   if(!player)return reply(401,{error:'session_required'});
+  if(value.action==='enhance'){
+   const result=await rpc('vvr_enhance_item',{p_player:player,p_item:value.body.item,
+    p_expected:value.body.expectedRank,p_operation:value.body.operationId});
+   return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'enhancement_rejected'});
+  }
   if(value.action==='equip'||value.action==='unequip'){
    const result=await rpc('vvr_equipment',{p_player:player,p_action:value.action,p_item:value.body.item});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'equipment_request_rejected'});

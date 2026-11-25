@@ -41,7 +41,7 @@ export type ArenaResult = {
 };
 export type ArenaMessage = {id:number;at:number;text:string;author?:string};
 export type ArenaMatchView = {
- id:string;bot:boolean;round:number;deadline:number;you:ArenaFighter;opponent:ArenaFighter;
+ id:string;bot:boolean;training?:boolean;round:number;deadline:number;you:ArenaFighter;opponent:ArenaFighter;
  control:boolean;controlRevision:number;nextSequence:number;auto:boolean;belt:Record<ArenaElixir,number>;
  itemReadyAt:Partial<Record<ArenaElixir,number>>;
  ready:Record<ArenaSkill,number>;log:ArenaMessage[];chat:ArenaMessage[];chatDeadline:number|null;
