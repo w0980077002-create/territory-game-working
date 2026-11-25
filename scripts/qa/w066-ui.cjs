@@ -370,7 +370,6 @@ const rewards={
     mkdirSync(screenshots,{recursive:true});
     await hub.screenshot({path:screenshots+'lobby-'+width+'.png'});
     await button(/Отряд.*3×3/).tap();
-    await button('Начать поиск').tap();
     await hub.getByText('Участники · 1/6',{exact:true}).waitFor();
     const battle=hub.getByRole('region',{name:'Арена 3×3'});
     await battle.getByText('Бой игроков · 3×3',{exact:true}).waitFor();
@@ -392,7 +391,6 @@ const rewards={
     await page.screenshot({path:screenshots+'team-'+width+'.png'});
     await button('‹ Арена').tap();
     await button(/Хаос.*20×20/).tap();
-    await button('Начать поиск').tap();
     await hub.getByText('Участники · 1/40',{exact:true}).waitFor();
     await hub.getByText('Бой игроков · 20×20',{exact:true}).waitFor();
     await button('‹ Арена').tap();

@@ -1,11 +1,10 @@
 import {useEffect,useRef,useState,type ReactNode} from 'react';
-import {classNames} from '../data/catalog';
 import {tg} from '../core/telegram';
 import type {Player} from '../core/types';
 import {useGame} from '../core/store';
 import {CommunityError,communityEnabled,requestTeamArena,type Ranking} from '../community/client';
-import {arenaHeroes,zones,type ArenaElixir,type ArenaHero,type ArenaMessage,type ArenaZone} from '../arena/protocol';
-import {ArenaBelt,BattleStage,RoomMessages} from './ArenaBattleParts';
+import {type ArenaElixir,type ArenaHero,type ArenaMessage,type ArenaZone} from '../arena/protocol';
+import {ArenaBelt,ArenaResult,FightScene,FighterList,RoomMessages} from './ArenaBattleParts';
 import {Icon} from './Icon';
 import './arenaHub.css';
 
@@ -28,7 +27,6 @@ type TeamSearch={id:string;mode:TeamMode;closesAt:string;queued:number;roster:{i
 type Reply={accepted:boolean;view:TeamBattle|TeamSearch};
 type Action={kind:'strike';target:string;attack:ArenaZone;blocks:[ArenaZone,ArenaZone]}|
  {kind:'auto';enabled:boolean}|{kind:'item';item:ArenaElixir}|{kind:'chat';text:string};
-const zoneIds=Object.keys(zones) as ArenaZone[];
 const left=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
 const isSearch=(view:TeamSearch|TeamBattle):view is TeamSearch=>'queued' in view;
 
@@ -36,7 +34,7 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
  const open=useGame(state=>state.open);
  const [rulesOpen,setRulesOpen]=useState(false);
  const [mode,setMode]=useState<Mode>(),[podium,setPodium]=useState<Podium>(),[notice,setNotice]=useState('');
- const [room,setRoom]=useState<Reply['view']>(),[hero,setHero]=useState<ArenaHero>(player.heroClass),[busy,setBusy]=useState(false);
+ const [room,setRoom]=useState<Reply['view']>(),[busy,setBusy]=useState(false);
  const [now,setNow]=useState(Date.now()), flight=useRef(false),revision=useRef(0);
  const signed=communityEnabled&&!!tg()?.initData;
  const roomId=room?.id;
@@ -73,12 +71,15 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
   catch{setNotice('Арена временно недоступна. Попробуйте ещё раз.');return false;}
   finally{flight.current=false;setBusy(false);}
  };
- const choose=(next:Mode)=>{setMode(next);setNotice('');};
- const start=()=>perform(async()=>{
-  if(!mode||mode==='duel')return false;
-  const next=await requestTeamArena<Reply>({action:'join',mode,hero});
-  setMode(next.view.mode);setRoom(next.view);setNow(Date.now());return true;
- });
+ // As in TERRITORY: a mode card starts the search at once with the player's own hero; an open room is resumed instead.
+ const choose=(next:Mode)=>{
+  setMode(next);setNotice('');
+  if(next==='duel'||room?.mode===next||!signed)return;
+  void perform(async()=>{
+   const joined=await requestTeamArena<Reply>({action:'join',mode:next,hero:player.heroClass as ArenaHero});
+   setMode(joined.view.mode);setRoom(joined.view);setNow(Date.now());return true;
+  });
+ };
  const cancel=()=>perform(async()=>{
   if(!roomId)return false;
   const response=await requestTeamArena<{accepted:boolean}>({action:'cancel',room:roomId});
@@ -104,20 +105,17 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
   <button className="vvr-arena-back" type="button" disabled={busy} onClick={()=>chooseLobby()}>‹ Арена</button>
   {mode==='duel'?duel:<section className="online-arena" aria-label={mode==='team'?'Арена 3×3':'Хаос 20×20'}>
    {notice&&<p role="status" className="online-status">{notice}</p>}
-   {room&&room.mode===mode&&!isSearch(room)?<TeamScene key={room.id} match={room} now={now} busy={busy} send={send}/>:
+   {room&&room.mode===mode&&!isSearch(room)?<TeamScene key={room.id} match={room} now={now} busy={busy} send={send} onLeave={()=>{setRoom(undefined);chooseLobby()}}/>:
     room&&room.mode===mode&&isSearch(room)?<div className="vvr-arena-search">
+     <span className="vvr-search-spinner" aria-hidden="true"/>
      <strong>Поиск соперников · {left(Date.parse(room.closesAt),now)} с</strong>
      <p>Участники · {room.queued}/{mode==='team'?6:40}</p>
      <ul>{room.roster.map(entry=><li key={entry.id}>{entry.name}</li>)}</ul>
+     <small>Свободные места займут тренировочные боты.</small>
      <button type="button" className="action secondary" disabled={busy} onClick={cancel}>Отменить поиск</button>
-    </div>:<>
-     <label className="online-class">Класс героя <select value={hero} onChange={event=>setHero(event.target.value as ArenaHero)}>
-      {arenaHeroes.map(id=><option key={id} value={id}>{classNames[id]}</option>)}
-     </select></label>
-     <p>Сила атаки берётся из серверного профиля W066 и снаряжения. Свободные места займут тренировочные боты.</p>
-     <button className="action" type="button" disabled={!signed||busy} onClick={start}>Начать поиск</button>
-     {!signed&&<small>Откройте игру в Telegram, чтобы начать сетевой бой.</small>}
-    </>}
+    </div>:<div className="vvr-arena-search">
+     {signed?<><span className="vvr-search-spinner" aria-hidden="true"/><strong>Подключаемся к Арене…</strong></>:<small>Откройте игру в Telegram, чтобы начать сетевой бой.</small>}
+    </div>}
   </section>}
  </section>;
  function chooseLobby(){setMode(undefined);setNotice('');}
@@ -153,44 +151,40 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
 
 const arenaArt=(file:string)=>import.meta.env.BASE_URL+'art/arena/'+file;
 const display=(player:Fighter)=>({...player,level:1,online:true,moved:false,gear:[]});
-function TeamScene({match,now,busy,send}:{match:TeamBattle;now:number;busy:boolean;send:(action:Action)=>Promise<boolean>}){
+function TeamScene({match,now,busy,send,onLeave}:{match:TeamBattle;now:number;busy:boolean;send:(action:Action)=>Promise<boolean>;onLeave:()=>void}){
  const [target,setTarget]=useState(''),[attack,setAttack]=useState<ArenaZone>('head'),[blocks,setBlocks]=useState<ArenaZone[]>([]);
- const enemies=match.players.filter(player=>player.side!==match.you.side);
+ const enemies=match.players.filter(player=>player.side!==match.you.side),allies=match.players.filter(player=>player.side===match.you.side);
  const opponent=enemies.find(player=>player.id===target&&player.hp>0)??enemies.find(player=>player.hp>0)??enemies[0];
  const me=match.players.find(player=>player.id===match.you.id)!;
  const locked=busy||!me.hp||!!match.result;
- const result=match.result;
+ const result=match.result,cooldown=left(match.you.nextStrikeAt,now);
+ const size=match.mode==='team'?'3×3':'20×20';
+ const status=!me.hp?'Вы пали':match.you.auto?'Автобой':cooldown>0?'Следующий удар через '+cooldown+' с':blocks.length<2?'Защита: выберите ещё '+(2-blocks.length):undefined;
+ const outcome=result?(result.winner===null?'draw':result.winner===me.side?'win':'loss'):'draw';
+ const belt=Object.values(match.you.belt).reduce((sum,count)=>sum+count,0);
  return <>
-  <div className="online-clock">{match.training?'Тренировка':'Бой игроков'} · {match.mode==='team'?'3×3':'20×20'}</div>
-  {result?<p role="status" className="online-status">{result.winner===null?'Ничья':result.winner===me.side?'Победа':'Поражение'}
-   {' · '}{result.reason==='afk'?'Команда пропустила время атаки':result.reason==='time'?'Итог по здоровью':'Команда повержена'}{match.rankAwarded&&' · +1 к рейтингу'}</p>:
-   <div className="online-clock">Ваш отряд {left(match.sideDeadline[me.side],now)} с · соперники {left(match.sideDeadline[opponent.side],now)} с</div>}
-  <BattleStage you={display(me)} opponent={display(opponent)}/>
-  <label className="online-class">Цель <select value={opponent.id} disabled={locked} onChange={event=>setTarget(event.target.value)}>
-   {enemies.map(player=><option key={player.id} value={player.id} disabled={!player.hp}>{player.name} · {player.hp}/{player.maxHp} HP</option>)}
-  </select></label>
-  {!result&&<>
-   <fieldset disabled={locked||match.you.auto}><legend>Удар · 1 зона</legend><div className="online-zones">{zoneIds.map(id=>
-    <button key={id} type="button" className="action secondary" aria-pressed={attack===id} onClick={()=>setAttack(id)}>{zones[id].label}</button>
-   )}</div></fieldset>
-   <fieldset disabled={locked||match.you.auto}><legend>Защита · 2 зоны</legend><div className="online-zones">{zoneIds.map(id=>
-    <button key={id} type="button" className="action secondary" aria-pressed={blocks.includes(id)}
-     onClick={()=>setBlocks(current=>current.includes(id)?current.filter(zone=>zone!==id):[...current.slice(-1),id])}>{zones[id].label}</button>
-   )}</div></fieldset>
-   <div className="online-message-tabs">
+  <div className="vvr-room-bar"><span>{match.training?'Тренировка':'Бой игроков'} · {size}</span>
+   {!result&&<b className={left(match.sideDeadline[me.side],now)<=10?'urgent':''}>{left(match.sideDeadline[me.side],now)} с</b>}</div>
+  {!result&&<p className="vvr-room-timers">Ваш отряд {left(match.sideDeadline[me.side],now)} с · соперники {left(match.sideDeadline[opponent.side],now)} с</p>}
+  <FightScene you={display(me)} opponent={display(opponent)} attack={attack} blocks={blocks} onAttack={setAttack}
+   onBlock={id=>setBlocks(current=>current.includes(id)?current.filter(zone=>zone!==id):[...current.slice(-1),id])}
+   locked={locked||match.you.auto} status={status}
+   result={result&&<ArenaResult outcome={outcome}
+    reason={result.reason==='afk'?'Команда пропустила время атаки':result.reason==='time'?'Итог по здоровью':'Команда повержена'}
+    extra={match.rankAwarded?'+1 к рейтингу':undefined} chatLeft={match.chatDeadline===null?null:left(match.chatDeadline,now)} onLeave={onLeave}/>}>
+   {!result&&<>
     <button type="button" className="action secondary" disabled={locked} aria-pressed={match.you.auto}
      onClick={()=>send({kind:'auto',enabled:!match.you.auto})}>Авто</button>
     <button type="button" className="action" disabled={locked||match.you.auto||blocks.length!==2||match.you.nextStrikeAt>now}
      onClick={()=>send({kind:'strike',target:opponent.id,attack,blocks:[blocks[0],blocks[1]]})}>Ударить</button>
-   </div>
+   </>}
+  </FightScene>
+  {!result&&<details className="vvr-supply"><summary>Пояс эликсиров · {belt}</summary>
    <ArenaBelt belt={match.you.belt} readyAt={match.you.itemReadyAt} now={now}
     fullHealth={me.hp===me.maxHp} disabled={locked} onItem={item=>void send({kind:'item',item})}/>
-  </>}
+  </details>}
+  <FighterList title="Противники" ally={false} fighters={enemies} targetId={opponent.id} onTarget={result?undefined:setTarget}/>
+  <FighterList title="Ваш отряд" ally fighters={allies} meId={me.id}/>
   <RoomMessages match={match} now={now} pending={busy} send={text=>send({kind:'chat',text})}/>
-  <details className="online-details"><summary>Участники боя · {match.players.length}</summary>
-   {[me.side,opponent.side].map(side=><ul key={side}>
-    {match.players.filter(player=>player.side===side).map(player=><li key={player.id}>{player.name} · {player.hp}/{player.maxHp} HP · {player.kills} ⨯</li>)}
-   </ul>)}
-  </details>
  </>;
 }
