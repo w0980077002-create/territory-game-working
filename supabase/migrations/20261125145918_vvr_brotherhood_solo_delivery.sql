@@ -1,18 +1,18 @@
 set local lock_timeout='5s';
 
--- Reuse the durable Brotherhood delivery journal and its operation aliases.
--- Horn deliveries remain readable by older clients and keep their pending slot.
-alter table vvr.brotherhood_horn_openings add column kind text not null default 'horn'
-  check (kind in ('horn','solo'));
-alter table vvr.brotherhood_horn_openings drop constraint brotherhood_horn_openings_check,
-  add constraint brotherhood_delivery_payload_check check (
-    jsonb_typeof(item)='object' and item->>'id' is not null
-    and item->>'id'='brotherhood-'||kind||':'||operation_id::text and octet_length(item::text)<4096
-    and (kind='horn' or jsonb_typeof(item->'resources') is not distinct from 'object')
+-- Preserve the original Horn check and pending index. The original
+-- delivered_at remains the Horn delivery flag. Solo entries are closed for
+-- the Horn and use their own acknowledgement, in the same journal.
+alter table vvr.brotherhood_horn_openings
+  add column kind text not null default 'horn' check (kind in ('horn','solo')),
+  add column solo_delivered_at timestamptz,
+  add constraint brotherhood_solo_delivery_payload_check check (
+    kind<>'solo' or (delivered_at is not null and
+      jsonb_typeof(item->'resources') is not distinct from 'object')
   );
-create unique index brotherhood_delivery_one_pending
-  on vvr.brotherhood_horn_openings(player_id,kind) where delivered_at is null;
-drop index vvr.brotherhood_horn_one_pending;
+create unique index brotherhood_solo_one_pending
+  on vvr.brotherhood_horn_openings(player_id)
+  where kind='solo' and solo_delivered_at is null;
 
 -- Legacy gift credits are already part of the shared wallet. The available
 -- amount is bounded both by the current wallet and by previously unexported
@@ -69,8 +69,13 @@ begin
   perform 1 from vvr.players where id=p_player for no key update;
   if not found then raise exception 'verified_player_required' using errcode='42501'; end if;
   if action='ack' then
-    update vvr.brotherhood_horn_openings set delivered_at=coalesce(delivered_at,clock_timestamp())
-      where player_id=p_player and operation_id=p_operation and kind=delivery_kind;
+    if delivery_kind='solo' then
+      update vvr.brotherhood_horn_openings set solo_delivered_at=coalesce(solo_delivered_at,clock_timestamp())
+        where player_id=p_player and operation_id=p_operation and kind='solo';
+    else
+      update vvr.brotherhood_horn_openings set delivered_at=coalesce(delivered_at,clock_timestamp())
+        where player_id=p_player and operation_id=p_operation and kind='horn';
+    end if;
     return jsonb_build_object('status',case when found then 'delivered' else 'unavailable' end);
   end if;
   if action='open' then
@@ -84,7 +89,8 @@ begin
   end if;
   if delivery.operation_id is null then
     select * into delivery from vvr.brotherhood_horn_openings
-      where player_id=p_player and delivered_at is null and kind=delivery_kind;
+      where player_id=p_player and kind=delivery_kind
+        and case when delivery_kind='solo' then solo_delivered_at is null else delivered_at is null end;
     if action='open' and delivery.operation_id is not null then
       insert into vvr.brotherhood_horn_aliases values(p_player,p_operation,delivery.operation_id);
     end if;
@@ -109,20 +115,24 @@ begin
       else
         update vvr.wallets w set balance=w.balance-line.value::bigint
           from jsonb_each_text(payload) line where w.player_id=p_player and w.resource=line.key;
-        payload:=jsonb_build_object('id','brotherhood-solo:'||p_operation::text,'resources',payload);
+        payload:=jsonb_build_object('id','brotherhood-horn:'||p_operation::text,'resources',payload);
       end if;
     end if;
     if payload is not null then
-      insert into vvr.brotherhood_horn_openings(player_id,operation_id,item,kind)
-        values(p_player,p_operation,payload,delivery_kind) returning * into delivery;
+      insert into vvr.brotherhood_horn_openings(player_id,operation_id,item,kind,delivered_at)
+        values(p_player,p_operation,payload,delivery_kind,case when delivery_kind='solo' then clock_timestamp() end)
+        returning * into delivery;
     end if;
   end if;
-  payload:=case when delivery.operation_id is not null and delivery.delivered_at is null
-    then jsonb_build_object('id',delivery.operation_id,'item',delivery.item) else null end;
   if delivery_kind='solo' then
+    payload:=case when delivery.operation_id is not null and delivery.solo_delivered_at is null
+      then jsonb_build_object('id',delivery.operation_id,'item',
+        jsonb_set(delivery.item,'{id}',to_jsonb('brotherhood-solo:'||delivery.operation_id::text))) else null end;
     return jsonb_build_object('status','ok','available',vvr.brotherhood_solo_available(p_player),
       'wallet',vvr.brotherhood_wallet(p_player),'pending',payload);
   end if;
+  payload:=case when delivery.operation_id is not null and delivery.delivered_at is null
+    then jsonb_build_object('id',delivery.operation_id,'item',delivery.item) else null end;
   select balance into charges from vvr.wallets where player_id=p_player and resource='horn';
   return jsonb_build_object('status','ok','charges',coalesce(charges,0),'pending',payload);
 end;
