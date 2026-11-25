@@ -70,15 +70,15 @@ export function SaveTools() {
       if(!current(id))return;
       if(!snapshot){
         if(!previous)setServerRevision(0);
-        notice(previous?'Предыдущей копии W066 пока нет':'В W066 пока нет копии');
+        notice(previous?'Предыдущей облачной копии пока нет':'Облачной копии пока нет');
         return;
       }
       if(!previous)setServerRevision(snapshot.revision);
       const player=parseSave(snapshot.raw,true);
       if(player)setCandidate({player});
-      else notice('Копия W066 повреждена · откройте предыдущую версию');
+      else notice('Облачная копия повреждена · откройте предыдущую версию');
     }catch{
-      if(current(id))notice('Копия W066 недоступна · попробуйте ещё раз');
+      if(current(id))notice('Облачная копия недоступна · попробуйте ещё раз');
     }finally{if(current(id))setServerBusy(false)}
   };
   const saveServer = async () => {
@@ -90,13 +90,13 @@ export function SaveTools() {
       if(!current(id))return;
       setServerRevision(revision);
       setCandidate(undefined);
-      notice('Копия W066 сохранена');
+      notice('Облачная копия сохранена');
     }catch(error){
       if(!current(id))return;
       setServerRevision(undefined);
       notice(error instanceof CommunityError&&error.status===409
-        ?'Копия W066 обновлена на другом устройстве · откройте её заново'
-        :'Не удалось сохранить копию W066');
+        ?'Облачная копия обновлена на другом устройстве · откройте её заново'
+        :'Не удалось сохранить облачную копию');
     }finally{if(current(id))setServerBusy(false)}
   };
   const previewLocal = (key:string, missing:string, strict:boolean) => {
@@ -153,10 +153,10 @@ export function SaveTools() {
       <button type="button" className="action secondary" onClick={()=>previewLocal(SAVE_KEY+':before-import','Резервной копии пока нет',false)}>Предыдущая резервная копия</button>
     </div>
     {communityEnabled&&telegramProfile&&<div className="save-actions">
-      <button type="button" className="action secondary" disabled={serverBusy} onClick={()=>void previewServer(false)}>Открыть копию W066</button>
-      <button type="button" className="action secondary" disabled={serverBusy} onClick={()=>void previewServer(true)}>Предыдущая копия W066</button>
+      <button type="button" className="action secondary" disabled={serverBusy} onClick={()=>void previewServer(false)}>Открыть облачную копию</button>
+      <button type="button" className="action secondary" disabled={serverBusy} onClick={()=>void previewServer(true)}>Предыдущая облачная копия</button>
       {serverRevision!==undefined&&!useGame.getState().recoveryRequired&&<button type="button" className="action secondary"
-        disabled={serverBusy} onClick={()=>void saveServer()}>Сохранить текущую игру в W066</button>}
+        disabled={serverBusy} onClick={()=>void saveServer()}>Сохранить в облаке</button>}
     </div>}
     {pasteOpen&&<label>Текст резервной копии
       <textarea ref={paste} rows={3} spellCheck={false} autoComplete="off"/>

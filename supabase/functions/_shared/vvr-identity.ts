@@ -29,7 +29,8 @@ export async function verifyTelegramIdentity(raw:string,botToken:string,now:numb
   const {id,first_name}=JSON.parse(params.get('user')??'null');
   if(!Number.isSafeInteger(id)||id<=0)return;
   const name=typeof first_name==='string'?Array.from(first_name.replace(/[\p{Cc}\p{Cf}]/gu,'').trim()).slice(0,32).join(''):'';
-  return {telegramId:String(id),displayName:name||'Северный страж'};
+  const startParam=params.get('start_param');
+  return {telegramId:String(id),displayName:name||'Северный страж',...(startParam?{startParam}:{})};
  }catch{return undefined;}
 }
 

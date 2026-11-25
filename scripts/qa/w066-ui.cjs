@@ -5,7 +5,7 @@ const {mkdirSync}=require('node:fs');
 const site=process.env.BASE_URL||'http://127.0.0.1:18791/';
 const endpoint=process.env.COMMUNITY_URL||'http://127.0.0.1:18792/functions/v1/vvr-community';
 const arenaOrigin=process.env.ARENA_ORIGIN||'http://127.0.0.1:18793';
-const initData='user='+encodeURIComponent(JSON.stringify({id:92001,first_name:'Алиса'}));
+const initData='user='+encodeURIComponent(JSON.stringify({id:92001,first_name:'Алиса'}))+'&start_param=ref_11111111-1111-1111-1111-111111111111';
 const saveKey='lootborn-codex-v1:telegram:92001';
 const listing='11111111-1111-1111-1111-111111111111';
 
@@ -29,6 +29,7 @@ const listing='11111111-1111-1111-1111-111111111111';
      assert.equal(request.headers().authorization,'Bearer arena-fixture-session');
      await route.fulfill({json:{now:Date.now(),points:0,level:1},headers});
     });
+    let loginCalls=0,referrals=[],referralReads=0;
     let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false;
     await context.route(endpoint,async route=>{
      const request=route.request();
@@ -37,7 +38,12 @@ const listing='11111111-1111-1111-1111-111111111111';
      const {action,body}=request.postDataJSON();
      assert.equal(request.headers().authorization,action==='login'?undefined:'Bearer isolated-session');
      let data;
-     if(action==='login'){assert.deepEqual(body,{initData});data={token:'isolated-session'};}
+     if(action==='login'){loginCalls++;assert.deepEqual(body,{initData});data={token:'isolated-session'};}
+     if(action==='referrals'){
+      referralReads++;
+      assert.deepEqual(body,{});
+      data={startParam:'ref_'+listing,rows:referrals,next:null};
+     }
      if(action==='auction')data={gold:balance,
       equipment:{attack:equipped?enhanced?111:110:100,equipped,enhancements:{[listing]:{rank:enhanced?1:0,cost:enhanced?130:100}}},
       items:balance!==100?[{id:listing,catalogId:'world-boss-trophy'}]:[],history:[],
@@ -68,6 +74,14 @@ const listing='11111111-1111-1111-1111-111111111111';
      }
      if(action==='ranking')data={season:{name:'Северный сезон'},seasons:[],rows:[{rank:1,name:'Алиса',points:70,mine:true}]};
      await route.fulfill({json:data,headers});
+    });
+    await context.route(endpoint+'/backup',async route=>{
+     const req=route.request();
+     const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization'};
+     if(req.method()==='OPTIONS'){await route.fulfill({status:204,headers});return;}
+     assert.equal(req.headers().authorization,'Bearer isolated-session');
+     assert.deepEqual(req.postDataJSON(),{previous:false});
+     await route.fulfill({json:null,headers});
     });
     let roomPolls=0, battleCalls=0, arenaMode='team', teamChat='', conflictCommand;
     await context.route(endpoint.replace(/vvr-community$/,'vvr-arena'),async route=>{
@@ -107,7 +121,49 @@ const listing='11111111-1111-1111-1111-111111111111';
     page.setDefaultTimeout(10000);
     await page.goto(site);
     const button=name=>page.getByRole('button',{name,exact:true});
-    const openMenu=async()=>{await button('Меню').tap();};
+    const openMenu=async()=>{
+     await button('Меню').click();
+     await page.getByRole('dialog',{name:'Меню',exact:true}).waitFor();
+    };
+    await page.waitForFunction(()=>document.querySelector('.viewport'));
+    await page.evaluate(()=>{
+     Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{
+      window.copiedReferral=value;
+     }}});
+    });
+    await button('Приглашение').tap();
+    const invite=page.getByRole('dialog',{name:'Приглашение'});
+    await invite.getByRole('button',{name:'Скопировать личную ссылку'}).tap();
+    const expectedLink='https://t.me/VikingRomeGame?startapp=ref_'+listing;
+    assert.equal(await page.evaluate(()=>window.copiedReferral),expectedLink);
+    assert.equal(loginCalls,1);
+    assert.equal(referralReads,1,'copying never posts an invitation');
+    await page.evaluate(()=>{navigator.clipboard.writeText=()=>Promise.reject(new Error('Clipboard disabled'));});
+    await invite.getByRole('button',{name:'Скопировать личную ссылку'}).tap();
+    assert.equal(await invite.getByRole('textbox',{name:'Адрес для копирования'}).inputValue(),expectedLink);
+    const fits=dialog=>dialog.locator('.modal-body').evaluate(el=>el.scrollWidth<=el.clientWidth+1);
+    assert.equal(await fits(invite),true);
+    await invite.getByRole('button',{name:'Друзья'}).tap();
+    const friends=page.getByRole('dialog',{name:'Друзья'});
+    await friends.getByText('Подтверждённых приглашений пока нет.',{exact:true}).waitFor();
+    referrals=[
+     {id:'friend-a',name:'Новый игрок',status:'confirmed'},
+     {id:'friend-b',name:'ДругИзTelegram'.repeat(5),status:'rewarded'},
+    ];
+    await friends.getByRole('button',{name:'Обновить'}).tap();
+    await friends.getByText('Приглашение подтверждено',{exact:true}).waitFor();
+    await friends.getByText('Награда начислена',{exact:true}).waitFor();
+    assert.equal(await fits(friends),true);
+    await friends.getByRole('button',{name:'Закрыть'}).tap();
+    await openMenu();
+    await button('Сохранение и восстановление').click();
+    const backup=page.getByRole('dialog',{name:'Сохранение и восстановление'});
+    await backup.getByRole('button',{name:'Открыть облачную копию'}).tap();
+    await backup.getByText('Облачной копии пока нет',{exact:true}).waitFor();
+    await backup.getByRole('button',{name:'Сохранить в облаке'}).waitFor();
+    assert.equal(await fits(backup),true);
+    await backup.getByRole('button',{name:'Закрыть'}).tap();
+
     const previous=()=>page.getByRole('button',{name:/Назад/}).first();
     await openMenu();
     await page.getByRole('button',{name:/^Звук:/}).tap();
@@ -212,7 +268,22 @@ const listing='11111111-1111-1111-1111-111111111111';
     await button('Арена').tap();
     await button(/Дуэль.*1×1/).tap();
     await button('Найти соперника').waitFor();
-    console.log(width+' px: verified Pages Arena connection, Solo save, auction, trade chat, rankings and guilds');
+    if(width===430){
+     await page.evaluate(()=>localStorage.setItem('vvr-lang','en'));
+     await page.reload();
+     await button('Invite').tap();
+     await button('Copy personal link').waitFor();
+     await button('Friends').tap();
+     await page.getByText('Invitation confirmed',{exact:true}).waitFor();
+     await page.getByText('Reward credited',{exact:true}).waitFor();
+     await button('Close').tap();
+     await button('Menu').click();
+     await button('Save & Restore').click();
+     await button('Open cloud backup').tap();
+     await page.getByText('There is no cloud backup yet',{exact:true}).waitFor();
+     await button('Save to cloud').waitFor();
+    }
+    console.log(width+' px: verified invitations, cloud copies, Arena, Solo save, trade chat, rankings and guilds');
    }finally{await context.close();}
   }
  }finally{await browser.close();}

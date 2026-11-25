@@ -39,7 +39,7 @@ export function connectCommunity(){
  if(session)return session;
  const initData=tg()?.initData;
  if(!initData)return Promise.reject(new CommunityError(401));
- session=request<{token:string}>('login',{initData}).then(reply=>reply.token).catch(error=>{
+ session=request<{token:string}>('login',{initData},undefined,AbortSignal.timeout?.(7500)).then(reply=>reply.token).catch(error=>{
   session=undefined;
   throw error;
  });
@@ -57,6 +57,15 @@ async function authenticated<T>(action:string,body:object,signal?:AbortSignal,pa
 
 export function community<T>(action:string,body:object={},signal?:AbortSignal){
  return authenticated<T>(action,body,signal);
+}
+
+export type ReferralState={
+ startParam:string;
+ rows:{id:string;name:string;at:string;status:'confirmed'|'rewarded'}[];
+ next:string|null;
+};
+export function readReferrals(before:string|null){
+ return community<ReferralState>('referrals',before?{before}:{},AbortSignal.timeout?.(7500));
 }
 
 export type W066Snapshot={revision:number;raw:string;at:string};

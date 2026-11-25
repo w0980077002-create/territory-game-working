@@ -376,7 +376,7 @@ async function transferBetweenDevices(browser){
   await page.goto(base + '?hero=invite-alias-qa');
   await page.waitForFunction(() => window.__lootborn?.battle);
   await page.evaluate(() => window.__lootborn.useGame.getState().open('friends'));
-  await page.getByRole('dialog', {name:'Поделиться игрой'}).waitFor();
+  await page.getByRole('dialog', {name:'Друзья'}).waitFor();
   await verifyInvite();
 
   const acceptanceKey = browserKey + ':test:mail-acceptance';
