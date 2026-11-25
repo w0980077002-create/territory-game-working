@@ -175,16 +175,16 @@ const rewards={
     await chest.getByText('Вас пригласил игрок · Пригласивший игрок',{exact:true}).waitFor();
     await chest.getByText('2000',{exact:true}).waitFor();
     assert.equal(await chest.getByRole('button',{name:'Получить',exact:true}).count(),0);
-    const beforeCopy=referralReads;
-    await invite.getByRole('button',{name:'Скопировать личную ссылку'}).tap();
     const expectedLink='https://t.me/VikingRomeGame?startapp=ref_'+listing;
+    await invite.getByRole('button',{name:'Пригласить друга'}).click();
+    const shared=new URL(await (await page.waitForFunction(()=>window.sharedBrotherhood)).jsonValue());
+    assert.equal(shared.searchParams.get('url'),expectedLink);
+    assert.match(shared.searchParams.get('text'),/сундук.*самоцветы.*оба получим награды/);
+    const beforeCopy=referralReads;
+    await invite.getByRole('button',{name:'Скопировать личную ссылку'}).click();
     assert.equal(await page.evaluate(()=>window.copiedReferral),expectedLink);
     assert.equal(loginCalls,1);
     assert.equal(referralReads,beforeCopy,'copying does not change referral state');
-    await invite.getByRole('button',{name:'Пригласить друга'}).tap();
-    const shared=new URL(await page.evaluate(()=>window.sharedBrotherhood));
-    assert.equal(shared.searchParams.get('url'),expectedLink);
-    assert.match(shared.searchParams.get('text'),/сундук.*самоцветы.*оба получим награды/);
     await page.evaluate(()=>{navigator.clipboard.writeText=()=>Promise.reject(new Error('Clipboard disabled'));});
     await invite.getByRole('button',{name:'Скопировать личную ссылку'}).tap();
     assert.equal(await invite.getByRole('textbox',{name:'Адрес для копирования'}).inputValue(),expectedLink);
@@ -200,9 +200,9 @@ const rewards={
     assert.equal(beforeReward.horn,fullHorn);
     await invite.getByRole('button',{name:'Обновить',exact:true}).tap();
     const claimChest=chest.getByRole('button',{name:'Получить',exact:true});
-    await claimChest.tap();
+    await claimChest.click();
     await invite.getByText('Не удалось получить награду · попробуйте ещё раз',{exact:true}).waitFor();
-    await claimChest.tap();
+    await claimChest.click();
     await chest.getByText('Получено',{exact:true}).waitFor();
     assert.equal(attempts,2);
     for(const field of ['gold','gems','chaosite','horn','level','inventory'])
