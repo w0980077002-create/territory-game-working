@@ -19,7 +19,8 @@ test('W066 Edge attributes only a signed start parameter and reads only the sess
   return Response.json(name==='vvr_referrals'?{startParam:'ref_'+player,rows:[],next:null}:player);
  };
  try{
-  await import('../supabase/functions/vvr-community/index');
+  // Load the Deno entry point at test runtime, outside the browser type-check.
+  await import(new URL('../supabase/functions/vvr-community/index.ts',import.meta.url).href);
   const app='https://isolated-w066.example/functions/v1/vvr-community';
   const post=(action:string,body:object,token?:string)=>handle(new Request(app+'?tgWebAppStartParam=ref_'+inviter,{
    method:'POST',body:JSON.stringify({action,body}),headers:token?{Authorization:'Bearer '+token}:{},
