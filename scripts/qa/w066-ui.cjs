@@ -186,7 +186,7 @@ const rewards={
     assert.equal(loginCalls,1);
     assert.equal(referralReads,beforeCopy,'copying does not change referral state');
     await page.evaluate(()=>{navigator.clipboard.writeText=()=>Promise.reject(new Error('Clipboard disabled'));});
-    await invite.getByRole('button',{name:'Скопировать личную ссылку'}).tap();
+    await invite.getByRole('button',{name:'Скопировать личную ссылку'}).click();
     assert.equal(await invite.getByRole('textbox',{name:'Адрес для копирования'}).inputValue(),expectedLink);
     const fits=dialog=>dialog.locator('.modal-body').evaluate(el=>el.scrollWidth<=el.clientWidth+1);
     assert.equal(await fits(invite),true);
@@ -198,7 +198,8 @@ const rewards={
     const storedSave=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)),saveKey);
     const beforeReward=await storedSave();
     assert.equal(beforeReward.horn,fullHorn);
-    await invite.getByRole('button',{name:'Обновить',exact:true}).tap();
+    await page.reload();
+    await button('Приглашение').click();
     const claimChest=chest.getByRole('button',{name:'Получить',exact:true});
     await claimChest.click();
     await invite.getByText('Не удалось получить награду · попробуйте ещё раз',{exact:true}).waitFor();
@@ -207,40 +208,40 @@ const rewards={
     assert.equal(attempts,2);
     for(const field of ['gold','gems','chaosite','horn','level','inventory'])
      assert.deepEqual((await storedSave())[field],beforeReward[field],'Solo ' + field + ' is independent of W066 claims');
-    await invite.getByText('Сетевой кошелёк',{exact:true}).tap();
+    await invite.getByText('Сетевой кошелёк',{exact:true}).click();
     await invite.getByText('Подарочные заряды хранятся в сетевом кошельке даже при полном Роге. Перенос в Рог пока недоступен.').waitFor();
     await page.reload();
-    await button('Приглашение').tap();
+    await button('Приглашение').click();
     await chest.getByText('Получено',{exact:true}).waitFor();
     assert.equal((await storedSave()).horn,fullHorn);
-    await invite.getByRole('button',{name:'Друзья'}).tap();
+    await invite.getByRole('button',{name:'Друзья'}).click();
     const friends=page.getByRole('dialog',{name:'Друзья'});
     await friends.getByText('Подтверждённых приглашений пока нет.',{exact:true}).waitFor();
     referrals=[
      {id:'friend-a',name:'Новый игрок',status:'confirmed'},
      {id:'friend-b',name:'ДругИзTelegram'.repeat(5),status:'rewarded'},
     ];
-    await friends.getByRole('button',{name:'Обновить'}).tap();
+    await friends.getByRole('button',{name:'Обновить'}).click();
     await friends.getByText('Приглашение подтверждено',{exact:true}).waitFor();
     await friends.getByText('Награда начислена',{exact:true}).waitFor();
     await friends.getByText('Приглашено · 2 · Активных друзей · 2',{exact:true}).waitFor();
-    await friends.getByText('Совместных дней · 3 / 7',{exact:true}).first().tap();
+    await friends.getByText('Совместных дней · 3 / 7',{exact:true}).first().click();
     await friends.getByText('Ближайшая награда · Совместных дней · 5',{exact:true}).filter({visible:true}).waitFor();
     assert.equal(await fits(friends),true);
-    await friends.getByRole('button',{name:'Закрыть'}).tap();
+    await friends.getByRole('button',{name:'Закрыть'}).click();
     await openMenu();
     await button('Сохранение и восстановление').click();
     const backup=page.getByRole('dialog',{name:'Сохранение и восстановление'});
-    await backup.getByRole('button',{name:'Открыть облачную копию'}).tap();
+    await backup.getByRole('button',{name:'Открыть облачную копию'}).click();
     await backup.getByText('Облачной копии пока нет',{exact:true}).waitFor();
     await backup.getByRole('button',{name:'Сохранить в облаке'}).waitFor();
     assert.equal(await fits(backup),true);
-    await backup.getByRole('button',{name:'Закрыть'}).tap();
+    await backup.getByRole('button',{name:'Закрыть'}).click();
     if(width===430){
-     await button('Приключения').tap();
-     await page.getByRole('button',{name:/^Мировой босс/}).tap();
-     await button('Админ').tap();
-     await button('Обновить статистику братства').tap();
+     await button('Приключения').click();
+     await page.getByRole('button',{name:/^Мировой босс/}).click();
+     await button('Админ').click();
+     await button('Обновить статистику братства').click();
      await page.getByText('Начисленные ресурсы',{exact:true}).waitFor();
      await button('Приостановить выдачу').click();
      await page.getByText('Выдача приостановлена',{exact:true}).waitFor();
@@ -248,7 +249,7 @@ const rewards={
      await button('Возобновить выдачу').click();
      await page.getByText('Выдача включена',{exact:true}).waitFor();
      assert.equal(sentEnabled,true);
-     await button('Закрыть').tap();
+     await button('Закрыть').click();
     }
 
     const previous=()=>page.getByRole('button',{name:/Назад/}).first();
