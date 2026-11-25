@@ -48,7 +48,7 @@ import {personalWorkshop,workshopMastery,workshopRecipe,workshopRanks,workshopMa
 import {dailyView,weeklyView,storyQuests,activeStory,masteryView,masteryTiers,masteryGems,claimBoard,claimStory,claimMastery,ensureQuests,type QuestView} from '../saga/quests';
 import {actualReward} from '../saga/events';
 import {rewardText,type Reward} from '../saga/rewards';
-import {Icon,gearIcon} from './Icon';
+import {Icon} from './Icon';
 import {materialIcon,RewardArt} from './RewardArt';
 const short=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
 const Btn=({children,onClick,disabled=false,kind=''}:{children:React.ReactNode;onClick:()=>void;disabled?:boolean;kind?:string})=><button className={`action ${kind}`} onClick={onClick} disabled={disabled}>{children}</button>;
@@ -181,7 +181,7 @@ export function GearGuide({p}:{p:Player}){
  const campaignChance=Math.round(100*gearRules.drops.campaign.reduce((total,row)=>total+row.chance,0));
  const owned=new Set([...Object.values(p.equipment),...p.inventory,...(p.pendingLoot??[])].flatMap(i=>i?.perk?[i.perk]:[]));
  return <div className="saga-section"><h3>Именные трофеи саги</h3><p className="hint">Случайный именной трофей обычного босса кампании — {campaignChance}% суммарно. Владыка региона и хозяин Логова при первой победе отдают свой трофей. Комплектные вещи: {Math.round(setChance(dropRules.setChanceRegular,p.blessing)*100)}% с обычной добычи региона, {Math.round(setChance(dropRules.setChanceBoss,p.blessing)*100)}% с боссов, {Math.round(setChance(dropRules.setChanceHorn,p.blessing)*100)}% из Рога (растёт с Благословением).</p>
-  {perkIds.filter(id=>id!=='compass').map(id=><div className="hunt-item" key={id}><Icon name={gearIcon(perks[id].slot)}/><div><b>{perks[id].name} {owned.has(id)?'✓':''}</b><small>{perks[id].tag} · {perks[id].source}</small><p>{perks[id].text}</p></div></div>)}</div>;
+  {perkIds.filter(id=>id!=='compass').map(id=><div className="hunt-item" key={id}><Icon name={perks[id].icon}/><div><b>{perks[id].name} {owned.has(id)?'✓':''}</b><small>{perks[id].tag} · {perks[id].source}</small><p>{perks[id].text}</p></div></div>)}</div>;
 }
 export function CompanionGrowth({p,pet}:{p:Player;pet:0|1}){
  const level=p.companions[pet],branch=branchOf(p,pet),next=nextEvolution(level);

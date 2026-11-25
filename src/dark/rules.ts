@@ -39,10 +39,10 @@ function plus(to:Bonus,k:StatKey,v:number){if(Number.isFinite(v)&&v>0)to[k]+=v}
 // ───────────────────────── Dark Energy: 12 own slots ─────────────────────────
 export interface DarkItem {id:string;s:number;r:number;l:number;u:number;e?:string;k?:boolean}
 export const darkSlots:{name:string;stat:StatKey;base:number;icon:string}[]=[
- {name:'Жало Тьмы',stat:'attack',base:1,icon:'axes'},{name:'Панцирь Ночи',stat:'hp',base:1,icon:'armor'},{name:'Маска Затмения',stat:'defense',base:1,icon:'helmet'},
- {name:'Око Бездны',stat:'crit',base:.006,icon:'ring'},{name:'Клык Мрака',stat:'critDamage',base:.02,icon:'axe'},{name:'Сердце Тени',stat:'hpPct',base:.012,icon:'heart'},
- {name:'Печать Гнева',stat:'atkPct',base:.01,icon:'rune'},{name:'Оковы Стужи',stat:'defPct',base:.012,icon:'belt'},{name:'Чаша Крови',stat:'lifesteal',base:.004,icon:'amulet'},
- {name:'Гримуар Теней',stat:'skill',base:.012,icon:'book'},{name:'Плащ Полуночи',stat:'dodge',base:.004,icon:'cloak'},{name:'Знак Пустоты',stat:'reduction',base:.005,icon:'shield'}
+ {name:'Жало Тьмы',stat:'attack',base:1,icon:'dark-stinger'},{name:'Панцирь Ночи',stat:'hp',base:1,icon:'dark-carapace'},{name:'Маска Затмения',stat:'defense',base:1,icon:'dark-eclipse'},
+ {name:'Око Бездны',stat:'crit',base:.006,icon:'dark-abyss-eye'},{name:'Клык Мрака',stat:'critDamage',base:.02,icon:'dark-fang'},{name:'Сердце Тени',stat:'hpPct',base:.012,icon:'dark-shadow-heart'},
+ {name:'Печать Гнева',stat:'atkPct',base:.01,icon:'dark-wrath-seal'},{name:'Оковы Стужи',stat:'defPct',base:.012,icon:'dark-frost-shackles'},{name:'Чаша Крови',stat:'lifesteal',base:.004,icon:'dark-blood-cup'},
+ {name:'Гримуар Теней',stat:'skill',base:.012,icon:'dark-shadow-grimoire'},{name:'Плащ Полуночи',stat:'dodge',base:.004,icon:'dark-midnight-cloak'},{name:'Знак Пустоты',stat:'reduction',base:.005,icon:'dark-void-mark'}
 ];
 export const darkRarity=['Тусклый','Сумеречный','Полночный','Затменный','Бездонный','Первородный'];
 export const darkColors=['#8f8aa6','#6fb6d9','#7d7bff','#b56bff','#ff5fa8','#ffcf5a'];
@@ -141,16 +141,16 @@ export const RELIC_MAX=10;
 const lairWins=(p:Player)=>p.saga?.n['win:dungeon']??0;
 const goal=(have:number,need:number,text:string)=>({ok:have>=need,text:`${text} · ${Math.min(have,need)}/${need}`});
 export const relics:Record<RelicId,RelicDef>={
- heart:{name:'Сердце ледника',rarity:0,icon:'gem',material:'ice',lore:'Первая реликвия Севера. После 100 уровня вклад растёт постепенно.',ability:(lv,p)=>`Вклад в атаку +${(100*glacierAttackBonus({relic:lv,progression:p?.progression})).toLocaleString('ru',{maximumFractionDigits:1})} п.п.`,need:()=>({ok:true,text:'Получена в начале пути'})},
- horn:{name:'Рог Вальхаллы',rarity:0,icon:'horn',material:'harbor',lore:'Его зов поднимает дружину в первый натиск.',ability:lv=>`Первые 8 секунд боя: +${10+2*lv}% урона героя`,passive:['atkPct',.005],need:p=>goal(p.bosses,3,'Победить боссов главы')},
+ heart:{name:'Сердце ледника',rarity:0,icon:'relic-glacier-heart',material:'ice',lore:'Первая реликвия Севера. После 100 уровня вклад растёт постепенно.',ability:(lv,p)=>`Вклад в атаку +${(100*glacierAttackBonus({relic:lv,progression:p?.progression})).toLocaleString('ru',{maximumFractionDigits:1})} п.п.`,need:()=>({ok:true,text:'Получена в начале пути'})},
+ horn:{name:'Рог Вальхаллы',rarity:0,icon:'relic-valhalla-horn',material:'harbor',lore:'Его зов поднимает дружину в первый натиск.',ability:lv=>`Первые 8 секунд боя: +${10+2*lv}% урона героя`,passive:['atkPct',.005],need:p=>goal(p.bosses,3,'Победить боссов главы')},
  mjolnir:{name:'Осколок Мьёльнира',rarity:1,icon:'relic-mjolnir',material:'forest',lore:'Искра молота, что помнит гром.',ability:lv=>`Каждый 6-й удар героя бьёт цель молнией на ${60+12*lv}% атаки`,passive:['crit',.003],need:p=>goal(p.stage-1,10,'Пройти этапов главы')},
  leaf:{name:'Лист Иггдрасиля',rarity:1,icon:'relic-leaf',material:'forest',lore:'Живой лист Мирового древа не вянет.',ability:lv=>`В бою герой восстанавливает ${(.3+.07*lv).toFixed(2).replace('.',',')}% здоровья в секунду`,passive:['hpPct',.01],need:p=>goal(p.darkFloor-1,2,'Пройти этажей Царства тьмы')},
- fang:{name:'Клык Фенрира',rarity:1,icon:'axe',material:'peaks',lore:'Волк чует слабость раньше охотника.',ability:lv=>`+${(6+2.4*lv).toFixed(0)}% урона героя по врагам ниже 35% здоровья`,passive:['critDamage',.015],need:p=>goal(lairWins(p),3,'Победить в Логове мини-босса')},
- aegis:{name:'Эгида Тюра',rarity:2,icon:'shield',material:'limes',lore:'Щит бога, не знавшего страха.',ability:lv=>`Первый удар врага в каждом бою не наносит урона; снижение урона +${(1+.5*lv).toFixed(1).replace('.',',')}%`,passive:['defPct',.01],need:p=>goal(p.arenaWins,3,'Победить на Арене')},
+ fang:{name:'Клык Фенрира',rarity:1,icon:'relic-fenrir-fang',material:'peaks',lore:'Волк чует слабость раньше охотника.',ability:lv=>`+${(6+2.4*lv).toFixed(0)}% урона героя по врагам ниже 35% здоровья`,passive:['critDamage',.015],need:p=>goal(lairWins(p),3,'Победить в Логове мини-босса')},
+ aegis:{name:'Эгида Тюра',rarity:2,icon:'relic-tyr-aegis',material:'limes',lore:'Щит бога, не знавшего страха.',ability:lv=>`Первый удар врага в каждом бою не наносит урона; снижение урона +${(1+.5*lv).toFixed(1).replace('.',',')}%`,passive:['defPct',.01],need:p=>goal(p.arenaWins,3,'Победить на Арене')},
  ravens:{name:'Вороны Одина',rarity:2,icon:'relic-ravens',material:'limes',lore:'Хугин и Мунин направляют верных спутников.',ability:lv=>`Активные спутники бьют и лечат на ${6+3*lv}% сильнее`,need:p=>goal(squadState(p).owned.length,3,'Собрать спутников')},
- draupnir:{name:'Кольцо Драупнир',rarity:2,icon:'ring',material:'peaks',lore:'Каждую девятую ночь оно рождает золото.',ability:lv=>`+${4+2*lv}% золота за победы и Тёмной эссенции в Царстве тьмы`,need:p=>goal(p.bosses,10,'Победить боссов главы')},
- gjallar:{name:'Гьяллархорн',rarity:3,icon:'horn',material:'ember',lore:'Рог, чей звук слышен во всех мирах.',ability:lv=>`Навыки перезаряжаются на ${2+lv}% быстрее`,passive:['skill',.01],need:p=>goal(p.darkFloor-1,5,'Пройти этажей Царства тьмы')},
- gap:{name:'Тень Гиннунгагап',rarity:3,icon:'essence',material:'ember',lore:'Пустота, что была до начала времён.',ability:lv=>`Враги начинают каждый бой без ${(3+.7*lv).toFixed(1).replace('.',',')}% здоровья`,passive:['critDamage',.02],need:p=>goal(p.darkFloor-1,10,'Пройти этажей Царства тьмы')}
+ draupnir:{name:'Кольцо Драупнир',rarity:2,icon:'relic-draupnir',material:'peaks',lore:'Каждую девятую ночь оно рождает золото.',ability:lv=>`+${4+2*lv}% золота за победы и Тёмной эссенции в Царстве тьмы`,need:p=>goal(p.bosses,10,'Победить боссов главы')},
+ gjallar:{name:'Гьяллархорн',rarity:3,icon:'relic-gjallarhorn',material:'ember',lore:'Рог, чей звук слышен во всех мирах.',ability:lv=>`Навыки перезаряжаются на ${2+lv}% быстрее`,passive:['skill',.01],need:p=>goal(p.darkFloor-1,5,'Пройти этажей Царства тьмы')},
+ gap:{name:'Тень Гиннунгагап',rarity:3,icon:'relic-ginnungagap',material:'ember',lore:'Пустота, что была до начала времён.',ability:lv=>`Враги начинают каждый бой без ${(3+.7*lv).toFixed(1).replace('.',',')}% здоровья`,passive:['critDamage',.02],need:p=>goal(p.darkFloor-1,10,'Пройти этажей Царства тьмы')}
 };
 export const relicIds=Object.keys(relics) as RelicId[];
 export function relicLevel(p:Player,id:RelicId){if(id==='heart')return p.relic;const v=peekBox<{lv?:Record<string,unknown>}>(p,'relics')?.lv?.[id];return typeof v==='number'&&Number.isInteger(v)&&v>=1?Math.min(RELIC_MAX,v):0}

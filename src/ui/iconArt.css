@@ -10,3 +10,19 @@
 }
 .relic-icon.relic-leaf { background-position: 50% center; }
 .relic-icon.relic-ravens { background-position: 100% center; }
+
+.game .orb > .icon.orb-art {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 122%;
+  height: 122%;
+  transform: translate(-50%, -50%);
+  opacity: 1;
+  filter: none;
+  pointer-events: none;
+}
+
+.game .orb > span,
+.game .orb > .potion-cost {
+  z-index: 1;
+}

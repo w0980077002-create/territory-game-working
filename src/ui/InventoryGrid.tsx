@@ -97,7 +97,7 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
       aria-label={`${item.name} · ${rarityNames[item.rarity]}${mode?(allowed?checked?' · выбрано':' · отметить':' · '+reason):''}`}
       style={{'--rarity':rarityColors[item.rarity]} as CSSProperties}>
       {mode&&allowed&&<span className="bulk-tick" aria-hidden="true">{checked?'✓':'□'}</span>}
-      <Icon name={gearIcon(item.slot)}/>
+      <Icon name={gearIcon(item.slot,item)}/>
       <strong>{item.uniqueId||item.perk?'✦ ':item.set?'◆ ':''}{slotNames[item.slot]}</strong>
       {reason?<small className="bulk-reason" title={reason}>{item.perk==='duskwings'?'Единственные крылья':'Решите судьбу награды'}</small>
        :<small>Ур. {item.level}{item.upgrade>0&&<em> +{item.upgrade}</em>}</small>}
@@ -125,7 +125,7 @@ export function InventoryGrid({p,filter,slot,order,onSelect,onBulkSalvage,storag
       <p className="bulk-confirm-reward"><Icon name="coins"/>+{plan.gold.toLocaleString('ru')} золота <Icon name="star"/>+{plan.xp.toLocaleString('ru')} опыта</p>
       {valuable>0&&<p className="bulk-confirm-warn" role="status">Ценных вещей: {valuable}. Распылённые вещи исчезнут.</p>}
       <div className="bulk-confirm-strip" aria-hidden="true">
-       {plan.entries.slice(0,7).map(({item})=><span key={item.id} style={{'--rarity':rarityColors[item.rarity]} as CSSProperties}><Icon name={gearIcon(item.slot)}/></span>)}
+       {plan.entries.slice(0,7).map(({item})=><span key={item.id} style={{'--rarity':rarityColors[item.rarity]} as CSSProperties}><Icon name={gearIcon(item.slot,item)}/></span>)}
        {plan.entries.length>7&&<b>+{plan.entries.length-7}</b>}
       </div>
       <details className="bulk-confirm-list">
