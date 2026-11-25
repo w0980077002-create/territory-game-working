@@ -38,10 +38,6 @@
 .vvr-arena-mode small { font-size: 10px; padding: 0 3px; }
 .vvr-arena-mode.mode-team { background: linear-gradient(#21414a,#17252e); border-color: #7194a3; }
 .vvr-arena-mode.mode-chaos { background: linear-gradient(#4b2b25,#271e23); border-color: #ac6c55; }
-.vvr-arena-back {
-  justify-self: start; color: #ffebc4; border: 1px solid #9b7242; background: #3b2b24;
-  border-radius: 6px; padding: 8px 12px; font: inherit; min-height: 38px; cursor: pointer;
-}
 .vvr-arena-search ul { max-height: 170px; overflow: auto; padding-left: 20px; }
 .vvr-arena .online-arena { background: linear-gradient(#271c17,#19151a); }
 .vvr-battle-stage {
@@ -171,9 +167,6 @@
 .vvr-belt-help li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 6px; align-items: center; }
 .vvr-belt-help li .icon { width: 26px; height: 26px; }
 .vvr-belt-help li strong { display: block; color: #ffe1a3; font-size: 11px; } .vvr-belt-help li small { display: block; color: #e7dccb; font-size: 10.5px; line-height: 1.25; }
-.vvr-dock .online-gear { font-size: 11px; }
-.vvr-dock .online-skills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
-.vvr-dock .online-skills .action { margin: 0; min-height: 40px; padding: 2px; font-size: 10.5px; }
 .vvr-leave { justify-self: end; min-height: 30px; padding: 0 10px; border: 1px solid #8f6a4099; border-radius: 8px; background: none; color: #cbb88f; font-size: 11px; }
 .vvr-leave-confirm { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .vvr-leave-confirm button { min-height: 34px; border: 1px solid #a58c6c; border-radius: 8px; background: #2a1f17; color: #ffedcd; font-weight: 700; }
@@ -213,17 +206,16 @@
 @keyframes vvr-spin { to { transform: rotate(360deg); } }
 [data-motion="reduced"] .vvr-search-spinner { animation: none; }
 /* During a live fight the window gives all room to the battle: no PvE footer, slim header, no lobby texts. */
-.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-footer,
-.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-body details.saga-disclosure:not(:has(.vvr-battle)),
-.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header .header-seal,
-.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header small,
-.online-arena:has(> .vvr-battle.live) > :not(.vvr-battle):not(.online-status) { display: none; }
-.online-arena:has(.vvr-battle.live) ~ *, .vvr-arena:has(.vvr-battle.live) ~ * { display: none; }
-.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header { min-height: 52px; }
-.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-body { padding: 4px 5px 6px; }
-.vvr-arena:has(.vvr-battle.live) { gap: 4px; }
-.vvr-arena:has(.vvr-battle.live) .online-arena { padding: 0; border: 0; background: none; box-shadow: none; }
-.vvr-arena:has(.vvr-battle.live) .vvr-arena-back { min-height: 28px; padding: 2px 10px; font-size: 11px; }
+.saga-modal[data-panel="arena"]:has(.vvr-battle) .modal-footer,
+.saga-modal[data-panel="arena"]:has(.vvr-battle) .modal-body details.saga-disclosure:not(:has(.vvr-battle)),
+.saga-modal[data-panel="arena"]:has(.vvr-battle) .modal-header .header-seal,
+.saga-modal[data-panel="arena"]:has(.vvr-battle) .modal-header small,
+.online-arena:has(> .vvr-battle) > :not(.vvr-battle):not(.online-status) { display: none; }
+.online-arena:has(.vvr-battle) ~ *, .vvr-arena:has(.vvr-battle) ~ * { display: none; }
+.saga-modal[data-panel="arena"]:has(.vvr-battle) .modal-header { min-height: 52px; }
+.saga-modal[data-panel="arena"]:has(.vvr-battle) .modal-body { padding: 4px 5px 6px; }
+.vvr-arena:has(.vvr-battle) { gap: 4px; }
+.vvr-arena:has(.vvr-battle) .online-arena { padding: 0; border: 0; background: none; box-shadow: none; }
 @media (max-width: 359px) {
  .vvr-zone-col { width: 42px; }
  .vvr-zone-col button { font-size: 9px; }
@@ -233,3 +225,8 @@
  .vvr-zone-col button { min-height: 30px; }
  .vvr-feed-box { height: 58px; }
 }
+
+.vvr-arena-belt { grid-template-columns: repeat(auto-fit, minmax(62px, 1fr)); max-width: 320px; }
+.vvr-arena-belt button { aspect-ratio: auto; min-height: 40px; }
+.vvr-arena-belt .icon { width: 30px; height: 30px; }
+.vvr-dock-panel > small { display: block; color: #e7dccb; margin: 4px 0; }

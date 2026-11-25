@@ -8,6 +8,9 @@ import {arenaElixirs,arenaHeroes,arenaKits,arenaSkills,zones,
 import {issueSession,readSession,verifyTelegram} from './auth';
 import {ArenaError,ArenaService} from './service';
 import {readArenaLevels} from './roster';
+import {LiveArena} from './live';
+import {validArenaBuild} from '../../src/arena/hero';
+import {capacities,type ArenaMode,type LiveAction} from '../../src/arena/match';
 
 type Options={dbPath:string;botToken:string;sessionKey:string;webRoot?:string;local?:boolean;clock?:()=>number;rng?:()=>number;
  allowedUsers?:ReadonlySet<string>;testLevels?:string;scorePublisher?:{url:string;token:string}};
@@ -87,6 +90,24 @@ function parseCommand(value:unknown):ArenaCommand{
  throw new ArenaError(400,'Некорректное действие');
 }
 
+function parseLiveAction(value:unknown):LiveAction{
+ if(object(value)){
+  if(value.kind==='leave'){exact(value,'kind');return {kind:'leave'}}
+  if(value.kind==='chat'){
+   exact(value,'kind','text');
+   if(typeof value.text==='string'&&value.text.length<=200)return {kind:'chat',text:value.text};
+  }
+  if(value.kind==='strike'){
+   exact(value,'kind','target','attack','blocks');
+   const {target,attack,blocks}=value;
+   if(typeof target==='string'&&(/^[1-9]\d{0,15}$|^bot-\d{1,2}$/).test(target)&&hasKey(zones,attack)&&
+    Array.isArray(blocks)&&blocks.length===2&&hasKey(zones,blocks[0])&&hasKey(zones,blocks[1])&&blocks[0]!==blocks[1])
+    return {kind:'strike',target,attack,blocks:[blocks[0],blocks[1]]};
+  }
+ }
+ return parseCommand(value);
+}
+
 function scopedLimit(max:number,interval:number){
  const clients=new Map<string,{count:number;until:number}>();
  return (id:string,now:number)=>{
@@ -155,6 +176,7 @@ export function createArenaServer(options:Options){
 
  const rosterIds=options.local?new Set(Object.values(localPeople).map(person=>String(person.id))):options.allowedUsers;
  const service=new ArenaService(options.dbPath,options.rng,readArenaLevels(options.testLevels,rosterIds));
+ const live=new LiveArena(options.dbPath,options.rng);
  const clock=options.clock??Date.now;
  const authLimit=scopedLimit(30,60_000),requestLimit=scopedLimit(60,10_000);
  const server=createServer({requestTimeout:10_000,headersTimeout:8_000,maxHeaderSize:16_384},async(req,res)=>{
@@ -200,6 +222,15 @@ export function createArenaServer(options:Options){
    if(options.allowedUsers&&!options.allowedUsers.has(session.id))throw new ArenaError(403,'Этот аккаунт не приглашён на Арену');
    requestLimit(session.id,now);
    const actor={id:session.id,controller:session.lease+':'+tab};
+   if(req.method==='GET'&&pathname==='/arena-api/live/recent'){json(res,200,live.recent(actor,now));return}
+   if(req.method==='GET'&&pathname==='/arena-api/live/room'){
+    const id=url.searchParams.get('match');
+    if(!id||!uuid.test(id))throw new ArenaError(400,'Неизвестный бой');
+    const view=live.room(actor,id,now);
+    if(!view.battle)throw new ArenaError(404,'Комната недоступна');
+    json(res,200,view);return;
+   }
+   if(req.method==='GET'&&pathname==='/arena-api/live/state'){json(res,200,live.state(actor,now));return}
    if(req.method==='GET'&&pathname==='/arena-api/state'){json(res,200,service.read(actor,now));return}
    if(req.method==='GET'&&pathname==='/arena-api/room'){
     const id=url.searchParams.get('match');
@@ -210,6 +241,33 @@ export function createArenaServer(options:Options){
    const input=await body(req);
    const actionTime=clock();
    switch(pathname){
+    case '/arena-api/live/join':{
+     exact(input,'mode','build');
+     if(!hasKey(capacities,input.mode)||!validArenaBuild(input.build)){
+      console.warn(JSON.stringify({event:'arena_build_rejected',player:actor.id}));
+      throw new ArenaError(400,'Проверьте характеристики героя и сохранение');
+     }
+     const name=service.playerName(actor.id);
+     const attack=await readW066Attack(options.scorePublisher,actor.id,name);
+     json(res,200,live.join(actor,input.mode as ArenaMode,input.build,name,clock(),options.local===true||attack!==undefined));
+     return;
+    }
+    case '/arena-api/live/cancel':
+    case '/arena-api/live/resume':{
+     exact(input,'target','revision');
+     const {target,revision}=parseControl(input);
+     json(res,200,pathname.endsWith('cancel')?live.cancel(actor,target,revision,actionTime):live.resume(actor,target,revision,actionTime));
+     return;
+    }
+    case '/arena-api/live/act':{
+     exact(input,'target','revision','action','round','sequence');
+     const {target,revision}=parseControl(input);
+     const {action,round,sequence}=input;
+     if(typeof round!=='number'||!Number.isSafeInteger(round)||round<0||round>60||
+      typeof sequence!=='number'||!Number.isSafeInteger(sequence)||sequence<=0)throw new ArenaError(400,'Некорректное действие');
+     json(res,200,live.act(actor,target,revision,parseLiveAction(action),round,sequence,actionTime));
+     return;
+    }
     case '/arena-api/join':{
      exact(input,'hero','kit');
      const hero=arenaHeroes.find(value=>value===input.hero);
@@ -248,7 +306,7 @@ export function createArenaServer(options:Options){
   }
  });
  const worker=setInterval(()=>{
-  try{service.tick(clock())}catch{console.error('Arena clock could not update its database')}
+  try{const now=clock();service.tick(now);live.tick(now)}catch{console.error('Arena clock could not update its database')}
  },500).unref();
  let publishing=false,closing=false,publishFailed=false;
  const publisher=options.scorePublisher;
@@ -256,7 +314,7 @@ export function createArenaServer(options:Options){
   if(publishing||closing)return;
   publishing=true;
   try{
-   for(const score of service.pendingScores()){
+   for(const score of [...service.pendingScores(),...live.pending()]){
     const response=await fetch(publisher.url,{
      method:'POST',headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},
      body:JSON.stringify(score),redirect:'error',signal:AbortSignal.timeout(4000),
@@ -264,6 +322,18 @@ export function createArenaServer(options:Options){
     if(!response.ok)throw new Error('Score delivery was rejected');
     if(closing)break;
     service.confirmScore(score.match);
+    live.delivered(score.match);
+   }
+   const teamUrl=new URL(publisher.url);
+   teamUrl.pathname=teamUrl.pathname.replace(/arena-result$/,'arena-team-result');
+   if(teamUrl.href!==publisher.url)for(const team of live.pendingTeams()){
+    const response=await fetch(teamUrl,{
+     method:'POST',headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},
+     body:team.json,redirect:'error',signal:AbortSignal.timeout(4000),
+    });
+    if(!response.ok)throw new Error('Team result delivery was rejected');
+    if(closing)break;
+    live.deliveredTeam(team.id);
    }
    publishFailed=false;
   }catch{
@@ -271,6 +341,6 @@ export function createArenaServer(options:Options){
    publishFailed=true;
   }finally{publishing=false}
  },5000).unref():undefined;
- server.on('close',()=>{closing=true;clearInterval(worker);clearInterval(publication);service.close()});
+ server.on('close',()=>{closing=true;clearInterval(worker);clearInterval(publication);service.close();live.close()});
  return server;
 }

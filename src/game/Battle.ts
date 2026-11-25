@@ -1,3 +1,4 @@
+import {healingPotion} from '../arena/potion';
 import {campaignProof,waveProof} from './campaignProof';
 import {isPaidLairAttempt,lairRules,lairReviveCost} from '../saga/lair';
 import {soloVictory} from '../saga/soloEconomy';
@@ -226,7 +227,7 @@ export class Battle implements TeamHost {
  potionCd=0;
  hammerKills=0;
  /** A potion costs about one regular victory of the current stage (never less than the approved first-chapter price). */
- potionCost(){return Math.max(config.potion_gold_cost,Math.round(stageGold(this.stage,false)*config.potion_stage_gold_share))}
+ potionCost(){return healingPotion.cost(this.stage)}
  heal(){
   const g=useGame.getState();
   if(this.hp<=0||this.phase==='defeat'){g.notice('Герой повержен · зелье не оживляет');return}

@@ -1,4 +1,5 @@
 import {ITEM_COOLDOWN_MS,ROUND_MS,zones,type ArenaElixir,type ArenaMessage,type ArenaMove,type ArenaZone} from '../../src/arena/protocol';
+import {arenaAttackInterval} from '../../src/arena/heroCombat';
 import {appendMessage,applyCompanionSupport,createFighter,drinkStatElixir,resolveStrike,type Entrant,type Fighter} from './duel';
 
 export const teamArenaSize={team:3,chaos:20} as const;
@@ -16,15 +17,19 @@ const attackInterval=3_000;
 const matchDuration=60*ROUND_MS;
 const otherSide=(side:Side):Side=>side===0?1:0;
 const arenaZones=Object.keys(zones) as ArenaZone[];
-const nextAutoAt=(now:number,rng:()=>number)=>now+4_000+Math.floor(rng()*5_000);
+const nextAutoAt=(now:number,rng:()=>number,real=false)=>now+(real?1500+500*rng():4_000+Math.floor(rng()*5_000));
 
 export function newTeamMatch(id:string,mode:TeamMode,entrants:readonly TeamEntrant[],now:number,rng=Math.random):TeamMatch{
  if(entrants.length!==2*teamArenaSize[mode]||new Set(entrants.map(player=>player.id)).size!==entrants.length)
   throw new Error('Invalid Arena team roster');
  const players=entrants.map((player,index):TeamFighter=>({
   ...createFighter(player,now),side:index%2===0?0:1,blocks:[],nextStrikeAt:now,damage:0,kills:0,
-  bot:player.bot,auto:player.bot===true,autoAt:player.bot?nextAutoAt(now,rng):now,
+  bot:player.bot,auto:player.bot===true,autoAt:player.bot?nextAutoAt(now,rng,!!player.build):now,
  }));
+ for(const player of players)if(player.combat){
+  const cut=Math.max(0,...players.filter(other=>other.side!==player.side).map(other=>other.combat?.build.aura.foeHpCut??0));
+  player.hp=Math.max(1,Math.round(player.hp*(1-cut)));
+ }
  return {id,mode,startedAt:now,updatedAt:now,sideDeadline:[now+ROUND_MS,now+ROUND_MS],timePenalty:[0,0],players,log:[],chat:[],messageId:0};
 }
 
@@ -43,7 +48,7 @@ export function advanceTeamMatch(match:TeamMatch,now:number,rng=Math.random){
   return;
  }
  const ready=match.players.filter(player=>player.hp&&player.auto&&now>=player.autoAt&&now>=player.nextStrikeAt)
-  .sort((a,b)=>a.autoAt-b.autoAt||a.id.localeCompare(b.id)).slice(0,8);
+  .sort((a,b)=>a.autoAt-b.autoAt||a.id.localeCompare(b.id)).slice(0,match.players[0]?.combat?40:8);
  for(const player of ready){
   if(match.result)break;
   const defender=weakestEnemy(match,player.side);
@@ -83,7 +88,7 @@ export function setTeamAuto(match:TeamMatch,id:string,enabled:boolean,sequence:n
  player.sequence=sequence;
  player.seenAt=now;
  player.auto=enabled;
- if(enabled)player.autoAt=nextAutoAt(now,rng);
+ if(enabled)player.autoAt=nextAutoAt(now,rng,!!player.combat);
  return true;
 }
 
@@ -122,8 +127,8 @@ function weakestEnemy(match:TeamMatch,side:Side){
 }
 
 function teamStrike(match:TeamMatch,attacker:TeamFighter,defender:TeamFighter,attack:ArenaZone,blocks:Blocks,now:number,rng:()=>number){
- attacker.nextStrikeAt=now+attackInterval;
- if(attacker.auto)attacker.autoAt=nextAutoAt(now,rng);
+ attacker.nextStrikeAt=now+(attacker.combat?arenaAttackInterval(attacker,defender,now):attackInterval);
+ if(attacker.auto)attacker.autoAt=nextAutoAt(now,rng,!!attacker.combat);
  attacker.blocks=[...blocks];
  attacker.fought=true;
  attacker.seenAt=now;
@@ -131,12 +136,14 @@ function teamStrike(match:TeamMatch,attacker:TeamFighter,defender:TeamFighter,at
  match.sideDeadline[attacker.side]=now+ROUND_MS;
  applyCompanionSupport(match,attacker,now);
  const before=defender.hp;
- resolveStrike(match,attacker,defender,{attack,blocks,skill:null},defender.blocks,now,rng);
- attacker.damage+=before-defender.hp;
+ const otherEnemies=attacker.combat?match.players.filter(player=>player.side!==attacker.side&&player.id!==defender.id&&player.hp):[];
+ resolveStrike(match,attacker,defender,{attack,blocks,skill:null},defender.blocks,now,rng,otherEnemies);
+ attacker.damage+=Math.max(0,before-defender.hp);
  if(!defender.hp){
   attacker.kills++;
   appendMessage(match,now,defender.name+' падает от удара '+attacker.name);
-  if(!match.players.some(player=>player.side===otherSide(attacker.side)&&player.hp>0))
-   match.result={winner:attacker.side,reason:'hp',finishedAt:now};
  }
+ const enemyLives=match.players.some(player=>player.side===otherSide(attacker.side)&&player.hp>0);
+ const allyLives=match.players.some(player=>player.side===attacker.side&&player.hp>0);
+ if(!enemyLives||!allyLives)match.result={winner:!enemyLives&&!allyLives?null:enemyLives?otherSide(attacker.side):attacker.side,reason:'hp',finishedAt:now};
 }

@@ -5,16 +5,19 @@ import {
 } from '../../src/arena/protocol';
 import {skillData} from '../../src/data/catalog';
 import {companions} from '../../src/dark/rules';
+import type {ArenaBuild} from '../../src/arena/hero';
+import {arenaAttackInterval,makeHeroState,resolveHeroTurn,type HeroState} from '../../src/arena/heroCombat';
+import {healingPotion} from '../../src/arena/potion';
 import balance from '../../config/test-balance.v1.json';
 
 export type Entrant = {
- id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;trustedAttack?:number;rankEligible?:boolean;
+ id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;trustedAttack?:number;rankEligible?:boolean;build?:ArenaBuild;potion?:boolean;
 };
 export type Fighter = Entrant & {
  seenAt:number;hp:number;maxHp:number;attack:number;defense:number;crit:number;gear:number[];
  sequence:number;turn?:{move:ArenaMove;at:number};auto:boolean;autoAt:number;fought:boolean;
  belt:Record<ArenaElixir,number>;itemAt:Partial<Record<ArenaElixir,number>>;lastChatAt?:number;
- ready:Record<ArenaSkill,number>;buffUntil:number;gooseAt:number;dogAt:number;
+ combat?:HeroState;ready:Record<ArenaSkill,number>;buffUntil:number;gooseAt:number;dogAt:number;
 };
 export type Match = {
  id:string;bot:boolean;settled?:true;round:number;roundStart:number;roundMs:number;deadline:number;
@@ -29,6 +32,10 @@ const arenaZones = Object.keys(zones) as ArenaZone[];
 const online = (player:Fighter,now:number) => player.id===BOT_ID || now-player.seenAt<OFFLINE_MS;
 
 export function entrantStats(player:Entrant){
+ if(player.build){
+  const {hp,attack,defense,crit}=player.build.stats;
+  return {gear:[],maxHp:hp,attack,defense,crit};
+ }
  const {weapon,armor} = arenaKits[player.kit];
  const rank = player.level-1;
  // These provisioned Arena pieces and normalized class bonuses are separate from Solo.
@@ -52,19 +59,24 @@ export function compatible(a:Entrant,b:Entrant){
 
 export function createFighter(player:Entrant,now:number):Fighter{
  const stats=entrantStats(player);
- const belt=Object.fromEntries(Object.entries(arenaElixirs).map(([id,item])=>[id,item.qty])) as Fighter['belt'];
- return {...player,...stats,hp:stats.maxHp,seenAt:now,sequence:0,auto:player.id===BOT_ID,autoAt:now,
+ const belt=Object.fromEntries(Object.entries(arenaElixirs).map(([id,item])=>[id,player.build?Number(id==='potion'&&!!player.potion):item.qty])) as Fighter['belt'];
+ const {build,...entry}=player;
+ return {...entry,...stats,combat:build?makeHeroState(build,now):undefined,hp:stats.maxHp,seenAt:now,sequence:0,auto:player.id===BOT_ID,autoAt:now,
   fought:false,belt,itemAt:{},ready:{strike:0,call:0,hammer:0},buffUntil:0,
   gooseAt:now+goose.interval*1000,dogAt:now+dog.interval*1000};
 }
 
 function schedule(player:Fighter,now:number,rng:()=>number){
- player.autoAt=now+(player.id===BOT_ID?2000+12000*rng():1000+3000*rng());
+ player.autoAt=now+(player.combat?1500+500*rng():player.id===BOT_ID?2000+12000*rng():1000+3000*rng());
 }
 
 export function newMatch(id:string,a:Entrant,b:Entrant,now:number,bot=false,rng=Math.random):Match{
  const players:[Fighter,Fighter]=[createFighter(a,now),createFighter(b,now)];
  for(const player of players)if(player.auto)schedule(player,now,rng);
+ if(a.build&&b.build){
+  players[0].hp=Math.max(1,Math.round(players[0].hp*(1-b.build.aura.foeHpCut)));
+  players[1].hp=Math.max(1,Math.round(players[1].hp*(1-a.build.aura.foeHpCut)));
+ }
  return {id,bot,round:1,roundStart:now,roundMs:ROUND_MS,deadline:now+ROUND_MS,
   players,log:[],chat:[],messageId:0};
 }
@@ -99,7 +111,8 @@ function heal(player:Fighter,amount:number){
  return gain;
 }
 
-export function resolveStrike(match:Messages,a:Fighter,b:Fighter,move:ArenaMove,blocks:readonly ArenaZone[],now:number,rng:()=>number){
+export function resolveStrike(match:Messages,a:Fighter,b:Fighter,move:ArenaMove,blocks:readonly ArenaZone[],now:number,rng:()=>number,others:readonly Fighter[]=[]){
+ if(a.combat){resolveHeroTurn(a,b,move,blocks,now,rng,value=>appendMessage(match,now,value),others);return}
  const text=a.name+' → '+b.name+': ';
  const impact=zones[move.attack].impact;
  // TERRITORY duel resolver: dodge, independent crit, full block or 80% block
@@ -129,7 +142,7 @@ function strike(match:Match,a:Fighter,b:Fighter,now:number,rng:()=>number){
 }
 
 export function applyCompanionSupport(match:Messages,player:Fighter,now:number){
- if(now>=player.dogAt){
+ if(!player.combat&&now>=player.dogAt){
    const gain=heal(player,Math.round(player.maxHp*dog.base));
    if(gain){
     appendMessage(match,now,dog.name+' · '+player.name+' +'+gain+' HP');
@@ -155,7 +168,12 @@ function resolveRound(match:Match,now:number,rng:()=>number){
   applyCompanionSupport(match,player,now);
   player.fought=true;
  }
- if(rng()<.5){strike(match,a,b,now,rng);strike(match,b,a,now,rng)}
+ if(a.combat&&b.combat){
+  const ai=arenaAttackInterval(a,b,now),bi=arenaAttackInterval(b,a,now);
+  const [first,second]=ai<bi||ai===bi&&rng()<.5?[a,b]:[b,a];
+  strike(match,first,second,now,rng);
+  if(second.hp)strike(match,second,first,now,rng);
+ }else if(rng()<.5){strike(match,a,b,now,rng);strike(match,b,a,now,rng)}
  else{strike(match,b,a,now,rng);strike(match,a,b,now,rng)}
  if(!a.hp||!b.hp){finish(match,now,'hp',a.hp?a.id:b.hp?b.id:null);return}
  if(match.round===60){finish(match,now,'time',a.hp===b.hp?null:a.hp>b.hp?a.id:b.id);return}
@@ -176,6 +194,13 @@ export function normalizeBattleChat(raw:string){
 export function drinkStatElixir(match:Messages,player:Fighter,item:ArenaElixir,now:number){
  if(!player.belt[item]||now<(player.itemAt[item]??0))return false;
  let detail=arenaElixirs[item].label;
+ if(item==='potion'){
+  if(!player.combat||!player.hp||player.hp===player.maxHp)return false;
+  detail+=' · +'+heal(player,Math.round(player.maxHp*healingPotion.fraction))+' HP';
+  player.itemAt[item]=now+healingPotion.cooldown;
+  appendMessage(match,now,player.name+' · '+detail);
+  return true;
+ }
  if(item==='heal_small'||item==='heal_large'){
   if(player.hp===player.maxHp)return false;
   const amount=item==='heal_small'?Math.max(50,Math.round(player.maxHp*.18)):Math.max(150,Math.round(player.maxHp*.35));
@@ -223,7 +248,7 @@ export function applyCommand(match:Match,id:string,command:ArenaCommand,round:nu
  if(command.kind==='move'){
   const {move}=command;
   if(player.turn||move.blocks[0]===move.blocks[1]||(move.skill&&now<player.ready[move.skill]))return false;
-  if(move.skill){
+  if(move.skill&&!player.combat){
    const index={strike:0,call:1,hammer:2}[move.skill];
    player.ready[move.skill]=now+skillData[index].cd*1000;
   }

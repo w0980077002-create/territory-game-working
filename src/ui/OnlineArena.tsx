@@ -1,227 +1,258 @@
 import {useEffect,useRef,useState} from 'react';
-import {classNames,skillData,slotNames} from '../data/catalog';
+import {classNames} from '../data/catalog';
 import {tg} from '../core/telegram';
-import {arenaApiOrigin} from '../arena/staging';
+import {rewardLocalArenaDuel,useGame} from '../core/store';
 import type {Player} from '../core/types';
-import {gearBonusLabels,soloArenaPreview} from '../arena/soloPreview';
-import {
- arenaKits,arenaSkills,gearSlots,MATCH_WAIT_MS,
- type ArenaCommand,type ArenaHero,type ArenaKit,
- type ArenaMatchView,type ArenaSkill,type ArenaView,type ArenaZone,
-} from '../arena/protocol';
-import {Icon} from './Icon';
-import {ArenaBattleView,ArenaResult} from './ArenaBattle';
-import {ArenaHub} from './ArenaHub';
+import {arenaApiOrigin,onlineArenaEnabled} from '../arena/staging';
+import {arenaBuild} from '../arena/hero';
+import {localArena,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
+import {capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveBattle,type LiveSearch,type LiveView,type RecentBattle} from '../arena/match';
+import {healingPotion} from '../arena/potion';
+import {CHAT_MS,MATCH_WAIT_MS,type ArenaZone} from '../arena/protocol';
+import {ArenaBattleView,ArenaResult,FighterList} from './ArenaBattle';
+import {ArenaHub,arenaModes} from './ArenaHub';
 import './onlineArena.css';
 
 const sessionKey='vvr-arena-session';
-let tabId:string;
 const noConnection='Нет связи с Ареной. Восстанавливаем подключение…';
-const reasons={hp:'Решило здоровье',time:'Лимит раундов',afk:'Пропущен ход',disconnect:'Связь с игроком потеряна',leave:'Игрок покинул бой'};
-const secondsLeft=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
-
+const reasons={hp:'Решило здоровье',time:'Время боя вышло',afk:'Пропущен ход',disconnect:'Связь с игроком потеряна',leave:'Игрок покинул бой'};
+const left=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
+let tabId:string;
 class ArenaRequestError extends Error{
  constructor(readonly status:number,message:string){super(message)}
 }
-function savedSession(){
- try{return sessionStorage.getItem(sessionKey)??''}catch{return ''}
-}
-function saveSession(token:string){
- try{if(token)sessionStorage.setItem(sessionKey,token);else sessionStorage.removeItem(sessionKey)}catch{/* Keep the active in-memory session. */}
-}
+function tokenFromSession(){try{return sessionStorage.getItem(sessionKey)??''}catch{return ''}}
+function saveSession(token:string){try{sessionStorage.setItem(sessionKey,token)}catch{/* In-memory session is still active. */}}
+const localFixture=()=>!arenaApiOrigin&&location.hostname==='127.0.0.1'?
+ new URLSearchParams(location.search).get('arenaLocal'):null;
 async function request<T>(path:string,token='',data?:Record<string,unknown>):Promise<T>{
  const response=await fetch(arenaApiOrigin+'/arena-api/'+path,{
   method:data?'POST':'GET',signal:AbortSignal.timeout(4500),cache:'no-store',
   headers:{...(token?{Authorization:'Bearer '+token,'X-Arena-Tab':tabId??=crypto.randomUUID()}:{}),
-   ...(data?{'Content-Type':'application/json'}:{})},
-  body:data?JSON.stringify(data):undefined,
+   ...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,
  });
  const result=await response.json();
  if(!response.ok)throw new ArenaRequestError(response.status,result.error??'Арена временно недоступна');
  return result as T;
 }
-async function launchData(){
- const initData=tg()?.initData;
- if(initData)return initData;
- const person=new URLSearchParams(location.search).get('arenaLocal');
- if(!arenaApiOrigin&&location.hostname==='127.0.0.1'&&(person==='alice'||person==='boris'))
-  return (await request<{initData:string}>('local?user='+person)).initData;
- throw new Error('Откройте эту сборку в Telegram.');
+async function login(){
+ const fixture=localFixture();
+ const initData=tg()?.initData||(fixture? (await request<{initData:string}>('local?user='+fixture)).initData:'');
+ if(!initData)throw new Error('Войдите через Telegram');
+ const session=await request<{token:string}>('auth','',{initData});
+ saveSession(session.token);
+ return session.token;
 }
 
-function DuelBattle({match,now,pending,act,resume,send,leave,player}:{match:ArenaMatchView;now:number;pending:boolean;act:(action:ArenaCommand)=>void;
- resume:()=>void;send:(text:string)=>Promise<boolean>;leave:()=>void;player:Player}){
- const [attack,setAttack]=useState<ArenaZone>('head');
- const [blocks,setBlocks]=useState<ArenaZone[]>([]);
- const [skill,setSkill]=useState<ArenaSkill|null>(null);
- const [leaving,setLeaving]=useState(false);
- // A new round starts with a fresh choice; the scene itself stays mounted so its animations continue.
- useEffect(()=>{setBlocks([]);setSkill(null);setAttack('head')},[match.round]);
- const result=match.result,control=!!match.control&&!result;
- const locked=pending||!control||match.you.moved||match.auto||!secondsLeft(match.deadline,now);
- const chooseBlock=(zone:ArenaZone)=>setBlocks(current=>current.includes(zone)?current.filter(id=>id!==zone):[...current.slice(-1),zone]);
- const status=!control?undefined:match.auto?'Автобой':match.you.moved?'Ход принят · ждём соперника':blocks.length<2?'Защита: выберите ещё '+(2-blocks.length):undefined;
- const outcome=result?(result.outcome==='win'?'win':result.outcome==='loss'?'loss':'draw'):undefined;
- return <ArenaBattleView mode={match.bot?'Тренировочный бот':match.training?'Тренировка без рейтинга':'Игрок против игрока'}
-  round={match.round} timer={result?null:secondsLeft(match.deadline,now)} you={match.you} opponent={match.opponent} now={now} look={player}
-  zoneControls={control&&!match.auto?{attack,blocks,onAttack:setAttack,onBlock:chooseBlock,locked}:null} status={status} outcome={outcome}
-  result={result&&<ArenaResult outcome={outcome!} reason={reasons[result.reason]} extra={result.points>0?'+'+result.points+' очко тренировки':undefined}/>}
-  actions={result?undefined:!match.control?<button className="vvr-act strike" disabled={pending} onClick={resume}>Продолжить в этой вкладке</button>:<>
-   <button className="vvr-act auto" type="button" disabled={pending} aria-pressed={match.auto} onClick={()=>act({kind:'auto',enabled:!match.auto})}>Автобой {match.auto?'вкл.':'выкл.'}</button>
-   {!match.auto&&<button className="vvr-act reset" type="button" disabled={locked||!blocks.length&&!skill} aria-label="Сбросить выбор зон" onClick={()=>{setBlocks([]);setSkill(null);setAttack('head')}}>Сброс</button>}
-   {!match.auto&&<button className="vvr-act strike" type="button" disabled={locked||blocks.length!==2||!!(skill&&match.ready[skill]>now)}
-    onClick={()=>act({kind:'move',move:{attack,blocks:[blocks[0],blocks[1]],skill}})}>{match.you.moved?'Ход принят':'Подтвердить ход'}</button>}
+function BattleScene({battle,now,player,busy,send,resume,onLobby,rewarded}:{
+ battle:LiveBattle;now:number;player:Player;busy:boolean;send:(action:LiveAction)=>Promise<boolean>;
+ resume:()=>void;onLobby:()=>void;rewarded?:{seal:boolean};
+}){
+ const [selection,setSelection]=useState<{round?:number;attack:ArenaZone;blocks:ArenaZone[]}>({attack:'head',blocks:[]});
+ const [target,setTarget]=useState(''),[leaving,setLeaving]=useState(false);
+ const current=selection.round===battle.round?selection:{round:battle.round,attack:'head' as const,blocks:[]};
+ const {attack,blocks}=current;
+ const {result,you,mode,auto,control}=battle;
+ const enemies=battle.players.filter(p=>p.side!==you.side),allies=battle.players.filter(p=>p.side===you.side);
+ const opponent=enemies.find(p=>p.id===target&&p.hp>0)??enemies.find(p=>p.hp>0)??enemies[0];
+ const delay=left(battle.nextStrikeAt,now);
+ const locked=busy||!control||!you.hp||you.moved||!left(battle.deadline,now);
+ const strike=()=>{
+  if(blocks.length!==2)return;
+  const zones:[ArenaZone,ArenaZone]=[blocks[0],blocks[1]];
+  return send(mode==='duel'?{kind:'move',move:{attack,blocks:zones,skill:null}}:
+   {kind:'strike',target:opponent.id,attack,blocks:zones});
+ };
+ const status=!control?undefined:!you.hp?'Вы пали':you.moved?'Ход принят · ждём соперника':auto?'Автобой':
+  delay?'Следующий удар через '+delay+' с':blocks.length<2?'Защита: выберите ещё '+(2-blocks.length):undefined;
+ const potionCost=battle.local?healingPotion.cost(player.stage):undefined;
+ return <ArenaBattleView mode={arenaModes[mode].size+' · '+(battle.local?'Бой с ботами':battle.ranked?'Рейтинговый бой':'Сетевой бой')}
+  round={battle.round} timer={result?null:left(battle.deadline,now)} you={you} opponent={opponent} look={player} now={now}
+  zoneControls={result||auto||!control?null:{attack,blocks,locked,
+   onAttack:zone=>setSelection({...current,attack:zone}),
+   onBlock:zone=>setSelection({...current,blocks:blocks.includes(zone)?blocks.filter(id=>id!==zone):[...blocks.slice(-1),zone]})}}
+  status={status} outcome={result?.outcome}
+  result={result&&<ArenaResult outcome={result.outcome} reason={reasons[result.reason]}
+   extra={result.points?'+1 к рейтингу':rewarded?'+100 золота · +10 жетонов · +30 опыта'+(rewarded.seal?' · печать призыва':''):undefined}
+   onLeave={onLobby}/>}
+  actions={result?undefined:!control?<button type="button" className="vvr-act strike" disabled={busy} onClick={resume}>Продолжить в этой вкладке</button>:<>
+   <button type="button" className="vvr-act auto" disabled={busy||!you.hp} aria-pressed={auto}
+    onClick={()=>void send({kind:'auto',enabled:!auto})}>Автобой</button>
+   <button type="button" className="vvr-act reset" disabled={locked||auto||!blocks.length} aria-label="Сбросить выбор зон"
+    onClick={()=>setSelection({round:battle.round,attack:'head',blocks:[]})}>Сброс</button>
+   <button type="button" className="vvr-act strike" disabled={locked||auto||delay>0||blocks.length!==2} onClick={()=>void strike()}>
+    {you.moved?'Ход принят':'Ударить'}
+   </button>
   </>}
-  belt={control?{belt:match.belt,readyAt:match.itemReadyAt,disabled:pending,fullHealth:match.you.hp===match.you.maxHp,onItem:item=>act({kind:'item',item})}:null}
-  gear={<Gear match={match}/>}
+  belt={result?null:{belt:battle.belt,readyAt:battle.itemReadyAt,disabled:busy||!control||!you.hp||potionCost!==undefined&&player.gold<potionCost,
+   fullHealth:you.hp===you.maxHp,cost:potionCost,onItem:item=>void send({kind:'item',item})}}
   dock={<>
-   {control&&!match.auto&&<details className="vvr-dock-panel"><summary><span>Умение героя</span><em>{skill?skillData[arenaSkills.indexOf(skill)].name:'—'}</em></summary>
-    <div className="online-skills">{arenaSkills.map((id,i)=><button key={id} type="button" className="action secondary" aria-pressed={skill===id}
-     disabled={locked||match.ready[id]>now} onClick={()=>setSkill(skill===id?null:id)}><Icon name={skillData[i].icon}/>{skillData[i].name}</button>)}</div>
-   </details>}
-   {control&&(!leaving?<button type="button" className="vvr-leave" onClick={()=>setLeaving(true)}>Покинуть поединок</button>:
-    <div className="vvr-leave-confirm"><button type="button" disabled={pending} onClick={()=>setLeaving(false)}>Остаться</button>
-     <button type="button" disabled={pending} onClick={()=>{setLeaving(false);leave()}}>Подтвердить выход</button></div>)}
+   {mode!=='duel'&&<>
+    <FighterList title={'Противники · '+opponent.name} ally={false} fighters={enemies} targetId={opponent.id} onTarget={result?undefined:setTarget}/>
+    <FighterList title="Ваш отряд" ally fighters={allies} meId={you.id}/>
+   </>}
+   {!result&&control&&(!leaving?<button type="button" className="vvr-leave" onClick={()=>setLeaving(true)}>Покинуть бой</button>:
+    <div className="vvr-leave-confirm"><button type="button" onClick={()=>setLeaving(false)}>Остаться</button>
+     <button type="button" disabled={busy} onClick={()=>void send({kind:'leave'})}>Подтвердить выход</button></div>)}
   </>}
-  feed={{log:match.log,chat:match.chat,chatDeadline:match.chatDeadline,pending,send}}/>;
+  feed={{log:battle.log,chat:battle.chat,chatDeadline:battle.chatDeadline,pending:busy||!control&&!result,send:text=>send({kind:'chat',text})}}/>;
 }
 
-function Gear({match}:{match:ArenaMatchView}){
- return <details className="vvr-dock-panel"><summary><span>Тренировочная экипировка · 7 ячеек</span><span className="vvr-dock-mini" aria-hidden="true">{gearSlots.slice(0,4).map(id=><Icon key={id} name={id}/>)}</span></summary>
-  <div className="online-gear">
-   <span></span><strong>Вы</strong><strong>Соперник</strong>
-   {gearSlots.map((id,i)=><div className="online-gear-row" key={id}>
-    <span><Icon name={id}/> {slotNames[id]} <small>· {gearBonusLabels[i]}</small></span>
-    <span>+{match.you.gear[i]}</span><span>+{match.opponent.gear[i]}</span>
-   </div>)}
-  </div>
- </details>;
-}
-
-function SoloPreview({player}:{player:Player}){
- const preview=soloArenaPreview(player);
- return <details className="online-details"><summary>Сила вашего героя</summary>
-  <p>Сравнение для справки: сетевой бой идёт на выбранном комплекте ниже.</p>
-  <p>{classNames[preview.hero]} · ур. {preview.level}</p>
-  <p>Показатели для Арены · HP {preview.hp} · атака {preview.attack} · защита {preview.defense} · крит {preview.crit}%</p>
-  <ul>
-   {preview.skillLevels.map((level,index)=><li key={skillData[index].name}>{skillData[index].name} · ур. {level}</li>)}
-  </ul>
-  <ul aria-label="Вклад 7 предметов">
-   {preview.gear.map(({slot,contribution,cap},index)=><li key={slot}>
-    {slotNames[slot]} · {gearBonusLabels[index]} · {contribution} из {cap}
-   </li>)}
-  </ul>
- </details>;
-}
-
-function DuelArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:boolean}){
- const [active,setActive]=useState(initiallyOpen),[view,setView]=useState<ArenaView>(),[token,setToken]=useState(savedSession);
- const [hero,setHero]=useState<ArenaHero>(player.heroClass),[kit,setKit]=useState<ArenaKit>('balanced');
- const [message,setMessage]=useState(''),[pending,setPending]=useState(false);
- const [previous,setPrevious]=useState<ArenaMatchView>();
- const commandInFlight=useRef(false),revision=useRef(0);
- const previousId=previous?.id;
+export function OnlineArena({player}:{player:Player}){
+ const mutate=useGame(s=>s.mutate);
+ const liveLocal=localArena(player);
+ const [token,setToken]=useState(tokenFromSession),[network,setNetwork]=useState<LiveView>();
+ const [search,setSearch]=useState<LiveSearch>(),[mode,setMode]=useState<ArenaMode>();
+ const [now,setNow]=useState(Date.now()),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
+ const [dismissed,setDismissed]=useState<string>();
+ const [past,setPast]=useState<LiveBattle>(),[recent,setRecent]=useState<RecentBattle[]>([]);
+ const flight=useRef(false),revision=useRef(0);
+ const signed=onlineArenaEnabled&&(!!tg()?.initData||!!localFixture());
+ const localId=liveLocal?.match.game.id;
+ const networkMatch=network?.battle;
+ const networkSearch=network?.search;
+ const pollingFast=!!networkSearch||!!networkMatch&&!networkMatch.result;
+ const localMatch=liveLocal&&(!liveLocal.match.game.result||now<liveLocal.match.game.result.finishedAt+CHAT_MS)?
+  viewLive(liveLocal.match,SOLO_ACTOR,SOLO_ACTOR,now,true):undefined;
+ const candidate=networkMatch&&!networkMatch.result?networkMatch:localMatch&&!localMatch.result?localMatch:
+  [networkMatch,localMatch].filter((item):item is LiveBattle=>!!item).sort((a,b)=>(b.result?.finishedAt??0)-(a.result?.finishedAt??0))[0];
+ const battle=past??(candidate&&candidate.id!==dismissed?candidate:undefined);
+ const searching=networkSearch??search;
+ const localActive=!!localMatch&&!localMatch.result;
+ const showingLocal=!!battle?.local;
+ const inLobby=!battle&&!searching;
+ const pastId=past?.id;
  useEffect(()=>{
-  if(!active||!token)return;
+  if(!token||!inLobby)return;
+  let active=true;
+  request<RecentBattle[]>('live/recent',token).then(data=>{if(active&&Array.isArray(data))setRecent(data)}).catch(()=>{});
+  return ()=>{active=false};
+ },[token,inLobby]);
+
+ useEffect(()=>{
+  const timer=setInterval(()=>setNow(Date.now()),250);
+  return ()=>clearInterval(timer);
+ },[]);
+ useEffect(()=>{
+  if(!signed||showingLocal)return;
   let stopped=false,timer:ReturnType<typeof setTimeout>;
   const poll=async()=>{
    const version=revision.current;
-   if(!commandInFlight.current){
-    try{
-     const next=await request<ArenaView>('state',token);
-     if(!stopped&&version===revision.current){
-      setView(next);setMessage(old=>old===noConnection?'':old);
-     }
-     if(previousId&&!stopped){
-      const past=await request<ArenaMatchView>('room?match='+previousId,token);
-      if(!stopped&&version===revision.current)setPrevious(past);
-     }
-    }catch(error){
-     if(!stopped&&version===revision.current){
-      if(error instanceof ArenaRequestError&&error.status===401){setToken('');saveSession('');setView(undefined);setPrevious(undefined);setMessage(error.message)}
-      else if(error instanceof ArenaRequestError&&error.status===404&&previousId)setPrevious(undefined);
-      else setMessage(noConnection);
-     }
+   if(!flight.current)try{
+    const session=token||await login();
+    const next=await request<LiveView>(pastId?'live/room?match='+pastId:'live/state',session);
+    if(!stopped&&version===revision.current){
+     if(!token)setToken(session);
+     if(pastId)setPast(next.battle);else setNetwork(next);setNotice(old=>old===noConnection?'':old);
+    }
+   }catch(error){
+    if(!stopped&&version===revision.current){
+     if(error instanceof ArenaRequestError&&error.status===401){saveSession('');setToken('');}
+     else if(pastId&&error instanceof ArenaRequestError&&error.status===404)setPast(undefined);
+     else setNotice(noConnection);
     }
    }
-   if(!stopped)timer=setTimeout(poll,500);
+   if(!stopped)timer=setTimeout(poll,pollingFast?750:3500);
   };
   void poll();
   return ()=>{stopped=true;clearTimeout(timer)};
- },[active,token,previousId]);
+ },[signed,token,pollingFast,showingLocal,pastId]);
+ useEffect(()=>{
+  const fallback=network?.local??(search&&now>=search.deadline?search:undefined);
+  if(!fallback||localId===fallback.id||dismissed===fallback.id)return;
+  if(mutate(p=>startLocalArena(p,fallback.id,fallback.mode,Date.now()),true)){
+   setSearch(undefined);setMode(undefined);setNetwork(current=>current?{now:current.now}:undefined);
+  }
+ },[network?.local,search,now,localId,dismissed,mutate]);
+ useEffect(()=>{
+  if(!localId||!localActive)return;
+  const timer=setInterval(()=>{
+   const now=Date.now(),saved=localArena(useGame.getState().p);
+   if(!saved||now<nextLiveWake(saved.match))return;
+   mutate(p=>{
+    if(!updateLocalArena(p,now))return false;
+    award(p);
+    return true;
+   },true);
+  },400);
+  return ()=>clearInterval(timer);
+ },[localId,localActive,mutate]);
 
- const perform=async(work:()=>Promise<void>)=>{
-  if(commandInFlight.current)return false;
-  commandInFlight.current=true;revision.current++;setPending(true);setMessage('');
-  try{await work();return true}
+ async function perform(work:()=>Promise<boolean>){
+  if(flight.current)return false;
+  flight.current=true;revision.current++;setBusy(true);setNotice('');
+  try{return await work();}
   catch(error){
-   if(error instanceof ArenaRequestError&&error.status===401){setToken('');saveSession('');setView(undefined);setPrevious(undefined)}
-   setMessage(error instanceof ArenaRequestError||error instanceof Error&&error.message.startsWith('Откройте')?error.message:noConnection);
+   if(error instanceof ArenaRequestError&&error.status===401){saveSession('');setToken('');}
+   setNotice(error instanceof ArenaRequestError?error.message:noConnection);
    return false;
-  }finally{commandInFlight.current=false;setPending(false)}
- };
- const login=()=>perform(async()=>{
-  const session=await request<{token:string}>('auth','',{initData:await launchData()});
-  saveSession(session.token);setToken(session.token);
- });
- const command=(path:string,data:Record<string,unknown>={})=>perform(async()=>setView(await request(path,token,data)));
- const controlCommand=(path:'resume'|'leave',target:{id:string;controlRevision:number})=>
-  command(path,{target:target.id,revision:target.controlRevision});
- const act=(action:ArenaCommand)=>perform(async()=>{
-  if(!view?.match)return;
-  const {id,round,nextSequence,controlRevision}=view.match;
-  const reply=await request<{accepted:boolean;view:ArenaView}>('act',token,{target:id,revision:controlRevision,action,round,sequence:nextSequence});
-  setView(reply.view);
-  if(!reply.accepted)setMessage('Действие недоступно. Проверьте раунд, ход или перезарядку.');
- });
- const send=(id:string,text:string)=>perform(async()=>{
-  const updated=await request<ArenaMatchView>('chat',token,{match:id,text});
-  if(previousId===id)setPrevious(updated);
-  else setView(current=>current?.match?.id===id?{...current,match:updated}:current);
- });
- if(!active)return <button className="action" onClick={()=>setActive(true)}><Icon name="arena"/> Сетевая Арена 1×1</button>;
- const {match,queued,now=0,lastResult}=view??{};
- const live=match&&!match.result;
- const shown=previous??match;
- return <section className="online-arena" aria-label="Сетевая Арена 1×1">
-  <div className="online-heading"><Icon name="arena"/><strong>Сетевая Арена 1×1</strong></div>
-  <p>Поединки 1×1. Если соперник не найден за 20 секунд, начнётся тренировка с ботом.</p>
-  {view&&<small>Тренировочный уровень {view.level} · очки тренировки {view.points}</small>}
-  {!queued&&!live&&<SoloPreview player={player}/>}
-  {message&&<p role="status" className="online-status">{message}</p>}
-  {!token&&<button className="action" disabled={pending} onClick={login}>Войти через Telegram</button>}
-  {token&&!view&&!message&&<p role="status">Подключение к Арене…</p>}
-  {view&&!queued&&!live&&<>
-   <label className="online-class">Класс бойца <select value={hero} onChange={e=>setHero(e.target.value as ArenaHero)}>
-    {Object.entries(classNames).map(([id,name])=><option value={id} key={id}>{name}</option>)}
-   </select></label>
-   <label className="online-class">Тренировочный комплект <select value={kit} onChange={e=>setKit(e.target.value as ArenaKit)}>
-    {Object.entries(arenaKits).map(([id,data])=><option value={id} key={id}>{data.label} · +{data.weapon} атака / +{data.armor} защита</option>)}
-   </select></label>
-   <button className="action" disabled={pending} onClick={()=>{setPrevious(undefined);void command('join',{hero,kit})}}>Найти соперника</button>
-  </>}
-  {queued&&<>
-   <div className="vvr-arena-search">
-    <strong>Поиск · уровни ±7 · {secondsLeft(queued.since+MATCH_WAIT_MS,now)} с</strong>
-    <ul><li>Вы · {classNames[hero]}</li><li>Подбираем соперника…</li></ul>
-   </div>
-   {!queued.control?<button className="action" disabled={pending} onClick={()=>controlCommand('resume',queued)}>Продолжить в этой вкладке</button>:
-    <button className="action secondary" disabled={pending} onClick={()=>controlCommand('leave',queued)}>Отменить поиск</button>}
-  </>}
-  {previous?<button className="action secondary" onClick={()=>setPrevious(undefined)}>К текущей Арене</button>:
-   lastResult&&<button className="action secondary" disabled={pending} onClick={()=>perform(async()=>{
-    setPrevious(await request<ArenaMatchView>('room?match='+lastResult.id,token));
-   })}>Чат прошлого боя</button>}
-  {shown&&<>
-   <DuelBattle key={shown.id} match={shown} now={now} pending={pending} act={act} player={player}
-    resume={()=>controlCommand('resume',shown)} send={text=>send(shown.id,text)} leave={()=>void controlCommand('leave',shown)}/>
-  </>}
+  }finally{flight.current=false;setBusy(false);}
+ }
+
+ function award(p:Player){
+  const saved=localArena(p);
+  if(saved?.match.mode==='duel'&&saved.match.game.result?.winner===SOLO_ACTOR&&!saved.reward){
+   rewardLocalArenaDuel(p);saved.reward={seal:p.arenaWins%3===0};
+  }
+ }
+ function choose(next:ArenaMode){
+  setMode(next);setNotice('');setDismissed(candidate?.id);
+  if(signed){
+   void perform(async()=>{
+    const session=token||await login();setToken(session);
+    setNetwork(await request('live/join',session,{mode:next,build:arenaBuild(player)}));
+    return true;
+   });
+  }else setSearch({id:crypto.randomUUID(),mode:next,deadline:Date.now()+MATCH_WAIT_MS,names:[classNames[player.heroClass]],control:true,revision:0});
+ }
+ function control(path:'cancel'|'resume',target:{id:string;revision:number}){
+  void perform(async()=>{
+   setNetwork(await request('live/'+path,token,{target:target.id,revision:target.revision}));
+   if(path==='cancel')setMode(undefined);
+   return true;
+  });
+ }
+ function send(action:LiveAction){
+  if(!battle)return Promise.resolve(false);
+  if(battle.local){
+   return Promise.resolve(mutate(p=>{
+    if(localArena(p)?.match.game.id!==battle.id||!updateLocalArena(p,Date.now(),action))return false;
+    award(p);
+    return true;
+   },true));
+  }
+  return perform(async()=>{
+   const reply=await request<{accepted:boolean;view:LiveView}>('live/act',token,{
+    target:battle.id,revision:battle.revision,round:battle.round??0,sequence:battle.nextSequence,action,
+   });
+   if(pastId)setPast(reply.view.battle);else setNetwork(reply.view);
+   if(!reply.accepted)setNotice('Действие сейчас недоступно');
+   return reply.accepted;
+  });
+ }
+ if(searching)return <section className="vvr-arena" aria-label="Арена">
+  <div className="vvr-arena-search">
+   <span className="vvr-search-spinner" aria-hidden="true"/>
+   <strong>Поиск · {arenaModes[searching.mode].size} · {left(searching.deadline,now)} с</strong>
+   <small>Уровень {player.level} · соперники в пределах ±7</small>
+   <p>Участники · {searching.names.length}/{capacities[searching.mode]}</p>
+   <ul>{searching.names.map((name,i)=><li key={i}>{name}</li>)}</ul>
+   {searching.control?<button type="button" className="action secondary" disabled={busy} onClick={()=>{
+    if(networkSearch)control('cancel',searching);else {setSearch(undefined);setMode(undefined)}
+   }}>Отменить поиск</button>:<button type="button" className="action" disabled={busy} onClick={()=>control('resume',searching)}>Продолжить в этой вкладке</button>}
+  </div>
+  {notice&&<p className="online-status" role="status">{notice}</p>}
  </section>;
-}
-
-
-export function OnlineArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:boolean}){
- if(!initiallyOpen)return <DuelArena player={player}/>;
- return <ArenaHub player={player} duel={<DuelArena player={player} initiallyOpen/>}/>;
+ if(battle)return <section className="vvr-arena" aria-label="Арена">
+  {notice&&<p className="online-status" role="status">{notice}</p>}
+  <BattleScene key={battle.id} battle={battle} now={now} player={player} busy={busy}
+   send={send} resume={()=>control('resume',battle)} onLobby={()=>{setDismissed(candidate?.id??battle.id);setMode(undefined);setPast(undefined)}} rewarded={battle.local?liveLocal?.reward:undefined}/>
+ </section>;
+ return <ArenaHub player={player} onMode={choose} pending={busy} notice={notice}
+  pendingMode={mode} onResume={candidate?.local?()=>setDismissed(undefined):undefined}
+  recent={recent.filter(item=>now<item.chatDeadline)} onPast={id=>void perform(async()=>{
+   const view=await request<LiveView>('live/room?match='+id,token);
+   setPast(view.battle);
+   return !!view.battle;
+  })}/>;
 }
