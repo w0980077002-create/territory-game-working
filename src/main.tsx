@@ -15,9 +15,13 @@ import {battle} from './game/Battle';
 import {startCollectionTracking} from './ui/collectionTracking';
 import {startNavStack} from './ui/navStack';
 import {startTranslation} from './i18n';
+import {communityEnabled,connectCommunity} from './community/client';
+import {telegramProfile} from './core/profile';
 // Test hook for isolated ?hero= profiles only: lets automated checks jump to late chapters.
 if(isolatedProfile)Object.assign(window,{__lootborn:{useGame,get battle(){return battle}}});
 createRoot(document.getElementById('root')!).render(<App/>);
+// Register Telegram arrivals before opening any online panel, including a referral launch.
+if(communityEnabled&&telegramProfile)void connectCommunity().catch(()=>{ /* Offline play still works. */ });
 startCollectionTracking();
 startNavStack();
 void startTranslation();

@@ -7,7 +7,7 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','equip','unequip','enhance']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','equip','unequip','enhance']);
 const maxInput=16_384;
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
@@ -21,6 +21,7 @@ function valid(action:string,body:Record<string,unknown>){
  switch(action){
   case 'login':return keys===1&&typeof body.initData==='string';
   case 'auction':case 'chat':case 'guild':return keys===0;
+  case 'referrals':return keys===0||(keys===1&&isUuid(body.before));
   case 'trade':
    if(!isUuid(body.operationId))return false;
    return body.kind==='list'?keys===4&&isUuid(body.itemId)&&typeof body.price==='number'&&
@@ -148,13 +149,21 @@ Deno.serve(async request=>{
   if(value.action==='login'){
    const identity=await verifyTelegramIdentity(value.body.initData as string,botToken,now);
    if(!identity)return reply(401,{error:'telegram_required'});
-   const {ok,data}=await rpc('vvr_resolve_player',{p_telegram:identity.telegramId,p_name:identity.displayName});
+   const inviter=identity.startParam?.startsWith('ref_')?identity.startParam.slice(4):undefined;
+   const args={p_telegram:identity.telegramId,p_name:identity.displayName};
+   const {ok,data}=isUuid(inviter)
+    ?await rpc('vvr_resolve_referred_player',{...args,p_inviter:inviter})
+    :await rpc('vvr_resolve_player',args);
    if(!ok||!isUuid(data))return reply(503,{error:'unavailable'});
    return reply(200,{token:await issueVvrSession(data,sessionKey,now)});
   }
   const auth=request.headers.get('authorization');
   const player=auth?.startsWith('Bearer ')?await readVvrSession(auth.slice(7),sessionKey,now):undefined;
   if(!player)return reply(401,{error:'session_required'});
+  if(value.action==='referrals'){
+   const result=await rpc('vvr_referrals',{p_player:player,p_before:value.body.before??null});
+   return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'referrals_unavailable'});
+  }
   if(value.action==='enhance'){
    const result=await rpc('vvr_enhance_item',{p_player:player,p_item:value.body.item,
     p_expected:value.body.expectedRank,p_operation:value.body.operationId});

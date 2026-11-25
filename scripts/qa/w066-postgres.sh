@@ -28,6 +28,44 @@ pg < tests/pg/w066-arena-scores.sql
 pg < tests/pg/w066-arena-rooms.sql
 pg < tests/pg/w066-guild-rosters.sql
 pg < tests/pg/w066-guild-boss-quests.sql
+pg < tests/pg/w066-referrals.sql
+register_referral() {
+  pg -At -v inviter="$1" <<'SQL'
+select id from vvr.players where telegram_id=:'inviter' \gset
+set role service_role;
+select public.vvr_resolve_referred_player('79207','Simultaneous referral',:'id');
+SQL
+}
+register_referral 79201 > "$results/referral-a" & first=$!
+register_referral 79202 > "$results/referral-b" & second=$!
+wait "$first"
+wait "$second"
+cmp "$results/referral-a" "$results/referral-b"
+award_referral() {
+  pg -At <<'SQL'
+select vvr.issue_referral_reward(id,'gold',11) from vvr.players where telegram_id='79207';
+SQL
+}
+award_referral > "$results/reward-a" & first=$!
+award_referral > "$results/reward-b" & second=$!
+wait "$first"
+wait "$second"
+test "$(sort "$results/reward-a" "$results/reward-b")" = "$(printf 'f\nt')"
+pg <<'SQL'
+do $$
+declare invitee uuid := (select id from vvr.players where telegram_id='79207');
+begin
+  assert (select count(*) from vvr.players where telegram_id='79207')=1;
+  assert (select count(*) from vvr.referrals where invitee_id=invitee)=1;
+  assert (select count(*) from vvr.resource_receipts where source_kind='referral' and source_id=invitee)=1;
+  assert (select receipt.player_id=r.inviter_id and receipt.amount=11
+    from vvr.resource_receipts receipt join vvr.referrals r on r.invitee_id=receipt.source_id
+    where receipt.source_kind='referral' and r.invitee_id=invitee);
+  assert (select sum(balance) from vvr.wallets w join vvr.players p on p.id=w.player_id
+    where p.telegram_id in ('79201','79202') and w.resource='gold')=18;
+end;
+$$;
+SQL
 pg -c "select vvr.resolve_player((73000+i)::text,'Arena simultaneous client') from generate_series(0,39) i" >/dev/null
 docker exec -i "$container" sh -c 'cat > /tmp/arena-join.sql' <<'SQL'
 select public.vvr_arena_join(id,'chaos') from vvr.players where telegram_id=(73000+:client_id)::text;
