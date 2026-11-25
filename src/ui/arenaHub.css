@@ -218,8 +218,8 @@
 .saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header .header-seal,
 .saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header small,
 .online-arena:has(> .vvr-battle.live) > :not(.vvr-battle):not(.online-status) { display: none; }
-.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header { min-height: 44px; padding-block: 3px; }
-.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header h2 { font-size: 18px; }
+.online-arena:has(.vvr-battle.live) ~ *, .vvr-arena:has(.vvr-battle.live) ~ * { display: none; }
+.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header { min-height: 52px; }
 .saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-body { padding: 4px 5px 6px; }
 .vvr-arena:has(.vvr-battle.live) { gap: 4px; }
 .vvr-arena:has(.vvr-battle.live) .online-arena { padding: 0; border: 0; background: none; box-shadow: none; }
