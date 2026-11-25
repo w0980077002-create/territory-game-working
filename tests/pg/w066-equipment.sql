@@ -62,6 +62,11 @@ begin
   assert receipt=public.vvr_enhance_item(buyer,item,0,upgrade_operation);
   assert (receipt->>'price')::int=100;
   begin
+    perform public.vvr_enhance_item(buyer,item,1,upgrade_operation);
+    raise exception 'a reused operation id changed the upgrade';
+  exception when unique_violation then null;
+  end;
+  begin
     perform public.vvr_enhance_item(buyer,item,0,gen_random_uuid());
     raise exception 'old rank upgraded the same item twice';
   exception when unique_violation then null;

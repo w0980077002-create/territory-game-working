@@ -191,6 +191,21 @@ test('a missing move loses at the server deadline, a short disconnect can resume
  assert.equal(view.result?.points,0);
 });
 
+test('an unavailable trusted roster keeps real opponents in a separate unranked duel',()=>{
+ const fallback={...a,rankEligible:false};
+ const other={...b,rankEligible:false};
+ assert.equal(compatible(fallback,b),false);
+ assert.equal(compatible(fallback,other),true);
+ const duel=newMatch(randomUUID(),fallback,other,start,false,()=>.5);
+ duel.round=60;
+ assert.ok(applyCommand(duel,a.id,head,60,1,start,()=>.5));
+ assert.ok(applyCommand(duel,b.id,legs,60,1,start,()=>.5));
+ const state=viewMatch(duel,a.id,a.controller,start);
+ assert.equal(state.training,true);
+ assert.equal(state.result?.reason,'time');
+ assert.equal(state.result?.points,0);
+});
+
 test('two authenticated HTTP identities finish a real duel, rejoin, and keep room chat for exactly 30 minutes',async()=>{
  const root=mkdtempSync(join(tmpdir(),'vvr-duel-')),dbPath=join(root,'arena.sqlite');
  let now=start;
