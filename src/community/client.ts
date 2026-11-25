@@ -5,9 +5,9 @@ export const communityEnabled=!!endpoint;
 export type Metric='world_boss_damage'|'arena_wins';
 export type Trade={kind:'list';itemId:string;price:number}|{kind:'buy'|'cancel';listingId:string};
 export type Market={
- equipment?:{attack:number;equipped:string|null};
- gold:number;items:{id:string;catalogId:string}[];listings:{id:string;catalogId:string;price:number;mine:boolean}[];
- history:{operationId:string;kind:Trade['kind'];listingId:string;price:number;at:string}[];
+ equipment?:{attack:number;equipped:string|null;enhancements?:Record<string,{rank:number;cost:number|null}>};
+ gold:number;items:{id:string;catalogId:string;rank?:number}[];listings:{id:string;catalogId:string;rank?:number;price:number;mine:boolean}[];
+ history:{operationId:string;kind:Trade['kind']|'enhance';listingId?:string;price:number;at:string}[];
 };
 export type GuildChange={kind:'create';name:string}|{kind:'apply'|'withdraw';guild:string}|
  {kind:'accept'|'reject';guild:string;applicant:string}|{kind:'leave'};

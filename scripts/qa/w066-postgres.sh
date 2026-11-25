@@ -91,4 +91,32 @@ begin
 end;
 $$;
 SQL
+pg <<'SQL'
+select vvr.resolve_player('78101','Enhancement concurrency') as actor \gset
+select vvr.issue_resource(:'actor','fixtures',gen_random_uuid(),'gold',1000);
+select vvr.issue_item(:'actor','fixtures',gen_random_uuid(),'world-boss-trophy');
+SQL
+upgrade() {
+ pg -At <<'SQL'
+select p.id as actor,i.id as item from vvr.players p
+ join vvr.network_items i on i.owner_id=p.id where p.telegram_id='78101' \gset
+set role service_role;
+select public.vvr_enhance_item(:'actor',:'item',0,'78101000-0000-0000-0000-000000000001');
+SQL
+}
+upgrade > "$results/upgrade-a" & first=$!
+upgrade > "$results/upgrade-b" & second=$!
+wait "$first"
+wait "$second"
+cmp "$results/upgrade-a" "$results/upgrade-b"
+pg <<'SQL'
+do $$
+begin
+ assert (select i.enhancement_rank from vvr.network_items i join vvr.players p on i.owner_id=p.id
+  where p.telegram_id='78101')=1;
+ assert (select w.balance from vvr.wallets w join vvr.players p on w.player_id=p.id
+  where p.telegram_id='78101' and w.resource='gold')=900;
+end;
+$$;
+SQL
 echo 'W066 Postgres: identity, grants, escrow race, moderation and ranking verified'

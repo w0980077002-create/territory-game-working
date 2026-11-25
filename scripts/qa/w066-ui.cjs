@@ -29,7 +29,7 @@ const listing='11111111-1111-1111-1111-111111111111';
      assert.equal(request.headers().authorization,'Bearer arena-fixture-session');
      await route.fulfill({json:{now:Date.now(),points:0,level:1},headers});
     });
-    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null;
+    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false;
     await context.route(endpoint,async route=>{
      const request=route.request();
      const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization'};
@@ -39,13 +39,18 @@ const listing='11111111-1111-1111-1111-111111111111';
      let data;
      if(action==='login'){assert.deepEqual(body,{initData});data={token:'isolated-session'};}
      if(action==='auction')data={gold:balance,
-      equipment:{attack:equipped?110:100,equipped},
-      items:balance===40?[{id:listing,catalogId:'world-boss-trophy'}]:[],history:[],
+      equipment:{attack:equipped?enhanced?111:110:100,equipped,enhancements:{[listing]:{rank:enhanced?1:0,cost:enhanced?130:100}}},
+      items:balance!==100?[{id:listing,catalogId:'world-boss-trophy'}]:[],history:[],
       listings:balance===100?[{id:listing,catalogId:'world-boss-trophy',price:60,mine:false}]:[]};
      if(action==='trade'){trade=body;balance=40;data={};}
      if(action==='equip'){
       assert.deepEqual(body,{item:listing});
-      equipped=body.item;data={attack:110,equipped};
+      equipped=body.item;balance=140;data={attack:110,equipped};
+     }
+     if(action==='enhance'){
+      assert.equal(body.item,listing);assert.equal(body.expectedRank,0);
+      assert.match(body.operationId,/^[a-f\d-]{36}$/);
+      enhanced=true;balance-=100;data={rank:1};
      }
      if(action==='chat')data={moderator:false,messages:posted?[{id:1,name:'Алиса',text:posted,at:new Date().toISOString()}]:[]};
      if(action==='post'){chatPost=body;posted=body.text;data={};}
@@ -124,6 +129,8 @@ const listing='11111111-1111-1111-1111-111111111111';
     await page.getByText('Серверная экипировка',{exact:true}).tap();
     await button('Надеть').tap();
     await page.getByText('Сила атаки героя · 110',{exact:true}).waitFor();
+    await button('Усилить · 100 золота').tap();
+    await page.getByText('Сила атаки героя · 111',{exact:true}).waitFor();
     await button('Торговый чат').tap();
     await page.getByRole('textbox',{name:'Сообщение'}).fill('К бою!');
     await button('Отправить').tap();

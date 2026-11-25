@@ -68,14 +68,14 @@ export function CommunityPanel({section}:{section:Section}){
   catch(failure){setError(explain(failure));}
   finally{running.current=false;setBusy(false);}
  };
- const send=async(action:'trade'|'post'|'hide'|'guild_roster'|'guild_boss_claim'|'equip'|'unequip',body:Trade|GuildChange|{text:string}|{message:number}|{eventId:string}|{item:string},done:()=>void)=>{
+ const send=async(action:'trade'|'post'|'hide'|'guild_roster'|'guild_boss_claim'|'equip'|'unequip'|'enhance',body:Trade|GuildChange|{text:string}|{message:number}|{eventId:string}|{item:string;expectedRank?:number},done:()=>void)=>{
   if(running.current)return;
   const fingerprint=JSON.stringify([action,body]);
   const operation=pending.current?.key===fingerprint?pending.current.id:crypto.randomUUID();
   pending.current={key:fingerprint,id:operation};
   running.current=true;setBusy(true);setError('');
   try{
-   await community(action,action==='trade'||action==='post'?{...body,operationId:operation}:body);
+   await community(action,action==='trade'||action==='post'||action==='enhance'?{...body,operationId:operation}:body);
    pending.current=undefined;
    done();
   }catch(failure){
@@ -117,11 +117,17 @@ export function CommunityPanel({section}:{section:Section}){
      <summary>{l('Серверная экипировка','Online equipment')}</summary>
      <ul>{market.items.filter(piece=>piece.catalogId==='world-boss-trophy').map(piece=>{
       const equipped=piece.id===market.equipment?.equipped;
-      return <li key={piece.id}><span>{label(piece.catalogId)}</span>
+      const enhancement=market.equipment?.enhancements?.[piece.id];
+      return <li key={piece.id}><span>{label(piece.catalogId)}{enhancement&&' +'+enhancement.rank}</span>
        <button type="button" className="action secondary" disabled={busy}
         onClick={()=>void send(equipped?'unequip':'equip',{item:piece.id},()=>setItem(''))}>
         {equipped?l('Снять','Unequip'):l('Надеть','Equip')}
        </button>
+       {enhancement?.cost!=null&&<button type="button" className="action secondary"
+        disabled={busy||market.gold<enhancement.cost}
+        onClick={()=>void send('enhance',{item:piece.id,expectedRank:enhancement.rank},()=>{})}>
+        {l('Усилить','Enhance')} · {format(enhancement.cost)} {l('золота','gold')}
+       </button>}
       </li>;
      })}</ul>
     </details>}
@@ -135,7 +141,7 @@ export function CommunityPanel({section}:{section:Section}){
    <h3>{l('Лоты','Listings')}</h3>
    {market.listings.length===0&&<p>{l('Открытых лотов пока нет.','There are no open listings yet.')}</p>}
    <ul>{market.listings.map(listing=><li key={listing.id}>
-    <span>{label(listing.catalogId)} · {format(listing.price)}</span>
+    <span>{label(listing.catalogId)}{(listing.rank??0)>0&&' +'+listing.rank} · {format(listing.price)}</span>
     {listing.mine?<button type="button" className="action secondary" disabled={busy}
      onClick={()=>void send('trade',{kind:'cancel',listingId:listing.id},()=>{})}>{l('Снять лот','Cancel listing')}</button>:
      <button type="button" className="action secondary" disabled={busy||listing.price>market.gold}
@@ -146,7 +152,7 @@ export function CommunityPanel({section}:{section:Section}){
     <button type="button" className="action secondary" disabled={busy} onClick={()=>setOffer(null)}>{l('Отмена','Cancel')}</button>
    </div>}
    {market.history.length>0&&<details className="saga-disclosure"><summary>{l('История сделок','Trade history')}</summary>
-    <ul>{market.history.map(entry=><li key={entry.operationId+entry.at}>{tradeNames[entry.kind]} · {format(entry.price)} · {new Date(entry.at).toLocaleString(lang)}</li>)}</ul>
+    <ul>{market.history.map(entry=><li key={entry.operationId+entry.at}>{entry.kind==='enhance'?l('Усиление','Enhancement'):tradeNames[entry.kind]} · {format(entry.price)} · {new Date(entry.at).toLocaleString(lang)}</li>)}</ul>
    </details>}
   </>}
   {chat&&<>

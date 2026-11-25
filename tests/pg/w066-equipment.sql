@@ -7,6 +7,9 @@ declare
   item uuid;
   lot uuid;
   hit jsonb;
+  upgrade_operation uuid:=gen_random_uuid();
+  receipt jsonb;
+  token_hash text:=repeat('a',64);
 begin
   insert into vvr.world_boss_admins(telegram_id) values ('73011');
   perform public.vvr_world_boss_admin_start('73011','Loot test','minotaur_echo',
@@ -41,11 +44,43 @@ begin
   assert (public.vvr_equipment(seller,'equipment',null)->>'attack')::int=100;
   assert (public.vvr_equipment(buyer,'equip',item)->>'attack')::int=110;
   assert (public.vvr_community(buyer,'auction','{}')->>'gold')::int=4500;
+  assert (public.vvr_equipment(buyer,'equipment',null)->'enhancements'->item::text->>'cost')::int=100;
+  assert not has_function_privilege('anon','public.vvr_enhance_item(uuid,uuid,integer,uuid)','EXECUTE');
+  assert not has_function_privilege('service_role','vvr.set_hero_attack(uuid,bigint,integer)','EXECUTE');
+  insert into vvr.arena_publishers(name,token_hash) values('railway',token_hash);
+  begin
+    perform public.vvr_arena_hero(repeat('b',64),'73012','Buyer');
+    raise exception 'unauthorized publisher received trusted attack';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.vvr_enhance_item(seller,item,0,gen_random_uuid());
+    raise exception 'former owner enhanced transferred item';
+  exception when unique_violation then null;
+  end;
+  receipt:=public.vvr_enhance_item(buyer,item,0,upgrade_operation);
+  assert receipt=public.vvr_enhance_item(buyer,item,0,upgrade_operation);
+  assert (receipt->>'price')::int=100;
+  begin
+    perform public.vvr_enhance_item(buyer,item,0,gen_random_uuid());
+    raise exception 'old rank upgraded the same item twice';
+  exception when unique_violation then null;
+  end;
+  assert (public.vvr_community(buyer,'auction','{}')->>'gold')::int=4400;
+  assert (public.vvr_equipment(buyer,'equipment',null)->>'attack')::int=111;
+  assert public.vvr_arena_hero(token_hash,'73012','Buyer')=111;
+  lot:=(public.vvr_arena_join(buyer,'team','ranger')->>'id')::uuid;
+  assert (public.vvr_arena_room(buyer,lot)->'roster'->0->>'attackPower')::int=111;
+  assert public.vvr_arena_cancel(buyer,lot);
+  assert (public.vvr_arena_join(buyer,'chaos','ranger')->'roster'->0->>'attackPower')::int=111;
+  assert public.vvr_arena_cancel(buyer,(public.vvr_arena_current(buyer)->>'id')::uuid);
+  assert (public.vvr_arena_join(seller,'chaos','ranger')->'roster'->0->>'attackPower')::int=100;
+
 
   perform public.vvr_world_boss_admin_start('73011','Second fight','minotaur_echo',
     now()-interval '10 sec',30,1000,'{"damageMin":500,"damageMax":500,"critChance":0}');
   hit:=public.vvr_world_boss_attack('73012','Buyer',gen_random_uuid())->'hit';
-  assert (hit->>'damage')::int=550;
+  assert (hit->>'damage')::int=555;
 end;
 $$;
 rollback;

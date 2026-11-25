@@ -5,6 +5,7 @@ import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
+import {createServer} from 'node:http';
 import {verifyTelegram,issueSession,readSession} from '../server/arena/auth';
 import {createArenaServer} from '../server/arena/http';
 import {ArenaService} from '../server/arena/service';
@@ -193,7 +194,26 @@ test('a missing move loses at the server deadline, a short disconnect can resume
 test('two authenticated HTTP identities finish a real duel, rejoin, and keep room chat for exactly 30 minutes',async()=>{
  const root=mkdtempSync(join(tmpdir(),'vvr-duel-')),dbPath=join(root,'arena.sqlite');
  let now=start;
- const options={dbPath,botToken,sessionKey,clock:()=>now,rng:()=>.5,allowedUsers:new Set(['1','2','3'])};
+ const credential='a'.repeat(64);
+ const profileRequests:string[]=[];
+ const publisher=createServer(async(req,res)=>{
+  const chunks:Buffer[]=[];
+  for await(const chunk of req)chunks.push(chunk);
+  const body=JSON.parse(Buffer.concat(chunks).toString());
+  assert.equal(req.headers.authorization,'Bearer '+credential);
+  res.setHeader('Content-Type','application/json');
+  if(req.url==='/arena-profile'){
+   assert.deepEqual(Object.keys(body).sort(),['name','telegram']);
+   profileRequests.push(body.telegram);
+   res.end(JSON.stringify({attack:body.telegram==='1'?130:100}));
+  }else res.end('{"accepted":true}');
+ });
+ await new Promise<void>((resolve,reject)=>publisher.once('error',reject).listen(0,'127.0.0.1',resolve));
+ const published=publisher.address();
+ if(!published||typeof published==='string')throw Error('Missing W066 fixture address');
+ const options={dbPath,botToken,sessionKey,clock:()=>now,rng:()=>.5,allowedUsers:new Set(['1','2','3']),
+  scorePublisher:{url:'http://127.0.0.1:'+published.port+'/arena-result',token:credential}};
+
  let server=createArenaServer(options);
  const listen=async()=>{
   await new Promise<void>((resolve,reject)=>server.once('error',reject).listen(0,'127.0.0.1',resolve));
@@ -246,6 +266,8 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
   const opening=(await two('join',{hero:'berserker',kit:'balanced'})).data.match;
   const id=opening.id;
   assert.equal(opening.bot,false);
+ assert.deepEqual(profileRequests,['1','2']);
+ assert.equal(opening.training,false);
  assert.equal(opening.opponent.level,1);
  assert.deepEqual(opening.opponent.gear,[8,0,8,2,4,2,6]);
   assert.equal(opening.opponent.name,'Герой 1');
@@ -268,6 +290,7 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
   assert.equal(switched.controlRevision,1);
   assert.equal((await one('resume',originalControl)).data.match.control,false);
   assert.equal((await one('leave',originalControl)).data.match.result,undefined);
+  const firstOpponentHp=opening.you.hp;
   const firstAction={target:id,revision:switched.controlRevision,action:head,round:1,sequence:1};
   assert.equal((await one('act',firstAction)).data.accepted,false);
   assert.equal((await restored('act',{...firstAction,revision:0})).data.accepted,false);
@@ -293,6 +316,7 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
    assert.equal(replyBatch.filter(reply=>reply.data.accepted).length,1);
    const reply=replyBatch.find(reply=>reply.data.accepted)!;
    twoState=reply.data.view;
+   if(current===1)assert.equal(firstOpponentHp-twoState.match.you.hp,43,'verified W066 attack changes real duel damage');
    oneState=(await restored('state')).data;
    now+=1000;
   }
@@ -333,6 +357,7 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
   finally{db.close()}
  }finally{
   if(server.listening)await close();
+  publisher.close();
   rmSync(root,{recursive:true,force:true});
  }
 });

@@ -54,6 +54,8 @@ export class ArenaService {
   this.db.prepare('INSERT INTO profiles(id,name) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name').run(identity.id,identity.name);
  }
 
+ playerName(id:string){return this.profile(id).name}
+
  private level(id:string){return this.levels.get(id)??DEFAULT_ARENA_LEVEL}
 
  private profile(id:string):Profile{
@@ -152,13 +154,13 @@ export class ArenaService {
   });
  }
 
- join(actor:Actor,hero:ArenaHero,kit:ArenaKit,now:number){
+ join(actor:Actor,hero:ArenaHero,kit:ArenaKit,now:number,trustedAttack?:number,rankEligible=true){
   return this.transaction(now,state=>{
    const match=this.current(state,actor.id);
    if(match&&!match.result||state.queue.some(player=>player.id===actor.id))return this.view(state,actor,now);
    const profile=this.profile(actor.id);
    const entry={id:actor.id,name:profile.name,level:this.level(actor.id),rating:trainingRating,hero,kit,
-    controller:actor.controller,ticket:randomUUID(),since:now,seenAt:now};
+    controller:actor.controller,trustedAttack,rankEligible,ticket:randomUUID(),since:now,seenAt:now};
    if(state.queue.length>=MAX_ACTIVE)throw new ArenaError(503,'Очередь заполнена. Повторите позже.');
    state.queue.push(entry);
    this.pairQueue(state,now);
