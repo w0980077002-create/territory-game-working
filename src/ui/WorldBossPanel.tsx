@@ -1,3 +1,5 @@
+import {communityEnabled} from '../community/client';
+import {BrotherhoodAdmin} from './Brotherhood';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import type {Player} from '../core/types';
 import {useGame} from '../core/store';
@@ -166,6 +168,7 @@ function BossAdmin({state,onState}:{state:BossState;onState:(s:BossState)=>void}
    <button className="action" type="submit">Запустить босса</button>
    <p className="hint">Награды — по умолчанию сервера (золото, Хаосит, жетоны Арены). Изменение наград — параметр config события.</p>
   </form>}
+  {communityEnabled&&<BrotherhoodAdmin/>}
  </div>;
 }
 

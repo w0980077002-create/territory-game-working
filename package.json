@@ -10,7 +10,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "test": "tsx --test tests/*.test.ts",
-    "lint": "eslint src/ui/carnival src/ui/App.tsx src/ui/DarkPanels.tsx src/ui/SagaUI.tsx src/ui/HarborScene.tsx src/ui/OnlineArena.tsx src/ui/ArenaHub.tsx src/ui/ArenaBattleParts.tsx src/ui/CommunityPanel.tsx src/ui/ReferralPanel.tsx src/community src/arena server/arena src/core/store.ts tests/notices.test.ts tests/online-arena.test.ts",
+    "lint": "eslint src/ui/carnival src/ui/App.tsx src/ui/DarkPanels.tsx src/ui/SagaUI.tsx src/ui/HarborScene.tsx src/ui/OnlineArena.tsx src/ui/ArenaHub.tsx src/ui/ArenaBattleParts.tsx src/ui/CommunityPanel.tsx src/ui/ReferralPanel.tsx src/ui/Brotherhood.tsx src/community src/arena server/arena src/core/store.ts tests/notices.test.ts tests/online-arena.test.ts",
     "test:windows": "node scripts/qa/windows.cjs",
     "test:buttons": "node scripts/qa/button-routes.cjs",
     "test:natural": "node scripts/qa/natural-start.cjs"

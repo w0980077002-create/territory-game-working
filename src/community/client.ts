@@ -59,10 +59,39 @@ export function community<T>(action:string,body:object={},signal?:AbortSignal){
  return authenticated<T>(action,body,signal);
 }
 
+type BrotherhoodResource='gold'|'gems'|'horn'|'chaosite'|'rune_scrolls'|'summon_seals'|'relic_shards';
+export type BrotherhoodResources=Partial<Record<BrotherhoodResource,number>>;
+export type BrotherhoodAward={id:string;kind:'welcome'|'oath';tier:number;payload:BrotherhoodResources;received:boolean};
+export type BrotherhoodPair={
+ id:string;inviterId:string;name:string;active:boolean;days:number;awards:BrotherhoodAward[];
+};
+export type BrotherhoodRewards={
+ welcome:{inviter:BrotherhoodResources;invitee:BrotherhoodResources};
+ level:Record<string,BrotherhoodResources>;
+ oath:Record<string,BrotherhoodResources>;
+ legend:Record<string,{title:'comrade'|'leader'|'chief';resources:BrotherhoodResources;honor?:string}>;
+};
+type BrotherhoodState={
+ enabled:boolean;rewards:BrotherhoodRewards;incoming:BrotherhoodPair|null;outgoing:BrotherhoodPair[];
+ invited:number;active:number;wallet:BrotherhoodResources;
+};
+export type BrotherhoodStats={
+ enabled:boolean;invited:number;active:number;tiers:Record<string,number>;
+ issued:BrotherhoodResources;rejections:Partial<Record<'self_referral'|'foreign_or_unknown_award',number>>;
+};
+type BrotherhoodClaim={status:'received';wallet:BrotherhoodResources}|{status:'paused'|'unavailable'};
+export function claimBrotherhood(award:string){
+ return community<BrotherhoodClaim>('brotherhood_claim',{award},AbortSignal.timeout?.(7500));
+}
+export function readBrotherhoodAdmin(enabled?:boolean){
+ return community<BrotherhoodStats>('brotherhood_admin',enabled===undefined?{}:{enabled},AbortSignal.timeout?.(7500));
+}
+
 export type ReferralState={
  startParam:string;
  rows:{id:string;name:string;at:string;status:'confirmed'|'rewarded'}[];
  next:string|null;
+ brotherhood?:BrotherhoodState;
 };
 export function readReferrals(before:string|null){
  return community<ReferralState>('referrals',before?{before}:{},AbortSignal.timeout?.(7500));
