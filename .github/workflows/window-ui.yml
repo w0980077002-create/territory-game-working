@@ -31,6 +31,7 @@ jobs:
         env:
           VITE_ARENA_API_ORIGIN: http://127.0.0.1:18793
           VITE_VVR_COMMUNITY_URL: http://127.0.0.1:18792/functions/v1/vvr-community
+          VITE_WORLD_BOSS_URL: http://127.0.0.1:18794/functions/v1/vvr-world-boss
         run: |
           npm run build
           node_modules/.bin/vite preview --host 127.0.0.1 --port 18791 --strictPort &

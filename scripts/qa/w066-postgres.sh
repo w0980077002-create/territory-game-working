@@ -28,7 +28,36 @@ pg < tests/pg/w066-arena-scores.sql
 pg < tests/pg/w066-arena-rooms.sql
 pg < tests/pg/w066-guild-rosters.sql
 pg < tests/pg/w066-guild-boss-quests.sql
+pg < tests/pg/w066-brotherhood.sql
 pg < tests/pg/w066-referrals.sql
+pg <<'SQL'
+select vvr.resolve_player('79411','Concurrency inviter') as inviter \gset
+select public.vvr_resolve_referred_player('79412','Concurrency friend',:'inviter') as invitee \gset
+insert into vvr.brotherhood_awards(invitee_id,recipient_id,kind,tier,payload)
+  select :'invitee',:'invitee','welcome',1,rewards#>'{welcome,invitee}' from vvr.brotherhood_settings;
+SQL
+claim_brotherhood() {
+  pg -At <<'SQL'
+select a.id as award,a.recipient_id as player from vvr.brotherhood_awards a
+  join vvr.players p on p.id=a.recipient_id where p.telegram_id='79412' \gset
+set role service_role;
+select public.vvr_brotherhood_claim(:'player',:'award');
+SQL
+}
+claim_brotherhood > "$results/brotherhood-a" & first=$!
+claim_brotherhood > "$results/brotherhood-b" & second=$!
+wait "$first"
+wait "$second"
+cmp "$results/brotherhood-a" "$results/brotherhood-b"
+pg <<'SQL'
+do $$
+declare recipient uuid := (select id from vvr.players where telegram_id='79412');
+begin
+  assert (select count(*) from vvr.resource_receipts where source_kind='brotherhood' and player_id=recipient)=6;
+  assert (select balance from vvr.wallets where resource='horn' and player_id=recipient)=20;
+end;
+$$;
+SQL
 register_referral() {
   pg -At -v inviter="$1" <<'SQL'
 select id from vvr.players where telegram_id=:'inviter' \gset
