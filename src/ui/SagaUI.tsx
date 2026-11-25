@@ -82,8 +82,9 @@ export function ExperienceMeter({p}:{p:Player}){const goal=xpNeeded(p.level);ret
 export function LevelUpFeedback(){
  const level=useGame(s=>s.p.level),reduced=useGame(s=>s.p.reducedMotion),previous=useRef(level),[award,setAward]=useState<{level:number;points:number}|null>(null);
  useEffect(()=>{if(level>previous.current)setAward({level,points:level-previous.current});previous.current=level},[level]);
- useEffect(()=>{if(award===null)return;const timer=setTimeout(()=>setAward(null),2600);return()=>clearTimeout(timer)},[award]);
- return award===null?null:createPortal(<div className="level-award" data-motion={reduced?'reduced':undefined} role="status" key={award.level}><span aria-hidden="true">✦</span><div><small>ЛЕГЕНДА РАСТЁТ</small><strong>Уровень {award.level}</strong><p>Характеристики выросли · +{award.points} к талантам</p></div><span aria-hidden="true">✦</span></div>,document.body);
+ useEffect(()=>{if(award===null)return;const timer=setTimeout(()=>setAward(null),2200);return()=>clearTimeout(timer)},[award]);
+ // A slim ribbon inside the game frame, above the fighters: noticeable, never covering the battle or open windows.
+ return award===null?null:<div className="level-award" data-motion={reduced?'reduced':undefined} role="status" key={award.level}><span aria-hidden="true">✦</span><div><small>ЛЕГЕНДА РАСТЁТ</small><strong>Уровень {award.level}</strong><p>+{award.points} к талантам</p></div><span aria-hidden="true">✦</span></div>;
 }
 
 /** Native top layer keeps the catalog mounted while its input is locked. */

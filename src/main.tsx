@@ -10,6 +10,7 @@ import './ui/styleUnity.css';
 import './ui/viewport.css';
 import './ui/artPolish.css';
 import './ui/gearRarity.css';
+import './ui/polish.css';
 import {useGame,isolatedProfile} from './core/store';
 import {battle} from './game/Battle';
 import {startCollectionTracking} from './ui/collectionTracking';
