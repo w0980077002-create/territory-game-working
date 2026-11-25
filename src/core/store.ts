@@ -30,7 +30,7 @@ import {actualReward,claimDailyGift,claimSeason} from '../saga/events';
 import {applyHonor,canClaimHonor} from '../saga/honor';
 import {applyMail,type MailAction} from '../saga/mail';
 import {normalizeCarnival,prepareCarnivalClaim,updateCarnival,type CarnivalClaimResult} from '../saga/carnival';
-import {soloVictory} from '../saga/soloEconomy';
+import {balanceOf,soloVictory} from '../saga/soloEconomy';
 import {realmSessionWritable} from '../dark/session';
 import {realmRun,realmVictory,realmClaim,migrateRealm,realmBox} from '../dark/realm';
 import {lootBonus,addRes,rollGem,gemBox,gemLabel,resCount,migrateSquad,raiseFollowerLevel,followerId,FOLLOWER_MAX_LEVEL} from '../dark/rules';
@@ -220,6 +220,37 @@ export function deliverGiftHorn(item:Item){
   if(useGame.getState().panel==='loot')game.select(item.id);
  }
  return true;
+}
+const soloGiftId=/^brotherhood-solo:[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+
+/** Use ordinary Solo resources and record the delivery in the same save. */
+export function deliverGiftResources(id:string,resources:unknown){
+ if(!soloGiftId.test(id)||!resources||typeof resources!=='object'||Array.isArray(resources))return false;
+ const game=useGame.getState();
+ if(game.p.claimed.includes(id))return true;
+ const lines=Object.entries(resources);
+ if(!lines.length)return false;
+ const reward:Reward={};
+ for(const [resource,amount] of lines){
+  if(!Number.isInteger(amount)||amount<1||amount>1_000_000_000)return false;
+  switch(resource){
+   case 'gold':case 'gems':case 'chaosite':reward[resource]=amount;break;
+   case 'rune_scrolls':reward.solo={scroll:amount};break;
+   case 'summon_seals':(reward.res??={}).seal=amount;break;
+   case 'relic_shards':(reward.res??={}).shard=amount;break;
+   default:return false;
+  }
+ }
+ return game.mutate(p=>{
+  if(p.claimed.includes(id))return true;
+  for(const currency of ['gold','gems','chaosite'] as const){
+   if(p[currency]+(reward[currency]??0)>Number.MAX_SAFE_INTEGER)return false;
+  }
+  if(balanceOf(p,'scroll')+(reward.solo?.scroll??0)>=1e15||
+    resCount(p,'seal')+(reward.res?.seal??0)>=1e15||resCount(p,'shard')+(reward.res?.shard??0)>=1e15)return false;
+  grant(p,reward);
+  p.claimed.push(id);
+ },true);
 }
 type Settings=Pick<Store,'auto'|'speed'|'stopOnDeath'|'continueOnVictory'|'autoSalvageWeaker'>;
 export const useGame=create<Store>((set,get)=>{

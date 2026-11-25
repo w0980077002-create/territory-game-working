@@ -4,6 +4,7 @@ const {mkdirSync}=require('node:fs');
 
 const site=process.env.BASE_URL||'http://127.0.0.1:18791/';
 const endpoint=process.env.COMMUNITY_URL||'http://127.0.0.1:18792/functions/v1/vvr-community';
+const campaign=endpoint.replace(/vvr-community\/?$/,'vvr-campaign');
 const arenaOrigin=process.env.ARENA_ORIGIN||'http://127.0.0.1:18793';
 const initData='user='+encodeURIComponent(JSON.stringify({id:92001,first_name:'Алиса'}))+'&start_param=ref_11111111-1111-1111-1111-111111111111';
 const saveKey='lootborn-codex-v1:telegram:92001';
@@ -52,6 +53,32 @@ const rewards={
     });
     let loginCalls=0,referrals=[],referralReads=0,attempts=0,sentEnabled;
     let enabled=true,days=0,awards=[],wallet={};
+    let pendingGift,soloDebits=0,soloAcks=0;
+    await context.route(campaign,async route=>{
+     const request=route.request();
+     const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization'};
+     if(request.method()==='OPTIONS')return route.fulfill({status:204,headers});
+     assert.equal(request.headers().authorization,'Bearer isolated-session');
+     const {action,operation}=request.postDataJSON();
+     if(action==='solo_open'&&!pendingGift&&soloDebits===0){
+      soloDebits++;
+      const {horn,...resources}=wallet;
+      wallet={horn};
+      pendingGift={id:operation,item:{id:'brotherhood-solo:'+operation,resources}};
+     }
+     if(action==='solo_ack'){
+      assert.equal(operation,pendingGift.id);
+      soloAcks++;
+      if(soloAcks===1)return route.fulfill({status:503,headers,json:{}});
+      pendingGift=null;
+      return route.fulfill({headers,json:{status:'delivered'}});
+     }
+     if(action==='solo_state'||action==='solo_open'){
+      const {horn:_,...available}=wallet;
+      return route.fulfill({headers,json:{status:'ok',available,wallet,pending:pendingGift??null}});
+     }
+     return route.fulfill({headers,json:{status:'ineligible'}});
+    });
     let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false;
     await context.route(endpoint,async route=>{
      const request=route.request();
@@ -213,10 +240,27 @@ const rewards={
      assert.deepEqual((await storedSave())[field],beforeReward[field],'Solo ' + field + ' is independent of W066 claims');
     await invite.getByText('Сетевой кошелёк',{exact:true}).click();
     await invite.getByText('Подарочные заряды хранятся в сетевом кошельке даже при полном Роге. Подарочным зарядом можно протрубить в Роге Трофеев.').waitFor();
+    await invite.getByRole('button',{name:'Перенести подарки в Solo'}).click();
+    await invite.getByRole('button',{name:'Проверить перенос подарков'}).waitFor();
+    const receipt=pendingGift.item.id;
     await page.reload();
     await button('Приглашение').click();
     await chest.getByText('Получено',{exact:true}).waitFor();
-    assert.equal((await storedSave()).horn,fullHorn);
+    await invite.getByText('Сетевой кошелёк',{exact:true}).click();
+    await page.waitForFunction(key=>localStorage.getItem(key)===null,'vvr-gift-solo:92001');
+    const afterGift=await storedSave();
+    assert.equal(soloDebits,1);
+    assert.equal(soloAcks,2);
+    assert.equal(afterGift.claimed.filter(id=>id===receipt).length,1);
+    assert.equal(afterGift.gold-beforeReward.gold,rewards.welcome.invitee.gold);
+    assert.equal(afterGift.gems-beforeReward.gems,rewards.welcome.invitee.gems);
+    assert.equal(afterGift.chaosite-beforeReward.chaosite,rewards.welcome.invitee.chaosite);
+    assert.equal((afterGift.saga?.n['solo:scroll']??0)-(beforeReward.saga?.n['solo:scroll']??0),40);
+    assert.equal((afterGift.saga?.n['res:seal']??0)-(beforeReward.saga?.n['res:seal']??0),3);
+    assert.equal(afterGift.horn,fullHorn);
+    for(const field of ['level','xp','stage','wave','inventory','equipment']){
+     assert.deepEqual(afterGift[field],beforeReward[field],'Solo '+field+' survives the gift transfer');
+    }
     await invite.getByRole('button',{name:'Друзья'}).click();
     const friends=page.getByRole('dialog',{name:'Друзья'});
     await friends.getByText('Подтверждённых приглашений пока нет.',{exact:true}).waitFor();
