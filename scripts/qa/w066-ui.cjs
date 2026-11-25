@@ -210,7 +210,7 @@ const rewards={
     for(const field of ['gold','gems','chaosite','horn','level','inventory'])
      assert.deepEqual((await storedSave())[field],beforeReward[field],'Solo ' + field + ' is independent of W066 claims');
     await invite.getByText('Сетевой кошелёк',{exact:true}).click();
-    await invite.getByText('Подарочные заряды хранятся в сетевом кошельке даже при полном Роге. Перенос в Рог пока недоступен.').waitFor();
+    await invite.getByText('Подарочные заряды хранятся в сетевом кошельке даже при полном Роге. Подарочным зарядом можно протрубить в Роге Трофеев.').waitFor();
     await page.reload();
     await button('Приглашение').click();
     await chest.getByText('Получено',{exact:true}).waitFor();

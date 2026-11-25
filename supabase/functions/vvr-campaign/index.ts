@@ -1,7 +1,8 @@
 import {readVvrSession} from '../_shared/vvr-identity.ts';
 import {makeSecretReader} from '../_shared/w066-secrets.ts';
 import {makeCampaignHandler} from './handler.ts';
-import {firstBossVictory} from '../../../server/campaign/firstBoss.ts';
+import {giftHornItem} from '../../../server/campaign/giftHorn.ts';
+import {firstBossVictory,replayCampaign} from '../../../server/campaign/firstBoss.ts';
 
 const project=Deno.env.get('SUPABASE_URL')??'';
 const role=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'';
@@ -23,4 +24,4 @@ Deno.serve(makeCampaignHandler(rpc,async token=>{
  const {sessionKey,botToken}=await secrets();
  if(!project||!role||sessionKey.length<32||sessionKey===botToken)throw new Error('campaign_session_unavailable');
  return readVvrSession(token,sessionKey,Date.now());
-},firstBossVictory,origin));
+},firstBossVictory,origin,giftHornItem,replayCampaign));

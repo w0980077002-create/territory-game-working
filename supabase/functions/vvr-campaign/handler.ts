@@ -1,5 +1,5 @@
-import {parseProofCommands} from '../../../src/game/campaignProof.ts';
-import type {HeroClass} from '../../../src/core/types.ts';
+import {maxWaveProofTicks,parseProofCommands} from '../../../src/game/campaignProof.ts';
+import type {HeroClass,Player} from '../../../src/core/types.ts';
 
 type Rpc=(name:string,args:Record<string,unknown>)=>Promise<unknown>;
 type ReadPlayer=(token:string)=>Promise<string|undefined>;
@@ -28,7 +28,11 @@ async function jsonInput(request:Request){
  finally{reader.releaseLock();}
 }
 
-export function makeCampaignHandler(rpc:Rpc,readPlayer:ReadPlayer,verify:Verify,origin:string){
+type Replay=(hero:HeroClass,seed:number,commands:NonNullable<ReturnType<typeof parseProofCommands>>,startedAt:number,checkpoint?:Player)
+ =>{ticks:number;player:Player}|null;
+type GiftItem=(operation:string,context:unknown)=>unknown;
+
+export function makeCampaignHandler(rpc:Rpc,readPlayer:ReadPlayer,verify:Verify,origin:string,giftItem?:GiftItem,replay?:Replay){
  return async (request:Request):Promise<Response>=>{
   const headers={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'content-type,authorization',
    'Access-Control-Allow-Methods':'POST,OPTIONS','Cache-Control':'no-store','Content-Type':'application/json',Vary:'Origin'};
@@ -42,7 +46,48 @@ export function makeCampaignHandler(rpc:Rpc,readPlayer:ReadPlayer,verify:Verify,
    const player=auth?.startsWith('Bearer ')?await readPlayer(auth.slice(7)):undefined;
    if(!player)return reply(401,{error:'session_required'});
    const input=await jsonInput(request);
-   if(!record(input)||Object.keys(input).length!==3)return reply(400,{error:'invalid_request'});
+   if(!record(input))return reply(400,{error:'invalid_request'});
+   const keys=Object.keys(input).length;
+   if(input.action==='horn_state'&&keys===1){
+    return reply(200,await rpc('vvr_brotherhood_horn',{p_player:player,p_action:'state'}));
+   }
+   if(input.action==='horn_ack'&&keys===2&&isUuid(input.operation)){
+    return reply(200,await rpc('vvr_brotherhood_horn',{p_player:player,p_action:'ack',p_operation:input.operation}));
+   }
+   if(input.action==='horn_open'&&keys===3&&isUuid(input.operation)){
+    const item=giftItem?.(input.operation,input.context);
+    if(!item)return reply(400,{error:'invalid_request'});
+    return reply(200,await rpc('vvr_brotherhood_horn',{p_player:player,p_action:'open',p_operation:input.operation,p_item:item}));
+   }
+   if(input.action==='wave_begin'&&keys===5&&isUuid(input.client)&&isHero(input.hero)
+    &&typeof input.stage==='number'&&Number.isInteger(input.stage)&&input.stage>=2&&input.stage<2147483647
+    &&typeof input.wave==='number'&&Number.isInteger(input.wave)&&input.wave>=1&&input.wave<=5&&replay){
+    const args={p_player:player,p_attempt:input.client,p_hero:input.hero,p_stage:input.stage,p_wave:input.wave};
+    let current=await rpc('vvr_campaign_progress_begin',args);
+    if(record(current)&&current.status==='bootstrap'&&isHero(current.hero)){
+     const initial=replay(current.hero,17,[],Date.now());
+     if(!initial)return reply(503,{error:'campaign_proof_unavailable'});
+     if(await rpc('vvr_campaign_progress_seed',{p_player:player,p_checkpoint:initial.player})){
+      current=await rpc('vvr_campaign_progress_begin',args);
+     }
+    }
+    return reply(200,current);
+   }
+   if(input.action==='wave_replay'&&keys===3&&isUuid(input.ticket)&&replay){
+    const moves=parseProofCommands(input.commands,maxWaveProofTicks);
+    if(!moves)return reply(400,{error:'invalid_request'});
+    const args={p_player:player,p_ticket:input.ticket};
+    const checked=await rpc('vvr_campaign_progress_check',args);
+    if(!record(checked))return reply(503,{error:'campaign_proof_unavailable'});
+    if(checked.status!=='check')return reply(200,checked);
+    const {hero,seed,startedAt,checkpoint}=checked;
+    if(!isHero(hero)||typeof seed!=='number'||!Number.isSafeInteger(seed)||typeof startedAt!=='number'
+     ||!Number.isSafeInteger(startedAt)||!record(checkpoint))return reply(503,{error:'campaign_proof_unavailable'});
+    const won=replay(hero,seed,moves,startedAt,checkpoint as unknown as Player);
+    if(!won)return reply(200,{status:'unverified'});
+    return reply(200,await rpc('vvr_campaign_progress_finish',{...args,p_ticks:won.ticks,p_checkpoint:won.player}));
+   }
+   if(keys!==3)return reply(400,{error:'invalid_request'});
    if(input.action==='begin'&&isUuid(input.client)&&isHero(input.hero)){
     return reply(200,await rpc('vvr_campaign_boss_begin',{p_player:player,p_client:input.client,p_hero:input.hero}));
    }

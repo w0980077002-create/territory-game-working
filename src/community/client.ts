@@ -61,9 +61,9 @@ export function community<T>(action:string,body:object={},signal?:AbortSignal){
 
 type BrotherhoodResource='gold'|'gems'|'horn'|'chaosite'|'rune_scrolls'|'summon_seals'|'relic_shards';
 export type BrotherhoodResources=Partial<Record<BrotherhoodResource,number>>;
-export type BrotherhoodAward={id:string;kind:'welcome'|'oath';tier:number;payload:BrotherhoodResources;received:boolean};
+export type BrotherhoodAward={id:string;kind:'welcome'|'oath'|'level'|'legend';tier:number;payload:BrotherhoodResources;received:boolean};
 export type BrotherhoodPair={
- id:string;inviterId:string;name:string;active:boolean;days:number;awards:BrotherhoodAward[];
+ id:string;inviterId:string;name:string;active:boolean;days:number;verifiedLevel?:number;verifiedXp?:number;awards:BrotherhoodAward[];
 };
 export type BrotherhoodRewards={
  welcome:{inviter:BrotherhoodResources;invitee:BrotherhoodResources};
@@ -73,7 +73,7 @@ export type BrotherhoodRewards={
 };
 type BrotherhoodState={
  enabled:boolean;rewards:BrotherhoodRewards;incoming:BrotherhoodPair|null;outgoing:BrotherhoodPair[];
- invited:number;active:number;wallet:BrotherhoodResources;
+ invited:number;active:number;qualifiedFriends?:number;legendAwards?:BrotherhoodAward[];wallet:BrotherhoodResources;
 };
 export type BrotherhoodStats={
  enabled:boolean;invited:number;active:number;tiers:Record<string,number>;

@@ -199,6 +199,28 @@ export function mayStartLoot(){
  if(warning)g.notice(warning);
  return !warning;
 }
+/** Project one durable W066 Horn delivery into the normal Solo loot flow. */
+export function deliverGiftHorn(item:Item){
+ const game=useGame.getState();
+ if(!validItem(item)||!item.id.startsWith('brotherhood-horn:'))return false;
+ if(game.p.claimed.includes(item.id))return true;
+ if(!mayStartLoot())return false;
+ let disposition:ReturnType<typeof placeLoot>|undefined;
+ if(!game.mutate(p=>{
+  if(p.claimed.includes(item.id))return false;
+  disposition=placeLoot(p,item,true);
+  bumpCount(p,'horn');
+  p.claimed.push(item.id);
+ }))return false;
+ haptic(true);
+ if(disposition==='stored'||disposition==='salvaged'){
+  game.notice(lootNotice(useGame.getState().p,item,disposition,'Добыча: '+item.name));
+ }
+ if(disposition==='backpack'||disposition==='stored'){
+  if(useGame.getState().panel==='loot')game.select(item.id);
+ }
+ return true;
+}
 type Settings=Pick<Store,'auto'|'speed'|'stopOnDeath'|'continueOnVictory'|'autoSalvageWeaker'>;
 export const useGame=create<Store>((set,get)=>{
  const writable=()=>{
