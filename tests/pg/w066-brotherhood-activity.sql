@@ -19,9 +19,9 @@ declare
   idle_room uuid:='79700000-0000-4000-8000-000000000004';
 begin
   assert public.vvr_arena_checkpoint(afk_room,0,jsonb_build_object('id',afk_room,
-    'result',jsonb_build_object('reason','afk'),'players',jsonb_build_array(jsonb_build_object('id',invitee,'fought',true))),true)=1;
+    'result',jsonb_build_object('reason','afk','finishedAt',floor(extract(epoch from clock_timestamp())*1000)),'players',jsonb_build_array(jsonb_build_object('id',invitee,'fought',true))),true)=1;
   assert public.vvr_arena_checkpoint(idle_room,0,jsonb_build_object('id',idle_room,
-    'result',jsonb_build_object('reason','hp'),'players',jsonb_build_array(jsonb_build_object('id',invitee,'fought',false))),true)=1;
+    'result',jsonb_build_object('reason','hp','finishedAt',floor(extract(epoch from clock_timestamp())*1000)),'players',jsonb_build_array(jsonb_build_object('id',invitee,'fought',false))),true)=1;
   assert not exists(select from vvr.brotherhood_activity_days(invitee,'2000-01-01'));
   assert public.vvr_referrals(invitee,null)#>>'{brotherhood,incoming,days}'='0';
   assert not has_function_privilege('authenticated','public.vvr_arena_checkpoint(uuid,bigint,jsonb,boolean)','EXECUTE');

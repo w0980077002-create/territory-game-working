@@ -192,8 +192,8 @@ finish_oath_room() {
 select player_id from vvr.arena_room_seats where room_id=:'room' \gset
 set role service_role;
 select public.vvr_arena_checkpoint(:'room',0,jsonb_build_object('id',:'room',
- 'result',jsonb_build_object('reason','hp','winner',0),'players',jsonb_build_array(
-  jsonb_build_object('id',:'player_id','fought',true,'side',0),
+ 'result',jsonb_build_object('reason','hp','winner',0,'finishedAt',floor(extract(epoch from clock_timestamp())*1000)),
+ 'players',jsonb_build_array(jsonb_build_object('id',:'player_id','fought',true,'side',0),
   jsonb_build_object('id','bot-1','bot',true,'fought',true,'side',1))),true);
 SQL
 }

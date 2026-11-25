@@ -8,10 +8,16 @@ drop function vvr.brotherhood_boss_earned(uuid);
 
 -- The Arena Edge server builds checkpoints from signed player commands and
 -- server-controlled combat. Require an actual strike in a completed fight.
-create function vvr.brotherhood_arena_participant(p_room vvr.arena_rooms,p_player uuid)
-returns boolean language sql stable set search_path=pg_catalog
+create function vvr.brotherhood_arena_completed(p_room vvr.arena_rooms,p_player uuid)
+returns timestamptz language sql stable set search_path=pg_catalog
 as $$
-  select p_room.finished_at is not null
+  select least(result.at,p_room.finished_at)
+  from (
+    select case when p_room.snapshot#>>'{result,finishedAt}' ~ '^[0-9]{13}$'
+      then to_timestamp((p_room.snapshot#>>'{result,finishedAt}')::bigint/1000.0) end as at
+  ) result
+  where p_room.finished_at is not null
+    and result.at between date_trunc('milliseconds',p_room.ready_at) and p_room.finished_at+interval '5 seconds'
     and p_room.snapshot#>>'{result,reason}' in ('hp','time')
     and exists (
       select from jsonb_array_elements(
@@ -28,9 +34,10 @@ as $$
   select q.utc_day from vvr.brotherhood_quest_completions q
     where q.player_id=p_player and q.completed_at>=p_since
   union
-  select (r.finished_at at time zone 'UTC')::date
+  select (proof.at at time zone 'UTC')::date
     from vvr.arena_room_seats s join vvr.arena_rooms r on r.id=s.room_id
-    where s.player_id=p_player and r.finished_at>=p_since and vvr.brotherhood_arena_participant(r,p_player);
+    cross join lateral (select vvr.brotherhood_arena_completed(r,p_player) as at) proof
+    where s.player_id=p_player and r.finished_at>=p_since and proof.at>=p_since;
 $$;
 
 create or replace function vvr.brotherhood_days(p_pair vvr.referrals)
@@ -78,7 +85,7 @@ begin
   for pair in
     with participants as materialized (
       select s.player_id from vvr.arena_room_seats s
-      where s.room_id=new.id and vvr.brotherhood_arena_participant(new,s.player_id)
+      where s.room_id=new.id and vvr.brotherhood_arena_completed(new,s.player_id) is not null
     )
     select r.* from vvr.referrals r where r.confirmed_at<=new.finished_at and
       (r.invitee_id in (select player_id from participants) or r.inviter_id in (select player_id from participants))
@@ -105,6 +112,6 @@ begin
 end;
 $$;
 
-revoke all on function vvr.brotherhood_arena_participant(vvr.arena_rooms,uuid),
+revoke all on function vvr.brotherhood_arena_completed(vvr.arena_rooms,uuid),
   vvr.brotherhood_activity_days(uuid,timestamptz),vvr.brotherhood_arena_finished()
   from public,anon,authenticated,service_role,vvr_reward_writer;
