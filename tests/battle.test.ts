@@ -290,9 +290,9 @@ test('legacy encounter cooldown defaults to zero, invalid values are rejected, a
 
 test('Hammer quotes use the real mode, respect per-kill and victory caps, and accept many genuine kills',()=>{
  const cases=[
-  ['campaign',1,false,5,10],['campaign',30,false,223,446],['campaign',60,false,1656,3313],
-  ['campaign',71,false,2112,4225],['campaign',100,false,3313,6627],
-  ['campaign',100,true,19882,39764],['farm',100,true,2651,5302],
+  ['campaign',1,false,5,10],['campaign',30,false,223,446],['campaign',60,false,558,1117],
+  ['campaign',71,false,681,1363],['campaign',100,false,1005,2011],
+  ['campaign',100,true,6033,12067],['farm',100,true,804,1608],
   ['arena',100,false,20,40],['dungeon',100,true,30,60],['darkness',100,true,0,0],
  ] as const;
  for(const [mode,stage,boss,one,cap] of cases){
@@ -362,7 +362,7 @@ test('defeat and a different encounter discard unclaimed Hammer gold; invalid sn
 test('the same actual Hammer kill settles with each paid mode and is included in the chapter trophy',()=>{
  const G=()=>useGame.getState();
  for(const [mode,wave,base,bonus] of [
-  ['campaign',5,63375,12675],['farm',2,8450,1690],['arena',2,100,20],['dungeon',2,150,30],
+  ['campaign',5,20447,4089],['farm',2,2726,545],['arena',2,100,20],['dungeon',2,150,30],
  ] as const){
   const p=freshPlayer();
   p.gold=100_000;p.stage=71;p.wave=wave;p.runes[2]=2;

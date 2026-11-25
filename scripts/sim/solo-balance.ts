@@ -13,7 +13,9 @@ import {shopOffers,shopStatus,shopQuote} from '../../src/saga/shop';
 import type {HeroClass,Player} from '../../src/core/types';
 
 const hero=process.argv[2] as HeroClass,seed=Number(process.argv[3]??17),policy=process.argv[4]??'campaign';
-if(!['berserker','ranger','runologist'].includes(hero)||!['campaign','developed'].includes(policy))throw Error('Expected class, seed and policy');
+/** Legend checks: MAX_STAGE=183 TIME_LIMIT=120000 continue past the story with the same rules. */
+const maxStage=Number(process.env.MAX_STAGE??63),timeLimit=Number(process.env.TIME_LIMIT??32000);
+if(!['berserker','ranger','runologist'].includes(hero)||!['campaign','developed','invested'].includes(policy))throw Error('Expected class, seed and policy');
 const out=process.env.OUT??'.tmp/solo-balance/runs',g=()=>useGame.getState();
 installHeadless();
 let now=Date.UTC(2026,10,23,10);Date.now=()=>now;
@@ -50,7 +52,8 @@ function prepare(stage:number,boss:boolean){
   const ids=g().p.inventory.filter(i=>!i.uniqueId&&!i.perk&&!i.set&&!i.locked&&compareItem(i,g().p)<=0).slice(0,10).map(i=>i.id);
   for(const id of ids)transact(stage,'salvage',()=>g().salvage(id));
  }
- if(policy!=='developed'||!boss)return;
+ if(policy==='campaign'||!boss)return;
+ if(policy==='invested')invest(stage);
  if(stage%10===0||stage===1){
   for(const [type,index] of [['relic',0],['forge',0],['skill',hero==='ranger'?0:2],['companion',1]] as const){
    transact(stage,type,()=>g().train(type,index));
@@ -74,7 +77,7 @@ function prepare(stage:number,boss:boolean){
 }
 b.toggle();
 try{
- while(g().p.stage<=63&&seconds<32000){
+ while(g().p.stage<=maxStage&&seconds<timeLimit){
   const before=g().p,stage=before.stage,wave=before.wave,phase=b.phase,id=b.id,gold=before.gold;
   const types=b.units.some(i=>i.affix);
   now+=50;seconds+=.05;
@@ -110,7 +113,7 @@ try{
    }
    prepare(stage,wave===5);
    if(g().panel)g().open(null);
-   if(wave===5&&(stage%10===0||stage>=60||[1,5,13,34,51,59].includes(stage))){
+   if(wave===5&&(stage%10===0||stage>=60&&stage<=63||[1,5,13,34,51,59].includes(stage))){
     checkpoints[stage]=structuredClone(g().p);
     write(stage);
    }
@@ -132,10 +135,27 @@ try{
   if(g().storageError||g().recoveryRequired){reason='storage';break}
   if(!b.running&&b.phase!=='defeat'&&g().panel===null)b.toggle();
  }
- if(!reason&&g().p.stage<=63)reason='engine time limit';
+ if(!reason&&g().p.stage<=maxStage)reason='engine time limit';
  write(g().p.stage-1);
  if(reason)process.exitCode=1;
 }finally{b.destroy()}
+/** «invested»: after each boss spend down to a 20% reserve on existing upgrades, cheapest first:
+ * worn-gear enhancement, relic, skills, companions and the forge. Same actions and prices as the game. */
+function invest(stage:number){
+ const reserve=g().p.gold*.2,capped=new Set<string>();
+ for(let n=0;n<2000;n++){
+  const p=g().p,options:{cost:number;buy:()=>unknown;kind:string;key:string}[]=[];
+  for(const slot of Object.keys(p.equipment) as (keyof typeof p.equipment)[]){const item=p.equipment[slot];if(item&&slot!=='wings')options.push({cost:upgradePreview(item).cost,buy:()=>g().upgrade(slot),kind:'sharpen',key:'up:'+slot})}
+  options.push({cost:100*p.forge,buy:()=>g().train('forge',0),kind:'forge',key:'forge'});
+  for(const i of [0,2])options.push({cost:120*p.skills[i],buy:()=>g().train('skill',i),kind:'skill',key:'skill'+i});
+  for(const i of [0,1])options.push({cost:120*p.companions[i],buy:()=>g().train('companion',i),kind:'companion',key:'pet'+i});
+  options.sort((a,b)=>a.cost-b.cost);
+  const next=options.find(o=>!capped.has(o.key)&&o.cost<=p.gold-reserve);
+  if(!next)break;
+  const before=g().p.gold;transact(stage,next.kind,next.buy);
+  if(g().p.gold>=before)capped.add(next.key); // at its own limit: skip it, keep buying the rest
+ }
+}
 function write(cleared:number){
  mkdirSync(out,{recursive:true});
  const p=g().p;
