@@ -1,11 +1,12 @@
-import {useEffect,useState} from 'react';
-import {claimBrotherhood,communityEnabled,readReferrals,type BrotherhoodPair,type ReferralState} from '../community/client';
+import {useCallback,useEffect,useState} from 'react';
+import {claimBrotherhood,communityEnabled,readReferrals,type BrotherhoodPair,type BrotherhoodResources,type ReferralState} from '../community/client';
 import {telegramProfile} from '../core/profile';
 import {useGame} from '../core/store';
 import {tg} from '../core/telegram';
 import {lang} from '../i18n';
 import {BrotherAward,BrotherResources,BrotherhoodMilestones,BrotherhoodOath,BrotherhoodLevels} from './Brotherhood';
 import {Icon} from './Icon';
+import {GiftSolo} from './GiftSolo';
 
 const gameUrl='https://t.me/VikingRomeGame';
 const referralsAvailable=communityEnabled&&!!telegramProfile;
@@ -18,6 +19,15 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
  const [view,setView]=useState<{query:PageRequest;data:ReferralState|null;failed:boolean}>();
  const [manualAddress,setManualAddress]=useState('');
  const [pending,setPending]=useState<string|null>(null);
+ const [walletOpen,setWalletOpen]=useState(false);
+ const [awardCount,setAwardCount]=useState(0);
+ const setWallet=useCallback((wallet:BrotherhoodResources)=>{
+  setView(previous=>{
+   const state=previous?.data?.brotherhood;
+   if(!previous?.data||!state)return previous;
+   return {...previous,data:{...previous.data,brotherhood:{...state,wallet}}};
+  });
+ },[]);
  useEffect(()=>{
   if(!referralsAvailable)return;
   let active=true;
@@ -74,6 +84,7 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
       incoming:state.incoming?mark(state.incoming):null,outgoing:state.outgoing.map(mark),
       legendAwards:state.legendAwards?.map(item=>item.id===award?{...item,received:true}:item)}}};
     });
+    setAwardCount(count=>count+1);
     notice('Награда братства в сетевом кошельке');
    }else notice(result.status==='paused'?'Выдача приостановлена':'Награда недоступна');
   }catch{notice('Не удалось получить награду · попробуйте ещё раз');}
@@ -130,9 +141,11 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
     onClick={()=>setQuery({before:data.next})}>Показать ещё</button>}
    {brotherhood&&<BrotherhoodMilestones rewards={brotherhood.rewards} qualified={brotherhood.qualifiedFriends??0} awards={brotherhood.legendAwards??[]} {...controls}/>}
   </>}
-  {brotherhood&&Object.keys(brotherhood.wallet).length>0&&<details className="saga-disclosure">
+  {brotherhood&&Object.keys(brotherhood.wallet).length>0&&<details className="saga-disclosure"
+   onToggle={event=>setWalletOpen(event.currentTarget.open)}>
    <summary>Сетевой кошелёк</summary>
    <BrotherResources resources={brotherhood.wallet}/>
+   {walletOpen&&<GiftSolo onWallet={setWallet} awardCount={awardCount}/>}
    {!!brotherhood.wallet.horn&&<p>Подарочные заряды хранятся в сетевом кошельке даже при полном Роге. Подарочным зарядом можно протрубить в Роге Трофеев.</p>}
   </details>}
   {busy&&<p role="status">Загружаем приглашения…</p>}

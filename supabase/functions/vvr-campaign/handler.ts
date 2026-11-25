@@ -59,6 +59,12 @@ export function makeCampaignHandler(rpc:Rpc,readPlayer:ReadPlayer,verify:Verify,
     if(!item)return reply(400,{error:'invalid_request'});
     return reply(200,await rpc('vvr_brotherhood_horn',{p_player:player,p_action:'open',p_operation:input.operation,p_item:item}));
    }
+   if(input.action==='solo_state'&&keys===1){
+    return reply(200,await rpc('vvr_brotherhood_horn',{p_player:player,p_action:'solo_state'}));
+   }
+   if((input.action==='solo_open'||input.action==='solo_ack')&&keys===2&&isUuid(input.operation)){
+    return reply(200,await rpc('vvr_brotherhood_horn',{p_player:player,p_action:input.action,p_operation:input.operation}));
+   }
    if(input.action==='wave_begin'&&keys===5&&isUuid(input.client)&&isHero(input.hero)
     &&typeof input.stage==='number'&&Number.isInteger(input.stage)&&input.stage>=2&&input.stage<2147483647
     &&typeof input.wave==='number'&&Number.isInteger(input.wave)&&input.wave>=1&&input.wave<=5&&replay){
