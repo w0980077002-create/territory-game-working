@@ -378,7 +378,7 @@ const rewards={
     await guards.getByRole('button',{name:'Ноги'}).tap();
     await battle.getByRole('button',{name:'Ударить'}).tap();
     await battle.getByRole('button',{name:'Ударить'}).waitFor();
-    await battle.getByRole('button',{name:'Боевой чат'}).tap();
+    await battle.getByRole('button',{name:'Только чат'}).tap();
     const chatInput=battle.getByRole('textbox',{name:'Сообщение'});
     assert.ok((await chatInput.boundingBox()).width>=70,'chat input must remain usable on a compact phone');
     await chatInput.fill('Держим строй!');
