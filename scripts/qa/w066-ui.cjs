@@ -174,12 +174,13 @@ const rewards={
     await chest.getByRole('heading',{name:'Дар братства'}).waitFor();
     await chest.getByText('Вас пригласил игрок · Пригласивший игрок',{exact:true}).waitFor();
     await chest.getByText('2000',{exact:true}).waitFor();
+    await chest.getByText('Сундук за первого босса кампании пока недоступен.').waitFor();
     assert.equal(await chest.getByRole('button',{name:'Получить',exact:true}).count(),0);
     const expectedLink='https://t.me/VikingRomeGame?startapp=ref_'+listing;
     await invite.getByRole('button',{name:'Пригласить друга'}).click();
     const shared=new URL(await (await page.waitForFunction(()=>window.sharedBrotherhood)).jsonValue());
     assert.equal(shared.searchParams.get('url'),expectedLink);
-    assert.match(shared.searchParams.get('text'),/сундук.*самоцветы.*оба получим награды/);
+    assert.match(shared.searchParams.get('text'),/бои Арены.*задания гильдии.*оба получим награды/);
     const beforeCopy=referralReads;
     await invite.getByRole('button',{name:'Скопировать личную ссылку'}).click();
     assert.equal(await page.evaluate(()=>window.copiedReferral),expectedLink);
