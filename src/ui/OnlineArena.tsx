@@ -98,14 +98,14 @@ function Gear({match}:{match:ArenaMatchView}){
 
 function SoloPreview({player}:{player:Player}){
  const preview=soloArenaPreview(player);
- return <details className="online-details"><summary>Предпросмотр героя Solo</summary>
-  <p>Расчёт по локальной копии героя на этом устройстве. Он не влияет на сетевой бой.</p>
+ return <details className="online-details"><summary>Сила вашего героя</summary>
+  <p>Сравнение для справки: сетевой бой идёт на выбранном комплекте ниже.</p>
   <p>{classNames[preview.hero]} · ур. {preview.level}</p>
-  <p>Нормализованные показатели · HP {preview.hp} · атака {preview.attack} · защита {preview.defense} · крит {preview.crit}%</p>
+  <p>Показатели для Арены · HP {preview.hp} · атака {preview.attack} · защита {preview.defense} · крит {preview.crit}%</p>
   <ul>
    {preview.skillLevels.map((level,index)=><li key={skillData[index].name}>{skillData[index].name} · ур. {level}</li>)}
   </ul>
-  <ul aria-label="Предпросмотр вклада 7 предметов">
+  <ul aria-label="Вклад 7 предметов">
    {preview.gear.map(({slot,contribution,cap},index)=><li key={slot}>
     {slotNames[slot]} · {gearBonusLabels[index]} · {contribution} из {cap}
    </li>)}
@@ -186,7 +186,7 @@ function DuelArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:bo
  return <section className="online-arena" aria-label="Сетевая Арена 1×1">
   <div className="online-heading"><Icon name="arena"/><strong>Сетевая Арена 1×1</strong></div>
   <p>Поединки 1×1. Если соперник не найден за 20 секунд, начнётся тренировка с ботом.</p>
-  {view&&<small>Тренировочный уровень {view.level} · тестовые очки {view.points}</small>}
+  {view&&<small>Тренировочный уровень {view.level} · очки тренировки {view.points}</small>}
   {!queued&&!live&&<SoloPreview player={player}/>}
   {message&&<p role="status" className="online-status">{message}</p>}
   {!token&&<button className="action" disabled={pending} onClick={login}>Войти через Telegram</button>}

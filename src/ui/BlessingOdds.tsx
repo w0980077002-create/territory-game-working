@@ -10,7 +10,7 @@ export function BlessingOdds({level,canImprove}:{level:number;canImprove:boolean
   <h4>Редкость случайной добычи</h4>
   <ul>{now.map((v,i)=><li key={i} style={{'--rarity':rarityColors[i]} as React.CSSProperties}>
    <span>{rarityNames[i]}</span>
-   <i aria-hidden="true"><b style={{width:Math.max(1.5,v/max*100)+'%'}}/></i>
+   <i aria-hidden="true">{canImprove&&next[i]>v&&<s style={{width:Math.max(1.5,next[i]/max*100)+'%'}}/>}<b style={{width:Math.max(1.5,v/max*100)+'%'}}/></i>
    <em>{pct(v)}{canImprove&&next[i]!==v&&<small className={next[i]>v?'up':'down'}> → {pct(next[i])}</small>}</em>
   </li>)}</ul>
  </section>;

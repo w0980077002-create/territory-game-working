@@ -47,7 +47,7 @@ export function CollectionHub({p}:{p:Player}){
     {Object.entries(uniques).map(([id,u])=><Cell key={id} known={found.has('u:'+id)} icon={gearIcon(u.slot)} name={u.name} note={u.tag} rarity={u.rarity}/>)}
     {(Object.keys(perks) as PerkId[]).map(id=><Cell key={id} known={found.has('p:'+id)} icon={gearIcon(perks[id].slot)} name={perks[id].name} note={perks[id].source} rarity={perks[id].rarity}/>)}
    </div>
-   {setIds.map((set:SetId)=>{const have=gearSlots.filter(s=>found.has('s:'+set+':'+s)).length;return <details key={set} className="saga-disclosure coll-set" open={have>0&&have<gearSlots.length}>
+   {setIds.map((set:SetId)=>{const have=gearSlots.filter(s=>found.has('s:'+set+':'+s)).length;return <details key={set} className={'saga-disclosure coll-set'+(have===gearSlots.length?' complete':'')} open={have>0&&have<gearSlots.length}>
     <summary><Icon name="chest"/><span>{sets[set].name} · {have}/{gearSlots.length}</span></summary>
     <div className="coll-grid coll-slots">{gearSlots.map(s=><Cell key={s} known={found.has('s:'+set+':'+s)} icon={gearIcon(s)} name={slotNames[s]} rarity={2}/>)}</div>
    </details>})}
