@@ -55,6 +55,8 @@ const pictureIcons:Record<string,{asset:string; filter?:string}>={
 };
 export function Icon({name,className=''}:{name:string;className?:string}){
  if(name==='hammer')return <span className={`icon illustrated icon-hammer ${className}`} aria-hidden="true"/>;
+ // Painted relic objects (windows/relic-objects.webp): Mjölnir shard, Yggdrasil leaf, Odin's ravens.
+ if(name==='relic-mjolnir'||name==='relic-leaf'||name==='relic-ravens')return <span className={`icon illustrated relic-icon ${name} ${className}`} aria-hidden="true"/>;
  const picture=pictureIcons[name],asset=picture?.asset??(illustrated[name]?`ui-${illustrated[name]}`:undefined);
  if(asset)return <img className={`icon illustrated ${className}`} src={art(asset)} style={picture?.filter?{filter:picture.filter}:undefined} alt="" aria-hidden="true" draggable={false}/>;
  return <svg className={`icon ${className}`} viewBox="0 0 64 64" fill="none" stroke="#202631" strokeWidth="2.7" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">{paths[name]??paths.star}</svg>;
