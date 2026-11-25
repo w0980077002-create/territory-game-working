@@ -72,7 +72,10 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
         const status = shopStatus(p, offer, now);
         const sold = status === 'Сегодня куплено' || status === 'Куплено';
         const parts = rewardParts(offer.reward);
-        return <article className={`shop-offer${sold ? ' sold' : ''}`} key={offer.id} data-offer={offer.id}>
+        // Visual hierarchy only: limited weekly/one-time offers shine, bundles get a warmer frame.
+        const value = offer.limit === 'weekly' || offer.limit === 'once' ? 'prime' : parts.length > 1 ? 'bundle' : undefined;
+        return <article className={`shop-offer${sold ? ' sold' : ''}`} key={offer.id} data-offer={offer.id} data-value={value}>
+          {value === 'prime' && !sold && <em className="shop-ribbon">{offer.limit === 'weekly' ? 'Раз в неделю' : 'Особое'}</em>}
           <button className="shop-item" type="button" onClick={() => setDetails(offer.id)}
             aria-label={`Подробнее · ${offer.name}${parts.length?` · ${rewardText(offer.reward)}`:''}`}>
             <span className="shop-item-picture">

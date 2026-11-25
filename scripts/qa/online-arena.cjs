@@ -16,7 +16,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve,ms));
 const button = (page,name) => page.getByRole('button',{name,exact:true});
 const section = page => page.getByRole('region',{name:'Сетевая Арена 1×1'});
 const round = (page,n) => section(page).getByText(new RegExp('^Раунд '+n+' ·'));
-const score = arena => arena.getByText(/тестовые очки/);
+const score = arena => arena.getByText(/очки тренировки/);
 
 async function openArena(page) {
  await button(page,'Арена').tap();
@@ -117,15 +117,15 @@ async function noHorizontalOverflow(page) {
    const arenaOne=a.getByRole('combobox',{name:'Тренировочный комплект'});
    assert.equal(await a.getByRole('combobox',{name:'Класс бойца'}).inputValue(),'ranger');
    assert.equal(await b.getByRole('combobox',{name:'Класс бойца'}).inputValue(),'berserker');
-   await ar.getByText('Предпросмотр героя Solo',{exact:true}).tap();
-   await br.getByText('Предпросмотр героя Solo',{exact:true}).tap();
+   await ar.getByText('Сила вашего героя',{exact:true}).tap();
+   await br.getByText('Сила вашего героя',{exact:true}).tap();
    await ar.getByText('Оружие · атака · 8 из 8',{exact:true}).waitFor();
    await br.getByText('Оружие · атака · 3 из 8',{exact:true}).waitFor();
-   assert.equal(await ar.getByRole('list',{name:'Предпросмотр вклада 7 предметов'}).getByRole('listitem').count(),7);
+   assert.equal(await ar.getByRole('list',{name:'Вклад 7 предметов'}).getByRole('listitem').count(),7);
    await noHorizontalOverflow(a);
    await a.screenshot({path:join(out,width+'-solo-preview.png')});
-   await ar.getByText('Предпросмотр героя Solo',{exact:true}).tap();
-   await br.getByText('Предпросмотр героя Solo',{exact:true}).tap();
+   await ar.getByText('Сила вашего героя',{exact:true}).tap();
+   await br.getByText('Сила вашего героя',{exact:true}).tap();
    await arenaOne.selectOption('offensive');
    const joinRequest=a.waitForRequest(request=>request.url().endsWith('/arena-api/join'));
    await button(a,'Найти соперника').tap();
