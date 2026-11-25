@@ -242,10 +242,10 @@ const rewards={
      await button('Админ').tap();
      await button('Обновить статистику братства').tap();
      await page.getByText('Начисленные ресурсы',{exact:true}).waitFor();
-     await button('Приостановить выдачу').tap();
+     await button('Приостановить выдачу').click();
      await page.getByText('Выдача приостановлена',{exact:true}).waitFor();
      assert.equal(sentEnabled,false);
-     await button('Возобновить выдачу').tap();
+     await button('Возобновить выдачу').click();
      await page.getByText('Выдача включена',{exact:true}).waitFor();
      assert.equal(sentEnabled,true);
      await button('Закрыть').tap();
