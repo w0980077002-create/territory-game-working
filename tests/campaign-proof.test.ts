@@ -70,7 +70,8 @@ test('server campaign checkpoints advance by one wave and reach the first level 
  assert.ok(verified);
  const initial=structuredClone(verified.player);
  while(verified.player.level<10){
-  const {stage,wave}=verified.player;
+  const stage:number=verified.player.stage;
+  const wave:number=verified.player.wave;
   assert.ok(stage<=10);
   const next=replayCampaign('berserker',stage*5+wave,[],start,verified.player);
   assert.ok(next);
