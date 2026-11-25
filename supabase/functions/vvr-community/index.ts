@@ -27,7 +27,7 @@ function valid(action:string,body:Record<string,unknown>){
     Number.isSafeInteger(body.price)&&body.price>=1&&body.price<=1_000_000_000:
     keys===3&&(body.kind==='buy'||body.kind==='cancel')&&isUuid(body.listingId);
   case 'enhance':return keys===3&&isUuid(body.item)&&isUuid(body.operationId)&&
-   Number.isSafeInteger(body.expectedRank)&&Number(body.expectedRank)>=0&&Number(body.expectedRank)<40;
+   Number.isSafeInteger(body.expectedRank)&&Number(body.expectedRank)>=0&&Number(body.expectedRank)<62;
   case 'equip':case 'unequip':return keys===1&&isUuid(body.item);
   case 'guild_boss_claim':return keys===1&&isUuid(body.eventId);
   case 'guild_roster':

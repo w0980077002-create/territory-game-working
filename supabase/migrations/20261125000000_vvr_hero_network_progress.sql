@@ -1,6 +1,7 @@
 -- Existing items retain their identity, provenance and original (+0) attack.
+-- +62 is the last rank affordable under the existing one-billion gold wallet cap.
 alter table vvr.network_items add column enhancement_rank smallint not null default 0
-  check(enhancement_rank between 0 and 40);
+  check(enhancement_rank between 0 and 62);
 
 -- Match the current ordinary-item Forge settings: +5% of base per rank,
 -- ceiling for stats and round(100 * 1.3^rank) for the next cost.
@@ -21,7 +22,7 @@ declare
   reply jsonb;
 begin
   if p_player is null or p_item is null or p_operation is null
-    or p_expected is null or p_expected not between 0 and 39 then
+    or p_expected is null or p_expected not between 0 and 61 then
     raise exception 'invalid_enhancement_rank' using errcode='22023';
   end if;
   command:=jsonb_build_object('kind','enhance','itemId',p_item,'expectedRank',p_expected);
@@ -64,7 +65,7 @@ returns jsonb language sql security definer set search_path=pg_catalog
 as $$
   select vvr.equipment(p_player,p_action,p_item)||jsonb_build_object('enhancements',
     coalesce((select jsonb_object_agg(i.id,jsonb_build_object('rank',i.enhancement_rank,
-      'cost',case when i.enhancement_rank<40 then vvr.enhancement_gold(i.enhancement_rank) end))
+      'cost',case when i.enhancement_rank<62 then vvr.enhancement_gold(i.enhancement_rank) end))
       from vvr.network_items i where i.owner_id=p_player and vvr.item_attack_bonus(i.catalog_id)>0),'{}'::jsonb));
 $$;
 

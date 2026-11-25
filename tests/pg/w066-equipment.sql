@@ -61,6 +61,7 @@ begin
   receipt:=public.vvr_enhance_item(buyer,item,0,upgrade_operation);
   assert receipt=public.vvr_enhance_item(buyer,item,0,upgrade_operation);
   assert (receipt->>'price')::int=100;
+  assert vvr.enhancement_gold(61)<=1000000000 and vvr.enhancement_gold(62)>1000000000;
   begin
     perform public.vvr_enhance_item(buyer,item,1,upgrade_operation);
     raise exception 'a reused operation id changed the upgrade';

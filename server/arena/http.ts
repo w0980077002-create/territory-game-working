@@ -142,7 +142,7 @@ async function readW066Attack(publisher:Options['scorePublisher'],telegram:strin
   });
   if(!response.ok)return;
   const {attack}=await response.json();
-  if(Number.isSafeInteger(attack)&&attack>=1&&attack<=1_000_030)return attack as number;
+  if(Number.isSafeInteger(attack)&&attack>=1&&attack<=1_000_041)return attack as number;
  }catch{/* W066 outages leave local duels available as training. */}
 }
 
