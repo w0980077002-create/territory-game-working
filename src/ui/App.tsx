@@ -422,7 +422,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  {panel==='events'&&<SoloEvents p={p}/>}
  {panel==='season'&&<SeasonRewards p={p}/>}
  {panel==='carnival'&&<CarnivalPanel/>}
- {(panel==='friends'||panel==='invite')&&<><PanelIntro icon="handshake" title="В поход с друзьями">Отправьте ссылку другу, чтобы он открыл игру в Telegram.</PanelIntro><ReferralPanel mode={panel}/></>}
+ {(panel==='friends'||panel==='invite')&&<><PanelIntro icon="handshake" title="Боевое братство">Отправьте ссылку другу, чтобы он открыл игру в Telegram.</PanelIntro><ReferralPanel mode={panel}/></>}
  {panel==='collection'&&<CollectionHub p={p}/>}
  {panel==='worldboss'&&<WorldBossPanel p={p}/>}
  {panel==='workshops'&&<Recipes p={p} onFreeSpace={freeSpace} workshop/>}

@@ -16,7 +16,12 @@ test('W066 Edge attributes only a signed start parameter and reads only the sess
  globalThis.fetch=async (url,init)=>{
   const name=String(url).split('/').at(-1)!;
   rpcCalls.push({name,args:JSON.parse(String(init?.body))});
-  return Response.json(name==='vvr_referrals'?{startParam:'ref_'+player,rows:[],next:null}:player);
+  const result:Record<string,unknown>={
+   vvr_referrals:{startParam:'ref_'+player,rows:[],next:null},
+   vvr_brotherhood_claim:{status:'received',wallet:{gems:25}},
+  };
+  if(name==='vvr_brotherhood_admin')return Response.json({code:'42501'},{status:403});
+  return Response.json(result[name]??player);
  };
  try{
   // Load the Deno entry point at test runtime, outside the browser type-check.
@@ -55,6 +60,15 @@ test('W066 Edge attributes only a signed start parameter and reads only the sess
   assert.equal(state.status,200);
   assert.deepEqual(await state.json(),{startParam:'ref_'+player,rows:[],next:null});
   assert.deepEqual(rpcCalls.shift(),{name:'vvr_referrals',args:{p_player:player,p_before:null}});
+  assert.equal((await post('brotherhood_claim',{award:inviter})).status,401);
+  assert.equal((await post('brotherhood_claim',{award:inviter,level:100},session)).status,400);
+  assert.equal((await post('brotherhood_claim',{award:inviter,recipient:inviter},session)).status,400);
+  assert.equal((await post('brotherhood_admin',{enabled:'yes'},session)).status,400);
+  assert.equal(rpcCalls.length,0);
+  assert.deepEqual(await (await post('brotherhood_claim',{award:inviter},session)).json(),{status:'received',wallet:{gems:25}});
+  assert.deepEqual(rpcCalls.shift(),{name:'vvr_brotherhood_claim',args:{p_player:player,p_award:inviter}});
+  assert.equal((await post('brotherhood_admin',{enabled:false},session)).status,403);
+  assert.deepEqual(rpcCalls.shift(),{name:'vvr_brotherhood_admin',args:{p_player:player,p_enabled:false}});
  }finally{
   globalThis.fetch=network;
   Reflect.deleteProperty(globalThis,'Deno');

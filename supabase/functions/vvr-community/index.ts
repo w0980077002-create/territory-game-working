@@ -7,7 +7,7 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','equip','unequip','enhance']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','equip','unequip','enhance']);
 const maxInput=16_384;
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
@@ -22,6 +22,8 @@ function valid(action:string,body:Record<string,unknown>){
   case 'login':return keys===1&&typeof body.initData==='string';
   case 'auction':case 'chat':case 'guild':return keys===0;
   case 'referrals':return keys===0||(keys===1&&isUuid(body.before));
+  case 'brotherhood_claim':return keys===1&&isUuid(body.award);
+  case 'brotherhood_admin':return keys===0||(keys===1&&typeof body.enabled==='boolean');
   case 'trade':
    if(!isUuid(body.operationId))return false;
    return body.kind==='list'?keys===4&&isUuid(body.itemId)&&typeof body.price==='number'&&
@@ -163,6 +165,12 @@ Deno.serve(async request=>{
   if(value.action==='referrals'){
    const result=await rpc('vvr_referrals',{p_player:player,p_before:value.body.before??null});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'referrals_unavailable'});
+  }
+  if(value.action==='brotherhood_claim'||value.action==='brotherhood_admin'){
+   const result=value.action==='brotherhood_claim'
+    ?await rpc('vvr_brotherhood_claim',{p_player:player,p_award:value.body.award})
+    :await rpc('vvr_brotherhood_admin',{p_player:player,p_enabled:value.body.enabled??null});
+   return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'brotherhood_unavailable'});
   }
   if(value.action==='enhance'){
    const result=await rpc('vvr_enhance_item',{p_player:player,p_item:value.body.item,

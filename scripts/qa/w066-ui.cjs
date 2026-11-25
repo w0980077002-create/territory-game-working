@@ -8,6 +8,16 @@ const arenaOrigin=process.env.ARENA_ORIGIN||'http://127.0.0.1:18793';
 const initData='user='+encodeURIComponent(JSON.stringify({id:92001,first_name:'Алиса'}))+'&start_param=ref_11111111-1111-1111-1111-111111111111';
 const saveKey='lootborn-codex-v1:telegram:92001';
 const listing='11111111-1111-1111-1111-111111111111';
+const welcomeAward='22222222-2222-4222-8222-222222222222';
+const oathAward='33333333-3333-4333-8333-333333333333';
+const invitee='44444444-4444-4444-8444-444444444444';
+const worldBoss='http://127.0.0.1:18794/functions/v1/vvr-world-boss';
+const fullHorn=require('../../config/test-balance.v1.json').horn_test_settings.maximum_charges;
+const rewards={
+ welcome:{invitee:{gold:2000,gems:100,horn:20,chaosite:30,rune_scrolls:40,summon_seals:3},inviter:{gems:25}},
+ level:{10:{gems:50,chaosite:20}},oath:{1:{gems:10},3:{chaosite:30},5:{summon_seals:3},7:{gems:50,relic_shards:5}},
+ legend:{1:{title:'comrade',resources:{gems:50,summon_seals:5}}},
+};
 
 (async()=>{
  const browser=await chromium.launch({args:['--no-sandbox'],
@@ -17,7 +27,18 @@ const listing='11111111-1111-1111-1111-111111111111';
    const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true});
    try{
     await context.route('https://telegram.org/**',route=>route.abort());
-    await context.addInitScript(initData=>{window.Telegram={WebApp:{initData,ready(){}}};},initData);
+    const seed=require('./ui-fixture.cjs')(1,true);
+    seed.horn=fullHorn;
+    await context.addInitScript(({initData,saveKey,seed})=>{
+     window.Telegram={WebApp:{initData,ready(){},openTelegramLink(link){window.sharedBrotherhood=link;}}};
+     if(!localStorage.getItem(saveKey))localStorage.setItem(saveKey,JSON.stringify(seed));
+    },{initData,saveKey,seed});
+    await context.route(worldBoss,async route=>{
+     const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'};
+     if(route.request().method()==='OPTIONS'){await route.fulfill({status:204,headers});return;}
+     assert.equal(route.request().postDataJSON().initData,initData);
+     await route.fulfill({json:{serverNow:new Date().toISOString(),event:null,history:[],mail:[],isAdmin:true},headers});
+    });
     await context.route(arenaOrigin+'/arena-api/**',async route=>{
      const request=route.request();
      const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization,x-arena-tab'};
@@ -29,7 +50,8 @@ const listing='11111111-1111-1111-1111-111111111111';
      assert.equal(request.headers().authorization,'Bearer arena-fixture-session');
      await route.fulfill({json:{now:Date.now(),points:0,level:1},headers});
     });
-    let loginCalls=0,referrals=[],referralReads=0;
+    let loginCalls=0,referrals=[],referralReads=0,attempts=0,sentEnabled;
+    let enabled=true,days=0,awards=[],wallet={};
     let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false;
     await context.route(endpoint,async route=>{
      const request=route.request();
@@ -42,7 +64,23 @@ const listing='11111111-1111-1111-1111-111111111111';
      if(action==='referrals'){
       referralReads++;
       assert.deepEqual(body,{});
-      data={startParam:'ref_'+listing,rows:referrals,next:null};
+      data={startParam:'ref_'+listing,rows:referrals,next:null,brotherhood:{
+       enabled,rewards,invited:referrals.length,active:referrals.length,wallet,
+       incoming:{id:invitee,inviterId:listing,name:'Пригласивший игрок',days,active:days>0,awards},
+       outgoing:referrals.map(row=>({id:row.id,inviterId:listing,name:row.name,active:true,days:3,awards:[]})),
+      }};
+     }
+     if(action==='brotherhood_claim'){
+      assert.deepEqual(body,{award:welcomeAward});
+      attempts++;
+      wallet={...rewards.welcome.invitee};
+      awards=awards.map(award=>award.id===welcomeAward?{...award,received:true}:award);
+      if(attempts===1){await route.fulfill({status:503,json:{},headers});return;}
+      data={status:'received',wallet};
+     }
+     if(action==='brotherhood_admin'){
+      if(body.enabled!==undefined){sentEnabled=body.enabled;enabled=body.enabled;}
+      data={enabled,invited:2,active:2,tiers:{'oath:1':1},issued:{gems:125},rejections:{self_referral:1}};
      }
      if(action==='auction')data={gold:balance,
       equipment:{attack:equipped?enhanced?111:110:100,equipped,enhancements:{[listing]:{rank:enhanced?1:0,cost:enhanced?130:100}}},
@@ -131,18 +169,50 @@ const listing='11111111-1111-1111-1111-111111111111';
       window.copiedReferral=value;
      }}});
     });
-    await button('Приглашение').tap();
     const invite=page.getByRole('dialog',{name:'Приглашение'});
+    const chest=invite.getByRole('region',{name:'Дар братства'});
+    await chest.getByRole('heading',{name:'Дар братства'}).waitFor();
+    await chest.getByText('Вас пригласил игрок · Пригласивший игрок',{exact:true}).waitFor();
+    await chest.getByText('2000',{exact:true}).waitFor();
+    assert.equal(await chest.getByRole('button',{name:'Получить',exact:true}).count(),0);
+    const beforeCopy=referralReads;
     await invite.getByRole('button',{name:'Скопировать личную ссылку'}).tap();
     const expectedLink='https://t.me/VikingRomeGame?startapp=ref_'+listing;
     assert.equal(await page.evaluate(()=>window.copiedReferral),expectedLink);
     assert.equal(loginCalls,1);
-    assert.equal(referralReads,1,'copying never posts an invitation');
+    assert.equal(referralReads,beforeCopy,'copying does not change referral state');
+    await invite.getByRole('button',{name:'Пригласить друга'}).tap();
+    const shared=new URL(await page.evaluate(()=>window.sharedBrotherhood));
+    assert.equal(shared.searchParams.get('url'),expectedLink);
+    assert.match(shared.searchParams.get('text'),/сундук.*самоцветы.*оба получим награды/);
     await page.evaluate(()=>{navigator.clipboard.writeText=()=>Promise.reject(new Error('Clipboard disabled'));});
     await invite.getByRole('button',{name:'Скопировать личную ссылку'}).tap();
     assert.equal(await invite.getByRole('textbox',{name:'Адрес для копирования'}).inputValue(),expectedLink);
     const fits=dialog=>dialog.locator('.modal-body').evaluate(el=>el.scrollWidth<=el.clientWidth+1);
     assert.equal(await fits(invite),true);
+    days=1;
+    awards=[
+     {id:welcomeAward,kind:'welcome',tier:1,payload:rewards.welcome.invitee,received:false},
+     {id:oathAward,kind:'oath',tier:1,payload:rewards.oath[1],received:false},
+    ];
+    const storedSave=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)),saveKey);
+    const beforeReward=await storedSave();
+    assert.equal(beforeReward.horn,fullHorn);
+    await invite.getByRole('button',{name:'Обновить',exact:true}).tap();
+    const claimChest=chest.getByRole('button',{name:'Получить',exact:true});
+    await claimChest.tap();
+    await invite.getByText('Не удалось получить награду · попробуйте ещё раз',{exact:true}).waitFor();
+    await claimChest.tap();
+    await chest.getByText('Получено',{exact:true}).waitFor();
+    assert.equal(attempts,2);
+    for(const field of ['gold','gems','chaosite','horn','level','inventory'])
+     assert.deepEqual((await storedSave())[field],beforeReward[field],'Solo ' + field + ' is independent of W066 claims');
+    await invite.getByText('Сетевой кошелёк',{exact:true}).tap();
+    await invite.getByText('Подарочные заряды хранятся в сетевом кошельке даже при полном Роге. Перенос в Рог пока недоступен.').waitFor();
+    await page.reload();
+    await button('Приглашение').tap();
+    await chest.getByText('Получено',{exact:true}).waitFor();
+    assert.equal((await storedSave()).horn,fullHorn);
     await invite.getByRole('button',{name:'Друзья'}).tap();
     const friends=page.getByRole('dialog',{name:'Друзья'});
     await friends.getByText('Подтверждённых приглашений пока нет.',{exact:true}).waitFor();
@@ -153,6 +223,9 @@ const listing='11111111-1111-1111-1111-111111111111';
     await friends.getByRole('button',{name:'Обновить'}).tap();
     await friends.getByText('Приглашение подтверждено',{exact:true}).waitFor();
     await friends.getByText('Награда начислена',{exact:true}).waitFor();
+    await friends.getByText('Приглашено · 2 · Активных друзей · 2',{exact:true}).waitFor();
+    await friends.getByText('Совместных дней · 3 / 7',{exact:true}).first().tap();
+    await friends.getByText('Ближайшая награда · Совместных дней · 5',{exact:true}).filter({visible:true}).waitFor();
     assert.equal(await fits(friends),true);
     await friends.getByRole('button',{name:'Закрыть'}).tap();
     await openMenu();
@@ -163,6 +236,20 @@ const listing='11111111-1111-1111-1111-111111111111';
     await backup.getByRole('button',{name:'Сохранить в облаке'}).waitFor();
     assert.equal(await fits(backup),true);
     await backup.getByRole('button',{name:'Закрыть'}).tap();
+    if(width===430){
+     await button('Приключения').tap();
+     await page.getByRole('button',{name:/^Мировой босс/}).tap();
+     await button('Админ').tap();
+     await button('Обновить статистику братства').tap();
+     await page.getByText('Начисленные ресурсы',{exact:true}).waitFor();
+     await button('Приостановить выдачу').tap();
+     await page.getByText('Выдача приостановлена',{exact:true}).waitFor();
+     assert.equal(sentEnabled,false);
+     await button('Возобновить выдачу').tap();
+     await page.getByText('Выдача включена',{exact:true}).waitFor();
+     assert.equal(sentEnabled,true);
+     await button('Закрыть').tap();
+    }
 
     const previous=()=>page.getByRole('button',{name:/Назад/}).first();
     await openMenu();
@@ -273,6 +360,9 @@ const listing='11111111-1111-1111-1111-111111111111';
      await page.reload();
      await button('Invite').tap();
      await button('Copy personal link').waitFor();
+     await button('Invite a friend').waitFor();
+     await page.getByRole('heading',{name:'Gift of Brotherhood',exact:true}).waitFor();
+     await page.getByRole('heading',{name:'Oath of Brotherhood',exact:true}).waitFor();
      await button('Friends').tap();
      await page.getByText('Invitation confirmed',{exact:true}).waitFor();
      await page.getByText('Reward credited',{exact:true}).waitFor();
