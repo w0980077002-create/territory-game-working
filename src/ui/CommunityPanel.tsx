@@ -61,6 +61,15 @@ export function CommunityPanel({section}:{section:Section}){
   return ()=>{controller.abort();clearInterval(timer);document.removeEventListener('visibilitychange',load);};
  },[signed,tab,key,metric,season,version]);
 
+ // Inside Telegram the game already holds (or is opening) a community session: join it without a manual tap.
+ // The «Sign in with Telegram» button stays as the fallback if this silent attempt fails.
+ useEffect(()=>{
+  if(!tg()?.initData)return;
+  let live=true;
+  connectCommunity().then(()=>{if(live)setSigned(true);}).catch(()=>{ /* manual sign-in remains available */ });
+  return ()=>{live=false;};
+ },[]);
+
  const login=async()=>{
   if(running.current)return;
   running.current=true;setBusy(true);setError('');

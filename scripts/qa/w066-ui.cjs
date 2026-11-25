@@ -159,6 +159,8 @@ const rewards={
     page.setDefaultTimeout(10000);
     await page.goto(site);
     const button=name=>page.getByRole('button',{name,exact:true});
+    // Inside Telegram the community windows join the existing session on their own: no manual sign-in tap.
+    const signedIn=()=>page.getByRole('region',{name:'Вход в сообщество'}).waitFor({state:'detached',timeout:8000});
     const openMenu=async()=>{
      await button('Меню').click();
      await page.getByRole('dialog',{name:'Меню',exact:true}).waitFor();
@@ -263,7 +265,7 @@ const rewards={
     const saved=await readSave();
     assert.ok(saved,'public Arena still uses the Telegram Solo save slot');
     await button('Аукцион').tap();
-    await button('Войти через Telegram').click();
+    await signedIn();
     await button('Купить').tap();
     await button('Подтвердить покупку').tap();
     await page.getByText('Золото для торговли · 40').waitFor();
@@ -283,12 +285,12 @@ const rewards={
     assert.equal(chatPost.text,'К бою!');
     await previous().click();
     await button('Рейтинги').tap();
-    await button('Войти через Telegram').click();
+    await signedIn();
     await page.getByRole('heading',{name:'Северный сезон'}).waitFor();
     await page.getByText('Алиса · Вы · 70').waitFor();
     await previous().click();
     await button('Гильдии').tap();
-    await button('Войти через Telegram').click();
+    await signedIn();
     assert.equal(await button('Торговый чат').count(),0);
     await page.getByRole('textbox',{name:'Название гильдии'}).fill('Северный дозор');
     await button('Создать гильдию').click();

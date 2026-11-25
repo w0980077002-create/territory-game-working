@@ -39,7 +39,7 @@
 
 /* ── Main screen materials ──────────────────────────────────────────────────
  * Natural walnut instead of the procedural striped oak on the game frame (dialogs already use walnut). */
-:root { --saga-oak: url('../../public/art/saga/walnut.webp'); }
+:root { --saga-oak: url('../../public/art/saga/walnut.webp'); --saga-iron: linear-gradient(#2a1f17a8, #17110cb8), url('../../public/art/saga/forged.webp'); }
 
 /* ── Equipment: 12 items + wings, same grid ─────────────────────────────────
  * Thin rarity rim, a warm dark well and a larger item: the item reads before the frame. */
@@ -98,21 +98,27 @@
 }
 .game .quick-buttons button { box-shadow: inset 0 0 0 1px #b39565aa, 0 2px 3px #0009; }
 
-/* ── Inner windows: one material standard ──────────────────────────────────
- * The walnut chest of the Treasure shop becomes the lining of every ordinary window
- * (blue velvet read as a flat placeholder). The Dark Cave, its gear, the harbor and the lair keep their own art. */
-.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="port"]):not([data-panel="shipyard"]):not([data-panel="lair"]):not([data-panel="lair-revive"]):not([data-panel="inventory"]):not([data-panel="shop"]) {
+/* Shared materials for every window outside the Dark Cave (incl. backpack, shop, harbor, shipyard, lair). */
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) {
   --saga-cloth: linear-gradient(#1a110bb8, #1a110bb8), url('../../public/art/saga/walnut.webp');
   --saga-iron: linear-gradient(#17110cb0, #17110cb0), url('../../public/art/saga/forged.webp');
+  --pv-surface: linear-gradient(#ffffff08, #0000 40%), linear-gradient(#261c14f2, #17110cf5);
+  --pv-rim: #6f5a43;
+  --pv-gold: #e0b866;
+}
+/* ── Inner windows: one material standard ──────────────────────────────────
+ * The walnut chest of the Treasure shop becomes the lining of every ordinary window
+ * (blue velvet read as a flat placeholder). The Dark Cave and its gear keep their own purple art; the harbor painting itself is untouched. */
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]):not([data-panel="shop"]) {
   /* Same 1px border box as before (window heights are tuned to it); the carved rim is drawn with shadows. */
   border-color: #b7824f;
   background: linear-gradient(#2a1a10d0, #140d09ee), url('../../public/art/saga/walnut.webp') center top / 576px auto, #1d140e;
   box-shadow: inset 0 0 0 2px #6f4529, 0 0 0 2px #6f4529, 0 0 0 3px #b7824f, 0 0 0 5px #241307, 0 18px 60px #000c;
 }
-.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="port"]):not([data-panel="shipyard"]):not([data-panel="lair"]):not([data-panel="lair-revive"]):not([data-panel="inventory"]):not([data-panel="shop"]) .modal-body {
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]):not([data-panel="shop"]) .modal-body {
   background: radial-gradient(ellipse 90% 200px at 50% 0, #ffd9a01a, transparent), linear-gradient(90deg, #0d0706a0, transparent 6%, transparent 94%, #0d0706a0);
 }
-.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="port"]):not([data-panel="shipyard"]):not([data-panel="lair"]):not([data-panel="lair-revive"]):not([data-panel="inventory"]) .dialog-status { background: #1d140d; }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]):not([data-panel="inventory"]) .dialog-status { background: #1d140d; }
 .saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .section-scene { background: linear-gradient(100deg, #2b1c12e6, #3b2818cc), var(--saga-cloth); }
 
 /* Secondary actions: forged iron with a bronze rim instead of a flat black slab. */
@@ -222,3 +228,91 @@
 }
 @keyframes polish-sheen-once { to { background-position: 260% 0; } }
 [data-motion="reduced"] .game .trophy-ribbon::after { animation: none; display: none; }
+
+/* ── Pass 2: no stray blue / grey slabs outside the Dark Cave ─────────────────
+ * Text surfaces: calm dark walnut-brown; rims: bronze; selection: warm gold. Rarity tints stay. */
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) :is(.saga-section, .build-guide, .hunt-source, .story-goal, .unique-effect, .effect-comparison, .upgrade-plan, .pending-gear, .import-preview, .experience-meter) {
+  background: var(--pv-surface); border-color: var(--pv-rim); box-shadow: inset 0 1px #ffe9c01f;
+}
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .chronicle li { background: var(--pv-surface); }
+@media (hover: hover) { .saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) button:hover:not(:disabled) { background-color: #3a2a1c; } }
+/* Adventure routes and links into the Dark Cave: warm cards; the cave keeps a violet rim as its cue. */
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .adventure-route { background: radial-gradient(ellipse at top, var(--route-glow, #a377425e), transparent 78%), linear-gradient(#2c2018, #18110c); }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .dark-hub button { background: radial-gradient(ellipse at 50% 20%, #7a5aa833, transparent 70%), linear-gradient(#2a1f1a, #16100c); border-color: #7d64a6; }
+/* Companions, relics, gems: rarity over walnut instead of over navy / violet. */
+.saga-modal .squad-grid button { background: radial-gradient(at 50% 25%, color-mix(in srgb, var(--rarity) 35%, #3a2a1c), #16100c 80%); }
+.saga-modal .squad-active button { background: radial-gradient(90% 70% at 50% 30%, color-mix(in srgb, var(--rarity) 30%, transparent), transparent), linear-gradient(#251b13, #120d09); }
+.saga-modal .squad-stage :is(button, .squad-vacancy) small, .saga-modal .relic-grid small { background: #1a120ccc; }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .relic-grid button { background: linear-gradient(130deg, color-mix(in srgb, var(--rarity) 22%, #3b2a1c), #1a120c); }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .relics > .local-scroll { background: linear-gradient(#2a1d14d0, #150f0be6), var(--saga-oak); border-color: #8f6a40; }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .gem-slots button { background: linear-gradient(#271c14, #140e0a); border-color: var(--pv-rim); }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .gem-slots button.selected { border-color: #ffda76; background: linear-gradient(#4a3517, #1a120c); }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .gem-dot.none { background: #2a2017; border-color: #7a6448; }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .workspace-toolbar :is(button, select) { background: linear-gradient(#2b2017, #18110c); border-color: #8a6a44; }
+/* Skills and runes: forged plates instead of slate. */
+.saga-modal[data-panel="skills"] .skill-card { background: var(--pv-surface); border-color: var(--pv-rim); }
+.saga-modal .rune-options button { background: linear-gradient(145deg, #6b4d2a2b, #17110c 80%), var(--saga-iron); border-color: #7a6044; }
+.saga-modal .rune-options .selected { border-color: #ffda76; background: radial-gradient(ellipse at 50% 30%, #c98a3a55, transparent 70%), linear-gradient(#4a3017, #1d140c); }
+/* Wings looks, honor, workshop recipes. */
+.saga-modal .coll-wing { background: linear-gradient(#261b13, #140e0a); }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) :is(.honor-banner, .honor-stats, .honor-requirements li) { background: var(--pv-surface); border-color: var(--pv-rim); }
+
+/* ── Pass 2 · main screen: warm chrome instead of navy (positions and sizes unchanged) ── */
+.viewport { background: radial-gradient(ellipse at 50% 35%, #3a2a1e, #1a120c 60%, #0b0806); }
+.game .battle-status { background: #20160ee6; border-color: #b8975a80; color: #fbe9c4; }
+.game .sound-chip { background: linear-gradient(#5a4430, #2a1d13); border-color: #1d140d; box-shadow: inset 0 0 0 2px #b39565aa; color: #e7d2a8; }
+.game .avatar { border-color: #c9a86a; background: linear-gradient(#6a5038, #2a1d13); box-shadow: 0 0 0 3px #22170f, inset 0 0 0 3px #00000055; }
+.game :is(.encounter-ribbon, .world-card) {
+  border-color: #c9a86a99;
+  background: linear-gradient(115deg, #2a1d13f0, #3b2a1ae8), var(--saga-oak);
+  box-shadow: 0 4px 14px #000a, inset 0 1px #ffe7a833;
+}
+.game .encounter-ribbon.boss-arrival { border-color: #e2795f; background: linear-gradient(115deg, #4a1d18f2, #2a1610ee); }
+.game .world-card.kind-ambush { background: linear-gradient(#3b2529eb, #221812f5), var(--saga-iron); }
+.game .world-card.kind-omen { background: linear-gradient(#2d2438eb, #1c1510f5), var(--saga-iron); }
+.game .world-timer { background: #1a120c; }
+.game .defeat-ribbon { background: linear-gradient(120deg, #4a2427f2, #2a1a12f2); }
+.game .chapter-reward-ready { background: linear-gradient(#5a4a2a55, #2a1a1255); }
+
+/* ── Pass 2 · windows: hero, companions, skills, workspace layouts ─────────── */
+.saga-modal[data-layout="workspace"]:not([data-panel="realm"]):not([data-panel="darkgear"]) { background: linear-gradient(#22170fed, #140e0af7), var(--saga-cloth); }
+.saga-modal[data-layout="workspace"]:not([data-panel="realm"]):not([data-panel="darkgear"]) .modal-header { background: linear-gradient(100deg, #0003, #0008), url('../../public/art/saga/walnut.webp') center / 540px auto; }
+.saga-modal[data-layout="workspace"]:not([data-panel="realm"]):not([data-panel="darkgear"]) .modal-body { background: radial-gradient(ellipse at 50% 10%, #d9a24a1a, transparent 65%); }
+.saga-modal .squad-stage :is(button, .squad-vacancy) { background-color: #120c08; }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) :is(.hero-sheet, .hero-card) { background: radial-gradient(ellipse at 22% 64%, #b8884861, transparent 65%), var(--pv-surface); border-color: var(--pv-rim); }
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) .hero-stats > div { background: var(--pv-surface); border-color: var(--pv-rim); }
+.saga-modal .saga-portrait .portrait-halo { background: radial-gradient(circle, #e0b86655, transparent 70%); }
+.saga-modal .experience-meter progress::-webkit-progress-value { background: linear-gradient(90deg, #b8862f, #f1cf7c); }
+.saga-modal .experience-meter progress::-moz-progress-bar { background: linear-gradient(90deg, #b8862f, #f1cf7c); }
+.saga-modal .hero-xp i { background: linear-gradient(90deg, #b8862f, #f1cf7c); }
+.saga-modal .section-scene { background: linear-gradient(100deg, #2b1c12e6, #3b2818cc), var(--saga-cloth); }
+.board-cell { background: linear-gradient(#2a1f16, #17110c); }
+.board-centre { background: radial-gradient(ellipse at 50% 30%, #d9a24a33, transparent 70%), linear-gradient(#3a2817, #1d140c); }
+.vvr-arena-mode.mode-team { background: linear-gradient(#34302b, #17130f); border-color: #9c9486; }
+
+.game .world-options button { box-shadow: inset 0 0 0 3px #1a120c; }
+.game .world-options .world-pass { color: #e7d2a8; }
+.game .currency-face { background: linear-gradient(#2a1f17, #120d09); box-shadow: 0 2px 0 #8a6a44, inset 0 1px #ffe7a822; }
+
+/* ── Pass 2 · layout ──────────────────────────────────────────────────────── */
+/* Shop: bundle counters sit on their icons as badges (like single items) instead of spilling onto the name (320 px, EN). */
+.treasure-shop .shop-item-picture { overflow: visible; }
+.treasure-shop .shop-item-picture .reward-piece { position: relative; display: grid; place-items: center; }
+.treasure-shop .shop-item-picture .reward-piece strong { position: absolute; right: -2px; bottom: -3px; padding: 0 2px; border-radius: 3px; background: #251a16eb; color: #ffefd2; font-size: 9px; line-height: 1.15; }
+.treasure-shop .shop-item > strong { overflow-wrap: break-word; hyphens: auto; }
+.treasure-shop .shop-offer[data-value="prime"] { padding-top: 13px; }
+/* Tabs never break a word letter by letter («Resonanc/e»): words stay whole, text shrinks a little instead. */
+.saga-modal :is(.tabs, .game-tabs, [role="tablist"]) > button { overflow-wrap: normal; word-break: normal; hyphens: manual; min-width: 0; padding-inline: 3px; font-size: clamp(10px, 3.1vw, 13px); letter-spacing: -.1px; }
+/* Hero path: chapter goal reads on one line next to a compact claim button. */
+.saga-modal .chapter-claim { padding: 6px 8px; border: 1px solid var(--pv-rim, #6f5a43); border-radius: 8px; background: var(--pv-surface, #1d150f); }
+.saga-modal .chapter-claim > span { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 4px 8px; flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; color: #f3e2bd; font-weight: 700; font-size: 13px; line-height: 1.2; }
+.saga-modal .chapter-claim > span > .icon { flex: none; width: 34px; height: 34px; grid-row: span 2; }
+.saga-modal .chapter-claim > span > .reward-art { grid-column: 2; flex-wrap: wrap; }
+.saga-modal .chapter-claim > .action { flex: none; max-width: 46%; padding: 6px 10px; font-size: 13px; }
+
+/* Form controls and the window veil: warm dark instead of navy / browser white. */
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+  background: #1c140d; border: 1px solid #896947; color: #f3e2bd; border-radius: 6px; color-scheme: dark;
+}
+.saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) select option { background: #1c140d; color: #f3e2bd; }
+.saga-shade { background: #0d0805d9; }
