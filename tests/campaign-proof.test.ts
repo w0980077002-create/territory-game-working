@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {firstBossVictory} from '../server/campaign/firstBoss';
+import {giftHornItem} from '../server/campaign/giftHorn';
+import {firstBossVictory,replayCampaign} from '../server/campaign/firstBoss';
 import {makeCampaignHandler} from '../supabase/functions/vvr-campaign/handler';
 import {parseProofCommands} from '../src/game/campaignProof';
 import {useGame} from '../src/core/store';
@@ -62,4 +63,27 @@ test('the campaign Edge API accepts a typed replay, never a client outcome or a 
  assert.deepEqual(await (await post({action:'replay',ticket,commands:[]},session)).json(),{status:'verified'});
  assert.deepEqual(finished,[{name:'vvr_campaign_boss_finish',
   args:{p_player:hero,p_ticket:ticket,p_victory_ticks:firstBossVictory('ranger',17,[],start)}}]);
+});
+
+test('server campaign checkpoints advance by one wave and reach the first level award with real fight XP',()=>{
+ let verified=replayCampaign('berserker',17,[],start);
+ assert.ok(verified);
+ const initial=structuredClone(verified.player);
+ while(verified.player.level<10){
+  const stage:number=verified.player.stage;
+  const wave:number=verified.player.wave;
+  assert.ok(stage<=10);
+  const next=replayCampaign('berserker',stage*5+wave,[],start,verified.player);
+  assert.ok(next);
+  assert.equal(next.player.stage,stage+(wave===5?1:0));
+  assert.equal(next.player.wave,wave%5+1);
+  verified=next;
+ }
+ assert.equal(initial.stage,2);
+ assert.equal(initial.level,2);
+ assert.equal(verified.player.level,10);
+ const context={level:10,stage:5,forge:1,blessing:0,forgeAnchor:0};
+ const gift=giftHornItem(ticket,context);
+ assert.ok(gift&&gift.id==='brotherhood-horn:'+ticket&&gift.level===10);
+ assert.equal(giftHornItem(ticket,{...context,horn:20}),undefined);
 });

@@ -1,0 +1,18 @@
+.game[data-pve] .side-medal {
+  width: 65px;
+  height: 64px;
+}
+.game[data-pve] .side-medal .icon:not(.illustrated) {
+  width: 57px;
+  height: 57px;
+  margin-top: 0;
+}
+.game[data-pve] .side-medal .illustrated {
+  width: 70px;
+  height: 70px;
+}
+.game[data-pve] .side-menu .side-medal,
+.game[data-pve] .side-menu .forge-menu-art {
+  width: 65px;
+  height: 65px;
+}

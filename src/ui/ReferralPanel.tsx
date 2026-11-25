@@ -4,7 +4,7 @@ import {telegramProfile} from '../core/profile';
 import {useGame} from '../core/store';
 import {tg} from '../core/telegram';
 import {lang} from '../i18n';
-import {BrotherAward,BrotherResources,BrotherhoodMilestones,BrotherhoodOath} from './Brotherhood';
+import {BrotherAward,BrotherResources,BrotherhoodMilestones,BrotherhoodOath,BrotherhoodLevels} from './Brotherhood';
 import {Icon} from './Icon';
 
 const gameUrl='https://t.me/VikingRomeGame';
@@ -71,7 +71,8 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
      const state=previous?.data?.brotherhood;
      if(!previous?.data||!state)return previous;
      return {...previous,data:{...previous.data,brotherhood:{...state,wallet:result.wallet,
-      incoming:state.incoming?mark(state.incoming):null,outgoing:state.outgoing.map(mark)}}};
+      incoming:state.incoming?mark(state.incoming):null,outgoing:state.outgoing.map(mark),
+      legendAwards:state.legendAwards?.map(item=>item.id===award?{...item,received:true}:item)}}};
     });
     notice('Награда братства в сетевом кошельке');
    }else notice(result.status==='paused'?'Выдача приостановлена':'Награда недоступна');
@@ -102,7 +103,7 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
    <input type="url" readOnly value={shareUrl} onFocus={event=>event.currentTarget.select()}/>
   </label>}
   {brotherhood&&!brotherhood.enabled&&<p role="status">Выдача приостановлена</p>}
-  {brotherhood&&incoming&&<div className="brother-card"><BrotherhoodOath pair={incoming} rewards={brotherhood.rewards} {...controls}/></div>}
+  {brotherhood&&incoming&&<div className="brother-card"><BrotherhoodLevels pair={incoming} rewards={brotherhood.rewards} {...controls}/><BrotherhoodOath pair={incoming} rewards={brotherhood.rewards} {...controls}/></div>}
   {mode==='friends'&&data&&<>
    <h3>Подтверждённые приглашения</h3>
    {brotherhood&&<>
@@ -120,19 +121,19 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
        <summary>{'Совместных дней · '+pair.days+' / 7'}</summary>
        {welcome?<div><h4>Дар братства</h4><BrotherAward award={welcome} {...controls}/></div>
         :<p>Сундук открывается после подтверждённой победы над первым боссом кампании.</p>}
-       <BrotherhoodOath pair={pair} rewards={brotherhood.rewards} {...controls}/>
+       <BrotherhoodLevels pair={pair} rewards={brotherhood.rewards} {...controls}/><BrotherhoodOath pair={pair} rewards={brotherhood.rewards} {...controls}/>
       </details>}
      </li>;
     })}
    </ul>}
    {!failed&&data.next&&<button type="button" className="action secondary" disabled={busy||pending!==null}
     onClick={()=>setQuery({before:data.next})}>Показать ещё</button>}
-   {brotherhood&&<BrotherhoodMilestones rewards={brotherhood.rewards}/>}
+   {brotherhood&&<BrotherhoodMilestones rewards={brotherhood.rewards} qualified={brotherhood.qualifiedFriends??0} awards={brotherhood.legendAwards??[]} {...controls}/>}
   </>}
   {brotherhood&&Object.keys(brotherhood.wallet).length>0&&<details className="saga-disclosure">
    <summary>Сетевой кошелёк</summary>
    <BrotherResources resources={brotherhood.wallet}/>
-   {!!brotherhood.wallet.horn&&<p>Подарочные заряды хранятся в сетевом кошельке даже при полном Роге. Перенос в Рог пока недоступен.</p>}
+   {!!brotherhood.wallet.horn&&<p>Подарочные заряды хранятся в сетевом кошельке даже при полном Роге. Подарочным зарядом можно протрубить в Роге Трофеев.</p>}
   </details>}
   {busy&&<p role="status">Загружаем приглашения…</p>}
   {failed&&!busy&&<p role="status">Приглашения недоступны. Если ошибка повторится, откройте игру заново в Telegram.</p>}

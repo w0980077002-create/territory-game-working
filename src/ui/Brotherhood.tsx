@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {xpNeeded} from '../core/experience';
 import {
  readBrotherhoodAdmin,type BrotherhoodAward,type BrotherhoodPair,type BrotherhoodResources,
  type BrotherhoodRewards,type BrotherhoodStats,
@@ -47,21 +48,39 @@ export function BrotherhoodOath({pair,rewards,...controls}:{pair:BrotherhoodPair
  </div>;
 }
 
-export function BrotherhoodMilestones({rewards}:{rewards:BrotherhoodRewards}){
+export function BrotherhoodLevels({pair,rewards,...controls}:{pair:BrotherhoodPair;rewards:BrotherhoodRewards}&AwardControls){
+ const level=pair.verifiedLevel??0;
+ const next=Object.keys(rewards.level).find(tier=>Number(tier)>level);
  return <details className="saga-disclosure">
-  <summary>Развитие героя и Легенда братства</summary>
-  <p>Ступени откроются, когда сервер сможет подтвердить уровень героя.</p>
-  <h4>Награды обоим игрокам</h4>
-  <ul className="confirmed-referrals">{Object.entries(rewards.level).map(([tier,payload])=><li key={tier}>
-   <strong>{'Уровень '+tier}</strong><BrotherResources resources={payload}/>
-  </li>)}</ul>
-  <h4>Легенда братства</h4>
-  <p>Засчитываются друзья с подтверждённым 20-м уровнем.</p>
-  <ul className="confirmed-referrals">{Object.entries(rewards.legend).map(([tier,entry])=><li key={tier}>
-   <strong>{titles[entry.title]}</strong><span>{'Друзей 20-го уровня · '+tier}</span>
-   <BrotherResources resources={entry.resources}/>
-   {entry.honor&&<span>Почётное звание</span>}
-  </li>)}</ul>
+  <summary>Развитие героя</summary>
+  <p>{level?'Подтверждённый уровень · '+level:'Победы в кампании ожидают подтверждения.'}</p>
+  {level>0&&<label>{'Подтверждённый опыт · '+(pair.verifiedXp??0)+' / '+xpNeeded(level)}
+   <progress value={pair.verifiedXp??0} max={xpNeeded(level)}/>
+  </label>}
+  {next&&<p>{'Ближайшая награда · уровень '+next}</p>}
+  <ul className="confirmed-referrals">{Object.entries(rewards.level).map(([tier,payload])=>{
+   const award=pair.awards.find(item=>item.kind==='level'&&item.tier===Number(tier));
+   return <li key={tier}><strong>{'Уровень '+tier}</strong>
+    {award?<BrotherAward award={award} {...controls}/>:<BrotherResources resources={payload}/>}
+   </li>;
+  })}</ul>
+ </details>;
+}
+
+export function BrotherhoodMilestones({rewards,qualified,awards,...controls}:{
+ rewards:BrotherhoodRewards;qualified:number;awards:BrotherhoodAward[];
+}&AwardControls){
+ return <details className="saga-disclosure">
+  <summary>Легенда братства</summary>
+  <p>{'Друзей с подтверждённым 20-м уровнем · '+qualified}</p>
+  <ul className="confirmed-referrals">{Object.entries(rewards.legend).map(([tier,entry])=>{
+   const award=awards.find(item=>item.tier===Number(tier));
+   return <li key={tier}>
+    <strong>{titles[entry.title]}</strong><span>{'Друзей 20-го уровня · '+tier}</span>
+    {award?<BrotherAward award={award} {...controls}/>:<BrotherResources resources={entry.resources}/>}
+    {entry.honor&&<span>{award?.received?'Почётное звание получено':'Почётное звание'}</span>}
+   </li>;
+  })}</ul>
  </details>;
 }
 
@@ -88,7 +107,8 @@ export function BrotherhoodAdmin(){
    </button>
    <h4>Достигнутые ступени</h4>
    <ul className="brother-stats">{Object.entries(data.tiers).map(([key,total])=>
-    <li key={key}>{key.startsWith('welcome:')?'Дар братства':stageLabel(Number(key.split(':')[1]))} · {total}</li>
+    <li key={key}>{key.startsWith('welcome:')?'Дар братства':key.startsWith('level:')?'Уровень '+key.split(':')[1]:
+     key.startsWith('legend:')?'Легенда братства · '+key.split(':')[1]:stageLabel(Number(key.split(':')[1]))} · {total}</li>
    )}</ul>
    <h4>Начисленные ресурсы</h4>
    <BrotherResources resources={data.issued}/>
