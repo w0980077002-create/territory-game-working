@@ -35,7 +35,7 @@ export function BrotherhoodOath({pair,rewards,...controls}:{pair:BrotherhoodPair
   <h4>Клятва братства</h4>
   <p>{'Совместных дней · '+pair.days+' / 7'}</p>
   <progress max={7} value={pair.days} aria-label="Совместные дни"/>
-  <p>Засчитывается день UTC, когда каждый выполнил гильдейское задание мирового босса. Дни могут идти с перерывами.</p>
+  <p>Засчитывается день UTC, когда оба сражались в завершённом бою «Отряд» или «Хаос» либо выполнили задание гильдии мирового босса. Занятия могут различаться, дни могут идти с перерывами.</p>
   {next&&<p>{'Ближайшая награда · '+stageLabel(Number(next))}</p>}
   <ul className="confirmed-referrals">{Object.entries(rewards.oath).map(([tier,payload])=>{
    const award=pair.awards.find(item=>item.kind==='oath'&&item.tier===Number(tier));

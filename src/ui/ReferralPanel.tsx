@@ -44,8 +44,8 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
  function share(){
   if(!personalUrl)return;
   const text=lang==='en'
-   ?'Join my Battle Brotherhood in Viking vs Rome! On your first confirmed World Boss victory, you unlock a welcome chest and I earn gems. We can both earn rewards by completing guild quests on the same days.'
-   :'Вступай в моё Боевое братство в Viking vs Rome! За первую подтверждённую победу над мировым боссом тебе откроется сундук, а мне — самоцветы. Выполняя гильдейские задания в одни и те же дни, мы оба получим награды.';
+   ?'Join my Battle Brotherhood in Viking vs Rome! We can both earn rewards by completing team Arena battles or World Boss guild quests on the same days.'
+   :'Вступай в моё Боевое братство в Viking vs Rome! Завершая командные бои Арены или задания гильдии в одни и те же дни, мы оба получим награды.';
   const url='https://t.me/share/url?'+new URLSearchParams({url:personalUrl,text});
   const webApp=tg();
   if(webApp?.openTelegramLink)webApp.openTelegramLink(url);
@@ -89,7 +89,7 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
   {brotherhood&&(mode==='invite'||incoming)&&<section className="brother-card" aria-label="Дар братства">
    <h3><Icon name="chest"/>Дар братства</h3>
    {incoming&&<p>{'Вас пригласил игрок · '+incoming.name}</p>}
-   <p>Сундук открывается после первой подтверждённой победы над мировым боссом с участием в бою.</p>
+   {!chest&&<p>Сундук за первого босса кампании пока недоступен.</p>}
    {chest?<BrotherAward award={chest} {...controls}/>:<BrotherResources resources={brotherhood.rewards.welcome.invitee}/>}
    <h4>Награда пригласившему</h4>
    <BrotherResources resources={brotherhood.rewards.welcome.inviter}/>
@@ -107,7 +107,7 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
    <h3>Подтверждённые приглашения</h3>
    {brotherhood&&<>
     <p>{'Приглашено · '+brotherhood.invited+' · Активных друзей · '+brotherhood.active}</p>
-    <p>Активный друг участвовал в победе над мировым боссом или выполнил гильдейское задание.</p>
+    <p>Активность подтверждает завершённый командный бой Арены, задание гильдии или ранее открытый сундук.</p>
    </>}
    {data.rows.length===0?<p>Подтверждённых приглашений пока нет.</p>:<ul className="confirmed-referrals">
     {data.rows.map(row=>{
@@ -119,7 +119,7 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
       {pair&&brotherhood&&<details className="saga-disclosure">
        <summary>{'Совместных дней · '+pair.days+' / 7'}</summary>
        {welcome?<div><h4>Дар братства</h4><BrotherAward award={welcome} {...controls}/></div>
-        :<p>Следующая награда откроется после победы друга над мировым боссом.</p>}
+        :<p>Сундук за первого босса кампании пока недоступен.</p>}
        <BrotherhoodOath pair={pair} rewards={brotherhood.rewards} {...controls}/>
       </details>}
      </li>;

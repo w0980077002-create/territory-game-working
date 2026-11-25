@@ -53,6 +53,12 @@ begin
   assert (select count(*) from vvr.brotherhood_quest_completions)=2;
   assert public.vvr_referrals(inviter,null)#>>'{brotherhood,active}'='1';
   assert public.vvr_referrals(invitee,null)#>>'{brotherhood,incoming,days}'='1';
+  assert not exists(select from vvr.brotherhood_awards where kind='welcome');
+  -- An entitlement earned under the old rule is still claimable by its owner.
+  insert into vvr.brotherhood_awards(invitee_id,recipient_id,kind,tier,payload)
+    select invitee,recipient.id,'welcome',1,recipient.payload
+    from vvr.brotherhood_settings s cross join lateral (values
+      (invitee,s.rewards#>'{welcome,invitee}'),(inviter,s.rewards#>'{welcome,inviter}')) recipient(id,payload);
   select id into strict welcome from vvr.brotherhood_awards where recipient_id=invitee and kind='welcome';
   select id into strict leader_award from vvr.brotherhood_awards where recipient_id=inviter and kind='welcome';
   select id into strict oath from vvr.brotherhood_awards where recipient_id=invitee and kind='oath' and tier=1;

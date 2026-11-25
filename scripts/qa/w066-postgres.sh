@@ -186,4 +186,40 @@ begin
 end;
 $$;
 SQL
+pg < tests/pg/w066-brotherhood-activity.sql
+finish_oath_room() {
+  pg -At -v room="$1" <<'SQL'
+select player_id from vvr.arena_room_seats where room_id=:'room' \gset
+set role service_role;
+select public.vvr_arena_checkpoint(:'room',0,jsonb_build_object('id',:'room',
+ 'result',jsonb_build_object('reason','hp','winner',0),'players',jsonb_build_array(
+  jsonb_build_object('id',:'player_id','fought',true,'side',0),
+  jsonb_build_object('id','bot-1','bot',true,'fought',true,'side',1))),true);
+SQL
+}
+finish_oath_room 79700000-0000-4000-8000-000000000001 > "$results/oath-a" & first=$!
+finish_oath_room 79700000-0000-4000-8000-000000000002 > "$results/oath-b" & second=$!
+wait "$first"
+wait "$second"
+test "$(cat "$results/oath-a")" = 1
+test "$(cat "$results/oath-b")" = 1
+pg <<'SQL'
+do $$
+declare
+  inviter uuid:=(select id from vvr.players where telegram_id='79701');
+  invitee uuid:=(select id from vvr.players where telegram_id='79702');
+  record_id uuid;
+begin
+  assert public.vvr_referrals(invitee,null)#>>'{brotherhood,incoming,days}'='1';
+  assert public.vvr_referrals(inviter,null)#>>'{brotherhood,active}'='1';
+  assert (select count(*) from vvr.brotherhood_awards where invitee_id=invitee and kind='oath')=2;
+  assert not exists(select from vvr.score_events where player_id in (inviter,invitee));
+  for record_id in select id from vvr.brotherhood_awards where invitee_id=invitee and kind='oath' loop
+    assert (select public.vvr_brotherhood_claim(recipient_id,record_id)->>'status' from vvr.brotherhood_awards where id=record_id)='received';
+    assert (select public.vvr_brotherhood_claim(recipient_id,record_id)->>'status' from vvr.brotherhood_awards where id=record_id)='received';
+  end loop;
+  assert (select count(*) from vvr.resource_receipts where player_id in (inviter,invitee) and source_kind='brotherhood' and amount=10)=2;
+end;
+$$;
+SQL
 echo 'W066 Postgres: identity, grants, escrow race, moderation and ranking verified'
