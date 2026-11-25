@@ -17,7 +17,7 @@ import {battle} from './game/Battle';
 import {startCollectionTracking} from './ui/collectionTracking';
 import {startNavStack} from './ui/navStack';
 import {startTranslation} from './i18n';
-import {communityEnabled,connectCommunity,readReferrals} from './community/client';
+import {communityEnabled,readReferrals} from './community/client';
 import {telegramProfile} from './core/profile';
 import {tg} from './core/telegram';
 import {startWaveProof} from './community/waveProof';
@@ -30,19 +30,25 @@ if(communityEnabled&&telegramProfile){
  const account=telegramProfile;
  startCampaignProof(telegramProfile,()=>useGame.getState().notice('Победа над боссом кампании подтверждена'));
  const startParam=new URLSearchParams(tg()?.initData).get('start_param');
- const login=connectCommunity();
- const preview=login.then(async()=>{
-  const incoming=(await readReferrals(null)).brotherhood?.incoming;
-  if(!incoming)return;
-  startWaveProof(account);
-  if(!/^ref_[a-f0-9-]{36}$/.test(startParam??''))return;
-  const previewKey='vvr-brotherhood-preview:'+telegramProfile+':'+startParam;
-  try{if(sessionStorage.getItem(previewKey))return;}catch{/* storage unavailable */}
-  if(startParam!=='ref_'+incoming.inviterId||useGame.getState().panel)return;
-  useGame.getState().open('invite');
-  try{sessionStorage.setItem(previewKey,'1');}catch{/* storage unavailable */}
- });
- void preview.catch(()=>{ /* Offline play still works. */ });
+ let loadingReferral=false;
+ const loadReferral=()=>{
+  if(loadingReferral)return;
+  loadingReferral=true;
+  void readReferrals(null).then(({brotherhood})=>{
+   window.removeEventListener('online',loadReferral);
+   const incoming=brotherhood?.incoming;
+   if(!incoming)return;
+   startWaveProof(account);
+   if(!/^ref_[a-f0-9-]{36}$/.test(startParam??''))return;
+   const previewKey='vvr-brotherhood-preview:'+account+':'+startParam;
+   try{if(sessionStorage.getItem(previewKey))return;}catch{/* storage unavailable */}
+   if(startParam!=='ref_'+incoming.inviterId||useGame.getState().panel)return;
+   useGame.getState().open('invite');
+   try{sessionStorage.setItem(previewKey,'1');}catch{/* storage unavailable */}
+  }).catch(()=>{ /* Offline play still works. */ }).finally(()=>{loadingReferral=false;});
+ };
+ window.addEventListener('online',loadReferral);
+ loadReferral();
 }
 startCollectionTracking();
 startNavStack();
