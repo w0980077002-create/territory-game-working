@@ -4,7 +4,20 @@
 .wb-head strong { color: #ffe5a8; font-size: 15px; }
 .wb-head span { grid-row: 2; color: #cbb88f; font-size: 11px; }
 .wb-head em { grid-row: 1 / 3; grid-column: 2; font-style: normal; color: #fff0d2; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 6px; background: #2a1d1d; border: 1px solid #8a5a3a; white-space: nowrap; }
-.wb-scene { display: block; width: 100%; aspect-ratio: 432 / 250; border-radius: 8px; border: 1px solid #8a7857; background: #1b1420; }
+.wb-stage { position: relative; border-radius: 8px; border: 1px solid #8a7857; overflow: hidden;
+  /* Painted fallback under the canvas: the field is never an empty dark rectangle. */
+  background: var(--wb-boss) right 8% bottom 4% / auto 74% no-repeat, linear-gradient(#0000 70%, #140d10 100%), var(--wb-sky) center top / cover no-repeat, #2a1d3f; }
+.wb-scene { display: block; width: 100%; aspect-ratio: 432 / 250; background: transparent; }
+.wb-stage.is-defeated { border-color: #c9a45a; box-shadow: 0 0 0 1px #0008, 0 0 14px #e4ad4333; }
+.wb-defeat { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); display: grid; grid-template-columns: auto auto; align-items: center; gap: 0 6px; max-width: calc(100% - 16px);
+  padding: 4px 12px; border-radius: 6px; border: 1px solid #d9b86a; background: linear-gradient(#3a2817f0, #1f150df0); box-shadow: 0 3px 10px #000a, inset 0 1px #ffe7a855; pointer-events: none; animation: wb-defeat-in .45s ease-out both; }
+.wb-defeat .icon { grid-row: 1 / 3; width: 22px; height: 22px; }
+.wb-defeat b { color: #ffe08a; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.wb-defeat small { color: #e8d9b8; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes wb-defeat-in { from { opacity: 0; transform: translate(-50%, -6px); } }
+[data-motion="reduced"] .wb-defeat { animation: none; }
+.wb-hp.is-defeated { border-color: #8a7857; background: #1d1810; }
+.wb-hp.is-defeated span { color: #ffe08a; }
 .wb-hp { position: relative; height: 22px; border-radius: 6px; background: #2a1414; border: 1px solid #6b2a2a; overflow: hidden; }
 .wb-hp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg,#b8262a,#f2564c); transition: width .4s; }
 .wb-hp span { position: relative; display: block; text-align: center; line-height: 20px; color: #fff; font-weight: 800; font-size: 12px; text-shadow: 0 1px 2px #000; }
@@ -14,6 +27,8 @@
 .wb-me span { display: grid; gap: 1px; padding: 4px 2px; border-radius: 6px; background: #0b141bcc; border: 1px solid #8a785766; color: #cbb88f; font-size: 9.5px; text-align: center; line-height: 1.2; }
 .wb-me b { color: #fff0d2; font-size: 13px; }
 .wb-attack { position: relative; overflow: hidden; min-height: 52px; font-size: 16px; }
+.wb-attack.is-won { display: flex; align-items: center; justify-content: center; gap: 8px; border-color: #d9b86a; color: #ffe9b0; background: linear-gradient(#5a3f1f, #34230f); box-shadow: inset 0 1px #ffe7a866, 0 2px 6px #0008; }
+.wb-attack.is-won .icon { width: 26px; height: 26px; }
 .wb-attack .wb-cool { position: absolute; left: 0; bottom: 0; height: 4px; background: #ffd86b; transition: width .5s linear; }
 .wb-rules { display: grid; gap: 3px; margin: 6px 0; padding: 0; list-style: none; }
 .wb-rules li { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 6px; background: #17130f; color: #f0ddbe; font-size: 12px; }
@@ -50,4 +65,4 @@
 .wb-mail h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: #ffe5a8; font-size: 13px; }
 .wb-mail h3 .icon { width: 18px; height: 18px; }
 .wb-me span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (max-height: 700px) { .wb-scene { height: 132px; aspect-ratio: auto; object-fit: cover; } }
+@media (max-height: 700px) { .wb-scene { height: 132px; aspect-ratio: auto; object-fit: cover; } .wb-stage { background-size: auto 80%, auto, cover, auto; } }

@@ -13,6 +13,7 @@ import {GameTabs} from './CompactGame';
 import {Icon} from './Icon';
 import {MiniReward} from './MiniReward';
 import './worldBoss.css';
+import {art} from '../data/catalog';
 
 const BOSSES=['minotaur_echo','fire_abyss_lord','spider_queen','fungal_king','capybara_bruiser','senior_driller','moss_eater'];
 const num=(n:number)=>Math.round(n).toLocaleString('ru');
@@ -21,7 +22,7 @@ const reward=(r:BossReward)=>toReward(r);
 type Tab='fight'|'top'|'history'|'rewards'|'admin';
 
 /** The shared battle scene: existing actor animations, hero look and combat accents, no second engine. */
-function BossScene({p,boss,hpFrac,hit,defeated}:{p:Player;boss:string;hpFrac:number;hit:{n:number;damage:number;critical:boolean;killing?:boolean}|null;defeated:boolean}){
+function BossScene({p,boss,hpFrac,hit,defeated,killer}:{p:Player;boss:string;hpFrac:number;hit:{n:number;damage:number;critical:boolean;killing?:boolean}|null;defeated:boolean;killer?:string}){
  const canvas=useRef<HTMLCanvasElement>(null),vfx=useRef(new CombatVfx()),texts=useRef<{t:number;text:string;crit:boolean}[]>([]),swing=useRef(0),hurt=useRef(0);
  const lastHit=useRef(0),player=useRef(p);player.current=p;
  useEffect(()=>{warmRun(boss);warmRun(heroArt[p.heroClass])},[boss,p.heroClass]);
@@ -50,16 +51,26 @@ function BossScene({p,boss,hpFrac,hit,defeated}:{p:Player;boss:string;hpFrac:num
    if(!defeated){const a=c.createRadialGradient(300,170,10,300,170,150);a.addColorStop(0,`rgba(255,120,60,${.18+(1-hpFrac)*.2+(reduced?0:.05*Math.sin(clockT*2))})`);a.addColorStop(1,'rgba(255,120,60,0)');c.fillStyle=a;c.fillRect(150,40,300,210)}
    const t=reduced?0:clockT;
    drawActor(c,heroArt[player.current.heroClass],120,232,118,t,false,swing.current,0,0,0,defeated,false,false,heroLook(player.current,sceneImage('ui-wings'),clockT,1,reduced));
+   // A defeated boss stays on the field, upright but dimmed, so the finished event never shows an empty scene.
+   if(defeated){c.save();c.filter='grayscale(.65) brightness(.62)'}
    drawActor(c,boss,305,236,190,t,false,0,defeated?.3:hurt.current,0,0,false,true,true);
+   if(defeated)c.restore();
    vfx.current.draw(c,1,reduced);
    for(const x of texts.current){x.t+=dt;const k=x.t/1.1;c.save();c.globalAlpha=Math.max(0,1-k);c.font=`900 ${x.crit?30:24}px system-ui`;c.textAlign='center';c.lineWidth=5;c.strokeStyle='#26354c';c.fillStyle=x.crit?'#ffd86b':'#fff4ce';c.strokeText(x.text,300,110-k*40);c.fillText(x.text,300,110-k*40);c.restore()}
    texts.current=texts.current.filter(x=>x.t<1.1);
    raf=requestAnimationFrame(frame);
   };
   raf=requestAnimationFrame(frame);
-  return ()=>cancelAnimationFrame(raf);
+  // Android WebView may drop a 2D context under memory pressure: force a full redraw once it is back.
+  const el=canvas.current!,restored=()=>{el.width=0};
+  el.addEventListener('contextrestored',restored);
+  return ()=>{cancelAnimationFrame(raf);el.removeEventListener('contextrestored',restored)};
  },[boss,hpFrac,defeated]);
- return <canvas ref={canvas} className="wb-scene" aria-hidden="true"/>;
+ // The painted stage behind the canvas keeps the sky and the boss visible even if the canvas is blank.
+ return <div className={'wb-stage'+(defeated?' is-defeated':'')} style={{'--wb-sky':`url(${art('world-mountains')})`,'--wb-boss':`url(${art('bosses/'+boss)})`} as React.CSSProperties}>
+  <canvas ref={canvas} className="wb-scene" aria-hidden="true"/>
+  {defeated&&<div className="wb-defeat" role="status"><Icon name="crown"/><b>Босс повержен</b>{killer&&<small>Последний удар · {killer}</small>}</div>}
+ </div>;
 }
 
 export function WorldBossPanel({p}:{p:Player}){
@@ -93,13 +104,14 @@ export function WorldBossPanel({p}:{p:Player}){
   {tab==='fight'&&(e?<>
    <header className="wb-head"><strong>{e.title}</strong><span>{nameOf(e.boss)}</span>
     <em>{e.active?'До конца · '+clock(Date.parse(e.endsAt)-serverNow):Date.parse(e.startsAt)>serverNow?'Начало через '+clock(Date.parse(e.startsAt)-serverNow):e.status==='defeated'?'Повержен':'Время вышло'}</em></header>
-   <BossScene p={p} boss={e.boss} hpFrac={e.hp/e.maxHp} hit={hit} defeated={e.status==='defeated'}/>
-   <div className="wb-hp" role="progressbar" aria-label="Здоровье босса" aria-valuemin={0} aria-valuemax={e.maxHp} aria-valuenow={e.hp}>
-    <i style={{width:Math.max(0,e.hp/e.maxHp*100)+'%'}}/><span>{num(e.hp)} / {num(e.maxHp)}</span></div>
+   <BossScene p={p} boss={e.boss} hpFrac={e.hp/e.maxHp} hit={hit} defeated={e.status==='defeated'} killer={e.lastHit?(e.lastHit.me?'ваш':e.lastHit.name):undefined}/>
+   <div className={'wb-hp'+(e.status==='defeated'?' is-defeated':'')} role="progressbar" aria-label="Здоровье босса" aria-valuemin={0} aria-valuemax={e.maxHp} aria-valuenow={e.hp}>
+    <i style={{width:Math.max(0,e.hp/e.maxHp*100)+'%'}}/><span>{e.status==='defeated'?'Повержен · '+num(e.maxHp)+' урона':num(e.hp)+' / '+num(e.maxHp)}</span></div>
+   {e.status==='defeated'?<button type="button" className="action wb-attack is-won" onClick={()=>setTab('rewards')}><Icon name="chest"/>{pending.length?'Победа · забрать награды':'Победа · награды получены'}</button>:
    <button type="button" className="action wb-attack" disabled={!canHit} onClick={()=>void attack()}>
     {busy?'Удар…':!e.active?'Событие не идёт':hitsLeft<=0?'Атаки на сегодня закончились':readyIn>0?'Готовность · '+Math.ceil(readyIn/1000)+' с':'Атаковать'}
     {e.active&&readyIn>0&&<i className="wb-cool" style={{width:Math.min(100,readyIn/(e.cooldownSeconds*1000)*100)+'%'}}/>}
-   </button>
+   </button>}
    {e.lastHit&&<p className="wb-last"><Icon name="crown"/>Последний удар · <b>{e.lastHit.me?'ваш':e.lastHit.name}</b> · {num(e.lastHit.damage)}</p>}
    <div className="wb-me"><span>Ваш урон<b>{num(e.me.damage)}</b></span><span>Место<b>{e.me.rank??'—'}</b></span><span>Атак за день<b>{e.me.hitsToday}/{e.dailyHits}</b></span><span>Участников<b>{e.participants}</b></span></div>
    <details className="saga-disclosure"><summary><Icon name="chest"/><span>Награды события</span></summary>

@@ -120,8 +120,9 @@ function patchCanvas(){
 export async function startTranslation(){
  if(lang!=='en'||typeof document==='undefined')return;
  document.documentElement.lang='en';
- const dict=(await import('./en.json')).default as Record<string,string>;
- loadDictionary(dict);
+ const [dict,polish]=await Promise.all([import('./en.json'),import('./en.polish.json')]);
+ // Visual-polish strings live in their own file so parallel feature work on en.json never conflicts.
+ loadDictionary({...dict.default,...polish.default} as Record<string,string>);
  patchCanvas();
  translateNode(document.body);
  document.title=tr(document.title);
