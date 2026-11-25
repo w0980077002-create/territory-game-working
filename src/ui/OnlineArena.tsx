@@ -10,7 +10,7 @@ import {
  type ArenaMatchView,type ArenaSkill,type ArenaView,type ArenaZone,
 } from '../arena/protocol';
 import {Icon} from './Icon';
-import {ArenaBelt,ArenaResult,FightScene,RoomMessages} from './ArenaBattleParts';
+import {ArenaBattleView,ArenaResult} from './ArenaBattle';
 import {ArenaHub} from './ArenaHub';
 import './onlineArena.css';
 
@@ -49,42 +49,45 @@ async function launchData(){
  throw new Error('Откройте эту сборку в Telegram.');
 }
 
-function RoundControls({match,now,pending,act,resume}:{match:ArenaMatchView;now:number;pending:boolean;act:(action:ArenaCommand)=>void;resume?:()=>void}){
+function DuelBattle({match,now,pending,act,resume,send,leave,player}:{match:ArenaMatchView;now:number;pending:boolean;act:(action:ArenaCommand)=>void;
+ resume:()=>void;send:(text:string)=>Promise<boolean>;leave:()=>void;player:Player}){
  const [attack,setAttack]=useState<ArenaZone>('head');
  const [blocks,setBlocks]=useState<ArenaZone[]>([]);
  const [skill,setSkill]=useState<ArenaSkill|null>(null);
+ const [leaving,setLeaving]=useState(false);
+ // A new round starts with a fresh choice; the scene itself stays mounted so its animations continue.
+ useEffect(()=>{setBlocks([]);setSkill(null);setAttack('head')},[match.round]);
  const result=match.result,control=!!match.control&&!result;
  const locked=pending||!control||match.you.moved||match.auto||!secondsLeft(match.deadline,now);
  const chooseBlock=(zone:ArenaZone)=>setBlocks(current=>current.includes(zone)?current.filter(id=>id!==zone):[...current.slice(-1),zone]);
- const status=match.auto?'Автобой':match.you.moved?'Ход принят · ждём соперника':blocks.length<2?'Защита: выберите ещё '+(2-blocks.length):undefined;
- const belt=Object.values(match.belt).reduce((sum,count)=>sum+count,0);
- return <>
-  <FightScene you={match.you} opponent={match.opponent} attack={attack} blocks={blocks} onAttack={setAttack} onBlock={chooseBlock}
-   locked={locked} status={control?status:undefined}
-   result={result&&<ArenaResult outcome={result.outcome==='win'?'win':result.outcome==='loss'?'loss':'draw'} reason={reasons[result.reason]}
-    extra={result.points>0?'+'+result.points+' очко тренировки':undefined} chatLeft={match.chatDeadline===null?null:secondsLeft(match.chatDeadline,now)}/>}>
-   {!result&&(!match.control?<button className="action" disabled={pending} onClick={resume}>Продолжить в этой вкладке</button>:<>
-    <button className="action secondary" type="button" disabled={pending} aria-pressed={match.auto} onClick={()=>act({kind:'auto',enabled:!match.auto})}>
-     Автобой {match.auto?'вкл.':'выкл.'}
-    </button>
-    {!match.auto&&<button className="action" type="button" disabled={locked||blocks.length!==2||!!(skill&&match.ready[skill]>now)}
-     onClick={()=>act({kind:'move',move:{attack,blocks:[blocks[0],blocks[1]],skill}})}>{match.you.moved?'Ход принят':'Подтвердить ход'}</button>}
-   </>)}
-  </FightScene>
-  {control&&!match.auto&&<details className="online-details vvr-supply"><summary>Умение героя</summary>
-   <div className="online-skills">{arenaSkills.map((id,i)=><button key={id} type="button" className="action secondary" aria-pressed={skill===id}
-    disabled={locked||match.ready[id]>now} onClick={()=>setSkill(skill===id?null:id)}><Icon name={skillData[i].icon}/>{skillData[i].name}</button>)}</div>
-  </details>}
-  {control&&<details className="online-details vvr-supply"><summary>Пояс эликсиров</summary>
-   <ArenaBelt belt={match.belt} readyAt={match.itemReadyAt} now={now} disabled={pending}
-    fullHealth={match.you.hp===match.you.maxHp} onItem={item=>act({kind:'item',item})}/>
-   <small className="vvr-supply-count">{belt} шт.</small>
-  </details>}
- </>;
+ const status=!control?undefined:match.auto?'Автобой':match.you.moved?'Ход принят · ждём соперника':blocks.length<2?'Защита: выберите ещё '+(2-blocks.length):undefined;
+ const outcome=result?(result.outcome==='win'?'win':result.outcome==='loss'?'loss':'draw'):undefined;
+ return <ArenaBattleView mode={match.bot?'Тренировочный бот':match.training?'Тренировка без рейтинга':'Игрок против игрока'}
+  round={match.round} timer={result?null:secondsLeft(match.deadline,now)} you={match.you} opponent={match.opponent} now={now} look={player}
+  zoneControls={control&&!match.auto?{attack,blocks,onAttack:setAttack,onBlock:chooseBlock,locked}:null} status={status} outcome={outcome}
+  result={result&&<ArenaResult outcome={outcome!} reason={reasons[result.reason]} extra={result.points>0?'+'+result.points+' очко тренировки':undefined}/>}
+  actions={result?undefined:!match.control?<button className="vvr-act strike" disabled={pending} onClick={resume}>Продолжить в этой вкладке</button>:<>
+   <button className="vvr-act auto" type="button" disabled={pending} aria-pressed={match.auto} onClick={()=>act({kind:'auto',enabled:!match.auto})}>Автобой {match.auto?'вкл.':'выкл.'}</button>
+   {!match.auto&&<button className="vvr-act reset" type="button" disabled={locked||!blocks.length&&!skill} aria-label="Сбросить выбор зон" onClick={()=>{setBlocks([]);setSkill(null);setAttack('head')}}>Сброс</button>}
+   {!match.auto&&<button className="vvr-act strike" type="button" disabled={locked||blocks.length!==2||!!(skill&&match.ready[skill]>now)}
+    onClick={()=>act({kind:'move',move:{attack,blocks:[blocks[0],blocks[1]],skill}})}>{match.you.moved?'Ход принят':'Подтвердить ход'}</button>}
+  </>}
+  belt={control?{belt:match.belt,readyAt:match.itemReadyAt,disabled:pending,fullHealth:match.you.hp===match.you.maxHp,onItem:item=>act({kind:'item',item})}:null}
+  gear={<Gear match={match}/>}
+  dock={<>
+   {control&&!match.auto&&<details className="vvr-dock-panel"><summary><span>Умение героя</span><em>{skill?skillData[arenaSkills.indexOf(skill)].name:'—'}</em></summary>
+    <div className="online-skills">{arenaSkills.map((id,i)=><button key={id} type="button" className="action secondary" aria-pressed={skill===id}
+     disabled={locked||match.ready[id]>now} onClick={()=>setSkill(skill===id?null:id)}><Icon name={skillData[i].icon}/>{skillData[i].name}</button>)}</div>
+   </details>}
+   {control&&(!leaving?<button type="button" className="vvr-leave" onClick={()=>setLeaving(true)}>Покинуть поединок</button>:
+    <div className="vvr-leave-confirm"><button type="button" disabled={pending} onClick={()=>setLeaving(false)}>Остаться</button>
+     <button type="button" disabled={pending} onClick={()=>{setLeaving(false);leave()}}>Подтвердить выход</button></div>)}
+  </>}
+  feed={{log:match.log,chat:match.chat,chatDeadline:match.chatDeadline,pending,send}}/>;
 }
 
 function Gear({match}:{match:ArenaMatchView}){
- return <details className="online-details"><summary>Тренировочная экипировка · 7 ячеек</summary>
+ return <details className="vvr-dock-panel"><summary><span>Тренировочная экипировка · 7 ячеек</span><span className="vvr-dock-mini" aria-hidden="true">{gearSlots.slice(0,4).map(id=><Icon key={id} name={id}/>)}</span></summary>
   <div className="online-gear">
    <span></span><strong>Вы</strong><strong>Соперник</strong>
    {gearSlots.map((id,i)=><div className="online-gear-row" key={id}>
@@ -117,7 +120,6 @@ function DuelArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:bo
  const [hero,setHero]=useState<ArenaHero>(player.heroClass),[kit,setKit]=useState<ArenaKit>('balanced');
  const [message,setMessage]=useState(''),[pending,setPending]=useState(false);
  const [previous,setPrevious]=useState<ArenaMatchView>();
- const [leaving,setLeaving]=useState(false);
  const commandInFlight=useRef(false),revision=useRef(0);
  const previousId=previous?.id;
  useEffect(()=>{
@@ -212,16 +214,8 @@ function DuelArena({player,initiallyOpen=false}:{player:Player;initiallyOpen?:bo
     setPrevious(await request<ArenaMatchView>('room?match='+lastResult.id,token));
    })}>Чат прошлого боя</button>}
   {shown&&<>
-   <div className="vvr-room-bar"><span>{shown.bot?'Тренировочный бот':shown.training?'Тренировка без рейтинга':'Игрок против игрока'}</span>
-    {!shown.result&&<b className={secondsLeft(shown.deadline,now)<=10?'urgent':''}>Раунд {shown.round} · {secondsLeft(shown.deadline,now)} с</b>}</div>
-   <RoundControls key={shown.id+':'+shown.round+':'+(shown.result?'end':'live')} match={shown} now={now} pending={pending} act={act} resume={()=>controlCommand('resume',shown)}/>
-   <Gear match={shown}/>
-   <RoomMessages key={shown.id} match={shown} now={now} pending={pending} send={text=>send(shown.id,text)}/>
-   {!shown.result&&shown.control&&(!leaving?<button className="action secondary" onClick={()=>setLeaving(true)}>Покинуть поединок</button>:
-    <div className="online-message-tabs">
-     <button className="action secondary" disabled={pending} onClick={()=>setLeaving(false)}>Остаться</button>
-     <button className="action" disabled={pending} onClick={()=>{setLeaving(false);void controlCommand('leave',shown)}}>Подтвердить выход</button>
-    </div>)}
+   <DuelBattle key={shown.id} match={shown} now={now} pending={pending} act={act} player={player}
+    resume={()=>controlCommand('resume',shown)} send={text=>send(shown.id,text)} leave={()=>void controlCommand('leave',shown)}/>
   </>}
  </section>;
 }

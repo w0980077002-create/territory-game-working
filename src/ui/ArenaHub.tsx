@@ -4,7 +4,7 @@ import type {Player} from '../core/types';
 import {useGame} from '../core/store';
 import {CommunityError,communityEnabled,requestTeamArena,type Ranking} from '../community/client';
 import {type ArenaElixir,type ArenaHero,type ArenaMessage,type ArenaZone} from '../arena/protocol';
-import {ArenaBelt,ArenaResult,FightScene,FighterList,RoomMessages} from './ArenaBattleParts';
+import {ArenaBattleView,ArenaResult,FighterList} from './ArenaBattle';
 import {Icon} from './Icon';
 import './arenaHub.css';
 
@@ -105,7 +105,7 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
   <button className="vvr-arena-back" type="button" disabled={busy} onClick={()=>chooseLobby()}>‹ Арена</button>
   {mode==='duel'?duel:<section className="online-arena" aria-label={mode==='team'?'Арена 3×3':'Хаос 20×20'}>
    {notice&&<p role="status" className="online-status">{notice}</p>}
-   {room&&room.mode===mode&&!isSearch(room)?<TeamScene key={room.id} match={room} now={now} busy={busy} send={send} onLeave={()=>{setRoom(undefined);chooseLobby()}}/>:
+   {room&&room.mode===mode&&!isSearch(room)?<TeamScene key={room.id} match={room} now={now} busy={busy} send={send} player={player} onLeave={()=>{setRoom(undefined);chooseLobby()}}/>:
     room&&room.mode===mode&&isSearch(room)?<div className="vvr-arena-search">
      <span className="vvr-search-spinner" aria-hidden="true"/>
      <strong>Поиск соперников · {left(Date.parse(room.closesAt),now)} с</strong>
@@ -151,40 +151,33 @@ export function ArenaHub({player,duel}:{player:Player;duel:ReactNode}){
 
 const arenaArt=(file:string)=>import.meta.env.BASE_URL+'art/arena/'+file;
 const display=(player:Fighter)=>({...player,level:1,online:true,moved:false,gear:[]});
-function TeamScene({match,now,busy,send,onLeave}:{match:TeamBattle;now:number;busy:boolean;send:(action:Action)=>Promise<boolean>;onLeave:()=>void}){
+function TeamScene({match,now,busy,send,onLeave,player}:{match:TeamBattle;now:number;busy:boolean;send:(action:Action)=>Promise<boolean>;onLeave:()=>void;player:Player}){
  const [target,setTarget]=useState(''),[attack,setAttack]=useState<ArenaZone>('head'),[blocks,setBlocks]=useState<ArenaZone[]>([]);
  const enemies=match.players.filter(player=>player.side!==match.you.side),allies=match.players.filter(player=>player.side===match.you.side);
  const opponent=enemies.find(player=>player.id===target&&player.hp>0)??enemies.find(player=>player.hp>0)??enemies[0];
  const me=match.players.find(player=>player.id===match.you.id)!;
  const locked=busy||!me.hp||!!match.result;
  const result=match.result,cooldown=left(match.you.nextStrikeAt,now);
- const size=match.mode==='team'?'3×3':'20×20';
  const status=!me.hp?'Вы пали':match.you.auto?'Автобой':cooldown>0?'Следующий удар через '+cooldown+' с':blocks.length<2?'Защита: выберите ещё '+(2-blocks.length):undefined;
- const outcome=result?(result.winner===null?'draw':result.winner===me.side?'win':'loss'):'draw';
- const belt=Object.values(match.you.belt).reduce((sum,count)=>sum+count,0);
- return <>
-  <div className="vvr-room-bar"><span>{match.training?'Тренировка':'Бой игроков'} · {size}</span>
-   {!result&&<b className={left(match.sideDeadline[me.side],now)<=10?'urgent':''}>{left(match.sideDeadline[me.side],now)} с</b>}</div>
-  {!result&&<p className="vvr-room-timers">Ваш отряд {left(match.sideDeadline[me.side],now)} с · соперники {left(match.sideDeadline[opponent.side],now)} с</p>}
-  <FightScene you={display(me)} opponent={display(opponent)} attack={attack} blocks={blocks} onAttack={setAttack}
-   onBlock={id=>setBlocks(current=>current.includes(id)?current.filter(zone=>zone!==id):[...current.slice(-1),id])}
-   locked={locked||match.you.auto} status={status}
-   result={result&&<ArenaResult outcome={outcome}
-    reason={result.reason==='afk'?'Команда пропустила время атаки':result.reason==='time'?'Итог по здоровью':'Команда повержена'}
-    extra={match.rankAwarded?'+1 к рейтингу':undefined} chatLeft={match.chatDeadline===null?null:left(match.chatDeadline,now)} onLeave={onLeave}/>}>
-   {!result&&<>
-    <button type="button" className="action secondary" disabled={locked} aria-pressed={match.you.auto}
-     onClick={()=>send({kind:'auto',enabled:!match.you.auto})}>Авто</button>
-    <button type="button" className="action" disabled={locked||match.you.auto||blocks.length!==2||match.you.nextStrikeAt>now}
-     onClick={()=>send({kind:'strike',target:opponent.id,attack,blocks:[blocks[0],blocks[1]]})}>Ударить</button>
-   </>}
-  </FightScene>
-  {!result&&<details className="vvr-supply"><summary>Пояс эликсиров · {belt}</summary>
-   <ArenaBelt belt={match.you.belt} readyAt={match.you.itemReadyAt} now={now}
-    fullHealth={me.hp===me.maxHp} disabled={locked} onItem={item=>void send({kind:'item',item})}/>
-  </details>}
-  <FighterList title="Противники" ally={false} fighters={enemies} targetId={opponent.id} onTarget={result?undefined:setTarget}/>
-  <FighterList title="Ваш отряд" ally fighters={allies} meId={me.id}/>
-  <RoomMessages match={match} now={now} pending={busy} send={text=>send({kind:'chat',text})}/>
- </>;
+ const outcome=result?(result.winner===null?'draw':result.winner===me.side?'win':'loss'):undefined;
+ return <ArenaBattleView mode={(match.training?'Тренировка':'Бой игроков')+' · '+(match.mode==='team'?'3×3':'20×20')}
+  timer={result?null:left(match.sideDeadline[me.side],now)} you={display(me)} opponent={display(opponent)} now={now} look={player}
+  zoneControls={result||match.you.auto?null:{attack,blocks,onAttack:setAttack,locked,
+   onBlock:id=>setBlocks(current=>current.includes(id)?current.filter(zone=>zone!==id):[...current.slice(-1),id])}}
+  status={status} outcome={outcome}
+  result={result&&<ArenaResult outcome={outcome!}
+   reason={result.reason==='afk'?'Команда пропустила время атаки':result.reason==='time'?'Итог по здоровью':'Команда повержена'}
+   extra={match.rankAwarded?'+1 к рейтингу':undefined} onLeave={onLeave}/>}
+  actions={result?undefined:<>
+   <button type="button" className="vvr-act auto" disabled={locked} aria-pressed={match.you.auto} onClick={()=>send({kind:'auto',enabled:!match.you.auto})}>Авто</button>
+   <button type="button" className="vvr-act reset" disabled={locked||match.you.auto||!blocks.length} aria-label="Сбросить выбор зон" onClick={()=>{setBlocks([]);setAttack('head')}}>Сброс</button>
+   <button type="button" className="vvr-act strike" disabled={locked||match.you.auto||blocks.length!==2||match.you.nextStrikeAt>now}
+    onClick={()=>send({kind:'strike',target:opponent.id,attack,blocks:[blocks[0],blocks[1]]})}>Ударить</button>
+  </>}
+  belt={result?null:{belt:match.you.belt,readyAt:match.you.itemReadyAt,disabled:locked,fullHealth:me.hp===me.maxHp,onItem:item=>void send({kind:'item',item})}}
+  dock={<>
+   <FighterList title={'Противники · цель: '+opponent.name} ally={false} fighters={enemies} targetId={opponent.id} onTarget={result?undefined:setTarget}/>
+   <FighterList title="Ваш отряд" ally fighters={allies} meId={me.id}/>
+  </>}
+  feed={{log:match.log,chat:match.chat,chatDeadline:match.chatDeadline,pending:busy,send:text=>send({kind:'chat',text})}}/>;
 }

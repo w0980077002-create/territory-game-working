@@ -67,7 +67,7 @@ async function pickMove(page,attack,first,second) {
 
 async function chat(page,text) {
  const arena=section(page);
- await button(arena,'Боевой чат').tap();
+ await button(arena,'Только чат').tap();
  await arena.getByRole('textbox',{name:'Сообщение'}).fill(text);
  await button(arena,'Отправить').tap();
  await arena.getByText(text,{exact:false}).waitFor();
@@ -152,7 +152,7 @@ async function noHorizontalOverflow(page) {
    await a.screenshot({path:join(out,width+'-duel.png')});
    await ar.getByText('Пояс эликсиров',{exact:true}).tap();
    await chat(a,'Удачи в бою');
-   await button(br,'Боевой чат').tap();
+   await button(br,'Только чат').tap();
    await br.getByText('Удачи в бою',{exact:false}).waitFor();
    await noHorizontalOverflow(b);
 
@@ -189,7 +189,7 @@ async function noHorizontalOverflow(page) {
     assert.equal(await score(ar).innerText(),beforeScore,'leaving grants no points');
    }
    await chat(b,'Спасибо за бой');
-   await button(ar,'Боевой чат').tap();
+   await button(ar,'Только чат').tap();
    await ar.getByText('Спасибо за бой',{exact:false}).waitFor();
    await ar.getByText(/До закрытия чата · (29:|30:00)/).waitFor();
    await a.screenshot({path:join(out,width+'-postfight.png')});

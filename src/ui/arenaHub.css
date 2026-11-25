@@ -80,96 +80,156 @@
  .vvr-banner-rules { right: 1%; }
  .online-arena .online-messages form .action { flex: 0 0 auto; width: auto; padding-inline: 8px; font-size: 12px; }
 
-/* ── Battle room adapted from TERRITORY (ArenaRoom / BattleScene / FighterList / ArenaResultCard) in VVR materials ── */
-.vvr-room-bar { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 4px 6px 4px 10px; border: 1px solid #8f6a40; border-radius: 9px;
-  background: linear-gradient(#2c2017, #18110c); color: #f3e2bd; font-size: 12px; font-weight: 700; }
-.vvr-room-bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; letter-spacing: .03em; }
-.vvr-room-bar b { flex: none; padding: 3px 8px; border-radius: 7px; background: #0008; color: #fff3d6; font-variant-numeric: tabular-nums; }
-.vvr-room-bar b.urgent { background: #8a1d1d; color: #ffe1d6; }
-.vvr-room-timers { margin: 0; text-align: center; color: #f0d9a8; font-size: 11px; font-variant-numeric: tabular-nums; }
-.vvr-battle-stage.vvr-fight { position: relative; display: block; padding: 0; overflow: hidden; border: 1px solid #c9a86a99; border-radius: 14px;
-  background: linear-gradient(#0000004d, #0000 35%, #00000080), url('../../public/art/arena/battle.webp') center 55% / cover, #2a1d13; box-shadow: 0 6px 16px #000a; }
-.vvr-fight-grid { display: grid; grid-template-columns: 58px minmax(0, 1fr) 58px; gap: 6px; padding: 8px 6px 6px; }
-.vvr-fight-grid.finished { grid-template-columns: minmax(0, 1fr); }
-.vvr-zone-col { display: grid; align-content: start; gap: 5px; padding-top: 4px; }
-.vvr-zone-col > small { text-align: center; font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; text-shadow: 0 1px 2px #000; }
-.vvr-zone-col.def > small { color: #bfe6ff; }
-.vvr-zone-col.atk > small { color: #ffc2b4; }
-.vvr-zone-col button { display: grid; justify-items: center; align-content: center; gap: 1px; min-height: 48px; padding: 3px 1px; border-radius: 11px;
-  border: 1px solid #ffffff2e; background: #000000a0; color: #f1e7d6; font-size: 10px; font-weight: 700; line-height: 1.1; cursor: pointer;
-  transition: transform .12s, box-shadow .2s; overflow-wrap: anywhere; }
-.vvr-zone-col button .icon { width: 16px; height: 16px; }
-.vvr-zone-col.def button[aria-pressed="true"] { border-color: #8fd6ff; background: #1f7ab2a8; color: #fff; box-shadow: 0 0 12px #38bdf899; }
-.vvr-zone-col.atk button[aria-pressed="true"] { border-color: #ff9d8a; background: #b8312aa8; color: #fff; box-shadow: 0 0 12px #f8717199; }
-.vvr-zone-col button:active:not(:disabled) { transform: scale(.95); }
-.vvr-zone-col button:disabled { opacity: .45; cursor: default; }
-.vvr-fight-center { position: relative; display: grid; grid-template-rows: auto minmax(150px, 1fr); min-width: 0; }
-.vvr-fight-plates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
-.vvr-plate { min-width: 0; padding: 3px 6px 2px; border: 1px solid #ffffff1f; border-radius: 8px; background: #000000a6; color: #fff; text-shadow: 0 1px 2px #000; }
-.vvr-plate strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
-.vvr-plate.ally strong { color: #b8f3e4; } .vvr-plate.foe strong { color: #ffc6bb; }
-.vvr-plate > small { display: block; color: #e7dccb; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vvr-plate i { display: block; height: 6px; margin: 2px 0 1px; border-radius: 4px; background: #0009; overflow: hidden; }
-.vvr-plate i b { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #22c55e, #86efac); transition: width .5s; }
-.vvr-plate.foe i b { background: linear-gradient(90deg, #dc2626, #f87171); }
-.vvr-plate.low i b { background: linear-gradient(90deg, #ef4444, #fb923c); }
-.vvr-plate .vvr-plate-hp { text-align: right; font-variant-numeric: tabular-nums; }
-.vvr-fight-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
-.vvr-figure { position: relative; display: flex; align-items: end; justify-content: center; height: 100%; min-height: 140px; }
-.vvr-figure::after { content: ""; position: absolute; left: 14%; right: 14%; bottom: 0; height: 9px; border-radius: 50%; background: #000a; filter: blur(4px); }
-.vvr-figure .vvr-hero { position: relative; z-index: 1; width: min(100%, 128px); height: 140px; object-fit: contain; object-position: bottom; filter: drop-shadow(0 4px 3px #170c04a6); }
-.vvr-figure .vvr-companion { position: absolute; z-index: 2; left: 0; bottom: 0; width: 38px; height: 36px; object-fit: contain; }
-.vvr-figure.foe { transform: scaleX(-1); }
-.vvr-figure.fallen .vvr-hero { filter: grayscale(.8) brightness(.55); transform: rotate(-8deg) translateY(10px); }
-.vvr-fight-status { position: absolute; z-index: 3; left: 50%; top: 52px; transform: translateX(-50%); max-width: 100%; padding: 3px 10px; border-radius: 99px;
+/* ── Arena battle (ArenaBattle.tsx): one compact screen for 1×1, 3×3, 20×20 and future tournaments ──────────
+ * TERRITORY layout, VVR materials. The scene, controls, elixir button and part of the feed fit one phone screen. */
+.vvr-battle { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; }
+.vvr-battle-stage.vvr-fight { position: relative; display: block; padding: 0; overflow: hidden; isolation: isolate; border: 1px solid #c9a86a99; border-radius: 12px;
+  background: linear-gradient(#0000003d, #0000 40%, #00000073), url('../../public/art/arena/battle.webp') center 58% / cover, #2a1d13; box-shadow: 0 4px 12px #0009; }
+/* Living arena: drifting light clouds over the stands and flickering braziers; cheap CSS layers, off with reduced motion. */
+.vvr-fight::before, .vvr-fight::after { content: ""; position: absolute; z-index: 0; pointer-events: none; }
+.vvr-fight::before { inset: 0 -30% 55% -30%; opacity: .55;
+  background: radial-gradient(ellipse 18% 40% at 20% 40%, #ffffff40, transparent 70%), radial-gradient(ellipse 22% 35% at 62% 30%, #ffffff33, transparent 70%), radial-gradient(ellipse 15% 30% at 88% 50%, #ffffff2e, transparent 70%);
+  animation: vvr-clouds 38s linear infinite alternate; }
+.vvr-fight::after { inset: 0;
+  background: radial-gradient(circle at 7% 47%, #ffb24d66, transparent 9%), radial-gradient(circle at 93% 47%, #ffb24d66, transparent 9%), radial-gradient(ellipse at 50% 100%, #ff8a3d1f, transparent 55%);
+  animation: vvr-torch 1.7s ease-in-out infinite alternate; mix-blend-mode: screen; }
+@keyframes vvr-clouds { to { transform: translateX(18%); } }
+@keyframes vvr-torch { 0% { opacity: .55; } 35% { opacity: .9; } 60% { opacity: .65; } 100% { opacity: 1; } }
+[data-motion="reduced"] .vvr-fight::before, [data-motion="reduced"] .vvr-fight::after { animation: none; }
+@media (prefers-reduced-motion: reduce) { .vvr-fight::before, .vvr-fight::after { animation: none; } }
+.vvr-fight > * { position: relative; z-index: 1; }
+.vvr-fight-top { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 4px; padding: 4px 4px 0; }
+.vvr-plate { min-width: 0; padding: 2px 5px 3px; border: 1px solid #ffffff1f; border-radius: 7px; background: #000000a8; color: #fff; text-shadow: 0 1px 2px #000; }
+.vvr-plate strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.25; }
+.vvr-plate.ally strong { color: #b8f3e4; } .vvr-plate.foe strong { color: #ffc6bb; text-align: right; }
+.vvr-plate > small { display: block; color: #e7dccb; font-size: 9px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vvr-plate.foe > small { text-align: right; }
+.vvr-plate i { position: relative; display: block; height: 13px; margin-top: 2px; border-radius: 4px; background: #000a; overflow: hidden; }
+.vvr-plate i b { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: linear-gradient(90deg, #16a34a, #4ade80); transition: width .5s; }
+.vvr-plate.foe i b { background: linear-gradient(90deg, #b91c1c, #f87171); }
+.vvr-plate.low i b { background: linear-gradient(90deg, #dc2626, #fb923c); }
+.vvr-plate .vvr-plate-hp { position: relative; display: block; text-align: center; font-size: 9px; font-weight: 800; line-height: 13px; font-variant-numeric: tabular-nums; }
+.vvr-fight-clock { display: grid; justify-items: center; gap: 1px; max-width: 92px; padding-top: 1px; }
+.vvr-fight-clock span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f3e2bd; font-size: 8.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; text-shadow: 0 1px 2px #000; }
+.vvr-fight-clock b { padding: 2px 7px; border-radius: 7px; border: 1px solid #c9a86a80; background: #000000b3; color: #fff3d6; font-size: 11px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.vvr-fight-clock b.urgent { border-color: #f87171; background: #8a1d1dd9; color: #ffe1d6; }
+.vvr-fight-field { position: relative; height: 172px; }
+.vvr-live { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vvr-zone-col { position: absolute; top: 2px; bottom: 4px; z-index: 2; width: 46px; display: grid; grid-template-rows: auto repeat(4, minmax(0, 1fr)); gap: 3px; }
+.vvr-zone-col.def { left: 4px; } .vvr-zone-col.atk { right: 4px; }
+.vvr-zone-col > small { text-align: center; font-size: 8px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; text-shadow: 0 1px 2px #000; }
+.vvr-zone-col.def > small { color: #bfe6ff; } .vvr-zone-col.atk > small { color: #ffc2b4; }
+.vvr-zone-col button { min-height: 34px; padding: 0 1px; border-radius: 9px; border: 1px solid #ffffff2e; background: #000000a8; color: #f1e7d6;
+  font-size: 9.5px; font-weight: 800; line-height: 1.05; cursor: pointer; transition: transform .12s, box-shadow .2s; overflow-wrap: anywhere; }
+.vvr-zone-col.def button[aria-pressed="true"] { border-color: #8fd6ff; background: #1f7ab2c4; color: #fff; box-shadow: 0 0 10px #38bdf899; }
+.vvr-zone-col.atk button[aria-pressed="true"] { border-color: #ff9d8a; background: #b8312ac4; color: #fff; box-shadow: 0 0 10px #f8717199; }
+.vvr-zone-col button:active:not(:disabled) { transform: scale(.94); }
+.vvr-zone-col button:disabled { opacity: .5; cursor: default; }
+.vvr-fight-status { position: absolute; z-index: 2; left: 50%; bottom: 6px; transform: translateX(-50%); max-width: calc(100% - 110px); padding: 2px 9px; border-radius: 99px;
   border: 1px solid #ffffff26; background: #000000b8; color: #fde68a; font-size: 10px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.vvr-fight-actions { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); gap: 6px; padding: 0 6px 6px; }
-.vvr-fight-actions > :only-child { grid-column: 1 / -1; }
-.vvr-fight-actions .action { margin: 0; min-height: 46px; }
-.vvr-fight-result { padding: 0 8px 8px; }
-.vvr-result { display: grid; justify-items: center; gap: 4px; padding: 10px; border-radius: 12px; border: 2px solid #8f6a40; text-align: center;
-  background: radial-gradient(ellipse at 50% 0, #d9a24a33, transparent 70%), linear-gradient(#2c2017ee, #17110cf2); color: #f3e2bd; }
-.vvr-result .icon { width: 38px; height: 38px; }
-.vvr-result strong { font: 700 22px/1.1 Georgia, serif; }
-.vvr-result.win { border-color: #f1cf7c; box-shadow: 0 0 16px #f5c86a66; } .vvr-result.win strong { color: #ffe08a; }
+.vvr-fight-result { position: absolute; z-index: 3; left: 8px; right: 8px; bottom: 6px; animation: vvr-result-in .45s ease-out both; }
+@keyframes vvr-result-in { from { opacity: 0; transform: translateY(10px) scale(.96); } }
+[data-motion="reduced"] .vvr-fight-result { animation: none; }
+.vvr-result { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; padding: 6px 8px; border-radius: 10px; border: 2px solid #8f6a40;
+  background: linear-gradient(#2c2017f0, #17110cf5); color: #f3e2bd; box-shadow: 0 4px 14px #000b; }
+.vvr-result strong { font: 700 18px/1.1 Georgia, serif; }
+.vvr-result span { min-width: 0; font-size: 11px; line-height: 1.25; }
+.vvr-result span b { color: #9de08b; }
+.vvr-result.win { border-color: #f1cf7c; box-shadow: 0 0 14px #f5c86a66, 0 4px 14px #000b; } .vvr-result.win strong { color: #ffe08a; }
 .vvr-result.loss strong { color: #ffb0a0; } .vvr-result.draw strong { color: #e7dccb; }
-.vvr-result span { font-size: 12px; } .vvr-result span b { color: #9de08b; }
-.vvr-result small { color: #cbb88f; font-size: 11px; }
-.vvr-result .action { margin: 4px 0 0; min-height: 44px; }
-/* Elixirs / skills: folded wooden plaques, like the TERRITORY supply panels. */
-.vvr-supply { border: 1px solid #8f6a40; border-radius: 10px; background: linear-gradient(#2a1f17, #15100c); }
-.vvr-supply > summary { min-height: 40px; display: flex; align-items: center; padding: 0 12px; color: #ffe1a3; font-weight: 800; font-size: 13px; cursor: pointer; }
-.vvr-supply[open] > summary { border-bottom: 1px solid #8f6a4066; }
-.vvr-supply > :not(summary) { margin: 6px; }
-.vvr-supply-count { display: block; text-align: right; color: #cbb88f; font-size: 10px; }
-/* Fighter lists: folded HP strip per side, open to choose a target. */
-.vvr-fighters { border: 1px solid #8f6a4099; border-radius: 10px; background: #1a120ce6; overflow: hidden; }
+.vvr-result button { min-height: 36px; padding: 0 10px; border: 1px solid #d9b86a; border-radius: 8px; background: linear-gradient(#5a3f1f, #34230f); color: #ffe9b0; font-weight: 800; font-size: 12px; }
+/* Compact Auto / Reset / Strike, like TERRITORY. */
+.vvr-fight-actions { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, .75fr) minmax(0, 1.6fr); gap: 5px; padding: 4px 5px 5px; }
+.vvr-fight-actions > :only-child { grid-column: 1 / -1; }
+.vvr-act { min-height: 38px; padding: 0 6px; border-radius: 9px; border: 1px solid #a58c6c; color: #ffedcd; font-weight: 800; font-size: 12px; line-height: 1.05; cursor: pointer;
+  background: linear-gradient(#ffffff12, #0000 50%), linear-gradient(#3a2e24, #1c1611); box-shadow: inset 0 1px #fff3c133, 0 2px 3px #0008; }
+.vvr-act.auto[aria-pressed="true"] { border-color: #f1cf7c; background: linear-gradient(#8a5a26, #4a2f14); color: #fff1c2; box-shadow: 0 0 8px #f5c86a66; }
+.vvr-act.strike { border-color: #b49756; background: linear-gradient(#4c662b, #283e17 51%, #182a10); color: #fff0cf; font-size: 13px; }
+.vvr-act:disabled { opacity: .5; cursor: default; }
+.vvr-act:active:not(:disabled) { transform: translateY(1px); }
+/* Dock: folded elixirs, gear, skills and fighter lists. */
+.vvr-dock { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.vvr-dock-panel { border: 1px solid #8f6a40; border-radius: 9px; background: linear-gradient(#2a1f17, #15100c); min-width: 0; }
+.vvr-dock-panel > summary { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; color: #ffe1a3; font-weight: 800; font-size: 12px; cursor: pointer; list-style: none; }
+.vvr-dock-panel > summary::-webkit-details-marker { display: none; }
+.vvr-dock-panel > summary::after { content: "▾"; margin-left: 2px; color: #d9b86a; transition: transform .2s; }
+.vvr-dock-panel[open] > summary::after { transform: rotate(180deg); }
+.vvr-dock-panel > summary > span:first-child { flex: none; }
+.vvr-dock-panel > summary em { margin-left: auto; font-style: normal; color: #cbb88f; font-size: 11px; font-variant-numeric: tabular-nums; }
+.vvr-dock-mini { display: flex; gap: 2px; min-width: 0; overflow: hidden; margin-left: auto; }
+.vvr-dock-mini .icon { width: 18px; height: 18px; }
+.vvr-dock-mini + em { margin-left: 4px; }
+.vvr-dock-panel[open] > summary { border-bottom: 1px solid #8f6a4066; }
+.vvr-dock-panel > :not(summary) { margin: 5px 6px 6px; }
+.vvr-arena-belt { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.vvr-arena-belt button { position: relative; aspect-ratio: 1; border: 1px solid #977953; border-radius: 7px; background: radial-gradient(circle at 50% 35%, #5a3f1f66, transparent 70%), #1f1712; color: #ffdf99; min-width: 0; padding: 2px; cursor: pointer; }
+.vvr-arena-belt button:disabled { opacity: .5; cursor: default; }
+.vvr-arena-belt .icon { width: 100%; height: 100%; object-fit: contain; }
+.vvr-arena-belt small { position: absolute; right: 1px; bottom: 1px; min-width: 13px; padding: 0 2px; border-radius: 4px; background: #22160cee; font-size: 9px; font-weight: 800; line-height: 13px; text-align: center; }
+.vvr-belt-help > summary { color: #cbb88f; font-size: 11px; cursor: pointer; }
+.vvr-belt-help ul { display: grid; gap: 4px; margin: 4px 0 0; padding: 0; list-style: none; }
+.vvr-belt-help li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 6px; align-items: center; }
+.vvr-belt-help li .icon { width: 26px; height: 26px; }
+.vvr-belt-help li strong { display: block; color: #ffe1a3; font-size: 11px; } .vvr-belt-help li small { display: block; color: #e7dccb; font-size: 10.5px; line-height: 1.25; }
+.vvr-dock .online-gear { font-size: 11px; }
+.vvr-dock .online-skills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.vvr-dock .online-skills .action { margin: 0; min-height: 40px; padding: 2px; font-size: 10.5px; }
+.vvr-leave { justify-self: end; min-height: 30px; padding: 0 10px; border: 1px solid #8f6a4099; border-radius: 8px; background: none; color: #cbb88f; font-size: 11px; }
+.vvr-leave-confirm { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.vvr-leave-confirm button { min-height: 34px; border: 1px solid #a58c6c; border-radius: 8px; background: #2a1f17; color: #ffedcd; font-weight: 700; }
+.vvr-leave-confirm button:last-child { border-color: #e2795f; background: #5a1f17; }
 .vvr-fighters.foe { border-color: #b1554699; } .vvr-fighters.ally { border-color: #3f8f7a99; }
-.vvr-fighters > summary { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 10px; cursor: pointer; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.vvr-fighters > summary > span:first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; font-size: 10.5px; }
 .vvr-fighters.foe > summary > span:first-child { color: #ffb0a0; } .vvr-fighters.ally > summary > span:first-child { color: #9ee6d2; }
-.vvr-fighters-strip { display: flex; flex: 1; gap: 2px; min-width: 0; }
-.vvr-fighters-strip i, .vvr-fighters li > i { flex: 1; max-width: 28px; height: 4px; border-radius: 3px; background: #0008; overflow: hidden; }
+.vvr-fighters-strip { display: flex; flex: 1; gap: 2px; min-width: 24px; }
+.vvr-fighters-strip i, .vvr-fighters li > i { flex: 1; max-width: 26px; height: 4px; border-radius: 3px; background: #0008; overflow: hidden; }
 .vvr-fighters-strip b, .vvr-fighters li > i b { display: block; height: 100%; background: #22c55e; }
 .vvr-fighters.foe .vvr-fighters-strip b, .vvr-fighters.foe li > i b { background: #ef4444; }
-.vvr-fighters > summary em { font-style: normal; color: #cbb88f; font-variant-numeric: tabular-nums; }
-.vvr-fighters ul { display: grid; gap: 2px; max-height: 176px; margin: 0; padding: 0 6px 6px; overflow-y: auto; list-style: none; }
-.vvr-fighters li { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 6px; border: 1px solid transparent; border-radius: 7px; background: #0000004d; font-size: 11px; }
-.vvr-fighters li > :first-child { width: 38%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.vvr-fighters ul { display: grid; gap: 2px; max-height: 160px; padding: 0; overflow-y: auto; list-style: none; }
+.vvr-fighters li { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 6px; border: 1px solid transparent; border-radius: 7px; background: #0000004d; font-size: 11px; }
+.vvr-fighters li > :first-child { width: 40%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .vvr-fighters li > i { max-width: none; }
-.vvr-fighters li button { min-height: 30px; padding: 0; border: 0; background: none; color: #fff0d6; font: inherit; font-weight: 700; cursor: pointer; }
+.vvr-fighters li button { min-height: 28px; padding: 0; border: 0; background: none; color: #fff0d6; font: inherit; font-weight: 700; cursor: pointer; }
 .vvr-fighters li.target { border-color: #f87171cc; background: #b8312a26; }
-.vvr-fighters li.me > span { color: #9ee6d2; }
-.vvr-fighters li.dead { opacity: .5; }
+.vvr-fighters li.me > span { color: #9ee6d2; } .vvr-fighters li.dead { opacity: .5; }
 .vvr-fighters li small { flex: none; color: #cbb88f; font-variant-numeric: tabular-nums; }
+/* One feed: battle events and chat, filter «All / Chat only». */
+.vvr-feed { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 5px; border: 1px solid #8f6a40; border-radius: 9px; background: #17110ce6; min-width: 0; }
+.vvr-feed-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.vvr-feed-tabs button { min-height: 28px; padding: 0 10px; border: 1px solid #8f6a4099; border-radius: 7px; background: #2a1f17; color: #e7d2a8; font-size: 11px; font-weight: 700; }
+.vvr-feed-tabs button[aria-pressed="true"] { border-color: #f1cf7c; background: linear-gradient(#5a3f1f, #34230f); color: #fff1c2; }
+.vvr-feed-tabs small { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #cbb88f; font-size: 10px; font-variant-numeric: tabular-nums; }
+.vvr-feed-box { height: 84px; overflow-y: auto; overscroll-behavior: contain; font-size: 11px; line-height: 1.3; color: #d9cbb0; }
+.vvr-feed-box p { margin: 0 0 2px; overflow-wrap: anywhere; }
+.vvr-feed-box p.chat { color: #fff0d6; } .vvr-feed-box p.chat strong { color: #ffd98a; }
+.vvr-feed form { display: flex; gap: 4px; }
+.vvr-feed input { flex: 1 1 0; width: 0; min-width: 70px; min-height: 34px; padding: 0 8px; border: 1px solid #896947; border-radius: 7px; background: #1c140d; color: #f3e2bd; font-size: 16px; }
+.vvr-feed form button { flex: none; min-height: 34px; padding: 0 10px; border: 1px solid #b49756; border-radius: 7px; background: linear-gradient(#4c662b, #283e17); color: #fff0cf; font-size: 12px; font-weight: 800; }
+.vvr-feed form button:disabled { opacity: .5; }
 /* Search card. */
 .vvr-arena-search { display: grid; justify-items: center; gap: 6px; padding: 16px 12px; border: 1px solid #8f6a40; border-radius: 12px; background: linear-gradient(#2a1f17, #15100c); text-align: center; color: #f3e2bd; }
-.vvr-arena-search ul { justify-self: stretch; margin: 0; text-align: left; }
+.vvr-arena-search ul { justify-self: stretch; max-height: 170px; margin: 0; overflow: auto; text-align: left; }
 .vvr-search-spinner { width: 34px; height: 34px; border-radius: 50%; border: 4px solid #e0b86633; border-top-color: #f1cf7c; animation: vvr-spin 1s linear infinite; }
 @keyframes vvr-spin { to { transform: rotate(360deg); } }
 [data-motion="reduced"] .vvr-search-spinner { animation: none; }
+/* During a live fight the window gives all room to the battle: no PvE footer, slim header, no lobby texts. */
+.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-footer,
+.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-body details.saga-disclosure:not(:has(.vvr-battle)),
+.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header .header-seal,
+.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header small,
+.online-arena:has(> .vvr-battle.live) > :not(.vvr-battle):not(.online-status) { display: none; }
+.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header { min-height: 44px; padding-block: 3px; }
+.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-header h2 { font-size: 18px; }
+.saga-modal[data-panel="arena"]:has(.vvr-battle.live) .modal-body { padding: 4px 5px 6px; }
+.vvr-arena:has(.vvr-battle.live) { gap: 4px; }
+.vvr-arena:has(.vvr-battle.live) .online-arena { padding: 0; border: 0; background: none; box-shadow: none; }
+.vvr-arena:has(.vvr-battle.live) .vvr-arena-back { min-height: 28px; padding: 2px 10px; font-size: 11px; }
 @media (max-width: 359px) {
- .vvr-fight-grid { grid-template-columns: 50px minmax(0, 1fr) 50px; gap: 4px; padding-inline: 4px; }
- .vvr-zone-col button { min-height: 44px; font-size: 9px; }
- .vvr-figure .vvr-hero { height: 118px; }
- .vvr-figure { min-height: 120px; }
+ .vvr-zone-col { width: 42px; }
+ .vvr-zone-col button { font-size: 9px; }
+}
+@media (max-height: 640px) {
+ .vvr-fight-field { height: 150px; }
+ .vvr-zone-col button { min-height: 30px; }
+ .vvr-feed-box { height: 58px; }
 }
