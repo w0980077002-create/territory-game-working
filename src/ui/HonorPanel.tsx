@@ -11,9 +11,9 @@ import './honor.css';
 const format = new Intl.NumberFormat('ru-RU');
 const number = (value: number) => format.format(value);
 const attributes = [
-  {key:'attack', label:'Атака', icon:'axe'},
-  {key:'hp', label:'Здоровье', icon:'heart'},
-  {key:'defense', label:'Защита', icon:'shield'},
+  {key:'attack', label:'Атака', icon:'stat-attack'},
+  {key:'hp', label:'Здоровье', icon:'stat-health'},
+  {key:'defense', label:'Защита', icon:'stat-defense'},
 ] as const;
 
 function Crest({rank}: {rank: number}) {

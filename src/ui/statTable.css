@@ -1,8 +1,9 @@
 .stat-table { display: grid; gap: 6px; padding: 6px 0 2px; }
 .stat-table dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; margin: 0; }
-.stat-table dl button { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; min-height: 36px; padding: 4px 8px; border: 1px solid #8a785766; border-radius: 6px; background: #0b141bcc; color: #cbb88f; text-align: left; }
+.stat-table dl button { display: flex; justify-content: space-between; align-items: center; gap: 4px; min-height: 36px; padding: 4px 8px; border: 1px solid #8a785766; border-radius: 6px; background: #0b141bcc; color: #cbb88f; text-align: left; }
 .stat-table dl button.picked { border-color: #e4ad43; box-shadow: inset 0 0 8px #e4ad4344; }
-.stat-table dt { font-size: 11px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-table dt { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 11px; line-height: 1.15; }
+.stat-table dt .icon { width: 17px; height: 17px; }
 .stat-table dd { margin: 0; color: #fff0d2; font-weight: 800; font-size: 13px; white-space: nowrap; }
 .stat-table .stat-cp { margin: 0; color: #cbb88f; font-size: 12px; }
 .stat-table .stat-cp b { color: #ffe08a; }

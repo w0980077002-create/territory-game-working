@@ -1,11 +1,10 @@
 import {useState,type ReactNode} from 'react';
 import {GameTabs,GameTile,GameTiles} from './CompactGame';
 import {CardDialog} from './SagaUI';
-import {Icon} from './Icon';
+import {Icon,gearIcon,statIcon} from './Icon';
 import type {Player} from '../core/types';
 import {stats} from '../core/formulas';
 import {useGame} from '../core/store';
-import {art} from '../data/catalog';
 import {balanceOf,soloResources} from '../saga/soloEconomy';
 import {WingLookGallery} from './CollectionHub';
 import {statSources,statRows,type StatId} from '../saga/statSources';
@@ -39,9 +38,9 @@ export function WingGrowth({p,gear}:{p:Player;gear:ReactNode}){
  const [tab,setTab]=useState<typeof wingTabs[number][0]>('gear');
  const rank=wingRank(p),value=balanceOf(p,'wing'),cost=wingRules.cost[rank],current=wingBonuses(rank),next=wingBonuses(rank+(cost?1:0));
  const wings=p.equipment.wings;
- const labels=['Здоровье','Атака','Защита'],icons=['heart','axe','shield'];
+ const labels=['Здоровье','Атака','Защита'],icons=['stat-health','stat-attack','stat-defense'];
  return <section>
-  <div className="wear-summary"><img src={art('ui-wings')} alt=""/><div><strong>{wings?.name??'Слот свободен'}</strong><small>{wings?'Ур. '+wings.level+' · +'+wings.upgrade+' · '+(p.wingVisible?'видны':'скрыты'):'Крылья'}</small></div></div>
+  <div className="wear-summary"><Icon name={gearIcon('wings',wings)}/><div><strong>{wings?.name??'Слот свободен'}</strong><small>{wings?'Ур. '+wings.level+' · +'+wings.upgrade+' · '+(p.wingVisible?'видны':'скрыты'):'Крылья'}</small></div></div>
   {wings&&<div className="game-metrics">{(['hp','attack','defense'] as const).map((key,i)=><span className="game-metric" key={key} aria-label={labels[i]}><Icon name={icons[i]}/> +{((wings.percent?.[key]??0)+current[key]).toLocaleString('ru',{maximumFractionDigits:1})}%</span>)}</div>}
   <GameTabs label="Развитие крыльев" value={tab} items={wingTabs} onChange={setTab}/>
   {tab==='gear'&&<>{!p.claimed.includes('wings')&&<button className="action" onClick={()=>claim('wings')}>Получить первые крылья бесплатно</button>}{gear}</>}
@@ -62,7 +61,7 @@ export function DetailedStats({p}:{p:Player}){
  const delta=(id:StatId,v:number)=>id==='skillDamage'?'+'+(v*100).toLocaleString('ru',{maximumFractionDigits:1})+'%':fmt(id,v,true);
  return <details className="saga-disclosure" onToggle={e=>setOpen((e.currentTarget as HTMLDetailsElement).open)}><summary><Icon name="chart"/><span>Характеристики</span></summary>
   {data&&<div className="stat-table">
-   <dl>{statRows.map(r=><button type="button" key={r.id} className={pick===r.id?'picked':''} aria-pressed={pick===r.id} onClick={()=>setPick(pick===r.id?null:r.id)}><dt>{r.name}</dt><dd>{fmt(r.id,data.total[r.id])}</dd></button>)}</dl>
+   <dl>{statRows.map(r=><button type="button" key={r.id} className={pick===r.id?'picked':''} aria-pressed={pick===r.id} onClick={()=>setPick(pick===r.id?null:r.id)}><dt><Icon name={statIcon(r.id)}/><span>{r.name}</span></dt><dd>{fmt(r.id,data.total[r.id])}</dd></button>)}</dl>
    <p className="stat-cp">Сила героя · <b>{data.total.cp.toLocaleString('ru')}</b></p>
    {pick?<div className="stat-sources">
     <h4>{statRows.find(r=>r.id===pick)!.name}: откуда</h4>

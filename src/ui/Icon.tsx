@@ -1,4 +1,6 @@
 import {art} from '../data/catalog';
+import type {Item} from '../core/types';
+import {perkOf} from '../saga/gear';
 import './iconArt.css';
 const paths:Record<string,React.ReactNode>={
  fire:<path fill="#ff793e" d="M34 3c8 19-4 20 3 29 6-2 9-8 10-14 13 19 10 39-13 42C9 59 8 38 18 23c0 8 4 12 8 14C22 23 29 13 34 3Z"/>,
@@ -43,15 +45,86 @@ const pictureIcons:Record<string,{asset:string; filter?:string}>={
  'mat-limes':{asset:'materials/limes'},
  'mat-ember':{asset:'materials/ember'},
  'lair-keeper':{asset:'capybara_bruiser'},
- 'red-diamond':{asset:'ui-extra2',filter:'hue-rotate(160deg) saturate(1.7)'},
- soul:{asset:'ui-extra1',filter:'hue-rotate(310deg) saturate(1.65)'},
- awake:{asset:'ui-extra2',filter:'hue-rotate(300deg) saturate(1.7)'},
- 'awake-shard':{asset:'materials/ice',filter:'hue-rotate(285deg) saturate(1.65)'},
+ 'red-diamond':{asset:'icons/cur-red-diamond'},
+ 'soul':{asset:'icons/cur-soul'},
+ 'awake':{asset:'icons/cur-awake'},
+ 'awake-shard':{asset:'icons/cur-awake-shard'},
  jackpot:{asset:'ui-medal',filter:'saturate(1.6)'},
- essence:{asset:'ui-extra1',filter:'hue-rotate(65deg) saturate(1.2)'},
- 'dusk-stone':{asset:'ui-extra2',filter:'hue-rotate(75deg)'},
- 'relic-shard':{asset:'ui-extra2',filter:'hue-rotate(215deg) saturate(1.4)'},
- 'summon-seal':{asset:'ui-medal',filter:'hue-rotate(55deg)'},
+ 'essence':{asset:'icons/cur-essence'},
+ 'dusk-stone':{asset:'icons/cur-dusk-stone'},
+ 'relic-shard':{asset:'icons/cur-relic-shard'},
+ 'summon-seal':{asset:'icons/cur-summon-seal'},
+
+ 'relic-glacier-heart':{asset:'icons/relic-glacier-heart'},
+ 'relic-valhalla-horn':{asset:'icons/relic-valhalla-horn'},
+ 'relic-fenrir-fang':{asset:'icons/relic-fenrir-fang'},
+ 'relic-tyr-aegis':{asset:'icons/relic-tyr-aegis'},
+ 'relic-draupnir':{asset:'icons/relic-draupnir'},
+ 'relic-gjallarhorn':{asset:'icons/relic-gjallarhorn'},
+ 'relic-ginnungagap':{asset:'icons/relic-ginnungagap'},
+ 'named-admiral-cutlass':{asset:'icons/named-admiral-cutlass'},
+ 'named-crown-of-haze':{asset:'icons/named-crown-of-haze'},
+ 'named-echo-horn':{asset:'icons/named-echo-horn'},
+ 'named-legate-cloak':{asset:'icons/named-legate-cloak'},
+ 'named-abyss-heart':{asset:'icons/named-abyss-heart'},
+ 'named-bruiser-belt':{asset:'icons/named-bruiser-belt'},
+ 'named-driller-boots':{asset:'icons/named-driller-boots'},
+ 'named-mosseater-ring':{asset:'icons/named-mosseater-ring'},
+ 'named-mariner-compass':{asset:'icons/named-mariner-compass'},
+ 'named-dusk-blade':{asset:'icons/named-dusk-blade'},
+ 'named-dusk-wings':{asset:'icons/named-dusk-wings'},
+ 'skill-crushing-strike':{asset:'icons/skill-crushing-strike'},
+ 'skill-odin-call':{asset:'icons/skill-odin-call'},
+ 'skill-thor-hammer':{asset:'icons/skill-thor-hammer'},
+ 'rune-fire':{asset:'icons/rune-fire'},
+ 'rune-thunder':{asset:'icons/rune-thunder'},
+ 'rune-feast':{asset:'icons/rune-feast'},
+ 'rune-fury':{asset:'icons/rune-fury'},
+ 'rune-hide':{asset:'icons/rune-hide'},
+ 'rune-haste':{asset:'icons/rune-haste'},
+ 'rune-pierce':{asset:'icons/rune-pierce'},
+ 'rune-chain':{asset:'icons/rune-chain'},
+ 'rune-greed':{asset:'icons/rune-greed'},
+ 'passive-fortitude':{asset:'icons/passive-fortitude'},
+ 'passive-pressure':{asset:'icons/passive-pressure'},
+ 'passive-armor':{asset:'icons/passive-armor'},
+ 'passive-blade-fury':{asset:'icons/passive-blade-fury'},
+ 'passive-battle-thirst':{asset:'icons/passive-battle-thirst'},
+ 'passive-rune-might':{asset:'icons/passive-rune-might'},
+ 'passive-light-step':{asset:'icons/passive-light-step'},
+ 'passive-steady-ranks':{asset:'icons/passive-steady-ranks'},
+ 'passive-keen-eye':{asset:'icons/passive-keen-eye'},
+ 'passive-giant-blood':{asset:'icons/passive-giant-blood'},
+ 'passive-ancestor-might':{asset:'icons/passive-ancestor-might'},
+ 'passive-dragon-hide':{asset:'icons/passive-dragon-hide'},
+ 'passive-wrath-of-gods':{asset:'icons/passive-wrath-of-gods'},
+ 'passive-crushing':{asset:'icons/passive-crushing'},
+ 'passive-asgard-shield':{asset:'icons/passive-asgard-shield'},
+ 'stat-attack':{asset:'icons/stat-attack'},
+ 'stat-health':{asset:'icons/stat-health'},
+ 'stat-defense':{asset:'icons/stat-defense'},
+ 'stat-crit':{asset:'icons/stat-crit'},
+ 'stat-crit-damage':{asset:'icons/stat-crit-damage'},
+ 'stat-skill-damage':{asset:'icons/stat-skill-damage'},
+ 'stat-damage-reduction':{asset:'icons/stat-damage-reduction'},
+ 'stat-dodge':{asset:'icons/stat-dodge'},
+ 'stat-lifesteal':{asset:'icons/stat-lifesteal'},
+ 'dark-stinger':{asset:'icons/dark-stinger'},
+ 'dark-carapace':{asset:'icons/dark-carapace'},
+ 'dark-eclipse':{asset:'icons/dark-eclipse'},
+ 'dark-abyss-eye':{asset:'icons/dark-abyss-eye'},
+ 'dark-fang':{asset:'icons/dark-fang'},
+ 'dark-shadow-heart':{asset:'icons/dark-shadow-heart'},
+ 'dark-wrath-seal':{asset:'icons/dark-wrath-seal'},
+ 'dark-frost-shackles':{asset:'icons/dark-frost-shackles'},
+ 'dark-blood-cup':{asset:'icons/dark-blood-cup'},
+ 'dark-shadow-grimoire':{asset:'icons/dark-shadow-grimoire'},
+ 'dark-midnight-cloak':{asset:'icons/dark-midnight-cloak'},
+ 'dark-void-mark':{asset:'icons/dark-void-mark'},
+ 'orb-health':{asset:'icons/orb-health'},
+ 'orb-energy':{asset:'icons/orb-energy'},
+ 'quick-thor':{asset:'icons/quick-thor'},
+ 'talent-luck':{asset:'icons/talent-luck'},
 };
 export function Icon({name,className=''}:{name:string;className?:string}){
  if(name==='hammer')return <span className={`icon illustrated icon-hammer ${className}`} aria-hidden="true"/>;
@@ -61,4 +134,17 @@ export function Icon({name,className=''}:{name:string;className?:string}){
  if(asset)return <img className={`icon illustrated ${className}`} src={art(asset)} style={picture?.filter?{filter:picture.filter}:undefined} alt="" aria-hidden="true" draggable={false}/>;
  return <svg className={`icon ${className}`} viewBox="0 0 64 64" fill="none" stroke="#202631" strokeWidth="2.7" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">{paths[name]??paths.star}</svg>;
 }
-export function gearIcon(slot:string){return ({weapon:'axe',armor:'armor',helmet:'helmet',shield:'shield',boots:'boots',belt:'belt',ring1:'ring1',ring2:'ring2',amulet:'amulet',cloak:'cloak',extra1:'rune',extra2:'gem',wings:'wings'} as Record<string,string>)[slot]??'star'}
+export function gearIcon(slot:string,item?:Item){return perkOf(item)?.icon??({weapon:'axe',armor:'armor',helmet:'helmet',shield:'shield',boots:'boots',belt:'belt',ring1:'ring1',ring2:'ring2',amulet:'amulet',cloak:'cloak',extra1:'rune',extra2:'gem',wings:'wings'} as Record<string,string>)[slot]??'star'}
+
+const statIcons:Readonly<Partial<Record<string,string>>>={
+ attack:'stat-attack',atkPct:'stat-attack',
+ hp:'stat-health',hpPct:'stat-health',
+ defense:'stat-defense',defPct:'stat-defense',
+ crit:'stat-crit',critDamage:'stat-crit-damage',
+ skill:'stat-skill-damage',skillDamage:'stat-skill-damage',
+ reduction:'stat-damage-reduction',dodge:'stat-dodge',lifesteal:'stat-lifesteal',
+};
+
+export function statIcon(stat:string){
+ return statIcons[stat]??'chart';
+}

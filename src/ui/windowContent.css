@@ -216,6 +216,12 @@
   min-height: 64px;
   padding: 4px 3px;
 }
+.saga-modal[data-panel="skills"] .skill-card.active-skill .rune-options > button > .icon {
+  display: block;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+}
 .saga-modal[data-panel="skills"] .rune-options button > small {
   display: block;
   max-width: 100%;
