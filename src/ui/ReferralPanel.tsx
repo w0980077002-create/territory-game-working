@@ -44,8 +44,8 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
  function share(){
   if(!personalUrl)return;
   const text=lang==='en'
-   ?'Join my Battle Brotherhood in Viking vs Rome! We can both earn rewards by completing team Arena battles or World Boss guild quests on the same days.'
-   :'Вступай в моё Боевое братство в Viking vs Rome! Завершая командные бои Арены или задания гильдии в одни и те же дни, мы оба получим награды.';
+   ?'Join my Battle Brotherhood in Viking vs Rome! Your first verified campaign boss victory unlocks a chest for you and gems for me. We can both earn rewards by completing team Arena battles or World Boss guild quests on the same days.'
+   :'Вступай в моё Боевое братство в Viking vs Rome! После первой подтверждённой победы над боссом кампании тебе откроется сундук, а мне — самоцветы. Завершая командные бои Арены или задания гильдии в одни и те же дни, мы оба получим награды.';
   const url='https://t.me/share/url?'+new URLSearchParams({url:personalUrl,text});
   const webApp=tg();
   if(webApp?.openTelegramLink)webApp.openTelegramLink(url);
@@ -89,7 +89,7 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
   {brotherhood&&(mode==='invite'||incoming)&&<section className="brother-card" aria-label="Дар братства">
    <h3><Icon name="chest"/>Дар братства</h3>
    {incoming&&<p>{'Вас пригласил игрок · '+incoming.name}</p>}
-   {!chest&&<p>Сундук за первого босса кампании пока недоступен.</p>}
+   {!chest&&<p>Сундук открывается после подтверждённой победы над первым боссом кампании.</p>}
    {chest?<BrotherAward award={chest} {...controls}/>:<BrotherResources resources={brotherhood.rewards.welcome.invitee}/>}
    <h4>Награда пригласившему</h4>
    <BrotherResources resources={brotherhood.rewards.welcome.inviter}/>
@@ -119,7 +119,7 @@ export function ReferralPanel({mode}:{mode:'invite'|'friends'}){
       {pair&&brotherhood&&<details className="saga-disclosure">
        <summary>{'Совместных дней · '+pair.days+' / 7'}</summary>
        {welcome?<div><h4>Дар братства</h4><BrotherAward award={welcome} {...controls}/></div>
-        :<p>Сундук за первого босса кампании пока недоступен.</p>}
+        :<p>Сундук открывается после подтверждённой победы над первым боссом кампании.</p>}
        <BrotherhoodOath pair={pair} rewards={brotherhood.rewards} {...controls}/>
       </details>}
      </li>;

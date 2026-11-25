@@ -29,7 +29,42 @@ pg < tests/pg/w066-arena-rooms.sql
 pg < tests/pg/w066-guild-rosters.sql
 pg < tests/pg/w066-guild-boss-quests.sql
 pg < tests/pg/w066-brotherhood.sql
+pg < tests/pg/w066-campaign-proof.sql
 pg < tests/pg/w066-referrals.sql
+pg <<'SQL'
+select vvr.resolve_player('79811','Proof race inviter') as inviter \gset
+select public.vvr_resolve_referred_player('79812','Proof race invitee',:'inviter') as invitee \gset
+update vvr.referrals set confirmed_at=clock_timestamp()-interval '1 min' where invitee_id=:'invitee';
+select public.vvr_campaign_boss_begin(:'invitee',gen_random_uuid(),'berserker');
+update vvr.campaign_boss_attempts set started_at=clock_timestamp()-interval '15 sec' where player_id=:'invitee';
+SQL
+finish_campaign() {
+  pg -At <<'SQL'
+select b.id as ticket,b.player_id as actor from vvr.campaign_boss_attempts b
+  join vvr.players p on p.id=b.player_id where p.telegram_id='79812' \gset
+set role service_role;
+select public.vvr_campaign_boss_finish(:'actor',:'ticket',370)->>'status';
+SQL
+}
+pg <<'SQL'
+select b.id as ticket,b.player_id as actor from vvr.campaign_boss_attempts b
+  join vvr.players p on p.id=b.player_id where p.telegram_id='79812' \gset
+set role service_role;
+select public.vvr_campaign_boss_check(:'actor',:'ticket')->>'status';
+SQL
+finish_campaign > "$results/campaign-a" & first=$!
+finish_campaign > "$results/campaign-b" & second=$!
+wait "$first"
+wait "$second"
+test "$(cat "$results/campaign-a" "$results/campaign-b")" = "$(printf 'verified\nverified')"
+pg <<'SQL'
+do $$
+begin
+ assert (select count(*)=2 from vvr.brotherhood_awards a join vvr.players p on p.id=a.invitee_id
+  where p.telegram_id='79812' and a.kind='welcome');
+end;
+$$;
+SQL
 pg <<'SQL'
 select vvr.resolve_player('79411','Concurrency inviter') as inviter \gset
 select public.vvr_resolve_referred_player('79412','Concurrency friend',:'inviter') as invitee \gset

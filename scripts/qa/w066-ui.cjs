@@ -174,7 +174,7 @@ const rewards={
     await chest.getByRole('heading',{name:'Дар братства'}).waitFor();
     await chest.getByText('Вас пригласил игрок · Пригласивший игрок',{exact:true}).waitFor();
     await chest.getByText('2000',{exact:true}).waitFor();
-    await chest.getByText('Сундук за первого босса кампании пока недоступен.').waitFor();
+    await chest.getByText('Сундук открывается после подтверждённой победы над первым боссом кампании.').waitFor();
     assert.equal(await chest.getByRole('button',{name:'Получить',exact:true}).count(),0);
     const expectedLink='https://t.me/VikingRomeGame?startapp=ref_'+listing;
     await invite.getByRole('button',{name:'Пригласить друга'}).click();

@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.vvr-arena]
 verify_jwt = false
+
+[functions.vvr-campaign]
+verify_jwt = false

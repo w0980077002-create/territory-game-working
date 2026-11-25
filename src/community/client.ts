@@ -106,12 +106,20 @@ export function storeW066Snapshot(expected:number,requestId:string,raw:string){
  return authenticated<number>('',{expected,requestId,raw},undefined,'/backup');
 }
 
-export async function requestTeamArena<T>(body:object):Promise<T>{
+export function requestCampaignProof<T>(body:object){
+ return requestW066Function<T>('vvr-campaign',body,10000);
+}
+
+export function requestTeamArena<T>(body:object){
+ return requestW066Function<T>('vvr-arena',body,7500);
+}
+
+async function requestW066Function<T>(slug:string,body:object,timeout:number):Promise<T>{
  if(!endpoint)throw new CommunityError(503);
  const url=new URL(endpoint,location.href);
- url.pathname=url.pathname.replace(/vvr-community\/?$/,'vvr-arena');
+ url.pathname=url.pathname.replace(/vvr-community\/?$/,slug);
  const response=await fetch(url,{
-  method:'POST',credentials:'omit',signal:AbortSignal.timeout(7500),
+  method:'POST',credentials:'omit',signal:AbortSignal.timeout?.(timeout),
   headers:{'Content-Type':'application/json',Authorization:'Bearer '+await connectCommunity()},
   body:JSON.stringify(body),
  });

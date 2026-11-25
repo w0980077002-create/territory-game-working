@@ -19,11 +19,13 @@ import {startTranslation} from './i18n';
 import {communityEnabled,connectCommunity,readReferrals} from './community/client';
 import {telegramProfile} from './core/profile';
 import {tg} from './core/telegram';
+import {startCampaignProof} from './community/campaignProof';
 // Test hook for isolated ?hero= profiles only: lets automated checks jump to late chapters.
 if(isolatedProfile)Object.assign(window,{__lootborn:{useGame,get battle(){return battle}}});
 createRoot(document.getElementById('root')!).render(<App/>);
 // Register Telegram arrivals before opening any online panel, including a referral launch.
 if(communityEnabled&&telegramProfile){
+ startCampaignProof(telegramProfile,()=>useGame.getState().notice('Победа над боссом кампании подтверждена'));
  const startParam=new URLSearchParams(tg()?.initData).get('start_param');
  const login=connectCommunity();
  const preview=login.then(async()=>{
