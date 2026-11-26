@@ -8,8 +8,8 @@ import type {LootFilter} from '../core/loot';
 import balance from '../../config/test-balance.v1.json';
 import {DialogShell} from './SagaUI';
 import {Icon} from './Icon';
-import {consumableStacks,potionStock,type PotionQuote} from '../arena/potion';
-import {potionRequest,signedArena} from '../arena/client';
+import {consumableIds,consumableStacks,consumableStock,type ConsumablesQuote} from '../arena/potion';
+import {consumablesRequest,signedArena} from '../arena/client';
 import {InventoryGrid} from './InventoryGrid';
 import './backpack.css';
 
@@ -27,15 +27,15 @@ export function Backpack({tab,setTab,view,setView,scrollMemory}:{
  const [help,setHelp]=useState<Help>(null);
  const storage=tab==='storage',showConsumables=tab==='consumables';
  const signed=signedArena();
- const [quote,setQuote]=useState<PotionQuote>(),[unavailable,setUnavailable]=useState(false);
+ const [quote,setQuote]=useState<ConsumablesQuote>(),[unavailable,setUnavailable]=useState(false);
  useEffect(()=>{
   if(!showConsumables||!signed)return;
   let active=true;
-  potionRequest().then(data=>{if(active){setQuote(data);setUnavailable(false);}})
+  consumablesRequest().then(data=>{if(active){setQuote(data);setUnavailable(false);}})
    .catch(()=>{if(active){setQuote(undefined);setUnavailable(true);}});
   return ()=>{active=false;};
  },[showConsumables,signed]);
- const stacks=consumableStacks(p,quote?.stock??0);
+ const stacks=consumableStacks(p,quote?.stock);
  const used=p.inventory.length,stored=p.pendingLoot?.length??0,full=used>=capacity;
  const toggleHelp=(next:Help)=>setHelp(h=>h===next?null:next);
  return <DialogShell panel="inventory" title="Рюкзак" footer={null} scrollMemory={scrollMemory}>
@@ -51,8 +51,8 @@ export function Backpack({tab,setTab,view,setView,scrollMemory}:{
    {stacks.length>0?<ul aria-label="Расходуемые предметы">{stacks.map(item=><li key={item.id}>
     <Icon name={item.icon}/><div><strong>{item.name}</strong><p>{item.description}</p></div><b aria-label={item.count+' шт.'}>×{item.count}</b>
    </li>)}</ul>:!signed||quote?<p className="pack-empty">Расходников пока нет</p>:null}
-   {quote&&potionStock(p)>0&&<small>Для сетевого боя доступно: {quote.stock}</small>}
-   {quote&&quote.reserved>0&&<small>Зарезервировано для Арены: {quote.reserved}</small>}
+   {quote&&consumableIds.some(id=>consumableStock(p,id)>0)&&<small>Для сетевого боя доступно: {Object.values(quote.stock).reduce((a,b)=>a+b,0)}</small>}
+   {quote&&Object.values(quote.reserved).some(Boolean)&&<small>Зарезервировано для Арены: {Object.values(quote.reserved).reduce((a,b)=>a+b,0)}</small>}
    {signed&&!quote&&<small role="status">{unavailable?'Запас временно недоступен':'Загружаем запас…'}</small>}
    <button type="button" className="action secondary" onClick={()=>g.open('shop')}>В Лавку</button>
   </div>:<>

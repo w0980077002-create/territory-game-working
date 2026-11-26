@@ -4,10 +4,10 @@ import {rewardLocalArenaDuel,useGame} from '../core/store';
 import type {Player} from '../core/types';
 import {ArenaRequestError,login,request,saveSession,sessionRequest,signedArena,tokenFromSession} from '../arena/client';
 import {arenaBuild} from '../arena/hero';
-import {beltStock,localArena,localTime,prepareLocalPotion,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
+import {beltStock,localArena,localTime,prepareLocalConsumable,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
 import {capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveBattle,type LiveSearch,type LiveView,type RecentBattle} from '../arena/match';
-import {potionStock} from '../arena/potion';
-import {DEFAULT_BELT,playerBelt} from '../arena/belt';
+import {consumableStock,potionStock} from '../arena/potion';
+import {DEFAULT_BELT,isBeltItem,playerBelt} from '../arena/belt';
 import {CHAT_MS,MATCH_WAIT_MS,type ArenaZone} from '../arena/protocol';
 import {ArenaBattleView,ArenaResult,FighterList} from './ArenaBattle';
 import {ArenaHub,arenaModes} from './ArenaHub';
@@ -81,8 +81,8 @@ export function OnlineArena({player}:{player:Player}){
  const flight=useRef(false),revision=useRef(0);
  const signed=signedArena();
  const localId=liveLocal?.match.game.id;
- const pendingPotion=liveLocal?.pendingPotion?.operation;
- const releasePotions=!!liveLocal?.confirmedPotions&&!!liveLocal?.match.game.result;
+ const pendingPotion=liveLocal?.pendingPotion?.operation,pendingItem=liveLocal?.pendingPotion?.item??'potion';
+ const releasePotions=!!liveLocal?.match.game.result&&(!!liveLocal.confirmedPotions||Object.values(liveLocal.confirmedStock??{}).some(Boolean));
  const proofReady=!!liveLocal?.proof&&!liveLocal.proof.status&&!!liveLocal.match.game.result;
  const networkMatch=network?.battle;
  const networkSearch=network?.search;
@@ -136,7 +136,7 @@ export function OnlineArena({player}:{player:Player}){
  useEffect(()=>{
   const fallback=network?.local??(search&&now>=search.deadline?search:undefined);
   if(!fallback||localId===fallback.id||dismissed===fallback.id)return;
-  if(mutate(p=>startLocalArena(p,fallback.id,fallback.mode,Date.now(),'proof' in fallback?fallback.proof:undefined,network?.now,'confirmedPotions' in fallback?fallback.confirmedPotions:undefined),true)){
+  if(mutate(p=>startLocalArena(p,fallback.id,fallback.mode,Date.now(),'proof' in fallback?fallback.proof:undefined,network?.now,'confirmedPotions' in fallback?fallback.confirmedPotions:undefined,'confirmedStock' in fallback?fallback.confirmedStock:undefined),true)){
    setSearch(undefined);setMode(undefined);setNetwork(current=>current?{now:current.now}:undefined);
   }
  },[network?.local,network?.now,search,now,localId,dismissed,mutate]);
@@ -189,7 +189,7 @@ export function OnlineArena({player}:{player:Player}){
   let active=true,timer:ReturnType<typeof setTimeout>;
   async function spend(){
    try{
-    const result=await sessionRequest<{accepted:boolean}>('live/local-potion',{id,operation});
+    const result=await sessionRequest<{accepted:boolean}>('live/local-consumable',{id,operation,item:pendingItem});
     if(!active)return;
     const saved=mutate(p=>settleLocalPotion(p,id,operation,result.accepted),true);
     if(!saved){timer=setTimeout(spend,3000);return;}
@@ -200,7 +200,7 @@ export function OnlineArena({player}:{player:Player}){
   }
   void spend();
   return ()=>{active=false;clearTimeout(timer);};
- },[pendingPotion,localId,signed,mutate]);
+ },[pendingPotion,pendingItem,localId,signed,mutate]);
 
  useEffect(()=>{
   if(!releasePotions||!localId||!signed)return;
@@ -210,8 +210,9 @@ export function OnlineArena({player}:{player:Player}){
     await sessionRequest('live/local-finish',{id:localId});
     if(active)mutate(p=>{
      const saved=localArena(p);
-     if(!saved||saved.match.game.id!==localId||!saved.confirmedPotions)return false;
+     if(!saved||saved.match.game.id!==localId)return false;
      saved.confirmedPotions=0;
+     delete saved.confirmedStock;
      return true;
     },true);
    }catch{if(active)timer=setTimeout(release,4000);}
@@ -246,7 +247,7 @@ export function OnlineArena({player}:{player:Player}){
     // The default belt is exactly the old behaviour, so it is not sent; a server that predates the belt rejects the
     // extra field with 400 until Railway is redeployed — then the join is repeated without it.
     const custom=JSON.stringify(belt)!==JSON.stringify(DEFAULT_BELT),stock=beltStock(player,belt);
-    // Non-potion kinds are local stock: used only in a local fallback fight and its proof, never in network PvP.
+    // Only legacy Solo stock is sent here. The server reserves the network stock from W066.
     const extra=custom?{belt,...(Object.keys(stock).length?{stock}:{})}:{};
     setNetwork(await request<LiveView>('live/join',session,custom?{...join,...extra}:join).catch((error:unknown)=>{
      if(custom&&error instanceof ArenaRequestError&&error.status===400)return request<LiveView>('live/join',session,join);
@@ -266,8 +267,9 @@ export function OnlineArena({player}:{player:Player}){
  function send(action:LiveAction){
   if(!battle)return Promise.resolve(false);
   if(battle.local){
-   if(action.kind==='item'&&action.item==='potion'&&potionStock(useGame.getState().p)===0)
-    return Promise.resolve(mutate(p=>localArena(p)?.match.game.id===battle.id&&prepareLocalPotion(p,Date.now(),crypto.randomUUID()),true));
+   const item=action.kind==='item'?action.item:undefined;
+   if(isBeltItem(item)&&consumableStock(useGame.getState().p,item)===0)
+    return Promise.resolve(mutate(p=>localArena(p)?.match.game.id===battle.id&&prepareLocalConsumable(p,Date.now(),crypto.randomUUID(),item),true));
    return Promise.resolve(mutate(p=>{
     if(localArena(p)?.match.game.id!==battle.id||!updateLocalArena(p,Date.now(),action))return false;
     award(p);

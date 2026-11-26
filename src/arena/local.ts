@@ -2,13 +2,13 @@ import type {Player} from '../core/types';
 import {arenaBuild,validArenaBuild} from './hero';
 import {advanceLocal,applyLocal,arenaRandom,localBattle,MAX_PROOF_MOVES,SOLO_ACTOR,type LocalProof,type ProofMove} from './localProof';
 import {capacities,type ArenaMode,type LiveAction,type LiveMatch} from './match';
-import {addConsumable,consumableIds,consumableStock,potionStock,type ConsumableId} from './potion';
-import {beltHas,playerBelt} from './belt';
+import {addConsumable,consumableIds,consumableStock,potionStock,type ConsumableId,type ConsumableStock} from './potion';
+import {beltHas,isBeltItem,playerBelt} from './belt';
 import {CHAT_MS} from './protocol';
 
 export {SOLO_ACTOR};
-export type SavedArena={match:LiveMatch;reward?:{seal:boolean};confirmedPotions?:number;
- pendingPotion?:{operation:string;at:number};proof?:{random:number;clockOffset?:number;moves:ProofMove[];status?:'accepted'|'closed'}};
+export type SavedArena={match:LiveMatch;reward?:{seal:boolean};confirmedPotions?:number;confirmedStock?:ConsumableStock;
+ pendingPotion?:{operation:string;at:number;item?:ConsumableId};proof?:{random:number;clockOffset?:number;moves:ProofMove[];status?:'accepted'|'closed'}};
 export function localArena(p:Player){
  const saved=p.localArena;
  const match=saved?.match;
@@ -24,16 +24,18 @@ export function beltStock(p:Player,loadout=playerBelt(p)){
  return stock;
 }
 
-export function startLocalArena(p:Player,id:string,mode:ArenaMode,now:number,proof?:LocalProof,serverNow=now,confirmedPotions=0){
+export function startLocalArena(p:Player,id:string,mode:ArenaMode,now:number,proof?:LocalProof,serverNow=now,confirmedPotions=0,confirmedStock:ConsumableStock={}){
  const saved=localArena(p);
  if(saved?.match.game.id===id||saved&&!saved.match.game.result&&now<saved.match.game.players[0].seenAt+CHAT_MS)return false;
  const random=proof?arenaRandom(proof.seed):undefined;
  // The belt is fixed here for the whole fight; the server already zeroed reserved potions for a belt without them.
  const loadout=playerBelt(p),carries=beltHas(loadout,'potion');
+ const stock=beltStock(p,loadout);
+ for(const item of consumableIds)if(item!=='potion'&&confirmedStock[item])stock[item]=(stock[item]??0)+confirmedStock[item]!;
  const match=localBattle(id,mode,proof?.hero??arenaBuild(p),proof?.stage??p.stage,
   proof?.potions??(carries?potionStock(p)+confirmedPotions:0),proof?.startedAt??now,random?.next??Math.random,proof?.loadout??loadout,
-  proof?proof.stock:beltStock(p,loadout));
- p.localArena={match,...(confirmedPotions>0?{confirmedPotions}:{}),...(random?{proof:{random:random.state(),moves:[],clockOffset:serverNow-now}}:{})};
+  proof?proof.stock:stock);
+ p.localArena={match,...(confirmedPotions>0?{confirmedPotions}:{}),...(Object.keys(confirmedStock).length?{confirmedStock}:{}),...(random?{proof:{random:random.state(),moves:[],clockOffset:serverNow-now}}:{})};
  return true;
 }
 
@@ -49,12 +51,12 @@ export function updateLocalArena(p:Player,now:number,action?:LiveAction,confirme
  advanceLocal(match,now,rng);
  if(action){
   const item=action.kind==='item'?action.item:undefined;
-  if(item&&(!(consumableIds as string[]).includes(item)||item!=='potion'&&confirmed))return false;
-  const kind=item as ConsumableId|undefined;
-  if(kind&&(kind==='potion'&&confirmed?saved.confirmedPotions??0:consumableStock(p,kind))<1)return false;
+  if(item&&!isBeltItem(item))return false;
+  const kind=isBeltItem(item)?item:undefined;
+  if(kind&&(confirmed?confirmedCount(saved,kind):consumableStock(p,kind))<1)return false;
   if(!applyLocal(match,action,now,rng))return false;
   if(kind){
-   if(confirmed)saved.confirmedPotions=saved.confirmedPotions!-1;
+   if(confirmed)setConfirmedCount(saved,kind,confirmedCount(saved,kind)-1);
    else addConsumable(p,kind,-1);
   }
   if(proof&&action.kind!=='chat'){
@@ -66,26 +68,35 @@ export function updateLocalArena(p:Player,now:number,action?:LiveAction,confirme
  return before!==JSON.stringify(match);
 }
 
-export function prepareLocalPotion(p:Player,now:number,operation:string){
+const confirmedCount=(saved:SavedArena,item:ConsumableId)=>item==='potion'?saved.confirmedPotions??0:saved.confirmedStock?.[item]??0;
+function setConfirmedCount(saved:SavedArena,item:ConsumableId,count:number){
+ if(item==='potion')saved.confirmedPotions=count;
+ else (saved.confirmedStock??={})[item]=count;
+}
+
+export function prepareLocalConsumable(p:Player,now:number,operation:string,item:ConsumableId){
  const saved=localArena(p);
- if(!saved||saved.pendingPotion||!saved.confirmedPotions)return false;
+ if(!saved||saved.pendingPotion||!confirmedCount(saved,item))return false;
  updateLocalArena(p,now);
- const fighter=saved.match.game.players[0];
- if(saved.match.game.result||!fighter.hp||fighter.hp===fighter.maxHp||!fighter.belt.potion||
-  localTime(saved,now)<(fighter.itemAt.potion??0))return false;
- saved.pendingPotion={operation,at:now};
+ const trial=structuredClone(saved.match);
+ if(!applyLocal(trial,{kind:'item',item},localTime(saved,now),()=>0))return false;
+ saved.pendingPotion={operation,at:now,item};
  return true;
 }
+
+export const prepareLocalPotion=(p:Player,now:number,operation:string)=>prepareLocalConsumable(p,now,operation,'potion');
 
 export function settleLocalPotion(p:Player,battle:string,operation:string,accepted:boolean){
  const saved=localArena(p);
  const pending=saved?.pendingPotion;
  if(!saved||saved.match.game.id!==battle||pending?.operation!==operation)return false;
- if(accepted&&!updateLocalArena(p,pending.at,{kind:'item',item:'potion'},true))return false;
+ const item=pending.item??'potion';
+ if(accepted&&!updateLocalArena(p,pending.at,{kind:'item',item},true))return false;
  delete saved.pendingPotion;
  if(!accepted){
-  saved.confirmedPotions=0;
-  saved.match.game.players[0].belt.potion=potionStock(p);
+  setConfirmedCount(saved,item,0);
+  const belt=saved.match.game.players[0].belt;
+  belt[item]=Math.min(belt[item]??0,consumableStock(p,item));
  }
  return true;
 }

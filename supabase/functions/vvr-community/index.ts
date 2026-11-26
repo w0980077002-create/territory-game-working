@@ -100,11 +100,11 @@ async function backup(request:Request,sessionKey:string,reply:(status:number,bod
  return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'snapshot_request_rejected'});
 }
 
-async function arenaPublisher(request:Request,kind:'profile'|'team'|'duel'|'potions',reply:(status:number,body:unknown)=>Response){
+async function arenaPublisher(request:Request,kind:'profile'|'team'|'duel'|'potions'|'consumables'|'spending',reply:(status:number,body:unknown)=>Response){
  const bearer=request.headers.get('authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
  if(!bearer)return reply(401,{error:'arena_publisher_required'});
  let data:unknown;
- try{data=await input(request,kind==='team'?16384:2048);}catch{return reply(400,{error:'invalid_arena_result'});}
+ try{data=await input(request,kind==='team'||kind==='spending'?16384:2048);}catch{return reply(400,{error:'invalid_arena_result'});}
  if(!isRecord(data))return reply(400,{error:'invalid_arena_result'});
  const validDate=(time:unknown)=>typeof time==='string'&&Number.isFinite(Date.parse(time));
  if(kind==='team'){
@@ -112,9 +112,13 @@ async function arenaPublisher(request:Request,kind:'profile'|'team'|'duel'|'poti
    !validDate(data.startedAt)||!validDate(data.finishedAt)||!['hp','time','afk'].includes(String(data.reason))||
    ![0,1,null].includes(data.winner as number|null)||!Array.isArray(data.members))
    return reply(400,{error:'invalid_arena_result'});
- }else if((kind==='potions'?
-   ![2,5].includes(Object.keys(data).length)||Object.keys(data).length===5&&
-    (!isUuid(data.operation)||!Number.isSafeInteger(data.stage)||!Number.isSafeInteger(data.price)):
+ }else if(kind==='spending'){
+  if(Object.keys(data).length!==1||!Array.isArray(data.entries)||data.entries.length<1||data.entries.length>100)
+   return reply(400,{error:'invalid_arena_spending'});
+ }else if((kind==='potions'||kind==='consumables'?
+   ![2,kind==='potions'?5:6].includes(Object.keys(data).length)||Object.keys(data).length!==2&&
+    (!isUuid(data.operation)||!Number.isSafeInteger(data.stage)||!Number.isSafeInteger(data.price)||
+     kind==='consumables'&&typeof data.item!=='string'):
    Object.keys(data).length!==(kind==='profile'?2:4))||typeof data.telegram!=='string'||
   !/^[1-9][0-9]{0,15}$/.test(data.telegram)||typeof data.name!=='string'||
   Array.from(data.name).length<1||Array.from(data.name).length>32||
@@ -137,10 +141,15 @@ async function arenaPublisher(request:Request,kind:'profile'|'team'|'duel'|'poti
   });
   return result.ok&&result.data===true?reply(200,{accepted:true}):reply(rpcError(result.data),{error:'arena_result_rejected'});
  }
- if(kind==='potions'){
-  const result=await rpc('vvr_arena_potions',{
+ if(kind==='spending'){
+  const result=await rpc('vvr_arena_consumable_spending',{p_token_hash:tokenHash,p_entries:data.entries});
+  return result.ok&&result.data===true?reply(200,{accepted:true}):reply(rpcError(result.data),{error:'arena_spending_rejected'});
+ }
+ if(kind==='potions'||kind==='consumables'){
+  const result=await rpc(kind==='potions'?'vvr_arena_potions':'vvr_arena_consumables',{
    p_token_hash:tokenHash,p_telegram:data.telegram,p_name:data.name,
    p_operation:data.operation??null,p_stage:data.stage??null,p_price:data.price??null,
+   ...(kind==='consumables'?{p_item:data.item??null}:{}),
   });
   return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'arena_potions_rejected'});
  }
@@ -164,9 +173,14 @@ Deno.serve(async request=>{
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(request.method!=='POST')return reply(405,{error:'method_not_allowed'});
  const path=new URL(request.url).pathname;
- if(path.endsWith('/arena-result')||path.endsWith('/arena-profile')||path.endsWith('/arena-team-result')||path.endsWith('/arena-potions')){
+ const publisherRoutes={
+  'arena-result':'duel','arena-profile':'profile','arena-team-result':'team','arena-potions':'potions',
+  'arena-consumables':'consumables','arena-consumable-spending':'spending',
+ } as const;
+ const route=path.slice(path.lastIndexOf('/')+1);
+ if(Object.hasOwn(publisherRoutes,route)){
   if(!project||!roleKey)return reply(503,{error:'unavailable'});
-  try{return await arenaPublisher(request,path.endsWith('/arena-profile')?'profile':path.endsWith('/arena-team-result')?'team':path.endsWith('/arena-potions')?'potions':'duel',reply);}catch{return reply(503,{error:'unavailable'});}
+  try{return await arenaPublisher(request,publisherRoutes[route as keyof typeof publisherRoutes],reply);}catch{return reply(503,{error:'unavailable'});}
  }
  const {botToken,sessionKey}=await readSecrets();
  if(!project||!roleKey||!botToken||sessionKey.length<32||sessionKey===botToken)return reply(503,{error:'unavailable'});

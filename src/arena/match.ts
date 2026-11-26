@@ -1,3 +1,4 @@
+import type {ConsumableStock} from './potion';
 import {
  advance,appendMessage,applyCommand,blockedBattleChat,forfeit,newMatch,normalizeBattleChat,viewMatch,
  type Entrant,type Match,
@@ -25,7 +26,7 @@ export type LiveBattle={
 };
 export type LiveSearch={id:string;mode:ArenaMode;deadline:number;names:string[];control:boolean;revision:number};
 export type RecentBattle={id:string;mode:ArenaMode;chatDeadline:number};
-export type LiveView={now:number;battle?:LiveBattle;search?:LiveSearch;local?:{id:string;mode:ArenaMode;proof?:LocalProof;confirmedPotions?:number}};
+export type LiveView={now:number;battle?:LiveBattle;search?:LiveSearch;local?:{id:string;mode:ArenaMode;proof?:LocalProof;confirmedPotions?:number;confirmedStock?:ConsumableStock}};
 
 export function buildMatch(id:string,mode:ArenaMode,humans:readonly Entrant[],now:number,rng=Math.random,botBuild?:ArenaBuild):LiveMatch{
  const entrants:TeamEntrant[]=[...humans];

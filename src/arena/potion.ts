@@ -43,6 +43,8 @@ export const consumableRules={
  bifrost:{art:'bifrost-rainbow',name:'Радуга Биврёста',value:1,duration:8,cooldown:40,price:1.5,description:'Иммунитет к новым отрицательным эффектам расходников.'},
 } as const;
 export type ConsumableId=keyof typeof consumableRules;
+export type ConsumableStock=Partial<Record<ConsumableId,number>>;
+export type ConsumablesQuote={stage:number;gold:number;prices:Record<ConsumableId,number>;stock:ConsumableStock;reserved:ConsumableStock};
 export const consumableIds=Object.keys(consumableRules) as ConsumableId[];
 /** Battle rules V1.0: up to 5 of each chosen kind per fight, a shared 2 s cooldown; the Oath works once per fight. */
 export const consumableBattle={perBattle:5,globalCooldown:2,oncePerBattle:['valkyrie'] as readonly ConsumableId[],neptuneLock:10} as const;
@@ -71,6 +73,6 @@ export function addConsumable(p:Stocked,id:ConsumableId,delta:number){
  p.arenaConsumables={...p.arenaConsumables,[id]:Math.max(0,consumableStock(p,id)+delta)};
 }
 
-export function consumableStacks(player:Stocked,confirmed=0){
- return consumableIds.map(id=>({id,count:consumableStock(player,id)+(id==='potion'?confirmed:0),...consumables[id]})).filter(item=>item.count>0);
+export function consumableStacks(player:Stocked,confirmed:ConsumableStock|number={}){
+ return consumableIds.map(id=>({id,count:consumableStock(player,id)+(typeof confirmed==='number'?(id==='potion'?confirmed:0):confirmed[id]??0),...consumables[id]})).filter(item=>item.count>0);
 }

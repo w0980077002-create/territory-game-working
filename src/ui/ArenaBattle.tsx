@@ -1,7 +1,8 @@
+import {consumablesRequest,signedArena} from '../arena/client';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import type {Player} from '../core/types';
 import {heroArt} from '../data/catalog';
-import {consumables,consumableStacks,type ConsumableId} from '../arena/potion';
+import {consumables,consumableStacks,type ConsumableId,type ConsumableStock} from '../arena/potion';
 import {beltSlotOpen,playerBelt,setBeltSlot,type BeltSlot} from '../arena/belt';
 import {useGame} from '../core/store';
 import {arenaElixirs,zones,type ArenaElixir,type ArenaFighter,type ArenaMessage,type ArenaZone} from '../arena/protocol';
@@ -164,7 +165,14 @@ function BeltPanel({controls,now}:{controls:BeltControls;now:number}){
 export function BeltEditor({player,locked}:{player:Player;locked:boolean}){
  const mutate=useGame(s=>s.mutate),open=useGame(s=>s.open);
  const [picking,setPicking]=useState<number|null>(null);
- const belt=playerBelt(player),stock=consumableStacks(player);
+ const [confirmed,setConfirmed]=useState<ConsumableStock>();
+ useEffect(()=>{
+  if(locked||!signedArena())return;
+  let active=true;
+  consumablesRequest().then(quote=>{if(active)setConfirmed(quote.stock)}).catch(()=>{if(active)setConfirmed(undefined)});
+  return ()=>{active=false};
+ },[locked]);
+ const belt=playerBelt(player),stock=consumableStacks(player,confirmed);
  const count=(id:ConsumableId)=>stock.find(item=>item.id===id)?.count??0;
  const choices=(Object.keys(consumables) as ConsumableId[]);
  const put=(index:number,item:BeltSlot)=>{mutate(p=>!(p.localArena&&!p.localArena.match.game.result)&&setBeltSlot(p,index,item));setPicking(null)};

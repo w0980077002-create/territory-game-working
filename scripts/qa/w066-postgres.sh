@@ -28,6 +28,37 @@ pg < tests/pg/w066-arena-scores.sql
 pg < tests/pg/w066-arena-rooms.sql
 pg < tests/pg/w066-arena-railway.sql
 pg < tests/pg/w066-arena-potions.sql
+pg < tests/pg/w066-arena-consumables.sql
+pg <<'SQL'
+insert into vvr.arena_publishers values('railway',repeat('9',64))
+ on conflict(name) do update set token_hash=excluded.token_hash;
+select vvr.resolve_player('84621','Arena purchase race') as player \gset
+insert into vvr.wallets(player_id,resource,balance) values(:'player','gold',72);
+SQL
+buy_arena() {
+  pg -At -v operation="$1" <<'SQL'
+set role service_role;
+select public.vvr_arena_consumables(repeat('9',64),'84621','Arena purchase race',:'operation',1,36,'tear')->>'status';
+SQL
+}
+buy_arena '11111111-bbbb-4111-9111-111111111111' > "$results/arena-buy-a" & first=$!
+buy_arena '11111111-bbbb-4111-9111-111111111111' > "$results/arena-buy-b" & second=$!
+wait "$first"
+wait "$second"
+test "$(cat "$results/arena-buy-a" "$results/arena-buy-b")" = "$(printf 'ok\nok')"
+buy_arena '22222222-bbbb-4222-9222-222222222222' > "$results/arena-buy-a" & first=$!
+buy_arena '33333333-bbbb-4333-9333-333333333333' > "$results/arena-buy-b" & second=$!
+wait "$first"
+wait "$second"
+test "$(sort "$results/arena-buy-a" "$results/arena-buy-b")" = "$(printf 'insufficient\nok')"
+pg <<'SQL'
+do $$
+declare result jsonb:=public.vvr_arena_consumables(repeat('9',64),'84621','Arena purchase race');
+begin
+ assert result->'issued'->>'tear'='2' and result->>'gold'='0';
+end;
+$$;
+SQL
 pg < tests/pg/w066-guild-rosters.sql
 pg < tests/pg/w066-guild-boss-quests.sql
 pg < tests/pg/w066-brotherhood.sql
