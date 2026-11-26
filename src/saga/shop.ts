@@ -1,4 +1,4 @@
-import {consumables,healingPotion,potionStock} from '../arena/potion';
+import {addConsumable,consumableIds,consumablePrice,consumables} from '../arena/potion';
 import {utcWeek} from './soloEconomy';
 import balance from '../../config/test-balance.v1.json';
 import economy from '../../config/solo-economy.v1.json';
@@ -88,8 +88,9 @@ export function shopOffers(p: Player, now = Date.now(), equipmentSlot:Slot='weap
   const previousIndex = (materialIds.indexOf(material) + materialIds.length - 1) % materialIds.length;
   const previous = materialIds[previousIndex];
   const offers:ShopOffer[] = [
-    {id:'arena-potion',category:'elixirs',name:consumables.potion.name,icon:consumables.potion.icon,currency:'gold',
-      price:healingPotion.cost(p.stage),reward:{},description:consumables.potion.description},
+    // Arena consumables V1.0: gold only, price = Heart of Valhalla formula × approved multiplier. The potion keeps its id.
+    ...consumableIds.map((id):ShopOffer=>({id:id==='potion'?'arena-potion':'arena-'+id,category:'elixirs',name:consumables[id].name,
+      icon:consumables[id].icon,currency:'gold',price:consumablePrice(id,p.stage),reward:{},description:consumables[id].description})),
     {id:'rune-scrolls',category:'daily',name:'Рунические свитки',icon:'scroll',description:'На призыв и развитие рун. Бесплатная смена вариантов по-прежнему доступна в Навыках.',currency:'gold',price:450,reward:{solo:{scroll:20}},limit:'daily'},
     {id:'weekly-growth',category:'supplies',name:'Недельное снаряжение дружины',icon:'chest',description:'Осколки для Камней пробуждения, свитки для рун и перья для роста крыльев.',currency:'tokens',price:45,reward:{solo:{scroll:45,awakeShard:10,wing:8}},limit:'weekly'},
 
@@ -164,7 +165,8 @@ export const expensiveOffer = (offer: ShopOffer) => offer.price >= economy.confi
 
 export function applyPurchase(p: Player, offer: ShopOffer, now: number) {
   p[offer.currency] -= offer.price;
-  if(offer.id==='arena-potion')p.arenaPotions=potionStock(p)+1;
+  const consumable=offer.category==='elixirs'?consumableIds.find(id=>offer.id===(id==='potion'?'arena-potion':'arena-'+id)):undefined;
+  if(consumable)addConsumable(p,consumable,1);
   else grant(p, offer.reward, now);
   if (offer.limit === 'once') p.bought.push(offer.id);
   if(offer.limit==='weekly'){

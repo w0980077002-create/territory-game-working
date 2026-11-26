@@ -7,7 +7,7 @@ export type TeamMode=keyof typeof teamArenaSize;
 type Side=0|1;
 type Blocks=ArenaMove['blocks'];
 export type TeamEntrant=Entrant&{bot?:true};
-type TeamFighter=Fighter&{bot?:true;side:Side;blocks:ArenaZone[];nextStrikeAt:number;damage:number;kills:number};
+type TeamFighter=Fighter&{bot?:true;side:Side;blocks:ArenaZone[];nextStrikeAt:number;damage:number;kills:number;focus?:string};
 export type TeamMatch={
  id:string;mode:TeamMode;startedAt:number;updatedAt:number;sideDeadline:[number,number];timePenalty:[number,number];players:TeamFighter[];
  log:ArenaMessage[];chat:ArenaMessage[];messageId:number;
@@ -113,7 +113,10 @@ export function drinkTeamElixir(match:TeamMatch,id:string,item:ArenaElixir,seque
  if(item==='time')return drinkTeamTimeElixir(match,id,sequence,now,rng);
  advanceTeamMatch(match,now,rng);
  const player=match.players.find(fighter=>fighter.id===id);
- if(match.result||!canCommand(player,sequence)||!drinkStatElixir(match,player,item,now))return false;
+ if(match.result||!canCommand(player,sequence))return false;
+ // Negative effects go to the enemy this fighter last struck (or the weakest one); Neptune heals living allies.
+ const focus=match.players.find(other=>other.id===player.focus&&other.hp&&other.side!==player.side)??weakestEnemy(match,player.side);
+ if(!drinkStatElixir(match,player,item,now,focus,match.players.filter(other=>other.side===player.side&&other.hp)))return false;
  player.sequence=sequence;
  player.seenAt=now;
  return true;
@@ -130,6 +133,7 @@ function teamStrike(match:TeamMatch,attacker:TeamFighter,defender:TeamFighter,at
  attacker.nextStrikeAt=now+(attacker.combat?arenaAttackInterval(attacker,defender,now):attackInterval);
  if(attacker.auto)attacker.autoAt=nextAutoAt(now,rng,!!attacker.combat);
  attacker.blocks=[...blocks];
+ attacker.focus=defender.id;
  attacker.fought=true;
  attacker.seenAt=now;
  match.timePenalty[attacker.side]=0;

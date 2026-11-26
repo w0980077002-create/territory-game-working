@@ -4,7 +4,7 @@ import {rewardLocalArenaDuel,useGame} from '../core/store';
 import type {Player} from '../core/types';
 import {ArenaRequestError,login,request,saveSession,sessionRequest,signedArena,tokenFromSession} from '../arena/client';
 import {arenaBuild} from '../arena/hero';
-import {localArena,localTime,prepareLocalPotion,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
+import {beltStock,localArena,localTime,prepareLocalPotion,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
 import {capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveBattle,type LiveSearch,type LiveView,type RecentBattle} from '../arena/match';
 import {potionStock} from '../arena/potion';
 import {DEFAULT_BELT,playerBelt} from '../arena/belt';
@@ -245,8 +245,10 @@ export function OnlineArena({player}:{player:Player}){
     const join={mode:next,build:arenaBuild(player),stage:player.stage,localPotions:potionStock(player)},belt=playerBelt(player);
     // The default belt is exactly the old behaviour, so it is not sent; a server that predates the belt rejects the
     // extra field with 400 until Railway is redeployed — then the join is repeated without it.
-    const custom=JSON.stringify(belt)!==JSON.stringify(DEFAULT_BELT);
-    setNetwork(await request<LiveView>('live/join',session,custom?{...join,belt}:join).catch((error:unknown)=>{
+    const custom=JSON.stringify(belt)!==JSON.stringify(DEFAULT_BELT),stock=beltStock(player,belt);
+    // Non-potion kinds are local stock: used only in a local fallback fight and its proof, never in network PvP.
+    const extra=custom?{belt,...(Object.keys(stock).length?{stock}:{})}:{};
+    setNetwork(await request<LiveView>('live/join',session,custom?{...join,...extra}:join).catch((error:unknown)=>{
      if(custom&&error instanceof ArenaRequestError&&error.status===400)return request<LiveView>('live/join',session,join);
      throw error;
     }));

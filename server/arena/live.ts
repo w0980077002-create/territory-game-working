@@ -4,15 +4,26 @@ import type {ArenaBuild} from '../../src/arena/hero';
 import {advanceLive,applyLive,arenaWinners,buildMatch,capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveMatch,type LiveView,type RecentBattle} from '../../src/arena/match';
 import {CHAT_MS,LEVEL_RANGE,MATCH_WAIT_MS} from '../../src/arena/protocol';
 import {PROOF_DURATION,replayProof,type LocalProof,type ProofMove,type TeamArenaMode} from '../../src/arena/localProof';
-import type {PotionQuote} from '../../src/arena/potion';
+import {battleLimit,consumableRules,type ConsumableId,type PotionQuote} from '../../src/arena/potion';
 import {beltHas,DEFAULT_BELT,sanitizeBelt} from '../../src/arena/belt';
 import {compatible,type Entrant} from './duel';
 
 type Actor={id:string;controller:string};
-type QueueEntry=Entrant&{ticket:string;mode:ArenaMode;since:number;seenAt:number;localStage?:number;localPotions?:number};
+type QueueEntry=Entrant&{ticket:string;mode:ArenaMode;since:number;seenAt:number;localStage?:number;localPotions?:number;localStock?:Partial<Record<ConsumableId,number>>};
 type Active={id:string;json:string};
 type Search={mode:ArenaMode;entries:QueueEntry[];deadline:number};
 const idle=12_000;
+/** Local-only stock of the 19 non-potion kinds: only kinds on the fixed belt, capped per fight. It feeds the local
+ * fallback fight and its proof, never a network fight: trusted per-kind issuance for network PvP does not exist yet. */
+export function beltStock(loadout:readonly (string|null)[],value:unknown){
+ const stock:Partial<Record<ConsumableId,number>>={};
+ if(!value||typeof value!=='object')return stock;
+ for(const [id,count] of Object.entries(value))
+  if(id!=='potion'&&Object.hasOwn(consumableRules,id)&&loadout.includes(id)&&Number.isSafeInteger(count)&&count>0)
+   stock[id as ConsumableId]=Math.min(count,battleLimit(id as ConsumableId));
+ return stock;
+}
+
 export class LiveArena {
  readonly db:DatabaseSync;
  constructor(path:string,private readonly rng=Math.random){
@@ -100,7 +111,8 @@ export class LiveArena {
     if(mode!=='duel'&&p.build&&p.localStage!==undefined&&!this.db
       .prepare('SELECT 1 FROM arena_local_proofs WHERE player=? AND day=?').get(p.id,new Date(now).toISOString().slice(0,10))){
      const proof:LocalProof={seed:randomBytes(4).readUInt32LE(),startedAt:now,hero:p.build,
-      stage:p.localStage,potions:(p.localPotions??0)+(p.potions??0)};
+      stage:p.localStage,potions:(p.localPotions??0)+(p.potions??0),
+      ...(p.loadout?{loadout:p.loadout}:{}),...(p.localStock&&Object.keys(p.localStock).length?{stock:p.localStock}:{})};
      this.db.prepare('INSERT OR IGNORE INTO arena_local_proofs VALUES(?,?,?,?,?,NULL)')
       .run(p.ticket,p.id,mode,JSON.stringify(proof),now+PROOF_DURATION+CHAT_MS);
     }
@@ -231,7 +243,7 @@ export class LiveArena {
   return {stage,price,gold,stock:this.availablePotions(actor.id,issued),reserved};
  }
 
- join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean,issued=0,localStage?:number,localPotions?:number,belt?:unknown){
+ join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean,issued=0,localStage?:number,localPotions?:number,belt?:unknown,localStock?:unknown){
   return this.transaction(()=>{
    const current=this.read(actor,now);
    if(current.search||current.battle&&!current.battle.result)return current;
@@ -241,7 +253,7 @@ export class LiveArena {
    // The belt is checked and fixed here: a potion outside the belt is neither reserved nor usable in this fight.
    // Server wins count is not trusted yet, so 0 is passed: it matters only once beltRules.testMode is switched off.
    const loadout=sanitizeBelt(belt??DEFAULT_BELT,0),carries=beltHas(loadout,'potion');
-   const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,rankEligible,loadout,potions:carries?this.availablePotions(actor.id,issued):0,localStage,localPotions:carries?localPotions:0,since:now,seenAt:now};
+   const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,rankEligible,loadout,potions:carries?this.availablePotions(actor.id,issued):0,localStage,localPotions:carries?localPotions:0,localStock:beltStock(loadout,localStock),since:now,seenAt:now};
    this.db.prepare('INSERT OR REPLACE INTO arena_live_queue VALUES(?,?,?,?,?)').run(actor.id,mode,now,now,JSON.stringify(entrant));
    this.pair(mode,now);
    return this.read(actor,now);

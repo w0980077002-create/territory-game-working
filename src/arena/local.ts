@@ -2,7 +2,7 @@ import type {Player} from '../core/types';
 import {arenaBuild,validArenaBuild} from './hero';
 import {advanceLocal,applyLocal,arenaRandom,localBattle,MAX_PROOF_MOVES,SOLO_ACTOR,type LocalProof,type ProofMove} from './localProof';
 import {capacities,type ArenaMode,type LiveAction,type LiveMatch} from './match';
-import {potionStock} from './potion';
+import {addConsumable,consumableIds,consumableStock,potionStock,type ConsumableId} from './potion';
 import {beltHas,playerBelt} from './belt';
 import {CHAT_MS} from './protocol';
 
@@ -17,6 +17,13 @@ export function localArena(p:Player){
   validArenaBuild(game.players[0].combat?.build)&&Array.isArray(game.log)&&Array.isArray(game.chat))return saved;
 }
 
+/** Local stock of the non-potion kinds named on the belt (the server re-checks and caps them per fight). */
+export function beltStock(p:Player,loadout=playerBelt(p)){
+ const stock:Partial<Record<ConsumableId,number>>={};
+ for(const id of consumableIds)if(id!=='potion'&&beltHas(loadout,id)&&consumableStock(p,id)>0)stock[id]=consumableStock(p,id);
+ return stock;
+}
+
 export function startLocalArena(p:Player,id:string,mode:ArenaMode,now:number,proof?:LocalProof,serverNow=now,confirmedPotions=0){
  const saved=localArena(p);
  if(saved?.match.game.id===id||saved&&!saved.match.game.result&&now<saved.match.game.players[0].seenAt+CHAT_MS)return false;
@@ -24,7 +31,8 @@ export function startLocalArena(p:Player,id:string,mode:ArenaMode,now:number,pro
  // The belt is fixed here for the whole fight; the server already zeroed reserved potions for a belt without them.
  const loadout=playerBelt(p),carries=beltHas(loadout,'potion');
  const match=localBattle(id,mode,proof?.hero??arenaBuild(p),proof?.stage??p.stage,
-  proof?.potions??(carries?potionStock(p)+confirmedPotions:0),proof?.startedAt??now,random?.next??Math.random,loadout);
+  proof?.potions??(carries?potionStock(p)+confirmedPotions:0),proof?.startedAt??now,random?.next??Math.random,proof?.loadout??loadout,
+  proof?proof.stock:beltStock(p,loadout));
  p.localArena={match,...(confirmedPotions>0?{confirmedPotions}:{}),...(random?{proof:{random:random.state(),moves:[],clockOffset:serverNow-now}}:{})};
  return true;
 }
@@ -40,12 +48,14 @@ export function updateLocalArena(p:Player,now:number,action?:LiveAction,confirme
  const rng=random?.next??Math.random;
  advanceLocal(match,now,rng);
  if(action){
-  const potion=action.kind==='item';
-  if(potion&&(action.item!=='potion'||(confirmed?saved.confirmedPotions??0:potionStock(p))<1))return false;
+  const item=action.kind==='item'?action.item:undefined;
+  if(item&&(!(consumableIds as string[]).includes(item)||item!=='potion'&&confirmed))return false;
+  const kind=item as ConsumableId|undefined;
+  if(kind&&(kind==='potion'&&confirmed?saved.confirmedPotions??0:consumableStock(p,kind))<1)return false;
   if(!applyLocal(match,action,now,rng))return false;
-  if(potion){
+  if(kind){
    if(confirmed)saved.confirmedPotions=saved.confirmedPotions!-1;
-   else p.arenaPotions=potionStock(p)-1;
+   else addConsumable(p,kind,-1);
   }
   if(proof&&action.kind!=='chat'){
    if(proof.moves.length<MAX_PROOF_MOVES)proof.moves.push([now,action]);

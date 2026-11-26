@@ -15,42 +15,62 @@ export function potionStock(p:{arenaPotions?:number}){
 }
 
 /**
- * Approved artwork for the 20 Arena potions and elixirs (owner concept 26.11). One entry per concept, in the owner's
- * order; `consumable` links a picture to a real, implemented item below. Entries without it are artwork only: their
- * effects, prices, durations and limits are not specified yet, so they are never offered, stored or usable in play.
+ * Arena consumables V1.0, approved by the owner 26.11 (Issue #81, comment 7186062726). One row per item, in the owner's
+ * order: effect value, duration (s), individual cooldown (s) and price multiplier of the Heart of Valhalla price.
+ * `potion` keeps its existing id and its numbers come from config (45% / 4 s). Do not change values without approval.
  */
-export const elixirArt=[
- {art:'valhalla-heart',name:'Сердце Вальгаллы',concept:'Мгновенное лечение',consumable:'potion'},
- {art:'yggdrasil-tear',name:'Слеза Иггдрасиля',concept:'Постепенное лечение'},
- {art:'berserker-blood',name:'Кровь Берсерка',concept:'Атака ценой защиты'},
- {art:'thor-thunder',name:'Гром Тора',concept:'Усиление следующего успешного удара'},
- {art:'odin-eye',name:'Око Одина',concept:'Точность, противодействие уклонению'},
- {art:'niflheim-breath',name:'Дыхание Нифльхейма',concept:'Ослабление исходящего урона противника'},
- {art:'muspelheim-flame',name:'Пламя Муспельхейма',concept:'Горение'},
- {art:'jupiter-aegis',name:'Эгида Юпитера',concept:'Поглощение урона'},
- {art:'mars-fury',name:'Ярость Марса',concept:'Шанс крита'},
- {art:'mercury-wings',name:'Крылья Меркурия',concept:'Уклонение'},
- {art:'minerva-wisdom',name:'Мудрость Минервы',concept:'Снятие одного отрицательного эффекта'},
- {art:'jormungandr-venom',name:'Яд Ёрмунганда',concept:'Снижение лечения противника'},
- {art:'fenrir-fang',name:'Клык Фенрира',concept:'Частичное игнорирование брони'},
- {art:'hel-kiss',name:'Поцелуй Хель',concept:'Вампиризм'},
- {art:'loki-cunning',name:'Хитрость Локи',concept:'Частичное пробитие блока следующим успешным ударом'},
- {art:'svartalfheim-steel',name:'Сталь Свартальвхейма',concept:'Физическая защита'},
- {art:'neptune-tide',name:'Прилив Нептуна',concept:'Лечение себя и живых союзников'},
- {art:'apollo-light',name:'Свет Аполлона',concept:'Усиление навыков'},
- {art:'valkyrie-oath',name:'Обет Валькирии',concept:'Пережить один смертельный удар'},
- {art:'bifrost-rainbow',name:'Радуга Биврёста',concept:'Временная защита от новых отрицательных эффектов'},
-] as const satisfies readonly {art:string;name:string;concept:string;consumable?:string}[];
-export const elixirIcon=(art:(typeof elixirArt)[number]['art'])=>'elixir-'+art;
-
-export const consumables={
- potion:{name:'Сердце Вальгаллы',icon:elixirIcon('valhalla-heart'),
-  description:`Восстанавливает ${Math.round(healingPotion.fraction*100)}% максимального здоровья. Перезарядка ${healingPotion.cooldown/1000} с.`},
+export const consumableRules={
+ potion:{art:'valhalla-heart',name:'Сердце Вальгаллы',value:rules.potion_heal_fraction,duration:0,cooldown:rules.potion_cooldown_seconds,price:1,
+  description:`Мгновенно восстанавливает ${Math.round(rules.potion_heal_fraction*100)}% максимального здоровья.`},
+ tear:{art:'yggdrasil-tear',name:'Слеза Иггдрасиля',value:.6,duration:12,cooldown:25,price:1.2,description:'Постепенно восстанавливает 60% максимального здоровья.'},
+ berserk:{art:'berserker-blood',name:'Кровь Берсерка',value:.35,duration:10,cooldown:25,price:1.3,description:'+35% атаки, −20% физической защиты.'},
+ thor:{art:'thor-thunder',name:'Гром Тора',value:.6,duration:10,cooldown:25,price:1.5,description:'+60% урона следующего успешного прямого удара.'},
+ odin:{art:'odin-eye',name:'Око Одина',value:.25,duration:12,cooldown:25,price:1,description:'+25 п.п. точности против уклонения.'},
+ niflheim:{art:'niflheim-breath',name:'Дыхание Нифльхейма',value:.25,duration:10,cooldown:25,price:1.2,description:'−25% исходящего прямого урона противника.'},
+ muspel:{art:'muspelheim-flame',name:'Пламя Муспельхейма',value:.08,duration:8,cooldown:30,price:1.3,description:'Горение противника: суммарно 8% его максимального здоровья.'},
+ aegis:{art:'jupiter-aegis',name:'Эгида Юпитера',value:.25,duration:12,cooldown:30,price:1.4,description:'Щит на 25% максимального здоровья до разрушения.'},
+ mars:{art:'mars-fury',name:'Ярость Марса',value:.2,duration:10,cooldown:25,price:1.2,description:'+20 п.п. шанса критического удара.'},
+ mercury:{art:'mercury-wings',name:'Крылья Меркурия',value:.2,duration:10,cooldown:25,price:1.2,description:'+20 п.п. уклонения.'},
+ minerva:{art:'minerva-wisdom',name:'Мудрость Минервы',value:1,duration:0,cooldown:20,price:1,description:'Снимает один действующий отрицательный эффект.'},
+ venom:{art:'jormungandr-venom',name:'Яд Ёрмунганда',value:.5,duration:12,cooldown:30,price:1.3,description:'−50% эффективности лечения, которое получает противник.'},
+ fenrir:{art:'fenrir-fang',name:'Клык Фенрира',value:.3,duration:10,cooldown:25,price:1.3,description:'Удары игнорируют 30% эффективной брони противника.'},
+ hel:{art:'hel-kiss',name:'Поцелуй Хель',value:.25,duration:12,cooldown:30,price:1.4,description:'Лечение на 25% нанесённого прямого урона.'},
+ loki:{art:'loki-cunning',name:'Хитрость Локи',value:.5,duration:10,cooldown:25,price:1.2,description:'Следующий успешный удар по блоку игнорирует 50% его эффективности.'},
+ steel:{art:'svartalfheim-steel',name:'Сталь Свартальвхейма',value:.4,duration:12,cooldown:25,price:1.2,description:'+40% физической защиты.'},
+ neptune:{art:'neptune-tide',name:'Прилив Нептуна',value:.2,duration:0,cooldown:40,price:1.6,description:'Себе 20% здоровья, каждому живому союзнику 10% его максимального здоровья.'},
+ apollo:{art:'apollo-light',name:'Свет Аполлона',value:.3,duration:12,cooldown:30,price:1.3,description:'+30% прямого урона активных навыков.'},
+ valkyrie:{art:'valkyrie-oath',name:'Обет Валькирии',value:.1,duration:15,cooldown:0,price:2.5,description:'Пережить один смертельный удар, оставшись с 10% здоровья. Один раз за бой.'},
+ bifrost:{art:'bifrost-rainbow',name:'Радуга Биврёста',value:1,duration:8,cooldown:40,price:1.5,description:'Иммунитет к новым отрицательным эффектам расходников.'},
 } as const;
-export type ConsumableId=keyof typeof consumables;
+export type ConsumableId=keyof typeof consumableRules;
+export const consumableIds=Object.keys(consumableRules) as ConsumableId[];
+/** Battle rules V1.0: up to 5 of each chosen kind per fight, a shared 2 s cooldown; the Oath works once per fight. */
+export const consumableBattle={perBattle:5,globalCooldown:2,oncePerBattle:['valkyrie'] as readonly ConsumableId[],neptuneLock:10} as const;
+export const battleLimit=(id:ConsumableId)=>consumableBattle.oncePerBattle.includes(id)?1:consumableBattle.perBattle;
 
-export function consumableStacks(player:{arenaPotions?:number},confirmed=0){
- const counts:Record<ConsumableId,number>={potion:potionStock(player)+confirmed};
- return (Object.keys(consumables) as ConsumableId[]).filter(id=>counts[id]>0)
-  .map(id=>({id,count:counts[id],...consumables[id]}));
+/** Approved artwork for the 20 Arena potions and elixirs (owner concept 26.11), each linked to its consumable. */
+export const elixirArt=consumableIds.map(id=>({art:consumableRules[id].art,name:consumableRules[id].name,consumable:id}));
+export const elixirIcon=(art:string)=>'elixir-'+art;
+
+const timing=(id:ConsumableId)=>{
+ const {duration,cooldown}=consumableRules[id];
+ return (duration?(id==='thor'||id==='loki'?' До срабатывания, максимум '+duration+' с.':id==='aegis'?' Максимум '+duration+' с.':' Длительность '+duration+' с.'):'')+
+  (cooldown?' Перезарядка '+cooldown+' с.':'');
+};
+export const consumables=Object.fromEntries(consumableIds.map(id=>[id,{name:consumableRules[id].name,icon:elixirIcon(consumableRules[id].art),
+ description:consumableRules[id].description+timing(id)}])) as Record<ConsumableId,{name:string;icon:string;description:string}>;
+/** Shop price in gold: the current Heart of Valhalla formula times the approved multiplier. */
+export const consumablePrice=(id:ConsumableId,stage:number)=>Math.round(healingPotion.cost(stage)*consumableRules[id].price);
+
+type Stocked={arenaPotions?:number;arenaConsumables?:Partial<Record<string,number>>};
+const count=(value:unknown)=>typeof value==='number'&&Number.isSafeInteger(value)&&value>=0?value:0;
+/** Owned stock of a kind: the potion keeps its old save field, the other 19 kinds live in `arenaConsumables`. */
+export const consumableStock=(p:Stocked,id:ConsumableId)=>id==='potion'?potionStock(p):count(p.arenaConsumables?.[id]);
+export function addConsumable(p:Stocked,id:ConsumableId,delta:number){
+ if(id==='potion'){p.arenaPotions=Math.max(0,potionStock(p)+delta);return}
+ p.arenaConsumables={...p.arenaConsumables,[id]:Math.max(0,consumableStock(p,id)+delta)};
+}
+
+export function consumableStacks(player:Stocked,confirmed=0){
+ return consumableIds.map(id=>({id,count:consumableStock(player,id)+(id==='potion'?confirmed:0),...consumables[id]})).filter(item=>item.count>0);
 }

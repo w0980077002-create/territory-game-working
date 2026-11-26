@@ -26,7 +26,7 @@ const zoneIds=Object.keys(zones) as ArenaZone[];
 const elixirIds=Object.keys(arenaElixirs) as ArenaElixir[];
 /** One place to swap in the dedicated elixir artwork when the shop package arrives. */
 export const elixirArt:Record<ArenaElixir,string>={
- potion:consumables.potion.icon,heal_small:'potion',heal_large:'stat-health',attack:'stat-attack',defense:'stat-defense',crit:'stat-crit',time:'rune-haste',adrenaline:'passive-battle-thirst',
+ ...Object.fromEntries(Object.entries(consumables).map(([id,item])=>[id,item.icon])) as Record<ConsumableId,string>,heal_small:'potion',heal_large:'stat-health',attack:'stat-attack',defense:'stat-defense',crit:'stat-crit',time:'rune-haste',adrenaline:'passive-battle-thirst',
 };
 const secondsLeft=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
 const clock=(s:number)=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');

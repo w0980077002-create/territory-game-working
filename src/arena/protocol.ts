@@ -1,4 +1,4 @@
-import {consumables} from './potion';
+import {consumableIds,consumables,type ConsumableId} from './potion';
 
 export const zones = {
  head: {label: 'Голова', impact: 'в голову', multiplier: 1.25},
@@ -25,8 +25,9 @@ export const arenaElixirs = {
  defense: {label: 'Защита', qty: 1, detail: '+25% защиты до конца боя, минимум +10.'},
  crit: {label: 'Крит', qty: 1, detail: '+15 п.п. к шансу крита, до 75%.'},
  time: {label: 'Время', qty: 1, detail: 'Сокращает таймер раунда на 10 секунд, минимум до 30.'},
- potion: {label: consumables.potion.name, qty: 0, detail: consumables.potion.description},
  adrenaline: {label: 'Адреналин', qty: 0, detail: 'Воскрешает союзника в командном бою.'},
+ ...Object.fromEntries(consumableIds.map(id=>[id,{label: consumables[id].name, qty: 0, detail: consumables[id].description}])) as
+  Record<ConsumableId,{label:string;qty:0;detail:string}>,
 } as const;
 export type ArenaElixir = keyof typeof arenaElixirs;
 export type ArenaMove = {attack:ArenaZone;blocks:[ArenaZone,ArenaZone];skill:ArenaSkill|null};
