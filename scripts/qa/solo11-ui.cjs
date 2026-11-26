@@ -9,7 +9,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':chromium.executablePath()),args:['--no-sandbox']});const results=[];
  for(const [width,height] of [[320,568],[360,780],[390,844],[430,932]]){
   const profile='solo11-ui-'+width,key='lootborn-codex-v1:test:'+profile;
-  const p=require('./ui-fixture.cjs')(60);p.daily='';
+  const p=require('./ui-fixture.cjs')(60);p.daily='';p.arenaPotions=4;
   // Ten plainly weaker drops (two of them boots) and one with the legacy lock flag.
   const worn=Object.values(p.equipment).filter(i=>i.slot!=='wings'&&i.slot!=='boots');
   for(let n=0;n<10;n++){const g=n<2?p.equipment.boots:worn[n%worn.length];p.inventory[70+n]={...g,id:'weak-'+n,level:Math.max(1,g.level-20),attack:1,hp:1,defense:1,rarity:n%3,upgrade:0,set:undefined,perk:undefined,engrave:undefined,uniqueId:undefined,percent:undefined,locked:false,origin:'Встреча основной главы',name:'Слабая вещь '+n}}
@@ -64,6 +64,20 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await page.screenshot({path:`${out}/${width}-harbor.png`});
   await page.locator('.harbor-building',{hasText:'Рюкзак'}).tap();await page.getByRole('dialog',{name:'Рюкзак'}).waitFor();
   assert.match(await page.getByRole('group',{name:'Место хранения'}).getByRole('button',{name:/^Рюкзак/}).innerText(),/80\/80/);assert.match(await page.locator('.pack-full').innerText(),/полон/);
+  const packTabs=page.getByRole('group',{name:'Место хранения'});
+  await packTabs.getByRole('button',{name:'Расходники',exact:true}).tap();
+  const consumables=page.getByRole('list',{name:'Расходуемые предметы'});
+  assert.equal(await consumables.getByRole('listitem').count(),1);
+  await consumables.getByText('Зелье лечения',{exact:true}).waitFor();
+  await consumables.getByText('×4',{exact:true}).waitFor();
+  await consumables.getByText(/Восстанавливает 45%/).waitFor();
+  assert.equal(await btn('Распылить').count(),0);
+  assert.equal(await page.getByLabel(/Авторазбор/).count(),0);
+  assert.equal((await state()).inventory.length,80);
+  await noOverflow('consumables');
+  assert.equal(await packTabs.evaluate(node=>[...node.querySelectorAll('button')].every(button=>button.scrollWidth<=button.clientWidth+1)),true);
+  await page.getByRole('dialog').screenshot({path:`${out}/${width}-consumables.png`});
+  await packTabs.getByRole('button',{name:/^Рюкзак/}).tap();
   await page.getByRole('button',{name:/^Фильтр качества:/}).tap();assert.equal(await page.getByRole('option',{name:/замк/i}).count(),0,'no lock filter');await page.keyboard.press('Escape');await page.waitForTimeout(200);
   await btn('Ранги').tap();const shown=(await page.locator('.pack-ranks li').allInnerTexts()).map(s=>s.trim());assert.deepEqual(shown,ranks);await btn('Ранги').tap();
   await btn('Как работает авторазбор').tap();assert.match(await page.locator('.pack-explain').innerText(),/новую/);await btn('Как работает авторазбор').tap();
@@ -134,6 +148,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await guard();await bulk.getByRole('button',{name:'Да, распылить 2'}).dblclick();await bulk.waitFor({state:'detached'});
   const post=await state();
   assert.equal(post.inventory.length,78);
+  assert.equal(post.arenaPotions,4);
   assert.ok(!post.inventory.some(i=>i.id==='weak-0'||i.id==='weak-locked'));
   assert.ok(post.inventory.some(i=>i.id==='weak-2'));
   assert.ok(post.gold>pre.gold);

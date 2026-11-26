@@ -1,4 +1,5 @@
 import {telegramAccountId,tg} from '../core/telegram';
+import type {PotionQuote} from './potion';
 import {arenaApiOrigin,onlineArenaEnabled} from './staging';
 
 const sessionKey=()=> 'vvr-arena-session:'+(telegramAccountId()??localFixture()??'anonymous');
@@ -29,3 +30,15 @@ export async function login(){
  return session.token;
 }
 export const signedArena=()=>onlineArenaEnabled&&(!!tg()?.initData||!!localFixture());
+
+export async function sessionRequest<T>(path:string,data?:Record<string,unknown>){
+ const token=tokenFromSession()||await login();
+ try{return await request<T>(path,token,data);}
+ catch(error){
+  if(!(error instanceof ArenaRequestError)||error.status!==401)throw error;
+  saveSession('');
+  return request<T>(path,await login(),data);
+ }
+}
+export type PotionOperation={operation:string;stage:number;price:number};
+export const potionRequest=(data?:PotionOperation)=>sessionRequest<PotionQuote>('live/potions',data);

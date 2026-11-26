@@ -6,12 +6,12 @@ import {tmpdir} from 'node:os';
 import {freshPlayer,parseSave,rewardLocalArenaDuel} from '../src/core/store';
 import {damage,stats} from '../src/core/formulas';
 import {arenaBuild,validArenaBuild} from '../src/arena/hero';
-import {localArena,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../src/arena/local';
+import {localArena,prepareLocalPotion,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../src/arena/local';
 import {advanceLive,applyLive,capacities,viewLive,type ArenaMode} from '../src/arena/match';
 import {CHAT_MS,MATCH_WAIT_MS} from '../src/arena/protocol';
 import {applyPurchase,shopOffers} from '../src/saga/shop';
 import {replayProof} from '../src/arena/localProof';
-import {healingPotion} from '../src/arena/potion';
+import {consumableStacks,healingPotion} from '../src/arena/potion';
 import {createFighter,resolveStrike} from '../server/arena/duel';
 import {LiveArena} from '../server/arena/live';
 import {hero,seeded} from '../scripts/sim/arena';
@@ -233,5 +233,42 @@ test('a network reservation spends only accepted potions and releases unused sto
   assert.ok(action(a,{kind:'leave'},now+1).accepted);
   assert.equal(live.potionQuote(a,2,1,30,100).stock,1);
   assert.equal(live.potionQuote(a,2,1,30,100).reserved,0);
+ }finally{live.close()}
+});
+
+test('one confirmed potion stack serves local and network Arena and survives a lost response',()=>{
+ const live=new LiveArena(':memory:',seeded(17));
+ const p=hero(6,false),build=arenaBuild(p);
+ const a={id:'300',controller:'tab'},b={id:'400',controller:'tab'};
+ let now=Date.now();
+ try{
+  const ticket=live.join(a,'duel',build,'Герой',now,true,3).search!;
+  for(let i=0;i<20;i++){now+=1000;live.state(a,now);live.tick(now);}
+  const fallback=live.state(a,now).local!;
+  assert.equal(fallback.id,ticket.id);
+  assert.equal(fallback.confirmedPotions,3);
+  assert.equal(live.potionQuote(a,3,1,30,100,now).reserved,3);
+  assert.ok(startLocalArena(p,ticket.id,'duel',now,undefined,now,fallback.confirmedPotions));
+  p.localArena!.match.game.players[0].hp=Math.floor(build.stats.hp/2);
+  assert.ok(prepareLocalPotion(p,now,'operation'));
+  assert.equal(updateLocalArena(p,now+5000),false);
+  assert.ok(live.useLocalPotion(a,ticket.id,'operation',now));
+  assert.equal(live.useLocalPotion(b,ticket.id,'operation',now),false);
+  assert.ok(live.useLocalPotion(a,ticket.id,'operation',now+1000));
+  const restored=parseSave(JSON.stringify(p))!;
+  assert.ok(settleLocalPotion(restored,ticket.id,'operation',true));
+  assert.equal(settleLocalPotion(restored,ticket.id,'operation',true),false);
+  assert.equal(restored.localArena!.confirmedPotions,2);
+  assert.equal(restored.localArena!.match.game.players[0].belt.potion,2);
+  assert.equal(live.availablePotions(a.id,3),2);
+  const stack=consumableStacks(restored,live.availablePotions(a.id,3));
+  assert.deepEqual(stack.map(item=>[item.id,item.count]),[['potion',2]]);
+  assert.equal(restored.inventory.length,p.inventory.length);
+  live.releaseLocalPotions(a,ticket.id);
+  assert.ok(live.useLocalPotion(a,ticket.id,'operation',now+2000));
+  assert.equal(live.useLocalPotion(a,ticket.id,'new-operation',now+2000),false);
+  live.join(a,'duel',build,'Герой',now,true,3);
+  live.join(b,'duel',build,'Борис',now,true,0);
+  assert.equal(live.state(a,now).battle?.belt.potion,2);
  }finally{live.close()}
 });

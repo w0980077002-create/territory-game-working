@@ -247,7 +247,7 @@ export function createArenaServer(options:Options){
    if(req.method==='GET'&&pathname==='/arena-api/live/potions'){
     const data=await stockFromW066(options.scorePublisher,{telegram:actor.id,name:service.playerName(actor.id)});
     if(data?.status!=='ok')throw new ArenaError(503,'Запас зелий временно недоступен');
-    json(res,200,live.potionQuote(actor,data.issued,data.stage,healingPotion.cost(data.stage),data.gold));
+    json(res,200,live.potionQuote(actor,data.issued,data.stage,healingPotion.cost(data.stage),data.gold,clock()));
     return;
    }
    if(req.method==='GET'&&pathname==='/arena-api/live/recent'){json(res,200,live.recent(actor,now));return}
@@ -293,7 +293,21 @@ export function createArenaServer(options:Options){
      if(data?.status==='price_changed')throw new ArenaError(409,'Цена обновилась');
      if(data?.status==='insufficient')throw new ArenaError(422,'Недостаточно подтверждённого золота');
      if(data?.status!=='ok')throw new ArenaError(503,'Покупка временно недоступна');
-     json(res,200,live.potionQuote(actor,data.issued,data.stage,healingPotion.cost(data.stage),data.gold));
+     json(res,200,live.potionQuote(actor,data.issued,data.stage,healingPotion.cost(data.stage),data.gold,clock()));
+     return;
+    }
+    case '/arena-api/live/local-potion':{
+     exact(input,'id','operation');
+     if(typeof input.id!=='string'||!uuid.test(input.id)||typeof input.operation!=='string'||!uuid.test(input.operation))
+      throw new ArenaError(400,'Некорректный расход зелья');
+     json(res,200,{accepted:live.useLocalPotion(actor,input.id,input.operation,actionTime)});
+     return;
+    }
+    case '/arena-api/live/local-finish':{
+     exact(input,'id');
+     if(typeof input.id!=='string'||!uuid.test(input.id))throw new ArenaError(400,'Некорректный бой');
+     live.releaseLocalPotions(actor,input.id);
+     json(res,200,{ok:true});
      return;
     }
     case '/arena-api/live/proof':{

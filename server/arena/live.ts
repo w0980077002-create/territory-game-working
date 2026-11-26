@@ -43,6 +43,14 @@ export class LiveArena {
    );
    CREATE TABLE IF NOT EXISTS arena_live_team_results (id TEXT PRIMARY KEY, json TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS arena_potion_spending (player TEXT PRIMARY KEY, total INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS arena_local_potion_reserve (
+    battle TEXT PRIMARY KEY, player TEXT NOT NULL UNIQUE, remaining INTEGER NOT NULL, expires INTEGER NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS arena_local_potion_reserve_expiry ON arena_local_potion_reserve(expires);
+   CREATE TABLE IF NOT EXISTS arena_local_potion_uses (
+    operation TEXT PRIMARY KEY, player TEXT NOT NULL, battle TEXT NOT NULL, expires INTEGER NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS arena_local_potion_uses_expiry ON arena_local_potion_uses(expires);
    CREATE TABLE IF NOT EXISTS arena_local_proofs (
     id TEXT PRIMARY KEY, player TEXT NOT NULL, mode TEXT NOT NULL, json TEXT NOT NULL, expires INTEGER NOT NULL, day TEXT
    );
@@ -84,10 +92,14 @@ export class LiveArena {
    if(entries.length===1){
     const p=entries[0];
     this.db.prepare('INSERT OR REPLACE INTO arena_live_fallback VALUES(?,?,?,?)').run(p.id,p.ticket,mode,now+CHAT_MS);
+    if(p.potions)
+     this.db.prepare('INSERT INTO arena_local_potion_reserve VALUES(?,?,?,?)')
+      .run(p.ticket,p.id,p.potions,now+PROOF_DURATION+CHAT_MS);
+
     if(mode!=='duel'&&p.build&&p.localStage!==undefined&&!this.db
       .prepare('SELECT 1 FROM arena_local_proofs WHERE player=? AND day=?').get(p.id,new Date(now).toISOString().slice(0,10))){
      const proof:LocalProof={seed:randomBytes(4).readUInt32LE(),startedAt:now,hero:p.build,
-      stage:p.localStage,potions:p.localPotions??0};
+      stage:p.localStage,potions:(p.localPotions??0)+(p.potions??0)};
      this.db.prepare('INSERT OR IGNORE INTO arena_local_proofs VALUES(?,?,?,?,?,NULL)')
       .run(p.ticket,p.id,mode,JSON.stringify(proof),now+PROOF_DURATION+CHAT_MS);
     }
@@ -153,6 +165,9 @@ export class LiveArena {
    this.db.prepare('DELETE FROM arena_live_queue WHERE seen<=?').run(now-idle);
    this.db.prepare('DELETE FROM arena_live_matches WHERE expires<=?').run(now);
    this.db.prepare('DELETE FROM arena_live_fallback WHERE expires<=?').run(now);
+   this.db.prepare('DELETE FROM arena_local_potion_reserve WHERE expires<=?').run(now);
+   this.db.prepare('DELETE FROM arena_local_potion_uses WHERE expires<=?').run(now);
+
    this.db.prepare('DELETE FROM arena_local_proofs WHERE expires<=? AND (day IS NULL OR day<?)')
     .run(now,new Date(now).toISOString().slice(0,10));
   });
@@ -172,7 +187,10 @@ export class LiveArena {
   if(!target&&fallback){
    const row=this.db.prepare('SELECT json FROM arena_local_proofs WHERE id=? AND player=? AND day IS NULL')
     .get(fallback.id,actor.id) as {json:string}|undefined;
-   return {now,local:row?{...fallback,proof:JSON.parse(row.json) as LocalProof}:fallback};
+   const reserve=this.db.prepare('SELECT remaining FROM arena_local_potion_reserve WHERE battle=? AND player=? AND expires>?')
+    .get(fallback.id,actor.id,now) as {remaining:number}|undefined;
+   return {now,local:{...fallback,...(row?{proof:JSON.parse(row.json) as LocalProof}:{}),
+    ...(reserve?{confirmedPotions:reserve.remaining}:{})}};
   }
   const found=this.match(actor.id,target);
   if(!found)return {now};
@@ -201,12 +219,14 @@ export class LiveArena {
   return Math.max(0,issued-(row?.total??0));
  }
 
- potionQuote(actor:Actor,issued:number,stage:number,price:number,gold:number):PotionQuote{
+ potionQuote(actor:Actor,issued:number,stage:number,price:number,gold:number,now=Date.now()):PotionQuote{
   const found=this.match(actor.id);
   const match=found?JSON.parse(found.json) as LiveMatch:undefined;
   const player=match&&!match.game.result?match.game.players.find(p=>p.id===actor.id):undefined;
   const queued=this.db.prepare('SELECT json FROM arena_live_queue WHERE player=?').get(actor.id) as {json:string}|undefined;
-  const reserved=player?.belt.potion??(queued?(JSON.parse(queued.json) as QueueEntry).potions??0:0);
+  const local=this.db.prepare('SELECT remaining FROM arena_local_potion_reserve WHERE player=? AND expires>?')
+   .get(actor.id,now) as {remaining:number}|undefined;
+  const reserved=player?.belt.potion??(queued?(JSON.parse(queued.json) as QueueEntry).potions??0:local?.remaining??0);
   return {stage,price,gold,stock:this.availablePotions(actor.id,issued),reserved};
  }
 
@@ -215,6 +235,7 @@ export class LiveArena {
    const current=this.read(actor,now);
    if(current.search||current.battle&&!current.battle.result)return current;
    this.db.prepare('DELETE FROM arena_live_fallback WHERE player=?').run(actor.id);
+   this.db.prepare('DELETE FROM arena_local_potion_reserve WHERE player=?').run(actor.id);
    const ticket=randomUUID();
    const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,rankEligible,potions:this.availablePotions(actor.id,issued),localStage,localPotions,since:now,seenAt:now};
    this.db.prepare('INSERT OR REPLACE INTO arena_live_queue VALUES(?,?,?,?,?)').run(actor.id,mode,now,now,JSON.stringify(entrant));
@@ -268,13 +289,35 @@ export class LiveArena {
    const accepted=(controlled||!!match.game.result&&action.kind==='chat')&&
     applyLive(match,actor.id,action,round,sequence,now,this.rng);
    if(accepted&&action.kind==='item'&&action.item==='potion'){
-    this.db.prepare('INSERT INTO arena_potion_spending VALUES(?,1) ON CONFLICT(player) DO UPDATE SET total=total+1').run(actor.id);
+    this.spendPotion(actor.id);
    }
    if(!accepted&&action.kind==='item')
     console.warn(JSON.stringify({event:'arena_item_rejected',match:id,player:actor.id,item:action.item}));
    this.save(match,found.json,now);
    return {accepted,view:this.read(actor,now,id)};
   });
+ }
+
+ private spendPotion(id:string){
+  this.db.prepare('INSERT INTO arena_potion_spending VALUES(?,1) ON CONFLICT(player) DO UPDATE SET total=total+1').run(id);
+ }
+
+ useLocalPotion(actor:Actor,battle:string,operation:string,now:number){
+  return this.transaction(()=>{
+   const prior=this.db.prepare('SELECT player,battle FROM arena_local_potion_uses WHERE operation=?')
+    .get(operation) as {player:string;battle:string}|undefined;
+   if(prior)return prior.player===actor.id&&prior.battle===battle;
+   const reserve=this.db.prepare('UPDATE arena_local_potion_reserve SET remaining=remaining-1 WHERE battle=? AND player=? AND remaining>0 AND expires>?')
+    .run(battle,actor.id,now);
+   if(!reserve.changes)return false;
+   this.spendPotion(actor.id);
+   this.db.prepare('INSERT INTO arena_local_potion_uses VALUES(?,?,?,?)').run(operation,actor.id,battle,now+24*60*60_000);
+   return true;
+  });
+ }
+
+ releaseLocalPotions(actor:Actor,battle:string){
+  this.db.prepare('DELETE FROM arena_local_potion_reserve WHERE battle=? AND player=?').run(battle,actor.id);
  }
 
  prove(actor:Actor,id:string,name:string,moves:readonly ProofMove[],now:number){

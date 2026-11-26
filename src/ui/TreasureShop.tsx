@@ -7,7 +7,7 @@ import {rewardText} from '../saga/rewards';
 import {Icon,gearIcon} from './Icon';
 import {CompactFilter} from './CompactFilter';
 import {RewardArt, rewardParts} from './RewardArt';
-import {ArenaRequestError,login,request,saveSession,signedArena,tokenFromSession} from '../arena/client';
+import {ArenaRequestError,potionRequest,signedArena,type PotionOperation} from '../arena/client';
 import {potionStock,type PotionQuote} from '../arena/potion';
 import {CardDialog} from './SagaUI';
 import './treasureShop.css';
@@ -24,18 +24,8 @@ const limitText = (offer: ShopOffer) => offer.limit === 'daily' ? 'Одна по
   : offer.limit === 'weekly' ? 'Одна покупка в неделю · с понедельника 00:00 UTC'
   : offer.limit === 'once' ? 'Одна покупка на героя' : offer.id==='arena-potion'?'Одна порция за покупку':'Количество зависит от свободного места в Роге';
 
-type PotionOperation={operation:string;stage:number;price:number};
 const potionOperationKey=SAVE_KEY+':network-potion-operation';
-async function potionRequest(data?:PotionOperation){
- const token=tokenFromSession()||await login();
- try{return await request<PotionQuote>('live/potions',token,data);}
- catch(error){
-  if(!(error instanceof ArenaRequestError)||error.status!==401)throw error;
-  saveSession('');
-  return request<PotionQuote>('live/potions',await login(),data);
- }
-}
-function NetworkPotion(){
+function NetworkPotion({localStock}:{localStock:number}){
  const [quote,setQuote]=useState<PotionQuote>(),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [pending,setPending]=useState<PotionOperation|undefined>(()=>{
   try{return JSON.parse(sessionStorage.getItem(potionOperationKey)??'null')??undefined;}catch{return;}
@@ -53,7 +43,7 @@ function NetworkPotion(){
   try{sessionStorage.setItem(potionOperationKey,JSON.stringify(data));}catch{/* Retry remains available in this dialog. */}
   try{
    setQuote(await potionRequest(data));
-   setMessage('Зелье добавлено в сетевой запас');
+   setMessage('Зелье добавлено в рюкзак');
    clearPending();
   }catch(error){
    if(error instanceof ArenaRequestError&&[400,409,422].includes(error.status)){
@@ -69,11 +59,12 @@ function NetworkPotion(){
  }
  if(!quote&&!message&&!pending)return <p className="hint" role="status">Загружаем сетевой запас…</p>;
  return <div>
-  <p>Сетевой запас: {quote?.stock??'—'}{quote?.reserved?' · зарезервировано '+quote.reserved:''}</p>
+  <p>В рюкзаке: {quote?quote.stock+localStock:localStock}{quote?.reserved?' · зарезервировано '+quote.reserved:''}</p>
+  {quote&&localStock>0&&<p className="hint">Из них для сетевого боя: {quote.stock}</p>}
   {quote&&<p className="hint">Золото сетевого кошелька: {quote.gold.toLocaleString('ru')} · цена для подтверждённого этапа {quote.stage}</p>}
   {message&&<p role="status">{message}</p>}
   {(pending||quote)&&<button className="action secondary" type="button" disabled={busy||!pending&&!!quote&&quote.gold<quote.price}
-   onClick={()=>void buy()}>{pending?'Проверить покупку':'Купить для сетевого боя · '+quote!.price.toLocaleString('ru')+' золота'}</button>}
+   onClick={()=>void buy()}>{pending?'Проверить покупку':'Купить за подтверждённое золото · '+quote!.price.toLocaleString('ru')}</button>}
  </div>;
 }
 
@@ -100,6 +91,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
     if (offer.equipment||expensiveOffer(offer)) setConfirmation(offer);
     else purchase(offer);
   };
+  const signed=signedArena();
   const selectedStatus = selected && shopStatus(p, selected, now);
   const confirmationStatus = confirmation && shopStatus(p, confirmation, now);
   const packFull = category === 'equipment' && visible.some(offer => offer.equipment && shopStatus(p, offer, now) === 'Рюкзак полон');
@@ -124,7 +116,8 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
     {packFull && <div className="capacity-help"><p className="hint">Рюкзак полон. Перед покупкой снаряжения разберите выбранную вещь в рюкзаке.</p>{freeSpace}</div>}
     <div className="shop-grid">
       {visible.map(offer => {
-        const status = shopStatus(p, offer, now);
+        const signedPotion=signed&&offer.id==='arena-potion';
+        const status=signedPotion?undefined:shopStatus(p,offer,now);
         const sold = status === 'Сегодня куплено' || status === 'Куплено';
         const parts = rewardParts(offer.reward);
         // Visual hierarchy only: limited weekly/one-time offers shine, bundles get a warmer frame.
@@ -140,10 +133,10 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
             <strong>{offer.name}</strong>
           </button>
           <button type="button" className="shop-buy" disabled={!!status}
-            aria-label={sold ? status : `Купить · ${priceText(offer)}${status ? ` · ${status}` : ''}`} title={status || priceText(offer)}
+            aria-label={signedPotion?'К покупке · '+offer.name:sold?status:`Купить · ${priceText(offer)}${status ? ` · ${status}` : ''}`} title={status || priceText(offer)}
             onClick={() => offer.equipment||offer.id==='arena-potion'?setDetails(offer.id):requestPurchase(offer)}>
             {sold ? <span>{status}</span> : <><Icon name={shopCurrencies[offer.currency].icon}/>
-              <b>{offer.price.toLocaleString('ru')}</b>{status && <span>{status === 'Недостаточно средств' ? 'Не хватает' : status === 'Освободите место в Роге' ? 'Мало места в Роге' : status}</span>}</>}
+              <b>{signedPotion?'Купить':offer.price.toLocaleString('ru')}</b>{status && <span>{status === 'Недостаточно средств' ? 'Не хватает' : status === 'Освободите место в Роге' ? 'Мало места в Роге' : status}</span>}</>}
           </button>
         </article>;
       })}
@@ -152,14 +145,14 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
       actions={selectedStatus === 'Рюкзак полон' ? freeSpace : selectedStatus === 'Недостаточно средств'
         ? <button className="action secondary" onClick={() => setGuide(selected.currency)}>Где получить</button>
         : <button className="action" disabled={!!selectedStatus}
-          onClick={() => requestPurchase(selected)}>{selectedStatus || (selected.id==='arena-potion'?'Купить для боя с ботами · ':'Купить · ')+priceText(selected)}</button>}>
+          onClick={() => requestPurchase(selected)}>{selectedStatus || (selected.id==='arena-potion'?'Купить за золото героя · ':'Купить · ')+priceText(selected)}</button>}>
       {selected.equipment?<div className="inventory-order">
         <span>Слот</span><CompactFilter label="Слот покупки" value={equipmentSlot} onChange={slot=>setEquipmentSlot(slot as Slot)}
           options={shopEquipmentSlots.map(slot=>({value:slot,label:slotNames[slot]}))}/>
       </div>:<RewardArt reward={selected.reward} names/>}
       <p>{selected.description}</p><p className="hint">{limitText(selected)}</p>
-      {selected.id==='arena-potion'&&<><p>Запас для боёв с ботами: {potionStock(p)}</p>{signedArena()&&<NetworkPotion/>}</>}
-      <p className="shop-price"><Icon name={shopCurrencies[selected.currency].icon}/>{priceText(selected)}</p>
+      {selected.id==='arena-potion'&&(signed?<NetworkPotion localStock={potionStock(p)}/>:<p>В рюкзаке: {potionStock(p)}</p>)}
+      {(selected.id!=='arena-potion'||!signed)&&<p className="shop-price"><Icon name={shopCurrencies[selected.currency].icon}/>{priceText(selected)}</p>}
     </CardDialog>}
     {confirmation && <CardDialog title="Подтвердить покупку" onClose={() => setConfirmation(undefined)}
       actions={confirmationStatus === 'Рюкзак полон' ? freeSpace :
