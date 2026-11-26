@@ -10,7 +10,7 @@ import {lazy,Suspense,useMemo} from 'react';
 import {GiftHorn} from './GiftHorn';
 import {hornRefillDue} from '../core/store';
 import {CompactFilter} from './CompactFilter';
-import {Backpack,type BackpackView} from './Backpack';
+import {Backpack,type BackpackTab,type BackpackView} from './Backpack';
 import {DialogShell,HeroPortrait,TrophyReveal,ForgeEcho,LevelUpFeedback,TAP_GUARD_MS} from './SagaUI';
 import {AutobattleDialog} from './AutobattleDialog';
 import {InventoryGrid} from './InventoryGrid';
@@ -331,12 +331,12 @@ function FirstRegionTip({p,onOpen}:{p:Player;onOpen:()=>void}){
 function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestTab)=>void}){const g=useGame(),p=g.p,panel=g.panel!,s=stats(p);const currentLegend=campaignGoal(p.stage);const chapterReward=<div className="chapter-claim"><span><Icon name="scroll"/> {p.bosses>p.mission?'Награда · '+(campaignGoal(p.mission+1)??stageLabel(p.mission+1)):'Следующий босс · '+(currentLegend??stageLabel(p.stage))}{p.bosses>p.mission&&<RewardArt reward={chapterPrize}/>}</span><Action disabled={p.bosses<=p.mission} onClick={()=>g.claim('mission',p.mission)}>Получить награду</Action></div>;const shipClock=useCollectionClock(panel==='port'||panel==='shipyard');
  const {fleet,amount:claimable,waitMs:shipWait,progress:shipProgress}=shipCollection(p.shipyard??starterShipyard(shipClock),shipClock);
  const shipLimit=(p.redDiamonds??0)+claimable>1_000_000_000;
- const buildCost=shipBuyCost(fleet.ships.length);const [selectedShipId,setSelectedShipId]=useState('drakkar-1');const currentShip=fleet.ships.find(s=>s.id===selectedShipId)??fleet.ships[0];const [forgeTab,setForgeTab]=useState('forge');const [harborHelp,setHarborHelp]=useState(false);const [classOpen,setClassOpen]=useState(false);const [storage,setStorage]=useState(false);const [filter,setFilter]=useState<LootFilter>('all');const [order,setOrder]=useState('power');const [confirmHero,setConfirmHero]=useState(false);const newHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Сначала сохраните текущего героя · проверьте место в браузере');return}const id='hero-'+Date.now().toString(36);const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const openHero=(id:string)=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const mainHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';if(mailAcceptanceProfile)url.searchParams.set('hero','');location.assign(url.href)};const purchase=hornPurchase(p);const slot=panel==='wings'?'wings':panel.startsWith('gear:')?panel.split(':')[1] as Slot:undefined;const item=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.id===g.selected);const old=slot?p.equipment[slot]:item?p.equipment[item.slot]:undefined;const isTrophy=!!item&&p.rewardOffer?.itemId===item.id&&!p.rewardOffer.resolved;const finish=()=>{if(useGame.getState().p.rewardOffer?.resolved){g.open(null);battle?.continueAfterLoot()}};
+ const buildCost=shipBuyCost(fleet.ships.length);const [selectedShipId,setSelectedShipId]=useState('drakkar-1');const currentShip=fleet.ships.find(s=>s.id===selectedShipId)??fleet.ships[0];const [forgeTab,setForgeTab]=useState('forge');const [harborHelp,setHarborHelp]=useState(false);const [classOpen,setClassOpen]=useState(false);const [backpackTab,setBackpackTab]=useState<BackpackTab>('pack');const [filter,setFilter]=useState<LootFilter>('all');const [order,setOrder]=useState('power');const [confirmHero,setConfirmHero]=useState(false);const newHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Сначала сохраните текущего героя · проверьте место в браузере');return}const id='hero-'+Date.now().toString(36);const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const openHero=(id:string)=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const mainHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';if(mailAcceptanceProfile)url.searchParams.set('hero','');location.assign(url.href)};const purchase=hornPurchase(p);const slot=panel==='wings'?'wings':panel.startsWith('gear:')?panel.split(':')[1] as Slot:undefined;const item=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.id===g.selected);const old=slot?p.equipment[slot]:item?p.equipment[item.slot]:undefined;const isTrophy=!!item&&p.rewardOffer?.itemId===item.id&&!p.rewardOffer.resolved;const finish=()=>{if(useGame.getState().p.rewardOffer?.resolved){g.open(null);battle?.continueAfterLoot()}};
  const scrollMemory=useRef(new Map<string,number>()).current;
  const [packView,setPackView]=useState<BackpackView>({filter:'all',order:'newest'});
  const gearBack=panel==='item'&&g.back?g.leaveItem:slot?()=>g.open('equipment'):undefined;
  const freeSpace=()=>{
-  setStorage(false);
+  setBackpackTab('pack');
   setPackView({filter:'all',order:'newest'});
   scrollMemory.delete('inventory');
   g.open('inventory');
@@ -353,7 +353,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
   setQuestDestination(destination);g.open(destination);
  };
  useEffect(()=>{setConfirmHero(false)},[g.selected,panel]);
- if(panel==='inventory')return <Backpack storage={storage} setStorage={setStorage} view={packView} setView={setPackView} scrollMemory={scrollMemory}/>;
+ if(panel==='inventory')return <Backpack tab={backpackTab} setTab={setBackpackTab} view={packView} setView={setPackView} scrollMemory={scrollMemory}/>;
  if(panel==='honor')return <HonorPanel p={p} onClose={()=>g.open(null)}/>;
  if(panel==='mail')return <MailPanel p={p}/>;
  if(panel==='save-tools')return <SaveTools/>;

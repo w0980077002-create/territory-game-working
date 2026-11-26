@@ -2,9 +2,9 @@ import {useEffect,useRef,useState} from 'react';
 import {classNames} from '../data/catalog';
 import {rewardLocalArenaDuel,useGame} from '../core/store';
 import type {Player} from '../core/types';
-import {ArenaRequestError,login,request,saveSession,signedArena,tokenFromSession} from '../arena/client';
+import {ArenaRequestError,login,request,saveSession,sessionRequest,signedArena,tokenFromSession} from '../arena/client';
 import {arenaBuild} from '../arena/hero';
-import {localArena,localTime,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
+import {localArena,localTime,prepareLocalPotion,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
 import {capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveBattle,type LiveSearch,type LiveView,type RecentBattle} from '../arena/match';
 import {potionStock} from '../arena/potion';
 import {CHAT_MS,MATCH_WAIT_MS,type ArenaZone} from '../arena/protocol';
@@ -55,7 +55,7 @@ function BattleScene({battle,now,player,busy,send,resume,onLobby,rewarded}:{
     {you.moved?'Ход принят':'Ударить'}
    </button>
   </>}
-  belt={result?null:{belt:battle.belt,readyAt:battle.itemReadyAt,disabled:busy||!control||!you.hp||battle.local&&potionStock(player)===0,
+  belt={result?null:{belt:battle.belt,readyAt:battle.itemReadyAt,disabled:busy||!control||!you.hp,
    fullHealth:you.hp===you.maxHp,onItem:item=>void send({kind:'item',item})}}
   dock={<>
    {mode!=='duel'&&<>
@@ -80,6 +80,8 @@ export function OnlineArena({player}:{player:Player}){
  const flight=useRef(false),revision=useRef(0);
  const signed=signedArena();
  const localId=liveLocal?.match.game.id;
+ const pendingPotion=liveLocal?.pendingPotion?.operation;
+ const releasePotions=!!liveLocal?.confirmedPotions&&!!liveLocal?.match.game.result;
  const proofReady=!!liveLocal?.proof&&!liveLocal.proof.status&&!!liveLocal.match.game.result;
  const networkMatch=network?.battle;
  const networkSearch=network?.search;
@@ -133,7 +135,7 @@ export function OnlineArena({player}:{player:Player}){
  useEffect(()=>{
   const fallback=network?.local??(search&&now>=search.deadline?search:undefined);
   if(!fallback||localId===fallback.id||dismissed===fallback.id)return;
-  if(mutate(p=>startLocalArena(p,fallback.id,fallback.mode,Date.now(),'proof' in fallback?fallback.proof:undefined,network?.now),true)){
+  if(mutate(p=>startLocalArena(p,fallback.id,fallback.mode,Date.now(),'proof' in fallback?fallback.proof:undefined,network?.now,'confirmedPotions' in fallback?fallback.confirmedPotions:undefined),true)){
    setSearch(undefined);setMode(undefined);setNetwork(current=>current?{now:current.now}:undefined);
   }
  },[network?.local,network?.now,search,now,localId,dismissed,mutate]);
@@ -180,6 +182,43 @@ export function OnlineArena({player}:{player:Player}){
   return ()=>{active=false;clearTimeout(timer);};
  },[signed,localId,proofReady,mutate]);
 
+ useEffect(()=>{
+  if(!pendingPotion||!localId||!signed)return;
+  const id=localId,operation=pendingPotion;
+  let active=true,timer:ReturnType<typeof setTimeout>;
+  async function spend(){
+   try{
+    const result=await sessionRequest<{accepted:boolean}>('live/local-potion',{id,operation});
+    if(!active)return;
+    const saved=mutate(p=>settleLocalPotion(p,id,operation,result.accepted),true);
+    if(!saved){timer=setTimeout(spend,3000);return;}
+    setNotice(result.accepted?'':'Резерв зелий истёк');
+   }catch{
+    if(active){setNotice('Подтверждаем расход зелья…');timer=setTimeout(spend,3000);}
+   }
+  }
+  void spend();
+  return ()=>{active=false;clearTimeout(timer);};
+ },[pendingPotion,localId,signed,mutate]);
+
+ useEffect(()=>{
+  if(!releasePotions||!localId||!signed)return;
+  let active=true,timer:ReturnType<typeof setTimeout>;
+  async function release(){
+   try{
+    await sessionRequest('live/local-finish',{id:localId});
+    if(active)mutate(p=>{
+     const saved=localArena(p);
+     if(!saved||saved.match.game.id!==localId||!saved.confirmedPotions)return false;
+     saved.confirmedPotions=0;
+     return true;
+    },true);
+   }catch{if(active)timer=setTimeout(release,4000);}
+  }
+  void release();
+  return ()=>{active=false;clearTimeout(timer);};
+ },[releasePotions,localId,signed,mutate]);
+
  async function perform(work:()=>Promise<boolean>){
   if(flight.current)return false;
   flight.current=true;revision.current++;setBusy(true);setNotice('');
@@ -217,6 +256,8 @@ export function OnlineArena({player}:{player:Player}){
  function send(action:LiveAction){
   if(!battle)return Promise.resolve(false);
   if(battle.local){
+   if(action.kind==='item'&&action.item==='potion'&&potionStock(useGame.getState().p)===0)
+    return Promise.resolve(mutate(p=>localArena(p)?.match.game.id===battle.id&&prepareLocalPotion(p,Date.now(),crypto.randomUUID()),true));
    return Promise.resolve(mutate(p=>{
     if(localArena(p)?.match.game.id!==battle.id||!updateLocalArena(p,Date.now(),action))return false;
     award(p);
@@ -247,7 +288,7 @@ export function OnlineArena({player}:{player:Player}){
  </section>;
  if(battle)return <section className="vvr-arena" aria-label="Арена">
   {notice&&<p className="online-status" role="status">{notice}</p>}
-  <BattleScene key={battle.id} battle={battle} now={battle.local?localNow:now} player={player} busy={busy}
+  <BattleScene key={battle.id} battle={battle} now={battle.local?localNow:now} player={player} busy={busy||battle.local&&!!pendingPotion}
    send={send} resume={()=>control('resume',battle)} onLobby={()=>{setDismissed(candidate?.id??battle.id);setMode(undefined);setPast(undefined)}} rewarded={battle.local?liveLocal?.reward:undefined}/>
  </section>;
  return <ArenaHub player={player} onMode={choose} pending={busy} notice={notice}

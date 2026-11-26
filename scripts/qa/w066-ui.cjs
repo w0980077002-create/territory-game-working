@@ -350,10 +350,10 @@ const rewards={
     if(width===320){
      await button('Подробнее · Зелье лечения').tap();
      await page.getByText(/Восстанавливает 45%/).waitFor();
-     await button('Купить для сетевого боя · 30 золота').tap();
-     await page.getByText('Сетевой запас: 1',{exact:true}).waitFor();
-     await button('Купить для боя с ботами · 30 золота').tap();
-     await page.getByText('Запас для боёв с ботами: 1',{exact:true}).waitFor();
+     await button('Купить за подтверждённое золото · 30').tap();
+     await page.getByText('В рюкзаке: 1',{exact:true}).waitFor();
+     await button('Купить за золото героя · 30 золота').tap();
+     await page.getByText('В рюкзаке: 2',{exact:true}).waitFor();
      assert.equal(potionBuys,1);
      assert.equal(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).arenaPotions,saveKey),1);
      await button('Закрыть карточку').tap();
@@ -361,6 +361,15 @@ const rewards={
     await button('Аукцион').tap();
     await page.getByRole('dialog',{name:'Аукцион'}).waitFor();
     await page.reload();
+    if(width===320){
+     await button('Карта').tap();
+     await page.locator('.harbor-building',{hasText:'Рюкзак'}).tap();
+     await button('Расходники').tap();
+     const stock=page.getByRole('list',{name:'Расходуемые предметы'});
+     await stock.getByText('×2',{exact:true}).waitFor();
+     assert.equal(await stock.getByRole('listitem').count(),1);
+     await page.reload();
+    }
     await button('Приключения').tap();
     await page.getByRole('button',{name:/^Гильдии/}).tap();
     await page.getByRole('dialog',{name:'Гильдии'}).waitFor();
