@@ -237,3 +237,27 @@
 .vvr-arena-belt button:disabled { opacity: .78; filter: saturate(.55); }
 .vvr-belt-help li .icon { width: 34px; height: 34px; }
 .vvr-belt-help li { grid-template-columns: 34px minmax(0, 1fr); }
+/* 7-slot battle belt: seven equal squares across the width (≈38 px at 320, 50 px max); empty slots stay visible. */
+.vvr-arena-belt { grid-template-columns: repeat(7, minmax(0, 50px)); gap: 4px; justify-content: start; }
+.vvr-arena-belt > button, .vvr-arena-belt > .vvr-belt-empty { position: relative; width: 100%; height: auto; aspect-ratio: 1; min-height: 0; padding: 3px; border-radius: 8px; }
+.vvr-belt-empty { display: block; border: 1px dashed #8f6a4080; background: #0000004d; }
+.vvr-belt-cd { position: absolute; inset: 0; border-radius: inherit; background: #000a; pointer-events: none; }
+.vvr-arena-belt > button > small { z-index: 1; }
+/* Belt set-up in the Arena lobby. */
+.vvr-belt-editor { display: grid; gap: 6px; padding: 8px; border: 1px solid #8f6a40; border-radius: 10px; background: linear-gradient(#2a1f17, #15100c); }
+.vvr-belt-editor header { display: grid; gap: 1px; }
+.vvr-belt-editor header strong { color: #ffe1a3; font-size: 13px; }
+.vvr-belt-editor header small { color: #cbb88f; font-size: 10.5px; }
+.vvr-belt-editor .vvr-arena-belt > button { border: 1px solid #977953; background: radial-gradient(circle at 50% 35%, #5a3f1f66, transparent 70%), #1f1712; color: #ffdf99; cursor: pointer; }
+.vvr-belt-editor .vvr-arena-belt > button.empty { border-style: dashed; border-color: #8f6a40aa; background: #0000004d; color: #cbb88f; font-size: 18px; font-weight: 800; }
+.vvr-belt-editor .vvr-arena-belt > button.picking { border-color: #f1cf7c; box-shadow: 0 0 8px #f5c86a88; }
+.vvr-belt-editor .vvr-arena-belt > button:disabled { opacity: .6; cursor: default; filter: none; }
+.vvr-belt-editor .vvr-arena-belt .icon { width: 100%; height: 100%; }
+.vvr-belt-editor .vvr-arena-belt small { position: absolute; right: 1px; bottom: 1px; min-width: 13px; padding: 0 2px; border-radius: 4px; background: #22160cee; font-size: 9px; font-weight: 800; line-height: 13px; text-align: center; }
+.vvr-belt-pick { display: grid; gap: 4px; }
+.vvr-belt-pick > button { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px; border: 1px solid #8f6a40; border-radius: 8px; background: #1f1712; color: #f3e2bd; text-align: left; cursor: pointer; }
+.vvr-belt-pick > button[aria-selected="true"] { border-color: #f1cf7c; }
+.vvr-belt-pick > button .icon { flex: none; width: 34px; height: 34px; }
+.vvr-belt-pick strong { display: block; font-size: 12px; color: #ffe1a3; } .vvr-belt-pick small { display: block; font-size: 10.5px; color: #cbb88f; }
+.vvr-belt-pick .vvr-belt-remove, .vvr-belt-pick .vvr-belt-shop { justify-content: center; min-height: 36px; font-size: 12px; font-weight: 700; }
+.vvr-belt-pick .vvr-belt-remove { border-color: #b1554699; color: #ffb0a0; }

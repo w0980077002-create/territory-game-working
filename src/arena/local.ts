@@ -3,6 +3,7 @@ import {arenaBuild,validArenaBuild} from './hero';
 import {advanceLocal,applyLocal,arenaRandom,localBattle,MAX_PROOF_MOVES,SOLO_ACTOR,type LocalProof,type ProofMove} from './localProof';
 import {capacities,type ArenaMode,type LiveAction,type LiveMatch} from './match';
 import {potionStock} from './potion';
+import {beltHas,playerBelt} from './belt';
 import {CHAT_MS} from './protocol';
 
 export {SOLO_ACTOR};
@@ -20,8 +21,10 @@ export function startLocalArena(p:Player,id:string,mode:ArenaMode,now:number,pro
  const saved=localArena(p);
  if(saved?.match.game.id===id||saved&&!saved.match.game.result&&now<saved.match.game.players[0].seenAt+CHAT_MS)return false;
  const random=proof?arenaRandom(proof.seed):undefined;
+ // The belt is fixed here for the whole fight; the server already zeroed reserved potions for a belt without them.
+ const loadout=playerBelt(p),carries=beltHas(loadout,'potion');
  const match=localBattle(id,mode,proof?.hero??arenaBuild(p),proof?.stage??p.stage,
-  proof?.potions??potionStock(p)+confirmedPotions,proof?.startedAt??now,random?.next??Math.random);
+  proof?.potions??(carries?potionStock(p)+confirmedPotions:0),proof?.startedAt??now,random?.next??Math.random,loadout);
  p.localArena={match,...(confirmedPotions>0?{confirmedPotions}:{}),...(random?{proof:{random:random.state(),moves:[],clockOffset:serverNow-now}}:{})};
  return true;
 }

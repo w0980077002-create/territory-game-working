@@ -5,6 +5,7 @@ import {advanceLive,applyLive,arenaWinners,buildMatch,capacities,nextLiveWake,vi
 import {CHAT_MS,LEVEL_RANGE,MATCH_WAIT_MS} from '../../src/arena/protocol';
 import {PROOF_DURATION,replayProof,type LocalProof,type ProofMove,type TeamArenaMode} from '../../src/arena/localProof';
 import type {PotionQuote} from '../../src/arena/potion';
+import {beltHas,DEFAULT_BELT,sanitizeBelt} from '../../src/arena/belt';
 import {compatible,type Entrant} from './duel';
 
 type Actor={id:string;controller:string};
@@ -230,14 +231,17 @@ export class LiveArena {
   return {stage,price,gold,stock:this.availablePotions(actor.id,issued),reserved};
  }
 
- join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean,issued=0,localStage?:number,localPotions?:number){
+ join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean,issued=0,localStage?:number,localPotions?:number,belt?:unknown){
   return this.transaction(()=>{
    const current=this.read(actor,now);
    if(current.search||current.battle&&!current.battle.result)return current;
    this.db.prepare('DELETE FROM arena_live_fallback WHERE player=?').run(actor.id);
    this.db.prepare('DELETE FROM arena_local_potion_reserve WHERE player=?').run(actor.id);
    const ticket=randomUUID();
-   const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,rankEligible,potions:this.availablePotions(actor.id,issued),localStage,localPotions,since:now,seenAt:now};
+   // The belt is checked and fixed here: a potion outside the belt is neither reserved nor usable in this fight.
+   // Server wins count is not trusted yet, so 0 is passed: it matters only once beltRules.testMode is switched off.
+   const loadout=sanitizeBelt(belt??DEFAULT_BELT,0),carries=beltHas(loadout,'potion');
+   const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,rankEligible,loadout,potions:carries?this.availablePotions(actor.id,issued):0,localStage,localPotions:carries?localPotions:0,since:now,seenAt:now};
    this.db.prepare('INSERT OR REPLACE INTO arena_live_queue VALUES(?,?,?,?,?)').run(actor.id,mode,now,now,JSON.stringify(entrant));
    this.pair(mode,now);
    return this.read(actor,now);

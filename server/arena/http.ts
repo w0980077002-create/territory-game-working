@@ -10,6 +10,7 @@ import {ArenaError,ArenaService} from './service';
 import {readArenaLevels} from './roster';
 import {LiveArena} from './live';
 import {healingPotion} from '../../src/arena/potion';
+import {validBelt} from '../../src/arena/belt';
 import {MAX_PROOF_MOVES,type ProofMove} from '../../src/arena/localProof';
 import {validArenaBuild} from '../../src/arena/hero';
 import {capacities,type ArenaMode,type LiveAction} from '../../src/arena/match';
@@ -270,18 +271,20 @@ export function createArenaServer(options:Options){
    const actionTime=clock();
    switch(pathname){
     case '/arena-api/live/join':{
-     if(Object.hasOwn(input,'stage'))exact(input,'mode','build','stage','localPotions');
-     else exact(input,'mode','build');
+     // `belt` is optional so a client that predates the 7-slot belt keeps today's behaviour (potion in slot 1).
+     const keys=['mode','build',...(Object.hasOwn(input,'stage')?['stage','localPotions']:[]),...(Object.hasOwn(input,'belt')?['belt']:[])];
+     exact(input,...keys);
      if(!hasKey(capacities,input.mode)||!validArenaBuild(input.build)||
       input.stage!==undefined&&!boundedInt(input.stage,1,1_000_000)||
-      input.localPotions!==undefined&&!boundedInt(input.localPotions,0,Number.MAX_SAFE_INTEGER)){
+      input.localPotions!==undefined&&!boundedInt(input.localPotions,0,Number.MAX_SAFE_INTEGER)||
+      input.belt!==undefined&&!validBelt(input.belt)){
       console.warn(JSON.stringify({event:'arena_build_rejected',player:actor.id}));
       throw new ArenaError(400,'Проверьте характеристики героя и сохранение');
      }
      const name=service.playerName(actor.id);
      const stock=await stockFromW066(options.scorePublisher,{telegram:actor.id,name});
      json(res,200,live.join(actor,input.mode as ArenaMode,input.build,name,clock(),options.local===true||stock?.status==='ok',
-      stock?.status==='ok'?stock.issued:0,input.stage as number|undefined,input.localPotions as number|undefined));
+      stock?.status==='ok'?stock.issued:0,input.stage as number|undefined,input.localPotions as number|undefined,input.belt));
      return;
     }
     case '/arena-api/live/potions':{

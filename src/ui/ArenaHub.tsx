@@ -5,6 +5,7 @@ import type {Player} from '../core/types';
 import {communityEnabled,requestTeamArena,type Ranking} from '../community/client';
 import type {ArenaMode,RecentBattle} from '../arena/match';
 import {Icon} from './Icon';
+import {BeltEditor} from './ArenaBattle';
 import './arenaHub.css';
 
 export const arenaModes={
@@ -16,8 +17,8 @@ export const arenaModes={
 type Podium=Ranking&{points:number;wins:number;teamLosses:number};
 const arenaArt=(file:string)=>import.meta.env.BASE_URL+'art/arena/'+file;
 
-export function ArenaHub({player,onMode,pending,pendingMode,notice,onResume,recent,onPast}:{
- player:Player;onMode:(mode:ArenaMode)=>void;pending:boolean;pendingMode?:ArenaMode;notice:string;onResume?:()=>void;recent:RecentBattle[];onPast:(id:string)=>void;
+export function ArenaHub({player,onMode,pending,pendingMode,notice,onResume,recent,onPast,beltLocked=false}:{
+ player:Player;onMode:(mode:ArenaMode)=>void;pending:boolean;pendingMode?:ArenaMode;notice:string;onResume?:()=>void;recent:RecentBattle[];onPast:(id:string)=>void;beltLocked?:boolean;
 }){
  const open=useGame(state=>state.open);
  const [rulesOpen,setRulesOpen]=useState(false),[podium,setPodium]=useState<Podium>();
@@ -55,7 +56,7 @@ export function ArenaHub({player,onMode,pending,pendingMode,notice,onResume,rece
    </button></li>)}</ul>
   </details>}
   <small>Уровень героя {player.level} · побед в одиночных дуэлях {player.arenaWins}</small>
-  <button className="vvr-leave" type="button" onClick={()=>open('shop')}><Icon name="potion"/> Зелья в Лавке</button>
+  <BeltEditor player={player} locked={beltLocked}/>
   {notice&&<p role="status" className="online-status">{notice}</p>}
   {pending&&pendingMode&&<span role="status">Подключение · {arenaModes[pendingMode].size}</span>}
   {onResume&&<button className="action secondary" type="button" onClick={onResume}>Чат прошлого боя</button>}
