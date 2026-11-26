@@ -316,3 +316,7 @@
 }
 .saga-modal:not([data-panel="realm"]):not([data-panel="darkgear"]) select option { background: #1c140d; color: #f3e2bd; }
 .saga-shade { background: #0d0805d9; }
+
+/* Treasure shop: 9 categories (with «Зелья и эликсиры») sit in two even rows. */
+.treasure-shop .shop-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.treasure-shop .shop-tabs > button { font-size: 9.5px; letter-spacing: -.1px; hyphens: auto; }

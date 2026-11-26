@@ -15,7 +15,7 @@ import './treasureShop.css';
 const categories = [['all','Витрина'], ...shopCategories] as const;
 const categoryIcons = {
   all:'chest', daily:'event', resources:'coins', materials:'mat-harbor',
-  equipment:'helmet', growth:'skill', horn:'horn', supplies:'gift',
+  equipment:'helmet', growth:'skill', horn:'horn', elixirs:'elixir-valhalla-heart', supplies:'gift',
 } satisfies Record<typeof categories[number][0],string>;
 const featured = ['arena-potion','travel-stipend','region-supplies','expedition-kit','mine-reserve','summon-seal','forge-parcel','basic-equipment'];
 const compactCoins = new Intl.NumberFormat('ru', {notation:'compact',maximumFractionDigits:1});

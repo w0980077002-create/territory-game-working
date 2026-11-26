@@ -26,3 +26,6 @@
 .game .orb > .potion-cost {
   z-index: 1;
 }
+/* Approved potion artwork has a transparent margin around its glow (object ≈ 75% of the 256 px canvas):
+   scale it so the bottle reads at the same size as other icons. Never stretched (contain). */
+img.icon-elixir { object-fit: contain; transform: scale(1.3); transform-origin: 50% 55%; }

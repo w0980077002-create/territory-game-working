@@ -127,6 +127,8 @@ const pictureIcons:Record<string,{asset:string; filter?:string}>={
  'talent-luck':{asset:'icons/talent-luck'},
 };
 export function Icon({name,className=''}:{name:string;className?:string}){
+ // Approved Arena potion and elixir artwork (public/art/elixirs), one picture per catalog entry.
+ if(name.startsWith('elixir-'))return <img className={`icon illustrated icon-elixir ${className}`} src={art('elixirs/'+name.slice(7))} alt="" aria-hidden="true" draggable={false}/>;
  if(name==='hammer')return <span className={`icon illustrated icon-hammer ${className}`} aria-hidden="true"/>;
  // Painted relic objects (windows/relic-objects.webp): Mjölnir shard, Yggdrasil leaf, Odin's ravens.
  if(name==='relic-mjolnir'||name==='relic-leaf'||name==='relic-ravens')return <span className={`icon illustrated relic-icon ${name} ${className}`} aria-hidden="true"/>;

@@ -18,6 +18,7 @@ export const shopCategories = [
   ['equipment', 'Экипировка'],
   ['growth', 'Развитие'],
   ['horn', 'Рог Трофеев'],
+  ['elixirs', 'Зелья и эликсиры'],
   ['supplies', 'Наборы припасов'],
 ] as const;
 type Category = typeof shopCategories[number][0];
@@ -87,7 +88,7 @@ export function shopOffers(p: Player, now = Date.now(), equipmentSlot:Slot='weap
   const previousIndex = (materialIds.indexOf(material) + materialIds.length - 1) % materialIds.length;
   const previous = materialIds[previousIndex];
   const offers:ShopOffer[] = [
-    {id:'arena-potion',category:'supplies',name:consumables.potion.name,icon:consumables.potion.icon,currency:'gold',
+    {id:'arena-potion',category:'elixirs',name:consumables.potion.name,icon:consumables.potion.icon,currency:'gold',
       price:healingPotion.cost(p.stage),reward:{},description:consumables.potion.description},
     {id:'rune-scrolls',category:'daily',name:'Рунические свитки',icon:'scroll',description:'На призыв и развитие рун. Бесплатная смена вариантов по-прежнему доступна в Навыках.',currency:'gold',price:450,reward:{solo:{scroll:20}},limit:'daily'},
     {id:'weekly-growth',category:'supplies',name:'Недельное снаряжение дружины',icon:'chest',description:'Осколки для Камней пробуждения, свитки для рун и перья для роста крыльев.',currency:'tokens',price:45,reward:{solo:{scroll:45,awakeShard:10,wing:8}},limit:'weekly'},

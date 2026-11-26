@@ -9,5 +9,16 @@
  "Вклад 7 предметов": "Contribution of 7 items",
  "· очки тренировки": "· training points",
  "Раз в неделю": "Weekly",
- "Особое": "Special"
+ "Особое": "Special",
+ "Сердце Вальгаллы": "Heart of Valhalla",
+ "Зелья и эликсиры": "Potions & Elixirs",
+ "Восстанавливает {0}% максимального здоровья. Перезарядка {1} с.": "Restores {0}% of maximum health. Cooldown {1} s.",
+ "Расходники": "Consumables",
+ "В Лавку": "To the shop",
+ "Расходников пока нет": "No consumables yet",
+ "Для сетевого боя доступно: {0}": "Available for online battles: {0}",
+ "Зарезервировано для Арены: {0}": "Reserved for the Arena: {0}",
+ "Эликсиры и зелья": "Elixirs and potions",
+ "Описание расходников": "Consumable details",
+ "Нет доступных расходников": "No consumables available"
 }
