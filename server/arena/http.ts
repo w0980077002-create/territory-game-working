@@ -8,6 +8,11 @@ import {arenaElixirs,arenaHeroes,arenaKits,arenaSkills,zones,
 import {issueSession,readSession,verifyTelegram} from './auth';
 import {ArenaError,ArenaService} from './service';
 import {readArenaLevels} from './roster';
+import {LiveArena} from './live';
+import {healingPotion} from '../../src/arena/potion';
+import {MAX_PROOF_MOVES,type ProofMove} from '../../src/arena/localProof';
+import {validArenaBuild} from '../../src/arena/hero';
+import {capacities,type ArenaMode,type LiveAction} from '../../src/arena/match';
 
 type Options={dbPath:string;botToken:string;sessionKey:string;webRoot?:string;local?:boolean;clock?:()=>number;rng?:()=>number;
  allowedUsers?:ReadonlySet<string>;testLevels?:string;scorePublisher?:{url:string;token:string}};
@@ -31,15 +36,15 @@ function json(res:ServerResponse,status:number,value:unknown){
  res.end(JSON.stringify(value));
 }
 
-async function body(req:IncomingMessage):Promise<Record<string,unknown>>{
+async function body(req:IncomingMessage,limit=9_000):Promise<Record<string,unknown>>{
  if(req.headers['content-type']?.split(';')[0]!=='application/json')
   throw new ArenaError(415,'Ожидается JSON');
- if(Number(req.headers['content-length'])>9_000)throw new ArenaError(413,'Запрос слишком большой');
+ if(Number(req.headers['content-length'])>limit)throw new ArenaError(413,'Запрос слишком большой');
  const chunks:Buffer[]=[];
  let size=0;
  for await(const chunk of req){
   size+=chunk.length;
-  if(size>9_000)throw new ArenaError(413,'Запрос слишком большой');
+  if(size>limit)throw new ArenaError(413,'Запрос слишком большой');
   chunks.push(chunk);
  }
  try{
@@ -85,6 +90,24 @@ function parseCommand(value:unknown):ArenaCommand{
   }
  }
  throw new ArenaError(400,'Некорректное действие');
+}
+
+function parseLiveAction(value:unknown):LiveAction{
+ if(object(value)){
+  if(value.kind==='leave'){exact(value,'kind');return {kind:'leave'}}
+  if(value.kind==='chat'){
+   exact(value,'kind','text');
+   if(typeof value.text==='string'&&value.text.length<=200)return {kind:'chat',text:value.text};
+  }
+  if(value.kind==='strike'){
+   exact(value,'kind','target','attack','blocks');
+   const {target,attack,blocks}=value;
+   if(typeof target==='string'&&(/^[1-9]\d{0,15}$|^bot-\d{1,2}$/).test(target)&&hasKey(zones,attack)&&
+    Array.isArray(blocks)&&blocks.length===2&&hasKey(zones,blocks[0])&&hasKey(zones,blocks[1])&&blocks[0]!==blocks[1])
+    return {kind:'strike',target,attack,blocks:[blocks[0],blocks[1]]};
+  }
+ }
+ return parseCommand(value);
 }
 
 function scopedLimit(max:number,interval:number){
@@ -146,6 +169,26 @@ async function readW066Attack(publisher:Options['scorePublisher'],telegram:strin
  }catch{/* W066 outages leave local duels available as training. */}
 }
 
+type Stock={status:'ok';gold:number;stage:number;issued:number;attack:number};
+const boundedInt=(value:unknown,min:number,max:number):value is number=>
+ typeof value==='number'&&Number.isSafeInteger(value)&&value>=min&&value<=max;
+
+async function stockFromW066(publisher:Options['scorePublisher'],input:{telegram:string;name:string;operation?:string;stage?:number;price?:number}){
+ if(!publisher)return;
+ try{
+  const endpoint=new URL(publisher.url);
+  if(!endpoint.pathname.endsWith('/arena-result'))return;
+  endpoint.pathname=endpoint.pathname.replace(/arena-result$/,'arena-potions');
+  const response=await fetch(endpoint,{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
+   headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},body:JSON.stringify(input)});
+  if(!response.ok)return;
+  const data=await response.json();
+  if(data.status==='price_changed'||data.status==='insufficient')return {status:data.status} as {status:'price_changed'|'insufficient'};
+  if(data.status==='ok'&&boundedInt(data.stage,1,1_000_000)&&boundedInt(data.gold,0,Number.MAX_SAFE_INTEGER)&&
+   boundedInt(data.issued,0,Number.MAX_SAFE_INTEGER)&&boundedInt(data.attack,1,1_000_041))return data as Stock;
+ }catch{/* A quote can be retried with the same operation ID. */}
+}
+
 export function createArenaServer(options:Options){
  if(options.sessionKey.length<32||!options.botToken||options.botToken===options.sessionKey)
   throw new Error('Arena requires independent Telegram and session credentials');
@@ -155,6 +198,7 @@ export function createArenaServer(options:Options){
 
  const rosterIds=options.local?new Set(Object.values(localPeople).map(person=>String(person.id))):options.allowedUsers;
  const service=new ArenaService(options.dbPath,options.rng,readArenaLevels(options.testLevels,rosterIds));
+ const live=new LiveArena(options.dbPath,options.rng);
  const clock=options.clock??Date.now;
  const authLimit=scopedLimit(30,60_000),requestLimit=scopedLimit(60,10_000);
  const server=createServer({requestTimeout:10_000,headersTimeout:8_000,maxHeaderSize:16_384},async(req,res)=>{
@@ -200,6 +244,21 @@ export function createArenaServer(options:Options){
    if(options.allowedUsers&&!options.allowedUsers.has(session.id))throw new ArenaError(403,'Этот аккаунт не приглашён на Арену');
    requestLimit(session.id,now);
    const actor={id:session.id,controller:session.lease+':'+tab};
+   if(req.method==='GET'&&pathname==='/arena-api/live/potions'){
+    const data=await stockFromW066(options.scorePublisher,{telegram:actor.id,name:service.playerName(actor.id)});
+    if(data?.status!=='ok')throw new ArenaError(503,'Запас зелий временно недоступен');
+    json(res,200,live.potionQuote(actor,data.issued,data.stage,healingPotion.cost(data.stage),data.gold));
+    return;
+   }
+   if(req.method==='GET'&&pathname==='/arena-api/live/recent'){json(res,200,live.recent(actor,now));return}
+   if(req.method==='GET'&&pathname==='/arena-api/live/room'){
+    const id=url.searchParams.get('match');
+    if(!id||!uuid.test(id))throw new ArenaError(400,'Неизвестный бой');
+    const view=live.room(actor,id,now);
+    if(!view.battle)throw new ArenaError(404,'Комната недоступна');
+    json(res,200,view);return;
+   }
+   if(req.method==='GET'&&pathname==='/arena-api/live/state'){json(res,200,live.state(actor,now));return}
    if(req.method==='GET'&&pathname==='/arena-api/state'){json(res,200,service.read(actor,now));return}
    if(req.method==='GET'&&pathname==='/arena-api/room'){
     const id=url.searchParams.get('match');
@@ -207,9 +266,67 @@ export function createArenaServer(options:Options){
     json(res,200,service.room(actor,id,now));return;
    }
    if(req.method!=='POST')throw new ArenaError(404,'Действие не найдено');
-   const input=await body(req);
+   const input=await body(req,pathname==='/arena-api/live/proof'?262_144:9_000);
    const actionTime=clock();
    switch(pathname){
+    case '/arena-api/live/join':{
+     if(Object.hasOwn(input,'stage'))exact(input,'mode','build','stage','localPotions');
+     else exact(input,'mode','build');
+     if(!hasKey(capacities,input.mode)||!validArenaBuild(input.build)||
+      input.stage!==undefined&&!boundedInt(input.stage,1,1_000_000)||
+      input.localPotions!==undefined&&!boundedInt(input.localPotions,0,Number.MAX_SAFE_INTEGER)){
+      console.warn(JSON.stringify({event:'arena_build_rejected',player:actor.id}));
+      throw new ArenaError(400,'Проверьте характеристики героя и сохранение');
+     }
+     const name=service.playerName(actor.id);
+     const stock=await stockFromW066(options.scorePublisher,{telegram:actor.id,name});
+     json(res,200,live.join(actor,input.mode as ArenaMode,input.build,name,clock(),options.local===true||stock?.status==='ok',
+      stock?.status==='ok'?stock.issued:0,input.stage as number|undefined,input.localPotions as number|undefined));
+     return;
+    }
+    case '/arena-api/live/potions':{
+     exact(input,'operation','stage','price');
+     if(typeof input.operation!=='string'||!uuid.test(input.operation)||!boundedInt(input.stage,1,1_000_000)||
+      input.price!==healingPotion.cost(input.stage))throw new ArenaError(400,'Проверьте цену зелья');
+     const data=await stockFromW066(options.scorePublisher,{telegram:actor.id,name:service.playerName(actor.id),
+      operation:input.operation,stage:input.stage,price:input.price as number});
+     if(data?.status==='price_changed')throw new ArenaError(409,'Цена обновилась');
+     if(data?.status==='insufficient')throw new ArenaError(422,'Недостаточно подтверждённого золота');
+     if(data?.status!=='ok')throw new ArenaError(503,'Покупка временно недоступна');
+     json(res,200,live.potionQuote(actor,data.issued,data.stage,healingPotion.cost(data.stage),data.gold));
+     return;
+    }
+    case '/arena-api/live/proof':{
+     exact(input,'id','moves');
+     if(typeof input.id!=='string'||!uuid.test(input.id)||!Array.isArray(input.moves)||input.moves.length>MAX_PROOF_MOVES)
+      throw new ArenaError(400,'Некорректная запись боя');
+     const moves=input.moves.map((move):ProofMove=>{
+      if(!Array.isArray(move)||move.length!==2||!boundedInt(move[0],0,actionTime))
+       throw new ArenaError(400,'Некорректное время хода');
+      const action=parseLiveAction(move[1]);
+      if(action.kind==='chat'||action.kind==='leave'||action.kind==='move')
+       throw new ArenaError(400,'Недопустимый ход');
+      return [move[0],action];
+     });
+     json(res,200,live.prove(actor,input.id,service.playerName(actor.id),moves,actionTime));
+     return;
+    }
+    case '/arena-api/live/cancel':
+    case '/arena-api/live/resume':{
+     exact(input,'target','revision');
+     const {target,revision}=parseControl(input);
+     json(res,200,pathname.endsWith('cancel')?live.cancel(actor,target,revision,actionTime):live.resume(actor,target,revision,actionTime));
+     return;
+    }
+    case '/arena-api/live/act':{
+     exact(input,'target','revision','action','round','sequence');
+     const {target,revision}=parseControl(input);
+     const {action,round,sequence}=input;
+     if(typeof round!=='number'||!Number.isSafeInteger(round)||round<0||round>60||
+      typeof sequence!=='number'||!Number.isSafeInteger(sequence)||sequence<=0)throw new ArenaError(400,'Некорректное действие');
+     json(res,200,live.act(actor,target,revision,parseLiveAction(action),round,sequence,actionTime));
+     return;
+    }
     case '/arena-api/join':{
      exact(input,'hero','kit');
      const hero=arenaHeroes.find(value=>value===input.hero);
@@ -248,7 +365,7 @@ export function createArenaServer(options:Options){
   }
  });
  const worker=setInterval(()=>{
-  try{service.tick(clock())}catch{console.error('Arena clock could not update its database')}
+  try{const now=clock();service.tick(now);live.tick(now)}catch{console.error('Arena clock could not update its database')}
  },500).unref();
  let publishing=false,closing=false,publishFailed=false;
  const publisher=options.scorePublisher;
@@ -256,7 +373,7 @@ export function createArenaServer(options:Options){
   if(publishing||closing)return;
   publishing=true;
   try{
-   for(const score of service.pendingScores()){
+   for(const score of [...service.pendingScores(),...live.pending()]){
     const response=await fetch(publisher.url,{
      method:'POST',headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},
      body:JSON.stringify(score),redirect:'error',signal:AbortSignal.timeout(4000),
@@ -264,6 +381,18 @@ export function createArenaServer(options:Options){
     if(!response.ok)throw new Error('Score delivery was rejected');
     if(closing)break;
     service.confirmScore(score.match);
+    live.delivered(score.match);
+   }
+   const teamUrl=new URL(publisher.url);
+   teamUrl.pathname=teamUrl.pathname.replace(/arena-result$/,'arena-team-result');
+   if(teamUrl.href!==publisher.url)for(const team of live.pendingTeams()){
+    const response=await fetch(teamUrl,{
+     method:'POST',headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},
+     body:team.json,redirect:'error',signal:AbortSignal.timeout(4000),
+    });
+    if(!response.ok)throw new Error('Team result delivery was rejected');
+    if(closing)break;
+    live.deliveredTeam(team.id);
    }
    publishFailed=false;
   }catch{
@@ -271,6 +400,6 @@ export function createArenaServer(options:Options){
    publishFailed=true;
   }finally{publishing=false}
  },5000).unref():undefined;
- server.on('close',()=>{closing=true;clearInterval(worker);clearInterval(publication);service.close()});
+ server.on('close',()=>{closing=true;clearInterval(worker);clearInterval(publication);service.close();live.close()});
  return server;
 }

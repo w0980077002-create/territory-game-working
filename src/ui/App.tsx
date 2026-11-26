@@ -1,4 +1,3 @@
-import {arenaApiOrigin,onlineArenaEnabled} from '../arena/staging';
 import {forgeLevel,forgeMasteryBonus} from '../core/forge';
 import {GameTabs} from './CompactGame';
 import {LairPanel} from './LairPanel';
@@ -69,7 +68,7 @@ import {RewardArt,RewardNotice} from './RewardArt';
 import {PORTALS,portalColors} from '../dark/portals';
 import {realmRun,realmLast,floorName,portalConfig} from '../dark/realm';
 import {RealmPanel,DarkGearPanel,GemsPanel,RelicsPanel,SquadPanel,DarkHub,PowerSources} from './DarkPanels';
-const OnlineArena=onlineArenaEnabled?lazy(()=>import('./OnlineArena').then(module=>({default:module.OnlineArena}))):null;
+const OnlineArena=lazy(()=>import('./OnlineArena').then(module=>({default:module.OnlineArena})));
 const Community=communityEnabled?lazy(()=>import('./CommunityPanel').then(module=>({default:module.CommunityPanel}))):null;
 const currencyNames:Record<string,string>={gold:'Золото',gems:'Самоцветы',chaosite:'Хаосит',tokens:'Жетоны Арены',horn:'Заряды Рога Трофеев',ess:'Тёмная эссенция',shard:'Осколки реликвий',seal:'Печати призыва',dusk:'Камни Сумрака'};
 const sourceTitle=(kind:string)=>`Где получить · ${currencyNames[kind]??materials[kind]?.name??kind}`;
@@ -304,8 +303,8 @@ function ArenaPanel(){
   {onArena&&<Action kind="secondary" onClick={()=>battle?.startMode('campaign')}>Вернуться к главе</Action>}
  </>;
  return <>
-  {OnlineArena&&<Suspense fallback={null}><OnlineArena player={p} initiallyOpen={!!arenaApiOrigin}/></Suspense>}
-  {arenaApiOrigin?<details className="saga-disclosure" open={onArena||undefined}><summary>Одиночный поединок</summary>{solo}</details>:solo}
+  <Suspense fallback={null}><OnlineArena player={p}/></Suspense>
+  {onArena&&<details className="saga-disclosure"><summary>Предыдущий одиночный поединок</summary>{solo}</details>}
  </>;
 }
 function FirstRegionTip({p,onOpen}:{p:Player;onOpen:()=>void}){
@@ -462,7 +461,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
    <Action kind="secondary" onClick={()=>g.open(null)}>Отмена</Action></>;
  })()}
  {panel==='adventure'&&<><div className="adventure-destinations">{[['campaign','map','Основная глава',`Этап ${stageLabel(p.stage)}`],['dungeon','lair-keeper','Логово мини-босса',`${balance.combat_test_settings.mode_entry_chaosite} Хаосита`],['darkness','portal','Царство тьмы',`Этаж ${p.darkFloor}`],['farm','coins','Бесконечный фарм','Золото и опыт'],...(worldBossEnabled()?[['worldboss','crown','Мировой босс','Битва всех героев']]:[])].map(([mode,icon,name,detail])=><button key={mode} className={'adventure-route route-'+mode} onClick={()=>mode==='darkness'?g.open('realm'):mode==='dungeon'?g.open('lair'):mode==='worldboss'?g.open('worldboss'):battle?.startMode(mode)}><Icon name={icon}/><strong>{name}</strong><small>{detail}</small></button>)}
-  {onlineArenaEnabled&&<button className="adventure-route" onClick={()=>g.open('arena')}><Icon name="arena"/><strong>Арена</strong><small>Сетевые поединки 1×1</small></button>}
+  <button className="adventure-route" onClick={()=>g.open('arena')}><Icon name="arena"/><strong>Арена</strong><small>1×1 · 3×3 · 20×20</small></button>
   {Community&&<button className="adventure-route" onClick={()=>g.open('guild')}><Icon name="handshake"/><strong>{titles.guild}</strong><small>{lang==='en'?'Guild quests':'Командные задания'}</small></button>}
  </div><AdventureRules stage={p.stage}/><h3>Сила героя</h3><DarkHub p={p}/></>}
  {panel==='arena'&&<ArenaPanel/>}

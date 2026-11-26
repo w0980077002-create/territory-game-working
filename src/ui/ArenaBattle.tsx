@@ -23,7 +23,7 @@ const zoneIds=Object.keys(zones) as ArenaZone[];
 const elixirIds=Object.keys(arenaElixirs) as ArenaElixir[];
 /** One place to swap in the dedicated elixir artwork when the shop package arrives. */
 export const elixirArt:Record<ArenaElixir,string>={
- heal_small:'potion',heal_large:'stat-health',attack:'stat-attack',defense:'stat-defense',crit:'stat-crit',time:'rune-haste',adrenaline:'passive-battle-thirst',
+ potion:'potion',heal_small:'potion',heal_large:'stat-health',attack:'stat-attack',defense:'stat-defense',crit:'stat-crit',time:'rune-haste',adrenaline:'passive-battle-thirst',
 };
 const secondsLeft=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
 const clock=(s:number)=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
@@ -134,22 +134,22 @@ function Messages({feed,now}:{feed:Feed;now:number}){
 
 /** Folded elixir belt with pictures, counts, cooldowns and the exact effect of each elixir. */
 export function ArenaBelt({belt,readyAt,now,disabled,fullHealth,onItem}:BeltControls&{now:number}){
- return <div className="vvr-arena-belt" aria-label="Пояс эликсиров">{elixirIds.map(id=>{
+ return <div className="vvr-arena-belt" aria-label="Пояс эликсиров">{elixirIds.filter(id=>belt[id]>0).map(id=>{
   const cooldown=secondsLeft(readyAt[id]??0,now);
-  const label=arenaElixirs[id].label+' '+belt[id]+(cooldown?' · '+cooldown+' с':'');
+  const label=arenaElixirs[id].label+(' · '+belt[id])+(cooldown?' · '+cooldown+' с':'');
   return <button type="button" key={id} title={label+'. '+arenaElixirs[id].detail} aria-label={label}
-   disabled={disabled||!belt[id]||cooldown>0||(fullHealth&&(id==='heal_small'||id==='heal_large'))}
-   onClick={()=>onItem(id)}><Icon name={elixirArt[id]}/><small>{cooldown?cooldown+'с':belt[id]}</small></button>;
+   disabled={disabled||!belt[id]||cooldown>0||(fullHealth&&(id==='heal_small'||id==='heal_large'||id==='potion'))}
+   onClick={()=>onItem(id)}><Icon name={elixirArt[id]}/><small>{cooldown?cooldown+' с':belt[id]}</small></button>;
  })}</div>;
 }
 function BeltPanel({controls,now}:{controls:BeltControls;now:number}){
- const total=elixirIds.reduce((sum,id)=>sum+controls.belt[id],0);
+ const available=elixirIds.filter(id=>controls.belt[id]>0);
  return <details className="vvr-dock-panel">
-  <summary><span>Пояс эликсиров</span><span className="vvr-dock-mini" aria-hidden="true">{elixirIds.filter(id=>controls.belt[id]).slice(0,4).map(id=><Icon key={id} name={elixirArt[id]}/>)}</span><em>{total}</em></summary>
-  <ArenaBelt {...controls} now={now}/>
-  <details className="vvr-belt-help"><summary>Описание эликсиров</summary>
-   <ul>{elixirIds.map(id=><li key={id}><Icon name={elixirArt[id]}/><span><strong>{arenaElixirs[id].label} · {controls.belt[id]} шт.</strong><small>{arenaElixirs[id].detail}</small></span></li>)}</ul>
-  </details>
+  <summary><span>Эликсиры и зелья</span><span className="vvr-dock-mini" aria-hidden="true">{available.slice(0,4).map(id=><Icon key={id} name={elixirArt[id]}/>)}</span></summary>
+  {available.length?<ArenaBelt {...controls} now={now}/>:<small>Нет доступных расходников</small>}
+  {available.length>0&&<details className="vvr-belt-help"><summary>Описание расходников</summary>
+   <ul>{available.map(id=><li key={id}><Icon name={elixirArt[id]}/><span><strong>{arenaElixirs[id].label}</strong><small>{arenaElixirs[id].detail}</small></span></li>)}</ul>
+  </details>}
  </details>;
 }
 
@@ -179,9 +179,9 @@ export function FighterList({title,ally,fighters,meId,targetId,onTarget}:{
 }
 
 /** The whole battle screen. `actions` are the compact Auto / Reset / Strike buttons; `dock` holds mode-specific folds. */
-export function ArenaBattleView({mode,round,timer,you,opponent,zoneControls,status,result,outcome,actions,belt,gear,dock,feed,now,look}:{
+export function ArenaBattleView({mode,round,timer,you,opponent,zoneControls,status,result,outcome,actions,belt,dock,feed,now,look}:{
  mode:string;round?:number;timer:number|null;you:SceneFighter;opponent:SceneFighter;zoneControls:ZoneControls|null;status?:string;
- result?:ReactNode;outcome?:'win'|'loss'|'draw';actions?:ReactNode;belt:BeltControls|null;gear?:ReactNode;dock?:ReactNode;feed:Feed;now:number;look?:Player;
+ result?:ReactNode;outcome?:'win'|'loss'|'draw';actions?:ReactNode;belt:BeltControls|null;dock?:ReactNode;feed:Feed;now:number;look?:Player;
 }){
  const z=zoneControls,live=!result;
  const beltLeft=belt?elixirIds.reduce((sum,id)=>sum+belt.belt[id],0):0;
@@ -207,7 +207,7 @@ export function ArenaBattleView({mode,round,timer,you,opponent,zoneControls,stat
    </div>
    {actions&&<div className="vvr-fight-actions">{actions}</div>}
   </div>
-  {(belt||gear||dock)&&<div className="vvr-dock">{belt&&<BeltPanel controls={belt} now={now}/>}{gear}{dock}</div>}
-  <Messages feed={feed} now={now}/>
+  {belt&&<div className="vvr-dock"><BeltPanel controls={belt} now={now}/></div>}
+  <Messages feed={feed} now={now}/>{dock&&<div className="vvr-dock">{dock}</div>}
  </div>;
 }

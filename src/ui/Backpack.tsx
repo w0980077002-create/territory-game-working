@@ -7,6 +7,8 @@ import type {Slot} from '../core/types';
 import type {LootFilter} from '../core/loot';
 import balance from '../../config/test-balance.v1.json';
 import {DialogShell} from './SagaUI';
+import {Icon} from './Icon';
+import {potionStock} from '../arena/potion';
 import {InventoryGrid} from './InventoryGrid';
 import './backpack.css';
 
@@ -21,6 +23,7 @@ export function Backpack({storage,setStorage,view,setView,scrollMemory}:{
 }){
  const g=useGame(),p=g.p,{filter,slot,order}=view;
  const [help,setHelp]=useState<Help>(null);
+ const potions=potionStock(p);
  const used=p.inventory.length,stored=p.pendingLoot?.length??0,full=used>=capacity;
  const toggleHelp=(next:Help)=>setHelp(h=>h===next?null:next);
  return <DialogShell panel="inventory" title="Рюкзак" footer={null} scrollMemory={scrollMemory}>
@@ -31,6 +34,7 @@ export function Backpack({storage,setStorage,view,setView,scrollMemory}:{
    </button>
    <button aria-pressed={storage} onClick={()=>setStorage(true)}>Склад <small>{stored}</small></button>
   </div>
+  {!storage&&potions>0&&<div className="row"><Icon name="potion"/><span>Зелье лечения · {potions}</span></div>}
   {full&&!storage&&<p className="pack-full">Рюкзак полон · новая добыча идёт на склад</p>}
   <div className="pack-filters">
    <CompactFilter label="Тип предмета" value={slot??''} onChange={value=>setView({...view,slot:(value||undefined) as Slot|undefined})} options={[{value:'',label:'Все типы'},...slots.map(s=>({value:s,label:slotNames[s]}))]}/>
