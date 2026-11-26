@@ -70,7 +70,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   assert.equal(await consumables.getByRole('listitem').count(),1);
   await consumables.getByText('Сердце Вальгаллы',{exact:true}).waitFor();
   await consumables.getByText('×4',{exact:true}).waitFor();
-  await consumables.getByText(/Восстанавливает 45%/).waitFor();
+  await consumables.getByText(/Мгновенно восстанавливает 45%/).waitFor();
   assert.equal(await btn('Распылить').count(),0);
   assert.equal(await page.getByLabel(/Авторазбор/).count(),0);
   assert.equal((await state()).inventory.length,80);
