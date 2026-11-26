@@ -124,6 +124,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
     <div className="shop-grid">
       {visible.map(offer => {
         const signedConsumable=signed&&!!arenaKind(offer.id);
+        const signedPotion=signedConsumable&&offer.id==='arena-potion';
         const status=signedConsumable?undefined:shopStatus(p,offer,now);
         const sold = status === 'Сегодня куплено' || status === 'Куплено';
         const parts = rewardParts(offer.reward);
@@ -140,10 +141,10 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
             <strong>{offer.name}</strong>
           </button>
           <button type="button" className="shop-buy" disabled={!!status}
-            aria-label={signedConsumable?'К покупке · '+offer.name:sold?status:`Купить · ${priceText(offer)}${status ? ` · ${status}` : ''}`} title={status || priceText(offer)}
+            aria-label={signedPotion?'К покупке · '+offer.name:sold?status:`Купить · ${priceText(offer)}${status ? ` · ${status}` : ''}`} title={status || priceText(offer)}
             onClick={() => offer.equipment||arenaKind(offer.id)?setDetails(offer.id):requestPurchase(offer)}>
             {sold ? <span>{status}</span> : <><Icon name={shopCurrencies[offer.currency].icon}/>
-              <b>{signedConsumable?'Купить':offer.price.toLocaleString('ru')}</b>{status && <span>{status === 'Недостаточно средств' ? 'Не хватает' : status === 'Освободите место в Роге' ? 'Мало места в Роге' : status}</span>}</>}
+              <b>{signedPotion?'Купить':offer.price.toLocaleString('ru')}</b>{status && <span>{status === 'Недостаточно средств' ? 'Не хватает' : status === 'Освободите место в Роге' ? 'Мало места в Роге' : status}</span>}</>}
           </button>
         </article>;
       })}
@@ -160,7 +161,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
       <p>{selected.description}</p><p className="hint">{limitText(selected)}</p>
       {selectedKind&&(signed?<NetworkConsumable key={selectedKind} item={selectedKind} localStock={consumableStock(p,selectedKind)}/>:
        <p>В рюкзаке: {consumableStock(p,selectedKind)}</p>)}
-      {(!selectedKind||!signed)&&<p className="shop-price"><Icon name={shopCurrencies[selected.currency].icon}/>{priceText(selected)}</p>}
+      {(selected.id!=='arena-potion'||!signed)&&<p className="shop-price"><Icon name={shopCurrencies[selected.currency].icon}/>{priceText(selected)}</p>}
     </CardDialog>}
     {confirmation && <CardDialog title="Подтвердить покупку" onClose={() => setConfirmation(undefined)}
       actions={confirmationStatus === 'Рюкзак полон' ? freeSpace :
