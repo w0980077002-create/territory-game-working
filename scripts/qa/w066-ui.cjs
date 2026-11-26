@@ -30,6 +30,7 @@ const rewards={
     await context.route('https://telegram.org/**',route=>route.abort());
     const seed=require('./ui-fixture.cjs')(1,true);
     seed.horn=fullHorn;
+    seed.arenaConsumables={valkyrie:3};
     await context.addInitScript(({initData,saveKey,seed})=>{
      window.Telegram={WebApp:{initData,ready(){},openTelegramLink(link){window.sharedBrotherhood=link;}}};
      if(!localStorage.getItem(saveKey))localStorage.setItem(saveKey,JSON.stringify(seed));
@@ -40,8 +41,8 @@ const rewards={
      assert.equal(route.request().postDataJSON().initData,initData);
      await route.fulfill({json:{serverNow:new Date().toISOString(),event:null,history:[],mail:[],isAdmin:true},headers});
     });
-    let arenaSearch;
-    const bought={potion:0,tear:0},prices={potion:30,tear:36};
+    let arenaSearch,emptyPodium=false;
+    const bought={potion:0,tear:width===320?0:2},prices={potion:30,tear:36};
     let gold=66;
     await context.route(arenaOrigin+'/arena-api/**',async route=>{
      const request=route.request();
@@ -177,8 +178,10 @@ const rewards={
      if(req.method()==='OPTIONS'){await route.fulfill({status:204,headers});return;}
      assert.equal(req.headers().authorization,'Bearer isolated-session');
      assert.deepEqual(req.postDataJSON(),{action:'podium'});
-     await route.fulfill({json:{points:10,wins:10,teamLosses:2,rows:[
-      {rank:1,name:'Алиса',points:10,mine:true},{rank:2,name:'Бьёрн',points:2},{rank:3,name:'Ивар',points:1},
+     await route.fulfill({json:{points:10,wins:10,teamLosses:2,serverNow:new Date().toISOString(),
+      season:{name:'Северный сезон',ends_at:new Date(Date.now()+3*86400_000).toISOString()},
+      heroes:['berserker','runologist','ranger'],rows:emptyPodium?[]:[
+      {rank:1,name:'Алиса',points:10,mine:true},{rank:2,name:'Бьёрн',points:2},{rank:3,name:'Ивар',points:1},{rank:4,name:'Фрейя',points:1},
      ]},headers});
     });
     const page=await context.newPage();
@@ -355,7 +358,7 @@ const rewards={
      await page.getByText(/Мгновенно восстанавливает 45%/).waitFor();
      await button('Купить за подтверждённое золото · 30').tap();
      await page.getByText('В рюкзаке: 1',{exact:true}).waitFor();
-     await button('Купить за золото героя · 30 золота').tap();
+     await button('Купить для Solo · 30 золота').tap();
      await page.getByText('В рюкзаке: 2',{exact:true}).waitFor();
      assert.equal(bought.potion,1);
      assert.equal(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).arenaPotions,saveKey),1);
@@ -369,16 +372,23 @@ const rewards={
     await button('Аукцион').tap();
     await page.getByRole('dialog',{name:'Аукцион'}).waitFor();
     await page.reload();
-    if(width===320){
-     await button('Карта').tap();
-     await page.locator('.harbor-building',{hasText:'Рюкзак'}).tap();
-     await button('Расходники').tap();
-     const stock=page.getByRole('list',{name:'Расходуемые предметы'});
-     await stock.getByText('×2',{exact:true}).waitFor();
-     await stock.getByRole('listitem').filter({hasText:'Слеза Иггдрасиля'}).getByText('×1',{exact:true}).waitFor();
-     assert.equal(await stock.getByRole('listitem').count(),2);
-     await page.reload();
-    }
+    const screenshots='.tmp/window-qa/online-arena/';
+    mkdirSync(screenshots,{recursive:true});
+    await button('Карта').tap();
+    await page.locator('.harbor-building',{hasText:'Рюкзак'}).tap();
+    await button('Расходники').tap();
+    const stock=page.getByRole('list',{name:'Расходуемые предметы'});
+    await stock.getByRole('listitem').filter({hasText:'Слеза Иггдрасиля'}).getByText(width===320?'×1':'×2',{exact:true}).waitFor();
+    if(width===320)await stock.getByText('×2',{exact:true}).waitFor();
+    await button('Обет Валькирии · 3').tap();
+    await page.getByText('Solo: 3 · Сетевой бой: 0',{exact:true}).waitFor();
+    await button('На пояс').tap();
+    const pack=page.getByRole('dialog',{name:'Рюкзак'});
+    await pack.getByRole('button',{name:/Слот 2 · Обет Валькирии · 3/}).waitFor();
+    assert.equal(await pack.getByRole('group',{name:'Слоты пояса'}).getByRole('button').count(),7);
+    assert.ok(await stock.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+    await page.screenshot({path:screenshots+'backpack-'+width+'.png'});
+    await page.reload();
     await button('Приключения').tap();
     await page.getByRole('button',{name:/^Гильдии/}).tap();
     await page.getByRole('dialog',{name:'Гильдии'}).waitFor();
@@ -391,9 +401,35 @@ const rewards={
     await button('Правила Арены').tap();
     await hub.getByText(/в пределах|уровня ±7/).waitFor();
     await button('Правила Арены').tap();
-    const screenshots='.tmp/window-qa/online-arena/';
-    mkdirSync(screenshots,{recursive:true});
-    await hub.screenshot({path:screenshots+'lobby-'+width+'.png'});
+    await hub.getByRole('button',{name:/Слот 2 · Обет Валькирии · 3/}).waitFor();
+    const podium=hub.locator('.vvr-podium'),cards=await podium.locator('li').evaluateAll(nodes=>nodes.map(el=>{
+     const {x,y}=el.getBoundingClientRect();return {x,y};
+    }));
+    assert.ok(cards[1].x<cards[0].x&&cards[0].x<cards[2].x&&cards[0].y<cards[1].y);
+    await podium.locator('img:not(.icon)').evaluateAll(imgs=>Promise.all(imgs.map(img=>img.decode())));
+    assert.equal(await podium.locator('img:not(.icon)').count(),3);
+    assert.match(await hub.locator('time').innerText(),/^3 д/);
+    await button(/Полный рейтинг/).tap();
+    await page.getByRole('dialog',{name:'Полный рейтинг Арены'}).getByText('Фрейя',{exact:true}).waitFor();
+    await button('Закрыть карточку').tap();
+    await button('Награды сезона').tap();
+    await page.getByText(/Призы за места в рейтинге/).waitFor();
+    await button('Закрыть карточку').tap();
+    assert.equal(await button('К бою').count(),0);
+    assert.ok(await hub.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+    await page.screenshot({path:screenshots+'lobby-'+width+'.png'});
+    if(width===320){
+     await hub.getByRole('button',{name:/Хаос.*20×20/}).scrollIntoViewIfNeeded();
+     await page.screenshot({path:screenshots+'lobby-modes-320.png'});
+    }
+    if(width===320){
+     await hub.getByRole('button',{name:/Слот 2 · Обет Валькирии/}).tap();
+     await button('Убрать из слота').tap();
+     assert.equal(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).arenaBelt[1],saveKey),null);
+     await hub.getByRole('button',{name:'Слот 2 · пусто'}).tap();
+     await hub.getByRole('option',{name:/Обет Валькирии/}).tap();
+     assert.equal(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).arenaBelt[1],saveKey),'valkyrie');
+    }
     for(const [mode,seats] of [[/Отряд.*3×3/,6],[/Хаос.*20×20/,40],[/Дуэль.*1×1/,2]]){
      await button(mode).tap();
      await hub.getByText('Участники · 1/'+seats,{exact:true}).waitFor();
@@ -401,6 +437,14 @@ const rewards={
      await hub.getByRole('heading',{name:'ТОП-50 Арены'}).waitFor();
     }
     if(width===430){
+     await button(/Дуэль.*1×1/).tap();
+     await button('Отменить поиск').waitFor();
+     emptyPodium=true;
+     await button('Отменить поиск').tap();
+     await hub.getByText('В этом сезоне пока нет побед',{exact:true}).waitFor();
+     assert.equal(await hub.locator('.vvr-podium-empty').count(),3);
+     assert.equal(await hub.locator('.vvr-podium img:not(.icon)').count(),0);
+     await page.screenshot({path:screenshots+'lobby-empty-430.png'});
      await page.evaluate(()=>localStorage.setItem('vvr-lang','en'));
      await page.reload();
      await button('Invite').tap();

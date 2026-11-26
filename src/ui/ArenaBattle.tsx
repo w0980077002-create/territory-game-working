@@ -3,7 +3,7 @@ import {useEffect,useRef,useState,type ReactNode} from 'react';
 import type {Player} from '../core/types';
 import {heroArt} from '../data/catalog';
 import {consumables,consumableStacks,type ConsumableId,type ConsumableStock} from '../arena/potion';
-import {beltSlotOpen,playerBelt,setBeltSlot,type BeltSlot} from '../arena/belt';
+import {playerBelt,setBeltSlot,type BeltSlot} from '../arena/belt';
 import {useGame} from '../core/store';
 import {arenaElixirs,zones,type ArenaElixir,type ArenaFighter,type ArenaMessage,type ArenaZone} from '../arena/protocol';
 import {drawActor,warmRun} from '../game/animation';
@@ -11,6 +11,7 @@ import {CombatVfx} from '../game/CombatVfx';
 import {heroLook} from '../game/heroLook';
 import {sceneImage} from '../game/sceneImages';
 import {Icon} from './Icon';
+import {BeltSlots} from './BeltSlots';
 
 /**
  * One reusable Arena battle screen for Duel 1×1, Squad 3×3, Chaos 20×20 and future clan tournaments.
@@ -174,19 +175,12 @@ export function BeltEditor({player,locked}:{player:Player;locked:boolean}){
  },[locked]);
  const belt=playerBelt(player),stock=consumableStacks(player,confirmed);
  const count=(id:ConsumableId)=>stock.find(item=>item.id===id)?.count??0;
- const choices=(Object.keys(consumables) as ConsumableId[]);
+ const choices=stock.map(item=>item.id);
  const put=(index:number,item:BeltSlot)=>{mutate(p=>!(p.localArena&&!p.localArena.match.game.result)&&setBeltSlot(p,index,item));setPicking(null)};
  return <section className="vvr-belt-editor" aria-label="Боевой пояс">
-  <header><strong>Боевой пояс</strong><small>{locked?'Комплектация закреплена на время боя':'Нажмите на слот, чтобы выбрать расходник'}</small></header>
-  <div className="vvr-arena-belt" role="group" aria-label="Слоты пояса">{belt.map((id,index)=>{
-   const open=beltSlotOpen(index,player.arenaWins);
-   return <button type="button" key={index} className={(id?'filled':'empty')+(picking===index?' picking':'')} disabled={locked||!open}
-    aria-label={'Слот '+(index+1)+' · '+(!open?'закрыт':id?consumables[id].name+' · '+count(id):'пусто')} aria-pressed={picking===index}
-    onClick={()=>setPicking(picking===index?null:index)}>
-    {id?<><Icon name={consumables[id].icon}/><small>{count(id)}</small></>:<span aria-hidden="true">{open?'+':'🔒'}</span>}
-   </button>;})}
-  </div>
-  {picking!==null&&!locked&&<div className="vvr-belt-pick" role="listbox" aria-label={'Расходник для слота '+(picking+1)}>
+  <header><strong>Боевой пояс</strong>{locked&&<small>Комплектация закреплена до конца боя</small>}</header>
+  <BeltSlots player={player} locked={locked} count={count} selected={picking} onSlot={index=>setPicking(picking===index?null:index)}/>
+ {picking!==null&&!locked&&<div className="vvr-belt-pick" role="listbox" aria-label={'Расходник для слота '+(picking+1)}>
    {choices.map(id=><button type="button" key={id} role="option" aria-selected={belt[picking]===id} onClick={()=>put(picking,id)}>
     <Icon name={consumables[id].icon}/><span><strong>{consumables[id].name}</strong><small>В запасе: {count(id)}</small></span></button>)}
    {belt[picking]&&<button type="button" className="vvr-belt-remove" onClick={()=>put(picking,null)}>Убрать из слота</button>}

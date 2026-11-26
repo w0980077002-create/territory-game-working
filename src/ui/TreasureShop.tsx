@@ -153,7 +153,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
       actions={selectedStatus === 'Рюкзак полон' ? freeSpace : selectedStatus === 'Недостаточно средств'
         ? <button className="action secondary" onClick={() => setGuide(selected.currency)}>Где получить</button>
         : <button className="action" disabled={!!selectedStatus}
-          onClick={() => requestPurchase(selected)}>{selectedStatus || (arenaKind(selected.id)?'Купить за золото героя · ':'Купить · ')+priceText(selected)}</button>}>
+          onClick={() => requestPurchase(selected)}>{selectedStatus || (selectedKind?(signed?'Купить для Solo · ':'Купить за золото героя · '):'Купить · ')+priceText(selected)}</button>}>
       {selected.equipment?<div className="inventory-order">
         <span>Слот</span><CompactFilter label="Слот покупки" value={equipmentSlot} onChange={slot=>setEquipmentSlot(slot as Slot)}
           options={shopEquipmentSlots.map(slot=>({value:slot,label:slotNames[slot]}))}/>
