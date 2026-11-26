@@ -1,7 +1,9 @@
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import type {Player} from '../core/types';
 import {heroArt} from '../data/catalog';
-import {consumables} from '../arena/potion';
+import {consumables,consumableStacks,type ConsumableId} from '../arena/potion';
+import {beltSlotOpen,playerBelt,setBeltSlot,type BeltSlot} from '../arena/belt';
+import {useGame} from '../core/store';
 import {arenaElixirs,zones,type ArenaElixir,type ArenaFighter,type ArenaMessage,type ArenaZone} from '../arena/protocol';
 import {drawActor,warmRun} from '../game/animation';
 import {CombatVfx} from '../game/CombatVfx';
@@ -17,7 +19,7 @@ import {Icon} from './Icon';
  */
 export type SceneFighter=Pick<ArenaFighter,'name'|'hero'|'level'|'hp'|'maxHp'|'online'>;
 export type ZoneControls={attack:ArenaZone;blocks:ArenaZone[];onAttack:(zone:ArenaZone)=>void;onBlock:(zone:ArenaZone)=>void;locked:boolean};
-export type BeltControls={belt:Record<ArenaElixir,number>;readyAt:Partial<Record<ArenaElixir,number>>;disabled:boolean;fullHealth:boolean;onItem:(item:ArenaElixir)=>void};
+export type BeltControls={belt:Record<ArenaElixir,number>;loadout?:(ArenaElixir|null)[];readyAt:Partial<Record<ArenaElixir,number>>;disabled:boolean;fullHealth:boolean;onItem:(item:ArenaElixir)=>void};
 export type Feed={log:ArenaMessage[];chat:ArenaMessage[];chatDeadline:number|null;pending:boolean;send:(text:string)=>Promise<boolean>};
 
 const zoneIds=Object.keys(zones) as ArenaZone[];
@@ -133,25 +135,56 @@ function Messages({feed,now}:{feed:Feed;now:number}){
  </div>;
 }
 
-/** Folded elixir belt with pictures, counts, cooldowns and the exact effect of each elixir. */
-export function ArenaBelt({belt,readyAt,now,disabled,fullHealth,onItem}:BeltControls&{now:number}){
- return <div className="vvr-arena-belt" aria-label="Пояс эликсиров">{elixirIds.filter(id=>belt[id]>0).map(id=>{
-  const cooldown=secondsLeft(readyAt[id]??0,now);
-  const label=arenaElixirs[id].label+(' · '+belt[id])+(cooldown?' · '+cooldown+' с':'');
+/** Battle belt: always 7 square slots in the player's order. Filled slots show the picture, count and cooldown;
+ * empty slots stay visible. Fights without a fixed belt (legacy staging) fall back to the non-empty kinds. */
+export function ArenaBelt({belt,loadout,readyAt,now,disabled,fullHealth,onItem}:BeltControls&{now:number}){
+ const slots:(ArenaElixir|null)[]=loadout&&loadout.length?loadout:elixirIds.filter(id=>belt[id]>0);
+ return <div className="vvr-arena-belt" role="group" aria-label="Пояс эликсиров">{slots.map((id,index)=>{
+  if(!id)return <span key={'empty-'+index} className="vvr-belt-empty" aria-label={'Слот '+(index+1)+' · пусто'}/>;
+  const cooldown=secondsLeft(readyAt[id]??0,now),count=belt[id]??0;
+  const label=arenaElixirs[id].label+(' · '+count)+(cooldown?' · '+cooldown+' с':'');
   return <button type="button" key={id} title={label+'. '+arenaElixirs[id].detail} aria-label={label}
-   disabled={disabled||!belt[id]||cooldown>0||(fullHealth&&(id==='heal_small'||id==='heal_large'||id==='potion'))}
-   onClick={()=>onItem(id)}><Icon name={elixirArt[id]}/><small>{cooldown?cooldown+' с':belt[id]}</small></button>;
+   disabled={disabled||!count||cooldown>0||(fullHealth&&(id==='heal_small'||id==='heal_large'||id==='potion'))}
+   onClick={()=>onItem(id)}><Icon name={elixirArt[id]}/><small>{cooldown?cooldown+' с':count}</small>
+   {cooldown>0&&<i className="vvr-belt-cd" aria-hidden="true"/>}</button>;
  })}</div>;
 }
 function BeltPanel({controls,now}:{controls:BeltControls;now:number}){
- const available=elixirIds.filter(id=>controls.belt[id]>0);
+ const kinds=(controls.loadout?.filter((id):id is ArenaElixir=>!!id)??elixirIds.filter(id=>controls.belt[id]>0));
  return <details className="vvr-dock-panel">
-  <summary><span>Эликсиры и зелья</span><span className="vvr-dock-mini" aria-hidden="true">{available.slice(0,4).map(id=><Icon key={id} name={elixirArt[id]}/>)}</span></summary>
-  {available.length?<ArenaBelt {...controls} now={now}/>:<small>Нет доступных расходников</small>}
-  {available.length>0&&<details className="vvr-belt-help"><summary>Описание расходников</summary>
-   <ul>{available.map(id=><li key={id}><Icon name={elixirArt[id]}/><span><strong>{arenaElixirs[id].label}</strong><small>{arenaElixirs[id].detail}</small></span></li>)}</ul>
-  </details>}
+  <summary><span>Эликсиры и зелья</span><span className="vvr-dock-mini" aria-hidden="true">{kinds.slice(0,4).map(id=><Icon key={id} name={elixirArt[id]}/>)}</span></summary>
+  <ArenaBelt {...controls} now={now}/>
+  {kinds.length>0?<details className="vvr-belt-help"><summary>Описание расходников</summary>
+   <ul>{kinds.map(id=><li key={id}><Icon name={elixirArt[id]}/><span><strong>{arenaElixirs[id].label}</strong><small>{arenaElixirs[id].detail}</small></span></li>)}</ul>
+  </details>:<small>Пояс пуст: соберите его на экране Арены до начала боя</small>}
  </details>;
+}
+
+/** Belt set-up before a fight: 7 slots; tap a slot to put, swap or remove a consumable. Locked during a fight. */
+export function BeltEditor({player,locked}:{player:Player;locked:boolean}){
+ const mutate=useGame(s=>s.mutate),open=useGame(s=>s.open);
+ const [picking,setPicking]=useState<number|null>(null);
+ const belt=playerBelt(player),stock=consumableStacks(player);
+ const count=(id:ConsumableId)=>stock.find(item=>item.id===id)?.count??0;
+ const choices=(Object.keys(consumables) as ConsumableId[]);
+ const put=(index:number,item:BeltSlot)=>{mutate(p=>!(p.localArena&&!p.localArena.match.game.result)&&setBeltSlot(p,index,item));setPicking(null)};
+ return <section className="vvr-belt-editor" aria-label="Боевой пояс">
+  <header><strong>Боевой пояс</strong><small>{locked?'Комплектация закреплена на время боя':'Нажмите на слот, чтобы выбрать расходник'}</small></header>
+  <div className="vvr-arena-belt" role="group" aria-label="Слоты пояса">{belt.map((id,index)=>{
+   const open=beltSlotOpen(index,player.arenaWins);
+   return <button type="button" key={index} className={(id?'filled':'empty')+(picking===index?' picking':'')} disabled={locked||!open}
+    aria-label={'Слот '+(index+1)+' · '+(!open?'закрыт':id?consumables[id].name+' · '+count(id):'пусто')} aria-pressed={picking===index}
+    onClick={()=>setPicking(picking===index?null:index)}>
+    {id?<><Icon name={consumables[id].icon}/><small>{count(id)}</small></>:<span aria-hidden="true">{open?'+':'🔒'}</span>}
+   </button>;})}
+  </div>
+  {picking!==null&&!locked&&<div className="vvr-belt-pick" role="listbox" aria-label={'Расходник для слота '+(picking+1)}>
+   {choices.map(id=><button type="button" key={id} role="option" aria-selected={belt[picking]===id} onClick={()=>put(picking,id)}>
+    <Icon name={consumables[id].icon}/><span><strong>{consumables[id].name}</strong><small>В запасе: {count(id)}</small></span></button>)}
+   {belt[picking]&&<button type="button" className="vvr-belt-remove" onClick={()=>put(picking,null)}>Убрать из слота</button>}
+   <button type="button" className="vvr-belt-shop" onClick={()=>open('shop')}>Зелья в Лавке</button>
+  </div>}
+ </section>;
 }
 
 export function ArenaResult({outcome,reason,extra,onLeave,leaveLabel='Вернуться на Арену'}:{

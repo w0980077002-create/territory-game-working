@@ -7,6 +7,7 @@ import {arenaBuild} from '../arena/hero';
 import {localArena,localTime,prepareLocalPotion,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
 import {capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveBattle,type LiveSearch,type LiveView,type RecentBattle} from '../arena/match';
 import {potionStock} from '../arena/potion';
+import {playerBelt} from '../arena/belt';
 import {CHAT_MS,MATCH_WAIT_MS,type ArenaZone} from '../arena/protocol';
 import {ArenaBattleView,ArenaResult,FighterList} from './ArenaBattle';
 import {ArenaHub,arenaModes} from './ArenaHub';
@@ -55,7 +56,7 @@ function BattleScene({battle,now,player,busy,send,resume,onLobby,rewarded}:{
     {you.moved?'Ход принят':'Ударить'}
    </button>
   </>}
-  belt={result?null:{belt:battle.belt,readyAt:battle.itemReadyAt,disabled:busy||!control||!you.hp,
+  belt={result?null:{belt:battle.belt,loadout:battle.loadout,readyAt:battle.itemReadyAt,disabled:busy||!control||!you.hp,
    fullHealth:you.hp===you.maxHp,onItem:item=>void send({kind:'item',item})}}
   dock={<>
    {mode!=='duel'&&<>
@@ -241,7 +242,7 @@ export function OnlineArena({player}:{player:Player}){
   if(signed){
    void perform(async()=>{
     const session=token||await login();setToken(session);
-    setNetwork(await request('live/join',session,{mode:next,build:arenaBuild(player),stage:player.stage,localPotions:potionStock(player)}));
+    setNetwork(await request('live/join',session,{mode:next,build:arenaBuild(player),stage:player.stage,localPotions:potionStock(player),belt:playerBelt(player)}));
     return true;
    });
   }else setSearch({id:crypto.randomUUID(),mode:next,deadline:Date.now()+MATCH_WAIT_MS,names:[classNames[player.heroClass]],control:true,revision:0});
@@ -292,6 +293,7 @@ export function OnlineArena({player}:{player:Player}){
    send={send} resume={()=>control('resume',battle)} onLobby={()=>{setDismissed(candidate?.id??battle.id);setMode(undefined);setPast(undefined)}} rewarded={battle.local?liveLocal?.reward:undefined}/>
  </section>;
  return <ArenaHub player={player} onMode={choose} pending={busy} notice={notice}
+  beltLocked={busy||!!liveLocal&&!liveLocal.match.game.result}
   pendingMode={mode} onResume={candidate?.local?()=>setDismissed(undefined):undefined}
   recent={recent.filter(item=>now<item.chatDeadline)} onPast={id=>void perform(async()=>{
    const view=await request<LiveView>('live/room?match='+id,token);

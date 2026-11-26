@@ -19,7 +19,7 @@ export type LiveAction=ArenaCommand|{kind:'strike';target:string;attack:ArenaMov
 export type LiveBattle={
  id:string;mode:ArenaMode;local:boolean;bot:boolean;ranked:boolean;round?:number;deadline:number;
  control:boolean;revision:number;nextSequence:number;auto:boolean;nextStrikeAt:number;
- you:LiveFighter;players:LiveFighter[];belt:Record<ArenaElixir,number>;
+ you:LiveFighter;players:LiveFighter[];belt:Record<ArenaElixir,number>;loadout?:(ArenaElixir|null)[];
  itemReadyAt:Partial<Record<ArenaElixir,number>>;log:ArenaMessage[];chat:ArenaMessage[];chatDeadline:number|null;
  result?:{outcome:'win'|'loss'|'draw';reason:ArenaReason;points:number;finishedAt:number};
 };
@@ -97,7 +97,7 @@ export function viewLive(match:LiveMatch,id:string,controller:string,now:number,
   const you:LiveFighter={...view.you,id,side:youIndex===0?0:1,damage:0,kills:0};
   const opponent:LiveFighter={...view.opponent,id:game.players[1-youIndex].id,side:youIndex===0?1:0,damage:0,kills:0,bot:bot||undefined};
   return {...common,mode,round:view.round,deadline:view.deadline,control:view.control,revision:view.controlRevision,
-   nextSequence:view.nextSequence,auto:view.auto,nextStrikeAt:0,you,players:[you,opponent],belt:view.belt,itemReadyAt:view.itemReadyAt,result:view.result};
+   nextSequence:view.nextSequence,auto:view.auto,nextStrikeAt:0,you,players:[you,opponent],belt:view.belt,loadout:game.players[youIndex].loadout,itemReadyAt:view.itemReadyAt,result:view.result};
  }
  const fighters=match.game.players;
  const player=fighters.find(p=>p.id===id)!;
@@ -107,7 +107,7 @@ export function viewLive(match:LiveMatch,id:string,controller:string,now:number,
  const result=match.game.result;
  return {...common,mode,deadline:match.game.sideDeadline[player.side],control:player.controller===controller,
   revision:player.controlRevision??0,nextSequence:player.sequence+1,auto:player.auto,nextStrikeAt:player.nextStrikeAt,
-  you:players.find(p=>p.id===id)!,players,belt:player.belt,itemReadyAt:player.itemAt,
+  you:players.find(p=>p.id===id)!,players,belt:player.belt,loadout:player.loadout,itemReadyAt:player.itemAt,
   result:result?{outcome:result.winner===null?'draw':player.side===result.winner?'win':'loss',
    reason:result.reason,points:arenaWinners(match).some(p=>p.id===id)?1:0,finishedAt:result.finishedAt}:undefined};
 }

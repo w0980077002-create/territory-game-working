@@ -1,5 +1,6 @@
 import {curve,threat} from '../saga/regions';
 import type {ArenaBuild} from './hero';
+import type {ArenaElixir} from './protocol';
 import {advanceLive,applyLive,buildMatch,nextLiveWake,type ArenaMode,type LiveAction,type LiveMatch} from './match';
 
 export const SOLO_ACTOR='solo';
@@ -14,7 +15,7 @@ export function arenaRandom(seed:number){
  return {next:()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/2**32;},state:()=>state};
 }
 
-export function localBattle(id:string,mode:ArenaMode,build:ArenaBuild,stage:number,potions:number,now:number,rng:()=>number){
+export function localBattle(id:string,mode:ArenaMode,build:ArenaBuild,stage:number,potions:number,now:number,rng:()=>number,loadout?:(ArenaElixir|null)[]){
  const t=threat(stage);
  const bot:ArenaBuild={...build,hero:build.hero==='berserker'?'ranger':'berserker',
   stats:{hp:Math.round(t.bossHp*curve.arena_hp),attack:Math.round(t.bossAtk*.9),defense:Math.round(t.def),
@@ -25,7 +26,7 @@ export function localBattle(id:string,mode:ArenaMode,build:ArenaBuild,stage:numb
    boltEvery:0,boltPower:0,rally:0,cooldownRate:1,foeHpCut:0,heroDamage:0},followers:[],branches:[-1,-1],
  };
  return buildMatch(id,mode,[{id:SOLO_ACTOR,name:'Вы',hero:build.hero,level:build.level,controller:SOLO_ACTOR,
-  kit:'balanced',rating:1000,potions,rankEligible:false,build}],now,rng,bot);
+  kit:'balanced',rating:1000,potions,rankEligible:false,build,...(loadout?{loadout}:{})}],now,rng,bot);
 }
 
 // The proof uses scheduled times so render speed, tab suspension and reload cannot change the replay.
