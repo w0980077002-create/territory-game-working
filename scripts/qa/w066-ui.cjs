@@ -348,7 +348,7 @@ const rewards={
     assert.equal(await page.evaluate(()=>localStorage.getItem('lootborn-arena-staging-v1')),null);
     await button('Магазин').tap();
     if(width===320){
-     await button('Подробнее · Зелье лечения').tap();
+     await button('Подробнее · Сердце Вальгаллы').tap();
      await page.getByText(/Восстанавливает 45%/).waitFor();
      await button('Купить за подтверждённое золото · 30').tap();
      await page.getByText('В рюкзаке: 1',{exact:true}).waitFor();

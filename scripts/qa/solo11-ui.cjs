@@ -68,7 +68,7 @@ const ranks=['Грубый','Обычный','Добротный','Редкий'
   await packTabs.getByRole('button',{name:'Расходники',exact:true}).tap();
   const consumables=page.getByRole('list',{name:'Расходуемые предметы'});
   assert.equal(await consumables.getByRole('listitem').count(),1);
-  await consumables.getByText('Зелье лечения',{exact:true}).waitFor();
+  await consumables.getByText('Сердце Вальгаллы',{exact:true}).waitFor();
   await consumables.getByText('×4',{exact:true}).waitFor();
   await consumables.getByText(/Восстанавливает 45%/).waitFor();
   assert.equal(await btn('Распылить').count(),0);

@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import type {Player} from '../core/types';
 import {heroArt} from '../data/catalog';
+import {consumables} from '../arena/potion';
 import {arenaElixirs,zones,type ArenaElixir,type ArenaFighter,type ArenaMessage,type ArenaZone} from '../arena/protocol';
 import {drawActor,warmRun} from '../game/animation';
 import {CombatVfx} from '../game/CombatVfx';
@@ -23,7 +24,7 @@ const zoneIds=Object.keys(zones) as ArenaZone[];
 const elixirIds=Object.keys(arenaElixirs) as ArenaElixir[];
 /** One place to swap in the dedicated elixir artwork when the shop package arrives. */
 export const elixirArt:Record<ArenaElixir,string>={
- potion:'potion',heal_small:'potion',heal_large:'stat-health',attack:'stat-attack',defense:'stat-defense',crit:'stat-crit',time:'rune-haste',adrenaline:'passive-battle-thirst',
+ potion:consumables.potion.icon,heal_small:'potion',heal_large:'stat-health',attack:'stat-attack',defense:'stat-defense',crit:'stat-crit',time:'rune-haste',adrenaline:'passive-battle-thirst',
 };
 const secondsLeft=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
 const clock=(s:number)=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
