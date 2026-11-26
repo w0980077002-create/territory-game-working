@@ -9,6 +9,8 @@ import {arenaBuild,validArenaBuild} from '../src/arena/hero';
 import {localArena,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../src/arena/local';
 import {advanceLive,applyLive,capacities,viewLive,type ArenaMode} from '../src/arena/match';
 import {CHAT_MS,MATCH_WAIT_MS} from '../src/arena/protocol';
+import {applyPurchase,shopOffers} from '../src/saga/shop';
+import {replayProof} from '../src/arena/localProof';
 import {healingPotion} from '../src/arena/potion';
 import {createFighter,resolveStrike} from '../server/arena/duel';
 import {LiveArena} from '../server/arena/live';
@@ -71,20 +73,27 @@ test('a trained Odin call uses the rune shield and runic set cooldown',()=>{
  assert.ok(b.hp===b.maxHp);
 });
 
-test('the local potion spends existing Solo gold once, respects the cooldown, and survives save hydration',()=>{
- const p=freshPlayer(),now=Date.now();
+test('the shop buys stock for Solo gold and the potion is spent once across save hydration',()=>{
+ const p=freshPlayer(),now=Date.now(),gold=p.gold,cost=healingPotion.cost(p.stage);
+ const offer=shopOffers(p,now).find(offer=>offer.id==='arena-potion')!;
+ assert.equal(offer.price,cost);
+ applyPurchase(p,offer,now);
+ applyPurchase(p,offer,now);
+ assert.equal(p.arenaPotions,2);
+ assert.equal(p.gold,gold-2*cost);
  assert.ok(startLocalArena(p,'local','duel',now));
  const fighter=localArena(p)!.match.game.players[0];
  fighter.hp=Math.floor(fighter.maxHp*.5);
- const gold=p.gold,before=fighter.hp,cost=healingPotion.cost(p.stage);
+ const before=fighter.hp;
  assert.ok(updateLocalArena(p,now,{kind:'item',item:'potion'}));
  assert.equal(fighter.hp,before+Math.round(fighter.maxHp*.45));
- assert.equal(p.gold,gold-cost);
+ assert.equal(p.arenaPotions,1);
  assert.equal(updateLocalArena(p,now,{kind:'item',item:'potion'}),false);
- assert.equal(p.gold,gold-cost);
+ assert.equal(p.gold,gold-2*cost);
  assert.equal(updateLocalArena(p,now,{kind:'item',item:'attack'}),false);
  const restored=parseSave(JSON.stringify(p))!;
- assert.equal(restored.gold,gold-cost);
+ assert.equal(restored.arenaPotions,1);
+ assert.equal(restored.gold,gold-2*cost);
  assert.equal(localArena(restored)!.match.game.players[0].itemAt.potion,now+healingPotion.cooldown);
  assert.equal(updateLocalArena(restored,now+1,{kind:'item',item:'potion'}),false);
 });
@@ -165,3 +174,64 @@ for(const mode of Object.keys(capacities) as ArenaMode[]){
   }finally{arena.close();rmSync(root,{recursive:true,force:true});}
  });
 }
+
+test('one local team replay per UTC day is durable and publishes an oath without a rating',()=>{
+ const p=hero(120,true),build=arenaBuild(p),actor={id:'500',controller:'tab'};
+ let now=Date.parse('2026-11-26T12:00:00Z');
+ const live=new LiveArena(':memory:',seeded(17));
+ try{
+  const search=live.join(actor,'team',build,'Герой',now,true,0,p.stage,0).search!;
+  for(let i=0;i<20;i++){now+=1000;live.state(actor,now);live.tick(now);}
+  const fallback=live.state(actor,now).local!;
+  assert.equal(fallback.id,search.id);
+  assert.ok(fallback.proof);
+  assert.ok(startLocalArena(p,search.id,'team',now,fallback.proof));
+  assert.ok(updateLocalArena(p,now,{kind:'auto',enabled:true}));
+  for(let i=0;i<300&&!p.localArena!.match.game.result;i++){
+   now+=1000;
+   updateLocalArena(p,now);
+  }
+  const saved=p.localArena!;
+  assert.ok(saved.match.game.result);
+  const replay=replayProof(search.id,'team',fallback.proof,saved.proof!.moves,now);
+  assert.deepEqual(replay,saved.match.game.result);
+  assert.equal(live.prove({...actor,id:'501'},search.id,'Герой',saved.proof!.moves,now).status,'closed');
+  assert.equal(live.prove(actor,search.id,'Герой',[[now+1,{kind:'auto',enabled:true}]],now).status,'closed');
+  assert.equal(live.prove(actor,search.id,'Герой',saved.proof!.moves,now).status,'accepted');
+  assert.equal(live.prove(actor,search.id,'Герой',saved.proof!.moves,now).status,'accepted');
+  assert.equal(live.pending().length,0);
+  assert.equal(live.pendingTeams().length,1);
+  assert.equal(JSON.parse(live.pendingTeams()[0].json).local,true);
+  live.join(actor,'chaos',build,'Герой',now,true,0,p.stage,0);
+  for(let i=0;i<20;i++){now+=1000;live.state(actor,now);live.tick(now);}
+  assert.equal(live.state(actor,now).local?.proof,undefined);
+ }finally{live.close()}
+});
+
+test('a network reservation spends only accepted potions and releases unused stock on leave',()=>{
+ const live=new LiveArena(':memory:',seeded(17)),now=Date.now(),build=arenaBuild(hero(6,false));
+ const a={id:'111',controller:'tab'},b={id:'222',controller:'tab'};
+ try{
+  live.join(a,'duel',build,'Алла',now,true,2);
+  assert.equal(live.potionQuote(a,2,1,30,100).reserved,2);
+  live.join(b,'duel',build,'Борис',now,true,0);
+  const action=(actor:typeof a,action:Parameters<typeof live.act>[3],at:number)=>{
+   const view=live.state(actor,at).battle!;
+   return live.act(actor,view.id,view.revision,action,view.round!,view.nextSequence,at);
+  };
+  assert.equal(action(a,{kind:'item',item:'potion'},now).accepted,false);
+  const move={kind:'move',move:{attack:'head',blocks:['chest','legs'],skill:null}} as const;
+  const attack={...move,move:{...move.move,blocks:[...move.move.blocks] as ['chest','legs']}};
+  assert.ok(action(a,attack,now).accepted);
+  assert.ok(action(b,attack,now).accepted);
+  const damaged=live.state(a,now).battle!;
+  assert.ok(damaged.you.hp<damaged.you.maxHp);
+  assert.ok(action(a,{kind:'item',item:'potion'},now).accepted);
+  assert.equal(action(a,{kind:'item',item:'potion'},now+1).accepted,false);
+  assert.equal(live.potionQuote(a,2,1,30,100).stock,1);
+  assert.equal(live.potionQuote(a,2,1,30,100).reserved,1);
+  assert.ok(action(a,{kind:'leave'},now+1).accepted);
+  assert.equal(live.potionQuote(a,2,1,30,100).stock,1);
+  assert.equal(live.potionQuote(a,2,1,30,100).reserved,0);
+ }finally{live.close()}
+});

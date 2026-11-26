@@ -1,12 +1,14 @@
-import {randomUUID} from 'node:crypto';
+import {randomBytes,randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import type {ArenaBuild} from '../../src/arena/hero';
 import {advanceLive,applyLive,arenaWinners,buildMatch,capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveMatch,type LiveView,type RecentBattle} from '../../src/arena/match';
 import {CHAT_MS,LEVEL_RANGE,MATCH_WAIT_MS} from '../../src/arena/protocol';
+import {PROOF_DURATION,replayProof,type LocalProof,type ProofMove,type TeamArenaMode} from '../../src/arena/localProof';
+import type {PotionQuote} from '../../src/arena/potion';
 import {compatible,type Entrant} from './duel';
 
 type Actor={id:string;controller:string};
-type QueueEntry=Entrant&{ticket:string;mode:ArenaMode;since:number;seenAt:number};
+type QueueEntry=Entrant&{ticket:string;mode:ArenaMode;since:number;seenAt:number;localStage?:number;localPotions?:number};
 type Active={id:string;json:string};
 type Search={mode:ArenaMode;entries:QueueEntry[];deadline:number};
 const idle=12_000;
@@ -40,6 +42,13 @@ export class LiveArena {
     match TEXT PRIMARY KEY, telegram TEXT NOT NULL, name TEXT NOT NULL, finishedAt TEXT NOT NULL
    );
    CREATE TABLE IF NOT EXISTS arena_live_team_results (id TEXT PRIMARY KEY, json TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS arena_potion_spending (player TEXT PRIMARY KEY, total INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS arena_local_proofs (
+    id TEXT PRIMARY KEY, player TEXT NOT NULL, mode TEXT NOT NULL, json TEXT NOT NULL, expires INTEGER NOT NULL, day TEXT
+   );
+   CREATE INDEX IF NOT EXISTS arena_local_proof_expiry ON arena_local_proofs(expires);
+   CREATE UNIQUE INDEX IF NOT EXISTS arena_local_proof_day ON arena_local_proofs(player,day) WHERE day IS NOT NULL;
+
   `);
  }
  close(){this.db.close()}
@@ -75,6 +84,13 @@ export class LiveArena {
    if(entries.length===1){
     const p=entries[0];
     this.db.prepare('INSERT OR REPLACE INTO arena_live_fallback VALUES(?,?,?,?)').run(p.id,p.ticket,mode,now+CHAT_MS);
+    if(mode!=='duel'&&p.build&&p.localStage!==undefined&&!this.db
+      .prepare('SELECT 1 FROM arena_local_proofs WHERE player=? AND day=?').get(p.id,new Date(now).toISOString().slice(0,10))){
+     const proof:LocalProof={seed:randomBytes(4).readUInt32LE(),startedAt:now,hero:p.build,
+      stage:p.localStage,potions:p.localPotions??0};
+     this.db.prepare('INSERT OR IGNORE INTO arena_local_proofs VALUES(?,?,?,?,?,NULL)')
+      .run(p.ticket,p.id,mode,JSON.stringify(proof),now+PROOF_DURATION+CHAT_MS);
+    }
     continue;
    }
    const id=randomUUID(), match=buildMatch(id,mode,entries,now,this.rng);
@@ -137,6 +153,8 @@ export class LiveArena {
    this.db.prepare('DELETE FROM arena_live_queue WHERE seen<=?').run(now-idle);
    this.db.prepare('DELETE FROM arena_live_matches WHERE expires<=?').run(now);
    this.db.prepare('DELETE FROM arena_live_fallback WHERE expires<=?').run(now);
+   this.db.prepare('DELETE FROM arena_local_proofs WHERE expires<=? AND (day IS NULL OR day<?)')
+    .run(now,new Date(now).toISOString().slice(0,10));
   });
  }
 
@@ -151,7 +169,11 @@ export class LiveArena {
     names:group?.entries.map(p=>p.name)??[queued.name],control:queued.controller===actor.controller,revision:queued.controlRevision??0}};
   }
   const fallback=this.db.prepare('SELECT ticket AS id,mode FROM arena_live_fallback WHERE player=? AND expires>?').get(actor.id,now) as LiveView['local'];
-  if(!target&&fallback)return {now,local:fallback};
+  if(!target&&fallback){
+   const row=this.db.prepare('SELECT json FROM arena_local_proofs WHERE id=? AND player=? AND day IS NULL')
+    .get(fallback.id,actor.id) as {json:string}|undefined;
+   return {now,local:row?{...fallback,proof:JSON.parse(row.json) as LocalProof}:fallback};
+  }
   const found=this.match(actor.id,target);
   if(!found)return {now};
   const match=JSON.parse(found.json) as LiveMatch;
@@ -174,13 +196,27 @@ export class LiveArena {
   return rows.map(({id,expires,mode}):RecentBattle=>({id,mode,chatDeadline:expires}));
  }
 
- join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean){
+ availablePotions(player:string,issued:number){
+  const row=this.db.prepare('SELECT total FROM arena_potion_spending WHERE player=?').get(player) as {total:number}|undefined;
+  return Math.max(0,issued-(row?.total??0));
+ }
+
+ potionQuote(actor:Actor,issued:number,stage:number,price:number,gold:number):PotionQuote{
+  const found=this.match(actor.id);
+  const match=found?JSON.parse(found.json) as LiveMatch:undefined;
+  const player=match&&!match.game.result?match.game.players.find(p=>p.id===actor.id):undefined;
+  const queued=this.db.prepare('SELECT json FROM arena_live_queue WHERE player=?').get(actor.id) as {json:string}|undefined;
+  const reserved=player?.belt.potion??(queued?(JSON.parse(queued.json) as QueueEntry).potions??0:0);
+  return {stage,price,gold,stock:this.availablePotions(actor.id,issued),reserved};
+ }
+
+ join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean,issued=0,localStage?:number,localPotions?:number){
   return this.transaction(()=>{
    const current=this.read(actor,now);
    if(current.search||current.battle&&!current.battle.result)return current;
    this.db.prepare('DELETE FROM arena_live_fallback WHERE player=?').run(actor.id);
    const ticket=randomUUID();
-   const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,rankEligible,since:now,seenAt:now};
+   const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,rankEligible,potions:this.availablePotions(actor.id,issued),localStage,localPotions,since:now,seenAt:now};
    this.db.prepare('INSERT OR REPLACE INTO arena_live_queue VALUES(?,?,?,?,?)').run(actor.id,mode,now,now,JSON.stringify(entrant));
    this.pair(mode,now);
    return this.read(actor,now);
@@ -231,10 +267,33 @@ export class LiveArena {
    const controlled=player.controller===actor.controller&&(player.controlRevision??0)===revision;
    const accepted=(controlled||!!match.game.result&&action.kind==='chat')&&
     applyLive(match,actor.id,action,round,sequence,now,this.rng);
+   if(accepted&&action.kind==='item'&&action.item==='potion'){
+    this.db.prepare('INSERT INTO arena_potion_spending VALUES(?,1) ON CONFLICT(player) DO UPDATE SET total=total+1').run(actor.id);
+   }
    if(!accepted&&action.kind==='item')
     console.warn(JSON.stringify({event:'arena_item_rejected',match:id,player:actor.id,item:action.item}));
    this.save(match,found.json,now);
    return {accepted,view:this.read(actor,now,id)};
+  });
+ }
+
+ prove(actor:Actor,id:string,name:string,moves:readonly ProofMove[],now:number){
+  return this.transaction(()=>{
+   const row=this.db.prepare('SELECT mode,json,day FROM arena_local_proofs WHERE id=? AND player=? AND expires>?')
+    .get(id,actor.id,now) as {mode:TeamArenaMode;json:string;day:string|null}|undefined;
+   if(!row)return {status:'closed'};
+   if(row.day)return {status:'accepted'};
+   const config=JSON.parse(row.json) as LocalProof;
+   const result=replayProof(id,row.mode,config,moves,now);
+   if(!result)return {status:'closed'};
+   const finishedAt=new Date(result.finishedAt).toISOString();
+   const day=finishedAt.slice(0,10);
+   const updated=this.db.prepare('UPDATE OR IGNORE arena_local_proofs SET day=? WHERE id=? AND day IS NULL').run(day,id);
+   if(!updated.changes)return {status:'accepted'};
+   const publication={local:true,match:id,mode:row.mode,startedAt:new Date(config.startedAt).toISOString(),finishedAt,
+    reason:result.reason,winner:result.winner,members:[{telegram:actor.id,name,hero:config.hero.hero,side:0,fought:true}]};
+   this.db.prepare('INSERT OR IGNORE INTO arena_live_team_results VALUES(?,?)').run(id,JSON.stringify(publication));
+   return {status:'accepted'};
   });
  }
 

@@ -506,7 +506,7 @@ export const useGame=create<Store>((set,get)=>{
   if(status){g.notice(status);return false}
   if(quote!==undefined&&quote!==shopQuote(offer)){g.notice('Предложение обновилось · проверьте количество и цену');return false}
   if(offer.equipment&&(equipmentSlot!==offer.equipment.slot||quote===undefined||!mayStartLoot()))return false;
-  let title=rewardText(offer.reward);
+  let title=offer.id==='arena-potion'?'Зелье лечения':rewardText(offer.reward);
   if(!g.mutate(p=>{
    applyPurchase(p,offer,now);
    if(offer.equipment){

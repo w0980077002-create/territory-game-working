@@ -1,48 +1,20 @@
 import {useEffect,useRef,useState} from 'react';
 import {classNames} from '../data/catalog';
-import {tg} from '../core/telegram';
 import {rewardLocalArenaDuel,useGame} from '../core/store';
 import type {Player} from '../core/types';
-import {arenaApiOrigin,onlineArenaEnabled} from '../arena/staging';
+import {ArenaRequestError,login,request,saveSession,signedArena,tokenFromSession} from '../arena/client';
 import {arenaBuild} from '../arena/hero';
-import {localArena,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
+import {localArena,localTime,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
 import {capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveBattle,type LiveSearch,type LiveView,type RecentBattle} from '../arena/match';
-import {healingPotion} from '../arena/potion';
+import {potionStock} from '../arena/potion';
 import {CHAT_MS,MATCH_WAIT_MS,type ArenaZone} from '../arena/protocol';
 import {ArenaBattleView,ArenaResult,FighterList} from './ArenaBattle';
 import {ArenaHub,arenaModes} from './ArenaHub';
 import './onlineArena.css';
 
-const sessionKey='vvr-arena-session';
 const noConnection='Нет связи с Ареной. Восстанавливаем подключение…';
 const reasons={hp:'Решило здоровье',time:'Время боя вышло',afk:'Пропущен ход',disconnect:'Связь с игроком потеряна',leave:'Игрок покинул бой'};
 const left=(until:number,now:number)=>Math.max(0,Math.ceil((until-now)/1000));
-let tabId:string;
-class ArenaRequestError extends Error{
- constructor(readonly status:number,message:string){super(message)}
-}
-function tokenFromSession(){try{return sessionStorage.getItem(sessionKey)??''}catch{return ''}}
-function saveSession(token:string){try{sessionStorage.setItem(sessionKey,token)}catch{/* In-memory session is still active. */}}
-const localFixture=()=>!arenaApiOrigin&&location.hostname==='127.0.0.1'?
- new URLSearchParams(location.search).get('arenaLocal'):null;
-async function request<T>(path:string,token='',data?:Record<string,unknown>):Promise<T>{
- const response=await fetch(arenaApiOrigin+'/arena-api/'+path,{
-  method:data?'POST':'GET',signal:AbortSignal.timeout(4500),cache:'no-store',
-  headers:{...(token?{Authorization:'Bearer '+token,'X-Arena-Tab':tabId??=crypto.randomUUID()}:{}),
-   ...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,
- });
- const result=await response.json();
- if(!response.ok)throw new ArenaRequestError(response.status,result.error??'Арена временно недоступна');
- return result as T;
-}
-async function login(){
- const fixture=localFixture();
- const initData=tg()?.initData||(fixture? (await request<{initData:string}>('local?user='+fixture)).initData:'');
- if(!initData)throw new Error('Войдите через Telegram');
- const session=await request<{token:string}>('auth','',{initData});
- saveSession(session.token);
- return session.token;
-}
 
 function BattleScene({battle,now,player,busy,send,resume,onLobby,rewarded}:{
  battle:LiveBattle;now:number;player:Player;busy:boolean;send:(action:LiveAction)=>Promise<boolean>;
@@ -65,7 +37,6 @@ function BattleScene({battle,now,player,busy,send,resume,onLobby,rewarded}:{
  };
  const status=!control?undefined:!you.hp?'Вы пали':you.moved?'Ход принят · ждём соперника':auto?'Автобой':
   delay?'Следующий удар через '+delay+' с':blocks.length<2?'Защита: выберите ещё '+(2-blocks.length):undefined;
- const potionCost=battle.local?healingPotion.cost(player.stage):undefined;
  return <ArenaBattleView mode={arenaModes[mode].size+' · '+(battle.local?'Бой с ботами':battle.ranked?'Рейтинговый бой':'Сетевой бой')}
   round={battle.round} timer={result?null:left(battle.deadline,now)} you={you} opponent={opponent} look={player} now={now}
   zoneControls={result||auto||!control?null:{attack,blocks,locked,
@@ -84,8 +55,8 @@ function BattleScene({battle,now,player,busy,send,resume,onLobby,rewarded}:{
     {you.moved?'Ход принят':'Ударить'}
    </button>
   </>}
-  belt={result?null:{belt:battle.belt,readyAt:battle.itemReadyAt,disabled:busy||!control||!you.hp||potionCost!==undefined&&player.gold<potionCost,
-   fullHealth:you.hp===you.maxHp,cost:potionCost,onItem:item=>void send({kind:'item',item})}}
+  belt={result?null:{belt:battle.belt,readyAt:battle.itemReadyAt,disabled:busy||!control||!you.hp||battle.local&&potionStock(player)===0,
+   fullHealth:you.hp===you.maxHp,onItem:item=>void send({kind:'item',item})}}
   dock={<>
    {mode!=='duel'&&<>
     <FighterList title={'Противники · '+opponent.name} ally={false} fighters={enemies} targetId={opponent.id} onTarget={result?undefined:setTarget}/>
@@ -107,13 +78,15 @@ export function OnlineArena({player}:{player:Player}){
  const [dismissed,setDismissed]=useState<string>();
  const [past,setPast]=useState<LiveBattle>(),[recent,setRecent]=useState<RecentBattle[]>([]);
  const flight=useRef(false),revision=useRef(0);
- const signed=onlineArenaEnabled&&(!!tg()?.initData||!!localFixture());
+ const signed=signedArena();
  const localId=liveLocal?.match.game.id;
+ const proofReady=!!liveLocal?.proof&&!liveLocal.proof.status&&!!liveLocal.match.game.result;
  const networkMatch=network?.battle;
  const networkSearch=network?.search;
  const pollingFast=!!networkSearch||!!networkMatch&&!networkMatch.result;
- const localMatch=liveLocal&&(!liveLocal.match.game.result||now<liveLocal.match.game.result.finishedAt+CHAT_MS)?
-  viewLive(liveLocal.match,SOLO_ACTOR,SOLO_ACTOR,now,true):undefined;
+ const localNow=liveLocal?localTime(liveLocal,now):now;
+ const localMatch=liveLocal&&(!liveLocal.match.game.result||localNow<liveLocal.match.game.result.finishedAt+CHAT_MS)?
+  viewLive(liveLocal.match,SOLO_ACTOR,SOLO_ACTOR,localNow,true):undefined;
  const candidate=networkMatch&&!networkMatch.result?networkMatch:localMatch&&!localMatch.result?localMatch:
   [networkMatch,localMatch].filter((item):item is LiveBattle=>!!item).sort((a,b)=>(b.result?.finishedAt??0)-(a.result?.finishedAt??0))[0];
  const battle=past??(candidate&&candidate.id!==dismissed?candidate:undefined);
@@ -160,15 +133,15 @@ export function OnlineArena({player}:{player:Player}){
  useEffect(()=>{
   const fallback=network?.local??(search&&now>=search.deadline?search:undefined);
   if(!fallback||localId===fallback.id||dismissed===fallback.id)return;
-  if(mutate(p=>startLocalArena(p,fallback.id,fallback.mode,Date.now()),true)){
+  if(mutate(p=>startLocalArena(p,fallback.id,fallback.mode,Date.now(),'proof' in fallback?fallback.proof:undefined,network?.now),true)){
    setSearch(undefined);setMode(undefined);setNetwork(current=>current?{now:current.now}:undefined);
   }
- },[network?.local,search,now,localId,dismissed,mutate]);
+ },[network?.local,network?.now,search,now,localId,dismissed,mutate]);
  useEffect(()=>{
   if(!localId||!localActive)return;
   const timer=setInterval(()=>{
    const now=Date.now(),saved=localArena(useGame.getState().p);
-   if(!saved||now<nextLiveWake(saved.match))return;
+   if(!saved||localTime(saved,now)<nextLiveWake(saved.match))return;
    mutate(p=>{
     if(!updateLocalArena(p,now))return false;
     award(p);
@@ -177,6 +150,35 @@ export function OnlineArena({player}:{player:Player}){
   },400);
   return ()=>clearInterval(timer);
  },[localId,localActive,mutate]);
+
+ useEffect(()=>{
+  if(!signed||!localId||!proofReady)return;
+  let active=true,timer:ReturnType<typeof setTimeout>;
+  async function submit(){
+   const saved=localArena(useGame.getState().p),result=saved?.match.game.result;
+   if(saved?.match.game.id!==localId||!result||!saved.proof)return;
+   const save=(status:'accepted'|'closed')=>mutate(p=>{
+    const current=localArena(p);
+    if(!current?.proof||current.match.game.id!==localId)return false;
+    current.proof.status=status;
+    current.proof.moves=[];
+    return true;
+   },true);
+   if(!saved.match.game.players[0].fought||!['hp','time'].includes(result.reason)){save('closed');return;}
+   try{
+    const session=tokenFromSession()||await login();
+    const reply=await request<{status:'accepted'|'closed'}>('live/proof',session,{id:localId,moves:saved.proof.moves});
+    if(active)save(reply.status);
+   }catch(error){
+    if(!active)return;
+    if(error instanceof ArenaRequestError&&error.status===401)saveSession('');
+    if(error instanceof ArenaRequestError&&error.status===400)save('closed');
+    else timer=setTimeout(submit,5000);
+   }
+  }
+  timer=setTimeout(submit,250);
+  return ()=>{active=false;clearTimeout(timer);};
+ },[signed,localId,proofReady,mutate]);
 
  async function perform(work:()=>Promise<boolean>){
   if(flight.current)return false;
@@ -200,7 +202,7 @@ export function OnlineArena({player}:{player:Player}){
   if(signed){
    void perform(async()=>{
     const session=token||await login();setToken(session);
-    setNetwork(await request('live/join',session,{mode:next,build:arenaBuild(player)}));
+    setNetwork(await request('live/join',session,{mode:next,build:arenaBuild(player),stage:player.stage,localPotions:potionStock(player)}));
     return true;
    });
   }else setSearch({id:crypto.randomUUID(),mode:next,deadline:Date.now()+MATCH_WAIT_MS,names:[classNames[player.heroClass]],control:true,revision:0});
@@ -245,7 +247,7 @@ export function OnlineArena({player}:{player:Player}){
  </section>;
  if(battle)return <section className="vvr-arena" aria-label="Арена">
   {notice&&<p className="online-status" role="status">{notice}</p>}
-  <BattleScene key={battle.id} battle={battle} now={now} player={player} busy={busy}
+  <BattleScene key={battle.id} battle={battle} now={battle.local?localNow:now} player={player} busy={busy}
    send={send} resume={()=>control('resume',battle)} onLobby={()=>{setDismissed(candidate?.id??battle.id);setMode(undefined);setPast(undefined)}} rewarded={battle.local?liveLocal?.reward:undefined}/>
  </section>;
  return <ArenaHub player={player} onMode={choose} pending={busy} notice={notice}

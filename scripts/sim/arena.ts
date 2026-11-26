@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {freshPlayer,makeItem} from '../../src/core/store';
 import {arenaBuild,validArenaBuild} from '../../src/arena/hero';
 import {advanceLive,applyLive,buildMatch,capacities,viewLive,type ArenaMode} from '../../src/arena/match';
+import {advanceLocal} from '../../src/arena/localProof';
 import {startLocalArena,updateLocalArena,SOLO_ACTOR} from '../../src/arena/local';
 import {slots} from '../../src/data/catalog';
 import {LiveArena} from '../../server/arena/live';
@@ -58,7 +59,7 @@ function simulate(){
     startLocalArena(player,'local',mode,0);
     updateLocalArena(player,0,{kind:'auto',enabled:true});
     const local=player.localArena!.match;
-    for(elapsed=0;!local.game.result&&elapsed<=3_600_000;elapsed+=200)advanceLive(local,elapsed,rng);
+    for(elapsed=0;!local.game.result&&elapsed<=3_600_000;elapsed+=200)advanceLocal(local,elapsed,rng);
     const result=viewLive(local,SOLO_ACTOR,SOLO_ACTOR,elapsed,true).result!;
     localSeconds.push(result.finishedAt/1000);
     if(result.outcome==='win')localWins++;

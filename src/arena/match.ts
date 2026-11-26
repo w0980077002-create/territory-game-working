@@ -6,8 +6,9 @@ import {
  advanceTeamMatch,drinkTeamElixir,newTeamMatch,setTeamAuto,strikeTeamMatch,teamArenaSize,
  type TeamEntrant,type TeamMatch,type TeamMode,
 } from '../../server/arena/team';
-import {CHAT_MS,OFFLINE_MS,type ArenaCommand,type ArenaElixir,type ArenaFighter,type ArenaMessage,type ArenaMove,type ArenaReason} from './protocol';
+import {CHAT_MS,OFFLINE_MS,ROUND_MS,type ArenaCommand,type ArenaElixir,type ArenaFighter,type ArenaMessage,type ArenaMove,type ArenaReason} from './protocol';
 
+import type {LocalProof} from './localProof';
 import type {ArenaBuild} from './hero';
 
 export const capacities={duel:2,team:teamArenaSize.team*2,chaos:teamArenaSize.chaos*2} as const;
@@ -24,14 +25,14 @@ export type LiveBattle={
 };
 export type LiveSearch={id:string;mode:ArenaMode;deadline:number;names:string[];control:boolean;revision:number};
 export type RecentBattle={id:string;mode:ArenaMode;chatDeadline:number};
-export type LiveView={now:number;battle?:LiveBattle;search?:LiveSearch;local?:{id:string;mode:ArenaMode}};
+export type LiveView={now:number;battle?:LiveBattle;search?:LiveSearch;local?:{id:string;mode:ArenaMode;proof?:LocalProof}};
 
 export function buildMatch(id:string,mode:ArenaMode,humans:readonly Entrant[],now:number,rng=Math.random,botBuild?:ArenaBuild):LiveMatch{
  const entrants:TeamEntrant[]=[...humans];
  for(let index=entrants.length;index<capacities[mode];index++){
   const source=humans[index%humans.length];
   entrants.push({...source,id:mode==='duel'?'bot':'bot-'+index,name:mode==='duel'?'Соперник':'Боец '+(index+1),
-   bot:true,potion:false,rankEligible:false,controller:'',hero:botBuild?.hero??source.hero,build:botBuild??source.build});
+   bot:true,potions:0,rankEligible:false,controller:'',hero:botBuild?.hero??source.hero,build:botBuild??source.build});
  }
  if(mode==='duel')return {mode,game:newMatch(id,entrants[0],entrants[1],now,humans.length===1,rng)};
  return {mode,game:newTeamMatch(id,mode,entrants,now,rng)};
@@ -45,7 +46,7 @@ export function nextLiveWake(match:LiveMatch){
  if(match.game.result)return Infinity;
  if(match.mode==='duel')return Math.min(match.game.deadline,
   ...match.game.players.filter(p=>p.auto&&!p.turn).map(p=>p.autoAt));
- return Math.min(...match.game.sideDeadline,
+ return Math.min(match.game.startedAt+60*ROUND_MS,...match.game.sideDeadline,
   ...match.game.players.filter(p=>p.auto&&p.hp).map(p=>Math.max(p.autoAt,p.nextStrikeAt)));
 }
 export function hasBots(match:LiveMatch){return match.mode==='duel'?match.game.bot:match.game.players.some(p=>p.bot)}

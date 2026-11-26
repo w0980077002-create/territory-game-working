@@ -11,7 +11,7 @@ import {healingPotion} from '../../src/arena/potion';
 import balance from '../../config/test-balance.v1.json';
 
 export type Entrant = {
- id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;trustedAttack?:number;rankEligible?:boolean;build?:ArenaBuild;potion?:boolean;
+ id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;trustedAttack?:number;rankEligible?:boolean;build?:ArenaBuild;potions?:number;
 };
 export type Fighter = Entrant & {
  seenAt:number;hp:number;maxHp:number;attack:number;defense:number;crit:number;gear:number[];
@@ -59,7 +59,7 @@ export function compatible(a:Entrant,b:Entrant){
 
 export function createFighter(player:Entrant,now:number):Fighter{
  const stats=entrantStats(player);
- const belt=Object.fromEntries(Object.entries(arenaElixirs).map(([id,item])=>[id,player.build?Number(id==='potion'&&!!player.potion):item.qty])) as Fighter['belt'];
+ const belt=Object.fromEntries(Object.entries(arenaElixirs).map(([id,item])=>[id,player.build?(id==='potion'?player.potions??0:0):item.qty])) as Fighter['belt'];
  const {build,...entry}=player;
  return {...entry,...stats,combat:build?makeHeroState(build,now):undefined,hp:stats.maxHp,seenAt:now,sequence:0,auto:player.id===BOT_ID,autoAt:now,
   fought:false,belt,itemAt:{},ready:{strike:0,call:0,hammer:0},buffUntil:0,
@@ -197,6 +197,7 @@ export function drinkStatElixir(match:Messages,player:Fighter,item:ArenaElixir,n
  if(item==='potion'){
   if(!player.combat||!player.hp||player.hp===player.maxHp)return false;
   detail+=' · +'+heal(player,Math.round(player.maxHp*healingPotion.fraction))+' HP';
+  player.belt[item]--;
   player.itemAt[item]=now+healingPotion.cooldown;
   appendMessage(match,now,player.name+' · '+detail);
   return true;

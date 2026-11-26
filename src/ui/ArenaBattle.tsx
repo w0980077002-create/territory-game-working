@@ -16,7 +16,7 @@ import {Icon} from './Icon';
  */
 export type SceneFighter=Pick<ArenaFighter,'name'|'hero'|'level'|'hp'|'maxHp'|'online'>;
 export type ZoneControls={attack:ArenaZone;blocks:ArenaZone[];onAttack:(zone:ArenaZone)=>void;onBlock:(zone:ArenaZone)=>void;locked:boolean};
-export type BeltControls={belt:Record<ArenaElixir,number>;readyAt:Partial<Record<ArenaElixir,number>>;disabled:boolean;fullHealth:boolean;cost?:number;onItem:(item:ArenaElixir)=>void};
+export type BeltControls={belt:Record<ArenaElixir,number>;readyAt:Partial<Record<ArenaElixir,number>>;disabled:boolean;fullHealth:boolean;onItem:(item:ArenaElixir)=>void};
 export type Feed={log:ArenaMessage[];chat:ArenaMessage[];chatDeadline:number|null;pending:boolean;send:(text:string)=>Promise<boolean>};
 
 const zoneIds=Object.keys(zones) as ArenaZone[];
@@ -133,13 +133,13 @@ function Messages({feed,now}:{feed:Feed;now:number}){
 }
 
 /** Folded elixir belt with pictures, counts, cooldowns and the exact effect of each elixir. */
-export function ArenaBelt({belt,readyAt,now,disabled,fullHealth,onItem,cost}:BeltControls&{now:number}){
+export function ArenaBelt({belt,readyAt,now,disabled,fullHealth,onItem}:BeltControls&{now:number}){
  return <div className="vvr-arena-belt" aria-label="Пояс эликсиров">{elixirIds.filter(id=>belt[id]>0).map(id=>{
   const cooldown=secondsLeft(readyAt[id]??0,now);
-  const label=arenaElixirs[id].label+(id==='potion'?' · '+cost+' золота':' · '+belt[id])+(cooldown?' · '+cooldown+' с':'');
+  const label=arenaElixirs[id].label+(' · '+belt[id])+(cooldown?' · '+cooldown+' с':'');
   return <button type="button" key={id} title={label+'. '+arenaElixirs[id].detail} aria-label={label}
    disabled={disabled||!belt[id]||cooldown>0||(fullHealth&&(id==='heal_small'||id==='heal_large'||id==='potion'))}
-   onClick={()=>onItem(id)}><Icon name={elixirArt[id]}/><small>{cooldown?cooldown+' с':id==='potion'?cost+' зол.':belt[id]}</small></button>;
+   onClick={()=>onItem(id)}><Icon name={elixirArt[id]}/><small>{cooldown?cooldown+' с':belt[id]}</small></button>;
  })}</div>;
 }
 function BeltPanel({controls,now}:{controls:BeltControls;now:number}){

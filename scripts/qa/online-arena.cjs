@@ -37,7 +37,7 @@ async function actor(browser,viewport,user,level=1,attack){
 
 async function move(page){
  const guards=duel(page).getByRole('group',{name:'Защита · 2 зоны'});
- await button(guards,'Грудь').tap();
+ await button(guards,'Голова').tap();
  await button(guards,'Ноги').tap();
  await button(duel(page),'Ударить').tap();
 }

@@ -27,6 +27,7 @@ pg < tests/pg/w066-equipment.sql
 pg < tests/pg/w066-arena-scores.sql
 pg < tests/pg/w066-arena-rooms.sql
 pg < tests/pg/w066-arena-railway.sql
+pg < tests/pg/w066-arena-potions.sql
 pg < tests/pg/w066-guild-rosters.sql
 pg < tests/pg/w066-guild-boss-quests.sql
 pg < tests/pg/w066-brotherhood.sql

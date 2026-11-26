@@ -1,12 +1,14 @@
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import type {Player,Slot} from '../core/types';
 import {slotNames} from '../data/catalog';
-import {useGame} from '../core/store';
+import {SAVE_KEY,useGame} from '../core/store';
 import {expensiveOffer, shopCategories, shopCurrencies, shopEquipmentSlots, shopOffers, shopQuote, shopStatus, type ShopOffer} from '../saga/shop';
 import {rewardText} from '../saga/rewards';
 import {Icon,gearIcon} from './Icon';
 import {CompactFilter} from './CompactFilter';
 import {RewardArt, rewardParts} from './RewardArt';
+import {ArenaRequestError,login,request,saveSession,signedArena,tokenFromSession} from '../arena/client';
+import {potionStock,type PotionQuote} from '../arena/potion';
 import {CardDialog} from './SagaUI';
 import './treasureShop.css';
 
@@ -15,12 +17,65 @@ const categoryIcons = {
   all:'chest', daily:'event', resources:'coins', materials:'mat-harbor',
   equipment:'helmet', growth:'skill', horn:'horn', supplies:'gift',
 } satisfies Record<typeof categories[number][0],string>;
-const featured = ['travel-stipend','region-supplies','expedition-kit','mine-reserve','summon-seal','forge-parcel','basic-equipment'];
+const featured = ['arena-potion','travel-stipend','region-supplies','expedition-kit','mine-reserve','summon-seal','forge-parcel','basic-equipment'];
 const compactCoins = new Intl.NumberFormat('ru', {notation:'compact',maximumFractionDigits:1});
 const priceText = (offer: ShopOffer) => `${offer.price.toLocaleString('ru')} ${shopCurrencies[offer.currency].unit}`;
 const limitText = (offer: ShopOffer) => offer.limit === 'daily' ? 'Одна покупка в сутки · обновление в 00:00 UTC'
   : offer.limit === 'weekly' ? 'Одна покупка в неделю · с понедельника 00:00 UTC'
-  : offer.limit === 'once' ? 'Одна покупка на героя' : 'Количество зависит от свободного места в Роге';
+  : offer.limit === 'once' ? 'Одна покупка на героя' : offer.id==='arena-potion'?'Одна порция за покупку':'Количество зависит от свободного места в Роге';
+
+type PotionOperation={operation:string;stage:number;price:number};
+const potionOperationKey=SAVE_KEY+':network-potion-operation';
+async function potionRequest(data?:PotionOperation){
+ const token=tokenFromSession()||await login();
+ try{return await request<PotionQuote>('live/potions',token,data);}
+ catch(error){
+  if(!(error instanceof ArenaRequestError)||error.status!==401)throw error;
+  saveSession('');
+  return request<PotionQuote>('live/potions',await login(),data);
+ }
+}
+function NetworkPotion(){
+ const [quote,setQuote]=useState<PotionQuote>(),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const [pending,setPending]=useState<PotionOperation|undefined>(()=>{
+  try{return JSON.parse(sessionStorage.getItem(potionOperationKey)??'null')??undefined;}catch{return;}
+ });
+ useEffect(()=>{
+  let active=true;
+  potionRequest().then(value=>{if(active)setQuote(value);})
+   .catch(()=>{if(active)setMessage('Сетевой запас временно недоступен');});
+  return ()=>{active=false;};
+ },[]);
+ async function buy(){
+  if(busy||!quote&&!pending)return;
+  const data=pending??{operation:crypto.randomUUID(),stage:quote!.stage,price:quote!.price};
+  setBusy(true);setMessage('');setPending(data);
+  try{sessionStorage.setItem(potionOperationKey,JSON.stringify(data));}catch{/* Retry remains available in this dialog. */}
+  try{
+   setQuote(await potionRequest(data));
+   setMessage('Зелье добавлено в сетевой запас');
+   clearPending();
+  }catch(error){
+   if(error instanceof ArenaRequestError&&[400,409,422].includes(error.status)){
+    clearPending();
+    setQuote(await potionRequest().catch(()=>undefined));
+   }
+   setMessage(error instanceof ArenaRequestError?error.message:'Не удалось подтвердить покупку');
+  }finally{setBusy(false)}
+ }
+ function clearPending(){
+  setPending(undefined);
+  try{sessionStorage.removeItem(potionOperationKey);}catch{/* State is cleared for this dialog. */}
+ }
+ if(!quote&&!message&&!pending)return <p className="hint" role="status">Загружаем сетевой запас…</p>;
+ return <div>
+  <p>Сетевой запас: {quote?.stock??'—'}{quote?.reserved?' · зарезервировано '+quote.reserved:''}</p>
+  {quote&&<p className="hint">Золото сетевого кошелька: {quote.gold.toLocaleString('ru')} · цена для подтверждённого этапа {quote.stage}</p>}
+  {message&&<p role="status">{message}</p>}
+  {(pending||quote)&&<button className="action secondary" type="button" disabled={busy||!pending&&!!quote&&quote.gold<quote.price}
+   onClick={()=>void buy()}>{pending?'Проверить покупку':'Купить для сетевого боя · '+quote!.price.toLocaleString('ru')+' золота'}</button>}
+ </div>;
+}
 
 export function TreasureShop({p, source, sources, onFreeSpace}: {
   p: Player;
@@ -86,7 +141,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
           </button>
           <button type="button" className="shop-buy" disabled={!!status}
             aria-label={sold ? status : `Купить · ${priceText(offer)}${status ? ` · ${status}` : ''}`} title={status || priceText(offer)}
-            onClick={() => offer.equipment?setDetails(offer.id):requestPurchase(offer)}>
+            onClick={() => offer.equipment||offer.id==='arena-potion'?setDetails(offer.id):requestPurchase(offer)}>
             {sold ? <span>{status}</span> : <><Icon name={shopCurrencies[offer.currency].icon}/>
               <b>{offer.price.toLocaleString('ru')}</b>{status && <span>{status === 'Недостаточно средств' ? 'Не хватает' : status === 'Освободите место в Роге' ? 'Мало места в Роге' : status}</span>}</>}
           </button>
@@ -97,12 +152,13 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
       actions={selectedStatus === 'Рюкзак полон' ? freeSpace : selectedStatus === 'Недостаточно средств'
         ? <button className="action secondary" onClick={() => setGuide(selected.currency)}>Где получить</button>
         : <button className="action" disabled={!!selectedStatus}
-          onClick={() => requestPurchase(selected)}>{selectedStatus || `Купить · ${priceText(selected)}`}</button>}>
+          onClick={() => requestPurchase(selected)}>{selectedStatus || (selected.id==='arena-potion'?'Купить для боя с ботами · ':'Купить · ')+priceText(selected)}</button>}>
       {selected.equipment?<div className="inventory-order">
         <span>Слот</span><CompactFilter label="Слот покупки" value={equipmentSlot} onChange={slot=>setEquipmentSlot(slot as Slot)}
           options={shopEquipmentSlots.map(slot=>({value:slot,label:slotNames[slot]}))}/>
       </div>:<RewardArt reward={selected.reward} names/>}
       <p>{selected.description}</p><p className="hint">{limitText(selected)}</p>
+      {selected.id==='arena-potion'&&<><p>Запас для боёв с ботами: {potionStock(p)}</p>{signedArena()&&<NetworkPotion/>}</>}
       <p className="shop-price"><Icon name={shopCurrencies[selected.currency].icon}/>{priceText(selected)}</p>
     </CardDialog>}
     {confirmation && <CardDialog title="Подтвердить покупку" onClose={() => setConfirmation(undefined)}

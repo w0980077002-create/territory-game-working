@@ -55,6 +55,7 @@ export function ArenaHub({player,onMode,pending,pendingMode,notice,onResume,rece
    </button></li>)}</ul>
   </details>}
   <small>Уровень героя {player.level} · побед в одиночных дуэлях {player.arenaWins}</small>
+  <button className="vvr-leave" type="button" onClick={()=>open('shop')}><Icon name="potion"/> Зелья в Лавке</button>
   {notice&&<p role="status" className="online-status">{notice}</p>}
   {pending&&pendingMode&&<span role="status">Подключение · {arenaModes[pendingMode].size}</span>}
   {onResume&&<button className="action secondary" type="button" onClick={onResume}>Чат прошлого боя</button>}
