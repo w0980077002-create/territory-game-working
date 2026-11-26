@@ -349,7 +349,7 @@ const rewards={
     await button('Магазин').tap();
     if(width===320){
      await button('Подробнее · Сердце Вальгаллы').tap();
-     await page.getByText(/Восстанавливает 45%/).waitFor();
+     await page.getByText(/Мгновенно восстанавливает 45%/).waitFor();
      await button('Купить за подтверждённое золото · 30').tap();
      await page.getByText('В рюкзаке: 1',{exact:true}).waitFor();
      await button('Купить за золото героя · 30 золота').tap();

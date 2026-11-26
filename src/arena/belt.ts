@@ -46,3 +46,6 @@ export function setBeltSlot(p:{arenaBelt?:unknown;arenaWins?:number},index:numbe
  p.arenaBelt=belt;
  return true;
 }
+/** Join payload stock: kind → whole non-negative count, only real non-potion consumables. */
+export const validStock=(value:unknown)=>!!value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=BELT_SLOTS&&
+ Object.entries(value).every(([id,count])=>id!=='potion'&&isBeltItem(id)&&Number.isSafeInteger(count)&&(count as number)>=0&&(count as number)<=1_000_000);

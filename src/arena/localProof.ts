@@ -1,13 +1,16 @@
 import {curve,threat} from '../saga/regions';
 import type {ArenaBuild} from './hero';
 import type {ArenaElixir} from './protocol';
+import type {ConsumableId} from './potion';
 import {advanceLive,applyLive,buildMatch,nextLiveWake,type ArenaMode,type LiveAction,type LiveMatch} from './match';
 
 export const SOLO_ACTOR='solo';
 export const PROOF_DURATION=60*60_000;
 export const MAX_PROOF_MOVES=2048;
 export type TeamArenaMode=Exclude<ArenaMode,'duel'>;
-export type LocalProof={seed:number;startedAt:number;hero:ArenaBuild;stage:number;potions:number};
+export type LocalProof={seed:number;startedAt:number;hero:ArenaBuild;stage:number;potions:number;
+ /** Non-potion consumables on the belt (V1.0), counted like `potions` from the player's local stock. */
+ stock?:Partial<Record<ConsumableId,number>>;loadout?:(ArenaElixir|null)[]};
 export type ProofMove=[at:number,action:LiveAction];
 
 export function arenaRandom(seed:number){
@@ -15,7 +18,7 @@ export function arenaRandom(seed:number){
  return {next:()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/2**32;},state:()=>state};
 }
 
-export function localBattle(id:string,mode:ArenaMode,build:ArenaBuild,stage:number,potions:number,now:number,rng:()=>number,loadout?:(ArenaElixir|null)[]){
+export function localBattle(id:string,mode:ArenaMode,build:ArenaBuild,stage:number,potions:number,now:number,rng:()=>number,loadout?:(ArenaElixir|null)[],stock?:Partial<Record<ConsumableId,number>>){
  const t=threat(stage);
  const bot:ArenaBuild={...build,hero:build.hero==='berserker'?'ranger':'berserker',
   stats:{hp:Math.round(t.bossHp*curve.arena_hp),attack:Math.round(t.bossAtk*.9),defense:Math.round(t.def),
@@ -26,7 +29,7 @@ export function localBattle(id:string,mode:ArenaMode,build:ArenaBuild,stage:numb
    boltEvery:0,boltPower:0,rally:0,cooldownRate:1,foeHpCut:0,heroDamage:0},followers:[],branches:[-1,-1],
  };
  return buildMatch(id,mode,[{id:SOLO_ACTOR,name:'Вы',hero:build.hero,level:build.level,controller:SOLO_ACTOR,
-  kit:'balanced',rating:1000,potions,rankEligible:false,build,...(loadout?{loadout}:{})}],now,rng,bot);
+  kit:'balanced',rating:1000,potions,rankEligible:false,build,...(loadout?{loadout}:{}),...(stock?{stock}:{})}],now,rng,bot);
 }
 
 // The proof uses scheduled times so render speed, tab suspension and reload cannot change the replay.
@@ -48,7 +51,7 @@ export function replayProof(id:string,mode:TeamArenaMode,config:LocalProof,moves
  if(!moves.length||moves.length>MAX_PROOF_MOVES)return;
  const end=Math.min(now,config.startedAt+PROOF_DURATION);
  const random=arenaRandom(config.seed);
- const match=localBattle(id,mode,config.hero,config.stage,config.potions,config.startedAt,random.next);
+ const match=localBattle(id,mode,config.hero,config.stage,config.potions,config.startedAt,random.next,config.loadout,config.stock);
  let earliest=config.startedAt;
  for(const [at,action] of moves){
   if(!Number.isSafeInteger(at)||at<earliest||at>end)return;

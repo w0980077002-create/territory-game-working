@@ -6,14 +6,16 @@ import {
 import {skillData} from '../../src/data/catalog';
 import {companions} from '../../src/dark/rules';
 import type {ArenaBuild} from '../../src/arena/hero';
-import {arenaAttackInterval,makeHeroState,resolveHeroTurn,type HeroState} from '../../src/arena/heroCombat';
-import {healingPotion} from '../../src/arena/potion';
+import {arenaAttackInterval,makeHeroState,resolveHeroTurn,applyConsumable,type HeroState} from '../../src/arena/heroCombat';
+import {battleLimit,consumableBattle,consumableIds,consumableRules,type ConsumableId} from '../../src/arena/potion';
 import balance from '../../config/test-balance.v1.json';
 
 export type Entrant = {
  id:string;name:string;level:number;rating:number;hero:ArenaHero;kit:ArenaKit;controller:string;controlRevision?:number;trustedAttack?:number;rankEligible?:boolean;build?:ArenaBuild;potions?:number;
  /** Battle belt fixed when the fight starts (7 slots, consumable kind or null). */
  loadout?:(ArenaElixir|null)[];
+ /** Stock of the 19 non-potion consumables brought to a local fight (the potion keeps `potions`). */
+ stock?:Partial<Record<ConsumableId,number>>;
 };
 export type Fighter = Entrant & {
  seenAt:number;hp:number;maxHp:number;attack:number;defense:number;crit:number;gear:number[];
@@ -63,7 +65,13 @@ export function createFighter(player:Entrant,now:number):Fighter{
  const stats=entrantStats(player);
  // A real hero carries only what its fixed belt holds: the potion counts only when a slot names it.
  const carries=(id:string)=>!player.loadout||player.loadout.includes(id as ArenaElixir);
- const belt=Object.fromEntries(Object.entries(arenaElixirs).map(([id,item])=>[id,player.build?(id==='potion'&&carries(id)?player.potions??0:0):item.qty])) as Fighter['belt'];
+ // Up to 5 of each chosen kind per fight (the Valkyrie Oath once); the rest stays in the player's stock.
+ const owned=(id:string)=>{
+  if(!isConsumable(id)||!carries(id)||id!=='potion'&&!player.loadout)return 0;
+  const value=id==='potion'?player.potions:player.stock?.[id];
+  return Number.isSafeInteger(value)&&value!>0?Math.min(value!,battleLimit(id)):0;
+ };
+ const belt=Object.fromEntries(Object.entries(arenaElixirs).map(([id,item])=>[id,player.build?owned(id):item.qty])) as Fighter['belt'];
  const {build,...entry}=player;
  return {...entry,...stats,combat:build?makeHeroState(build,now):undefined,hp:stats.maxHp,seenAt:now,sequence:0,auto:player.id===BOT_ID,autoAt:now,
   fought:false,belt,itemAt:{},ready:{strike:0,call:0,hammer:0},buffUntil:0,
@@ -195,15 +203,20 @@ export function normalizeBattleChat(raw:string){
  return raw.normalize('NFKC').replace(/\p{Cf}/gu,'').replace(/\p{Cc}/gu,' ').trim().slice(0,200);
 }
 
-export function drinkStatElixir(match:Messages,player:Fighter,item:ArenaElixir,now:number){
+export const isConsumable=(item:string):item is ConsumableId=>Object.hasOwn(consumableRules,item);
+/** One server-side path for all 20 Arena consumables, in local and network fights alike: the kind must be on the fixed
+ * belt with units left, the shared 2 s and the individual cooldowns must have passed, and the effect must do something. */
+export function drinkStatElixir(match:Messages,player:Fighter,item:ArenaElixir,now:number,foe?:Fighter,allies:readonly Fighter[]=[]){
  if(!player.belt[item]||now<(player.itemAt[item]??0))return false;
- let detail=arenaElixirs[item].label;
- if(item==='potion'){
-  if(!player.combat||!player.hp||player.hp===player.maxHp)return false;
-  detail+=' · +'+heal(player,Math.round(player.maxHp*healingPotion.fraction))+' HP';
+ let detail:string=arenaElixirs[item].label;
+ if(isConsumable(item)){
+  const text=applyConsumable(player,item,now,value=>appendMessage(match,now,value),foe,allies);
+  if(text===null)return false;
   player.belt[item]--;
-  player.itemAt[item]=now+healingPotion.cooldown;
-  appendMessage(match,now,player.name+' · '+detail);
+  const shared=now+consumableBattle.globalCooldown*1000;
+  for(const id of consumableIds)if(player.belt[id])player.itemAt[id]=Math.max(player.itemAt[id]??0,shared);
+  player.itemAt[item]=Math.max(shared,now+consumableRules[item].cooldown*1000);
+  appendMessage(match,now,player.name+' · '+text);
   return true;
  }
  if(item==='heal_small'||item==='heal_large'){
@@ -224,7 +237,7 @@ function spendElixir(match:Messages,player:Fighter,item:ArenaElixir,now:number,d
 }
 
 function drinkElixir(match:Match,player:Fighter,item:ArenaElixir,now:number){
- if(item!=='time')return drinkStatElixir(match,player,item,now);
+ if(item!=='time')return drinkStatElixir(match,player,item,now,match.players.find(other=>other!==player));
  if(!player.belt.time||now<(player.itemAt.time??0)||match.roundMs<=30_000)return false;
  match.roundMs-=10_000;
  match.deadline=Math.max(now,match.roundStart+match.roundMs);

@@ -20,9 +20,9 @@ test('all 20 approved potion pictures are unique, present and lossless 256×256 
  }
 });
 
-test('only implemented consumables are linked to artwork; the rest stay artwork-only',()=>{
- const linked=elixirArt.filter(e=>'consumable' in e);
- assert.deepEqual(linked.map(e=>[e.art,'consumable' in e&&e.consumable]),[['valhalla-heart','potion']]);
+test('all 20 approved items are real consumables linked to their artwork and usable in the Arena belt',()=>{
+ assert.equal(elixirArt.filter(e=>e.consumable).length,20);
+ assert.deepEqual(elixirArt[0],{art:'valhalla-heart',name:'Сердце Вальгаллы',consumable:'potion'},'existing id kept');
  for(const [id,item] of Object.entries(consumables)){
   assert.ok(item.icon.startsWith('elixir-'),id+' uses approved artwork');
   assert.ok(existsSync(file(item.icon.slice(7))),id+' picture exists');
