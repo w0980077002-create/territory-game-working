@@ -7,7 +7,7 @@ import {arenaBuild} from '../arena/hero';
 import {localArena,localTime,prepareLocalPotion,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../arena/local';
 import {capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveBattle,type LiveSearch,type LiveView,type RecentBattle} from '../arena/match';
 import {potionStock} from '../arena/potion';
-import {playerBelt} from '../arena/belt';
+import {DEFAULT_BELT,playerBelt} from '../arena/belt';
 import {CHAT_MS,MATCH_WAIT_MS,type ArenaZone} from '../arena/protocol';
 import {ArenaBattleView,ArenaResult,FighterList} from './ArenaBattle';
 import {ArenaHub,arenaModes} from './ArenaHub';
@@ -242,7 +242,14 @@ export function OnlineArena({player}:{player:Player}){
   if(signed){
    void perform(async()=>{
     const session=token||await login();setToken(session);
-    setNetwork(await request('live/join',session,{mode:next,build:arenaBuild(player),stage:player.stage,localPotions:potionStock(player),belt:playerBelt(player)}));
+    const join={mode:next,build:arenaBuild(player),stage:player.stage,localPotions:potionStock(player)},belt=playerBelt(player);
+    // The default belt is exactly the old behaviour, so it is not sent; a server that predates the belt rejects the
+    // extra field with 400 until Railway is redeployed — then the join is repeated without it.
+    const custom=JSON.stringify(belt)!==JSON.stringify(DEFAULT_BELT);
+    setNetwork(await request<LiveView>('live/join',session,custom?{...join,belt}:join).catch((error:unknown)=>{
+     if(custom&&error instanceof ArenaRequestError&&error.status===400)return request<LiveView>('live/join',session,join);
+     throw error;
+    }));
     return true;
    });
   }else setSearch({id:crypto.randomUUID(),mode:next,deadline:Date.now()+MATCH_WAIT_MS,names:[classNames[player.heroClass]],control:true,revision:0});
