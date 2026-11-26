@@ -13,6 +13,7 @@ begin
  assert (public.vvr_arena_potions(repeat('a',64),'84601','Arena consumer')->>'issued')::int=0;
  assert (public.vvr_arena_potions(repeat('a',64),'84601','Arena consumer',purchase,1,30)->>'issued')::int=1;
  assert (public.vvr_arena_potions(repeat('a',64),'84601','Arena consumer',purchase,1,30)->>'issued')::int=1;
+ assert vvr.auction_state(player)->'history'='[]'::jsonb;
  assert (select balance from vvr.wallets where player_id=player and resource='gold')=70;
  assert public.vvr_arena_potions(repeat('a',64),'84601','Arena consumer',gen_random_uuid(),2,30)->>'status'='price_changed';
  assert public.vvr_arena_potions(repeat('a',64),'84601','Arena consumer',gen_random_uuid(),1,71)->>'status'='insufficient';
