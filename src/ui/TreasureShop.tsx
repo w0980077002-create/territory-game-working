@@ -7,8 +7,8 @@ import {rewardText} from '../saga/rewards';
 import {Icon,gearIcon} from './Icon';
 import {CompactFilter} from './CompactFilter';
 import {RewardArt, rewardParts} from './RewardArt';
-import {ArenaRequestError,potionRequest,signedArena,type PotionOperation} from '../arena/client';
-import {consumableIds,consumableStock,potionStock,type ConsumableId,type PotionQuote} from '../arena/potion';
+import {ArenaRequestError,consumablesRequest,signedArena,type ConsumableOperation} from '../arena/client';
+import {consumableIds,consumableStock,type ConsumableId,type ConsumablesQuote} from '../arena/potion';
 /** Shop id → Arena consumable kind (the potion keeps its old id `arena-potion`). */
 const arenaKind=(id:string)=>consumableIds.find(kind=>id===(kind==='potion'?'arena-potion':'arena-'+kind)) as ConsumableId|undefined;
 import {CardDialog} from './SagaUI';
@@ -26,47 +26,51 @@ const limitText = (offer: ShopOffer) => offer.limit === 'daily' ? 'Одна по
   : offer.limit === 'weekly' ? 'Одна покупка в неделю · с понедельника 00:00 UTC'
   : offer.limit === 'once' ? 'Одна покупка на героя' : arenaKind(offer.id)?'Одна порция за покупку':'Количество зависит от свободного места в Роге';
 
-const potionOperationKey=SAVE_KEY+':network-potion-operation';
-function NetworkPotion({localStock}:{localStock:number}){
- const [quote,setQuote]=useState<PotionQuote>(),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
- const [pending,setPending]=useState<PotionOperation|undefined>(()=>{
-  try{return JSON.parse(sessionStorage.getItem(potionOperationKey)??'null')??undefined;}catch{return;}
+function NetworkConsumable({item,localStock}:{item:ConsumableId;localStock:number}){
+ const operationKey=SAVE_KEY+':network-'+item+'-operation';
+ const [quote,setQuote]=useState<ConsumablesQuote>(),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const [pending,setPending]=useState<ConsumableOperation|undefined>(()=>{
+  try{
+   const saved=JSON.parse(sessionStorage.getItem(operationKey)??'null');
+   if(saved)return {...saved,item};
+  }catch{return;}
  });
  useEffect(()=>{
   let active=true;
-  potionRequest().then(value=>{if(active)setQuote(value);})
+  consumablesRequest().then(value=>{if(active)setQuote(value);})
    .catch(()=>{if(active)setMessage('Сетевой запас временно недоступен');});
   return ()=>{active=false;};
  },[]);
  async function buy(){
   if(busy||!quote&&!pending)return;
-  const data=pending??{operation:crypto.randomUUID(),stage:quote!.stage,price:quote!.price};
+  const data=pending??{operation:crypto.randomUUID(),stage:quote!.stage,price:quote!.prices[item],item};
   setBusy(true);setMessage('');setPending(data);
-  try{sessionStorage.setItem(potionOperationKey,JSON.stringify(data));}catch{/* Retry remains available in this dialog. */}
+  try{sessionStorage.setItem(operationKey,JSON.stringify(data));}catch{/* Retry remains available in this dialog. */}
   try{
-   setQuote(await potionRequest(data));
-   setMessage('Зелье добавлено в рюкзак');
+   setQuote(await consumablesRequest(data));
+   setMessage(item==='potion'?'Зелье добавлено в рюкзак':'Расходник добавлен в рюкзак');
    clearPending();
   }catch(error){
    if(error instanceof ArenaRequestError&&[400,409,422].includes(error.status)){
     clearPending();
-    setQuote(await potionRequest().catch(()=>undefined));
+    setQuote(await consumablesRequest().catch(()=>undefined));
    }
    setMessage(error instanceof ArenaRequestError?error.message:'Не удалось подтвердить покупку');
   }finally{setBusy(false)}
  }
  function clearPending(){
   setPending(undefined);
-  try{sessionStorage.removeItem(potionOperationKey);}catch{/* State is cleared for this dialog. */}
+  try{sessionStorage.removeItem(operationKey);}catch{/* State is cleared for this dialog. */}
  }
+ const confirmed=quote?.stock[item]??0,reserved=quote?.reserved[item]??0;
  if(!quote&&!message&&!pending)return <p className="hint" role="status">Загружаем сетевой запас…</p>;
  return <div>
-  <p>В рюкзаке: {quote?quote.stock+localStock:localStock}{quote?.reserved?' · зарезервировано '+quote.reserved:''}</p>
-  {quote&&localStock>0&&<p className="hint">Из них для сетевого боя: {quote.stock}</p>}
+  <p>В рюкзаке: {confirmed+localStock}{reserved?' · зарезервировано '+reserved:''}</p>
+  {quote&&localStock>0&&<p className="hint">Из них для сетевого боя: {confirmed}</p>}
   {quote&&<p className="hint">Золото сетевого кошелька: {quote.gold.toLocaleString('ru')} · цена для подтверждённого этапа {quote.stage}</p>}
   {message&&<p role="status">{message}</p>}
-  {(pending||quote)&&<button className="action secondary" type="button" disabled={busy||!pending&&!!quote&&quote.gold<quote.price}
-   onClick={()=>void buy()}>{pending?'Проверить покупку':'Купить за подтверждённое золото · '+quote!.price.toLocaleString('ru')}</button>}
+  {(pending||quote)&&<button className="action secondary" type="button" disabled={busy||!pending&&!!quote&&quote.gold<quote.prices[item]}
+   onClick={()=>void buy()}>{pending?'Проверить покупку':'Купить за подтверждённое золото · '+quote!.prices[item].toLocaleString('ru')}</button>}
  </div>;
 }
 
@@ -94,6 +98,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
     else purchase(offer);
   };
   const signed=signedArena();
+  const selectedKind=selected?arenaKind(selected.id):undefined;
   const selectedStatus = selected && shopStatus(p, selected, now);
   const confirmationStatus = confirmation && shopStatus(p, confirmation, now);
   const packFull = category === 'equipment' && visible.some(offer => offer.equipment && shopStatus(p, offer, now) === 'Рюкзак полон');
@@ -118,8 +123,9 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
     {packFull && <div className="capacity-help"><p className="hint">Рюкзак полон. Перед покупкой снаряжения разберите выбранную вещь в рюкзаке.</p>{freeSpace}</div>}
     <div className="shop-grid">
       {visible.map(offer => {
-        const signedPotion=signed&&offer.id==='arena-potion';
-        const status=signedPotion?undefined:shopStatus(p,offer,now);
+        const signedConsumable=signed&&!!arenaKind(offer.id);
+        const signedPotion=signedConsumable&&offer.id==='arena-potion';
+        const status=signedConsumable?undefined:shopStatus(p,offer,now);
         const sold = status === 'Сегодня куплено' || status === 'Куплено';
         const parts = rewardParts(offer.reward);
         // Visual hierarchy only: limited weekly/one-time offers shine, bundles get a warmer frame.
@@ -153,8 +159,8 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
           options={shopEquipmentSlots.map(slot=>({value:slot,label:slotNames[slot]}))}/>
       </div>:<RewardArt reward={selected.reward} names/>}
       <p>{selected.description}</p><p className="hint">{limitText(selected)}</p>
-      {selected.id==='arena-potion'&&(signed?<NetworkPotion localStock={potionStock(p)}/>:<p>В рюкзаке: {potionStock(p)}</p>)}
-      {selected.id!=='arena-potion'&&arenaKind(selected.id)&&<p>В рюкзаке: {consumableStock(p,arenaKind(selected.id)!)}</p>}
+      {selectedKind&&(signed?<NetworkConsumable key={selectedKind} item={selectedKind} localStock={consumableStock(p,selectedKind)}/>:
+       <p>В рюкзаке: {consumableStock(p,selectedKind)}</p>)}
       {(selected.id!=='arena-potion'||!signed)&&<p className="shop-price"><Icon name={shopCurrencies[selected.currency].icon}/>{priceText(selected)}</p>}
     </CardDialog>}
     {confirmation && <CardDialog title="Подтвердить покупку" onClose={() => setConfirmation(undefined)}

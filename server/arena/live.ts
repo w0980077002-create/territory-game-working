@@ -4,8 +4,8 @@ import type {ArenaBuild} from '../../src/arena/hero';
 import {advanceLive,applyLive,arenaWinners,buildMatch,capacities,nextLiveWake,viewLive,type ArenaMode,type LiveAction,type LiveMatch,type LiveView,type RecentBattle} from '../../src/arena/match';
 import {CHAT_MS,LEVEL_RANGE,MATCH_WAIT_MS} from '../../src/arena/protocol';
 import {PROOF_DURATION,replayProof,type LocalProof,type ProofMove,type TeamArenaMode} from '../../src/arena/localProof';
-import {battleLimit,consumableRules,type ConsumableId,type PotionQuote} from '../../src/arena/potion';
-import {beltHas,DEFAULT_BELT,sanitizeBelt} from '../../src/arena/belt';
+import {battleLimit,consumableIds,consumablePrice,type ConsumableId,type ConsumableStock,type ConsumablesQuote,type PotionQuote} from '../../src/arena/potion';
+import {beltHas,DEFAULT_BELT,isBeltItem,sanitizeBelt} from '../../src/arena/belt';
 import {compatible,type Entrant} from './duel';
 
 type Actor={id:string;controller:string};
@@ -13,15 +13,13 @@ type QueueEntry=Entrant&{ticket:string;mode:ArenaMode;since:number;seenAt:number
 type Active={id:string;json:string};
 type Search={mode:ArenaMode;entries:QueueEntry[];deadline:number};
 const idle=12_000;
-/** Local-only stock of the 19 non-potion kinds: only kinds on the fixed belt, capped per fight. It feeds the local
- * fallback fight and its proof, never a network fight: trusted per-kind issuance for network PvP does not exist yet. */
-export function beltStock(loadout:readonly (string|null)[],value:unknown){
- const stock:Partial<Record<ConsumableId,number>>={};
- if(!value||typeof value!=='object')return stock;
- for(const [id,count] of Object.entries(value))
-  if(id!=='potion'&&Object.hasOwn(consumableRules,id)&&loadout.includes(id)&&Number.isSafeInteger(count)&&count>0)
-   stock[id as ConsumableId]=Math.min(count,battleLimit(id as ConsumableId));
- return stock;
+type Spending={telegram:string;item:ConsumableId;total:number};
+
+function beltStock(loadout:readonly (string|null)[],stock:ConsumableStock){
+ const result:ConsumableStock={};
+ for(const item of loadout)if(isBeltItem(item)&&stock[item])
+  result[item]=Math.min(stock[item]!,battleLimit(item));
+ return result;
 }
 
 export class LiveArena {
@@ -63,6 +61,23 @@ export class LiveArena {
     operation TEXT PRIMARY KEY, player TEXT NOT NULL, battle TEXT NOT NULL, expires INTEGER NOT NULL
    );
    CREATE INDEX IF NOT EXISTS arena_local_potion_uses_expiry ON arena_local_potion_uses(expires);
+   CREATE TABLE IF NOT EXISTS arena_consumable_spending (
+    player TEXT NOT NULL, item TEXT NOT NULL, total INTEGER NOT NULL, published INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(player,item), CHECK(total>=published AND published>=0)
+   );
+   CREATE INDEX IF NOT EXISTS arena_consumable_outbox ON arena_consumable_spending(player,item) WHERE total>published;
+   INSERT INTO arena_consumable_spending(player,item,total)
+    SELECT player,'potion',total FROM arena_potion_spending WHERE total>0
+    ON CONFLICT(player,item) DO UPDATE SET total=max(total,excluded.total);
+   CREATE TABLE IF NOT EXISTS arena_local_consumable_reserve (
+    battle TEXT NOT NULL, player TEXT NOT NULL, item TEXT NOT NULL, remaining INTEGER NOT NULL CHECK(remaining>=0),
+    expires INTEGER NOT NULL, PRIMARY KEY(battle,player,item), UNIQUE(player,item)
+   );
+   CREATE INDEX IF NOT EXISTS arena_local_consumable_expiry ON arena_local_consumable_reserve(expires);
+   CREATE TABLE IF NOT EXISTS arena_local_consumable_uses (
+    operation TEXT PRIMARY KEY, player TEXT NOT NULL, battle TEXT NOT NULL, item TEXT NOT NULL, expires INTEGER NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS arena_local_consumable_uses_expiry ON arena_local_consumable_uses(expires);
    CREATE TABLE IF NOT EXISTS arena_local_proofs (
     id TEXT PRIMARY KEY, player TEXT NOT NULL, mode TEXT NOT NULL, json TEXT NOT NULL, expires INTEGER NOT NULL, day TEXT
    );
@@ -108,11 +123,20 @@ export class LiveArena {
      this.db.prepare('INSERT INTO arena_local_potion_reserve VALUES(?,?,?,?)')
       .run(p.ticket,p.id,p.potions,now+PROOF_DURATION+CHAT_MS);
 
+    for(const [item,count] of Object.entries(p.stock??{}))
+     this.db.prepare('INSERT INTO arena_local_consumable_reserve VALUES(?,?,?,?,?)')
+      .run(p.ticket,p.id,item,count,now+PROOF_DURATION+CHAT_MS);
+    const stock:ConsumableStock={...p.localStock};
+    for(const [item,count] of Object.entries(p.stock??{})){
+     const kind=item as ConsumableId;
+     stock[kind]=(stock[kind]??0)+count;
+    }
+
     if(mode!=='duel'&&p.build&&p.localStage!==undefined&&!this.db
       .prepare('SELECT 1 FROM arena_local_proofs WHERE player=? AND day=?').get(p.id,new Date(now).toISOString().slice(0,10))){
      const proof:LocalProof={seed:randomBytes(4).readUInt32LE(),startedAt:now,hero:p.build,
       stage:p.localStage,potions:(p.localPotions??0)+(p.potions??0),
-      ...(p.loadout?{loadout:p.loadout}:{}),...(p.localStock&&Object.keys(p.localStock).length?{stock:p.localStock}:{})};
+      ...(p.loadout?{loadout:p.loadout}:{}),...(Object.keys(stock).length?{stock}:{})};
      this.db.prepare('INSERT OR IGNORE INTO arena_local_proofs VALUES(?,?,?,?,?,NULL)')
       .run(p.ticket,p.id,mode,JSON.stringify(proof),now+PROOF_DURATION+CHAT_MS);
     }
@@ -180,6 +204,8 @@ export class LiveArena {
    this.db.prepare('DELETE FROM arena_live_fallback WHERE expires<=?').run(now);
    this.db.prepare('DELETE FROM arena_local_potion_reserve WHERE expires<=?').run(now);
    this.db.prepare('DELETE FROM arena_local_potion_uses WHERE expires<=?').run(now);
+   this.db.prepare('DELETE FROM arena_local_consumable_reserve WHERE expires<=?').run(now);
+   this.db.prepare('DELETE FROM arena_local_consumable_uses WHERE expires<=?').run(now);
 
    this.db.prepare('DELETE FROM arena_local_proofs WHERE expires<=? AND (day IS NULL OR day<?)')
     .run(now,new Date(now).toISOString().slice(0,10));
@@ -202,8 +228,9 @@ export class LiveArena {
     .get(fallback.id,actor.id) as {json:string}|undefined;
    const reserve=this.db.prepare('SELECT remaining FROM arena_local_potion_reserve WHERE battle=? AND player=? AND expires>?')
     .get(fallback.id,actor.id,now) as {remaining:number}|undefined;
+   const confirmedStock=this.localReserve(actor.id,now,fallback.id);
    return {now,local:{...fallback,...(row?{proof:JSON.parse(row.json) as LocalProof}:{}),
-    ...(reserve?{confirmedPotions:reserve.remaining}:{})}};
+    ...(reserve?{confirmedPotions:reserve.remaining}:{}),...(Object.keys(confirmedStock).length?{confirmedStock}:{})}};
   }
   const found=this.match(actor.id,target);
   if(!found)return {now};
@@ -227,33 +254,65 @@ export class LiveArena {
   return rows.map(({id,expires,mode}):RecentBattle=>({id,mode,chatDeadline:expires}));
  }
 
+ private localReserve(player:string,now:number,battle?:string):ConsumableStock{
+  const rows=this.db.prepare('SELECT item,remaining FROM arena_local_consumable_reserve WHERE player=? AND expires>? AND (? IS NULL OR battle=?)')
+   .all(player,now,battle??null,battle??null) as {item:ConsumableId;remaining:number}[];
+  return Object.fromEntries(rows.map(({item,remaining})=>[item,remaining]));
+ }
+
+ private available(player:string,issued:ConsumableStock,remote:ConsumableStock):ConsumableStock{
+  const rows=this.db.prepare('SELECT item,total FROM arena_consumable_spending WHERE player=?').all(player) as
+   {item:ConsumableId;total:number}[];
+  const spent:ConsumableStock={...remote};
+  for(const {item,total} of rows)spent[item]=Math.max(spent[item]??0,total);
+  return Object.fromEntries(consumableIds.map(item=>[item,Math.max(0,(issued[item]??0)-(spent[item]??0))]));
+ }
+
+ private reserved(playerId:string,now:number):ConsumableStock{
+  const found=this.match(playerId);
+  const match=found?JSON.parse(found.json) as LiveMatch:undefined;
+  const player=match&&!match.game.result?match.game.players.find(p=>p.id===playerId):undefined;
+  if(player)return Object.fromEntries(consumableIds.map(item=>[item,player.belt[item]??0]));
+  const queued=this.db.prepare('SELECT json FROM arena_live_queue WHERE player=? AND seen>?').get(playerId,now-idle) as {json:string}|undefined;
+  if(queued){
+   const entry=JSON.parse(queued.json) as QueueEntry;
+   return {...entry.stock,potion:Math.min(entry.potions??0,battleLimit('potion'))};
+  }
+  const potion=this.db.prepare('SELECT remaining FROM arena_local_potion_reserve WHERE player=? AND expires>?')
+   .get(playerId,now) as {remaining:number}|undefined;
+  return {...this.localReserve(playerId,now),potion:potion?.remaining??0};
+ }
+
+ consumablesQuote(actor:Actor,issued:ConsumableStock,spent:ConsumableStock,stage:number,gold:number,now:number):ConsumablesQuote{
+  return {stage,gold,prices:Object.fromEntries(consumableIds.map(item=>[item,consumablePrice(item,stage)])) as Record<ConsumableId,number>,
+   stock:this.available(actor.id,issued,spent),reserved:this.reserved(actor.id,now)};
+ }
+
  availablePotions(player:string,issued:number){
-  const row=this.db.prepare('SELECT total FROM arena_potion_spending WHERE player=?').get(player) as {total:number}|undefined;
-  return Math.max(0,issued-(row?.total??0));
+  return this.available(player,{potion:issued},{}).potion??0;
  }
 
  potionQuote(actor:Actor,issued:number,stage:number,price:number,gold:number,now=Date.now()):PotionQuote{
-  const found=this.match(actor.id);
-  const match=found?JSON.parse(found.json) as LiveMatch:undefined;
-  const player=match&&!match.game.result?match.game.players.find(p=>p.id===actor.id):undefined;
-  const queued=this.db.prepare('SELECT json FROM arena_live_queue WHERE player=?').get(actor.id) as {json:string}|undefined;
-  const local=this.db.prepare('SELECT remaining FROM arena_local_potion_reserve WHERE player=? AND expires>?')
-   .get(actor.id,now) as {remaining:number}|undefined;
-  const reserved=player?.belt.potion??(queued?(JSON.parse(queued.json) as QueueEntry).potions??0:local?.remaining??0);
-  return {stage,price,gold,stock:this.availablePotions(actor.id,issued),reserved};
+  return {stage,price,gold,stock:this.availablePotions(actor.id,issued),reserved:this.reserved(actor.id,now).potion??0};
  }
 
- join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean,issued=0,localStage?:number,localPotions?:number,belt?:unknown,localStock?:unknown){
+ join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean,issued:ConsumableStock|number=0,localStage?:number,localPotions?:number,belt?:unknown,localStock?:ConsumableStock,spent:ConsumableStock={}){
   return this.transaction(()=>{
    const current=this.read(actor,now);
    if(current.search||current.battle&&!current.battle.result)return current;
    this.db.prepare('DELETE FROM arena_live_fallback WHERE player=?').run(actor.id);
    this.db.prepare('DELETE FROM arena_local_potion_reserve WHERE player=?').run(actor.id);
+   this.db.prepare('DELETE FROM arena_local_consumable_reserve WHERE player=?').run(actor.id);
    const ticket=randomUUID();
-   // The belt is checked and fixed here: a potion outside the belt is neither reserved nor usable in this fight.
-   // Server wins count is not trusted yet, so 0 is passed: it matters only once beltRules.testMode is switched off.
-   const loadout=sanitizeBelt(belt??DEFAULT_BELT,0),carries=beltHas(loadout,'potion');
-   const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,rankEligible,loadout,potions:carries?this.availablePotions(actor.id,issued):0,localStage,localPotions:carries?localPotions:0,localStock:beltStock(loadout,localStock),since:now,seenAt:now};
+   // The next match uses a fixed reservation from the account ledger; client stock is only for the local fallback.
+   const loadout=sanitizeBelt(belt??DEFAULT_BELT,0);
+   for(const [item,total] of Object.entries(spent))if(total>0)this.restoreSpending(actor.id,item as ConsumableId,total);
+   const stock=beltStock(loadout,this.available(actor.id,typeof issued==='number'?{potion:issued}:issued,spent));
+   const potions=stock.potion;
+   delete stock.potion;
+   const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,
+    rankEligible,loadout,potions,stock,localStage,localPotions:beltHas(loadout,'potion')?localPotions:0,
+    localStock:beltStock(loadout,localStock??{}),since:now,seenAt:now};
    this.db.prepare('INSERT OR REPLACE INTO arena_live_queue VALUES(?,?,?,?,?)').run(actor.id,mode,now,now,JSON.stringify(entrant));
    this.pair(mode,now);
    return this.read(actor,now);
@@ -304,9 +363,7 @@ export class LiveArena {
    const controlled=player.controller===actor.controller&&(player.controlRevision??0)===revision;
    const accepted=(controlled||!!match.game.result&&action.kind==='chat')&&
     applyLive(match,actor.id,action,round,sequence,now,this.rng);
-   if(accepted&&action.kind==='item'&&action.item==='potion'){
-    this.spendPotion(actor.id);
-   }
+   if(accepted&&action.kind==='item'&&isBeltItem(action.item))this.spend(actor.id,action.item);
    if(!accepted&&action.kind==='item')
     console.warn(JSON.stringify({event:'arena_item_rejected',match:id,player:actor.id,item:action.item}));
    this.save(match,found.json,now);
@@ -314,8 +371,44 @@ export class LiveArena {
   });
  }
 
- private spendPotion(id:string){
-  this.db.prepare('INSERT INTO arena_potion_spending VALUES(?,1) ON CONFLICT(player) DO UPDATE SET total=total+1').run(id);
+ private restoreSpending(player:string,item:ConsumableId,total:number){
+  this.db.prepare('INSERT INTO arena_consumable_spending VALUES(?,?,?,?) ON CONFLICT(player,item) '+
+   'DO UPDATE SET total=max(total,excluded.total),published=max(published,excluded.published)').run(player,item,total,total);
+  if(item==='potion')this.db.prepare('INSERT INTO arena_potion_spending VALUES(?,?) ON CONFLICT(player) DO UPDATE SET total=max(total,excluded.total)')
+   .run(player,total);
+ }
+
+ private spend(player:string,item:ConsumableId){
+  this.db.prepare('INSERT INTO arena_consumable_spending(player,item,total) VALUES(?,?,1) ON CONFLICT(player,item) DO UPDATE SET total=total+1')
+   .run(player,item);
+  if(item==='potion')this.db.prepare('INSERT INTO arena_potion_spending VALUES(?,1) ON CONFLICT(player) DO UPDATE SET total=total+1').run(player);
+ }
+
+ pendingSpending(){
+  return this.db.prepare('SELECT player AS telegram,item,total FROM arena_consumable_spending WHERE total>published ORDER BY player,item LIMIT 100')
+   .all() as Spending[];
+ }
+ confirmSpending(entries:readonly Spending[]){
+  this.transaction(()=>{
+   const confirm=this.db.prepare('UPDATE arena_consumable_spending SET published=max(published,?) WHERE player=? AND item=?');
+   for(const {telegram,item,total} of entries)confirm.run(total,telegram,item);
+  });
+ }
+
+ useLocalConsumable(actor:Actor,battle:string,operation:string,item:ConsumableId,now:number){
+  if(item==='potion')return this.useLocalPotion(actor,battle,operation,now);
+  return this.transaction(()=>{
+   const prior=this.db.prepare('SELECT player,battle,item FROM arena_local_consumable_uses WHERE operation=?')
+    .get(operation) as {player:string;battle:string;item:ConsumableId}|undefined;
+   if(prior)return prior.player===actor.id&&prior.battle===battle&&prior.item===item;
+   if(this.db.prepare('SELECT 1 FROM arena_local_potion_uses WHERE operation=?').get(operation))return false;
+   const reserve=this.db.prepare('UPDATE arena_local_consumable_reserve SET remaining=remaining-1 WHERE battle=? AND player=? AND item=? AND remaining>0 AND expires>?')
+    .run(battle,actor.id,item,now);
+   if(!reserve.changes)return false;
+   this.spend(actor.id,item);
+   this.db.prepare('INSERT INTO arena_local_consumable_uses VALUES(?,?,?,?,?)').run(operation,actor.id,battle,item,now+24*60*60_000);
+   return true;
+  });
  }
 
  useLocalPotion(actor:Actor,battle:string,operation:string,now:number){
@@ -323,17 +416,21 @@ export class LiveArena {
    const prior=this.db.prepare('SELECT player,battle FROM arena_local_potion_uses WHERE operation=?')
     .get(operation) as {player:string;battle:string}|undefined;
    if(prior)return prior.player===actor.id&&prior.battle===battle;
+   if(this.db.prepare('SELECT 1 FROM arena_local_consumable_uses WHERE operation=?').get(operation))return false;
    const reserve=this.db.prepare('UPDATE arena_local_potion_reserve SET remaining=remaining-1 WHERE battle=? AND player=? AND remaining>0 AND expires>?')
     .run(battle,actor.id,now);
    if(!reserve.changes)return false;
-   this.spendPotion(actor.id);
+   this.spend(actor.id,'potion');
    this.db.prepare('INSERT INTO arena_local_potion_uses VALUES(?,?,?,?)').run(operation,actor.id,battle,now+24*60*60_000);
    return true;
   });
  }
 
  releaseLocalPotions(actor:Actor,battle:string){
-  this.db.prepare('DELETE FROM arena_local_potion_reserve WHERE battle=? AND player=?').run(battle,actor.id);
+  this.transaction(()=>{
+   this.db.prepare('DELETE FROM arena_local_potion_reserve WHERE battle=? AND player=?').run(battle,actor.id);
+   this.db.prepare('DELETE FROM arena_local_consumable_reserve WHERE battle=? AND player=?').run(battle,actor.id);
+  });
  }
 
  prove(actor:Actor,id:string,name:string,moves:readonly ProofMove[],now:number){

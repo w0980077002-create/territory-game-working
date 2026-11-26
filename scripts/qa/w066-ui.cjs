@@ -40,7 +40,9 @@ const rewards={
      assert.equal(route.request().postDataJSON().initData,initData);
      await route.fulfill({json:{serverNow:new Date().toISOString(),event:null,history:[],mail:[],isAdmin:true},headers});
     });
-    let arenaSearch,potionBuys=0;
+    let arenaSearch;
+    const bought={potion:0,tear:0},prices={potion:30,tear:36};
+    let gold=66;
     await context.route(arenaOrigin+'/arena-api/**',async route=>{
      const request=route.request();
      const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization,x-arena-tab'};
@@ -50,15 +52,16 @@ const rewards={
       await route.fulfill({json:{token:'arena-fixture-session'},headers});return;
      }
      assert.equal(request.headers().authorization,'Bearer arena-fixture-session');
-     if(request.url().endsWith('/live/potions')){
+     if(request.url().endsWith('/live/consumables')){
       if(request.method()==='POST'){
-       const {operation,stage,price}=request.postDataJSON();
+       const {operation,stage,price,item}=request.postDataJSON();
+       assert.ok(Object.hasOwn(prices,item));
        assert.match(operation,/^[a-f0-9-]{36}$/);
        assert.equal(stage,1);
-       assert.equal(price,30);
-       potionBuys++;
+       assert.equal(price,prices[item]);
+       bought[item]++;gold-=price;
       }
-      await route.fulfill({json:{stage:1,price:30,gold:60-potionBuys*30,stock:potionBuys,reserved:0},headers});
+      await route.fulfill({json:{stage:1,prices,gold,stock:bought,reserved:{}},headers});
       return;
      }
      if(request.url().endsWith('/live/join')){
@@ -354,8 +357,13 @@ const rewards={
      await page.getByText('В рюкзаке: 1',{exact:true}).waitFor();
      await button('Купить за золото героя · 30 золота').tap();
      await page.getByText('В рюкзаке: 2',{exact:true}).waitFor();
-     assert.equal(potionBuys,1);
+     assert.equal(bought.potion,1);
      assert.equal(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).arenaPotions,saveKey),1);
+     await button('Закрыть карточку').tap();
+     await button('Подробнее · Слеза Иггдрасиля').tap();
+     await button('Купить за подтверждённое золото · 36').tap();
+     await page.getByText('Расходник добавлен в рюкзак',{exact:true}).waitFor();
+     assert.equal(bought.tear,1);
      await button('Закрыть карточку').tap();
     }
     await button('Аукцион').tap();
@@ -367,7 +375,8 @@ const rewards={
      await button('Расходники').tap();
      const stock=page.getByRole('list',{name:'Расходуемые предметы'});
      await stock.getByText('×2',{exact:true}).waitFor();
-     assert.equal(await stock.getByRole('listitem').count(),1);
+     await stock.getByRole('listitem').filter({hasText:'Слеза Иггдрасиля'}).getByText('×1',{exact:true}).waitFor();
+     assert.equal(await stock.getByRole('listitem').count(),2);
      await page.reload();
     }
     await button('Приключения').tap();

@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {freshPlayer,parseSave,rewardLocalArenaDuel} from '../src/core/store';
 import {damage,stats} from '../src/core/formulas';
 import {arenaBuild,validArenaBuild} from '../src/arena/hero';
-import {localArena,prepareLocalPotion,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../src/arena/local';
+import {localArena,prepareLocalConsumable,prepareLocalPotion,settleLocalPotion,SOLO_ACTOR,startLocalArena,updateLocalArena} from '../src/arena/local';
 import {advanceLive,applyLive,capacities,viewLive,type ArenaMode} from '../src/arena/match';
 import {CHAT_MS,MATCH_WAIT_MS} from '../src/arena/protocol';
 import {applyPurchase,shopOffers} from '../src/saga/shop';
@@ -270,5 +270,37 @@ test('one confirmed potion stack serves local and network Arena and survives a l
   live.join(a,'duel',build,'Герой',now,true,3);
   live.join(b,'duel',build,'Борис',now,true,0);
   assert.equal(live.state(a,now).battle?.belt.potion,2);
+ }finally{live.close()}
+});
+
+test('confirmed elixirs share their reserve with local fallback and preserve unused units',()=>{
+ const live=new LiveArena(':memory:',seeded(17)),p=hero(6,false);
+ const a={id:'310',controller:'tab'},b={id:'410',controller:'tab'};
+ const issued={aegis:2,tear:1},loadout=['aegis','tear',null,null,null,null,null] as const;
+ p.arenaBelt=[...loadout];
+ let now=Date.now();
+ try{
+  const ticket=live.join(a,'team',arenaBuild(p),'Герой',now,true,issued,p.stage,0,loadout).search!;
+  for(let i=0;i<20;i++){now+=1000;live.state(a,now);live.tick(now);}
+  const fallback=live.state(a,now).local!;
+  assert.equal(fallback.id,ticket.id);
+  assert.deepEqual(fallback.confirmedStock,issued);
+  assert.deepEqual(fallback.proof?.stock,issued);
+  assert.ok(startLocalArena(p,ticket.id,'team',now,fallback.proof,now,0,fallback.confirmedStock));
+  assert.ok(prepareLocalConsumable(p,now,'aegis-operation','aegis'));
+  assert.equal(live.useLocalConsumable(b,ticket.id,'aegis-operation','aegis',now),false);
+  assert.ok(live.useLocalConsumable(a,ticket.id,'aegis-operation','aegis',now));
+  assert.equal(live.useLocalConsumable(a,ticket.id,'aegis-operation','tear',now),false);
+  assert.ok(live.useLocalConsumable(a,ticket.id,'aegis-operation','aegis',now));
+  const restored=parseSave(JSON.stringify(p))!;
+  assert.ok(settleLocalPotion(restored,ticket.id,'aegis-operation',true));
+  assert.equal(restored.localArena?.confirmedStock?.aegis,1);
+  assert.equal(prepareLocalConsumable(restored,now+1,'tear-operation','tear'),false);
+  const quote=live.consumablesQuote(a,issued,{},1,100,now);
+  assert.equal(quote.stock.aegis,1);
+  assert.equal(quote.stock.tear,1);
+  live.releaseLocalPotions(a,ticket.id);
+  assert.equal(live.useLocalConsumable(a,ticket.id,'tear-operation','tear',now),false);
+  assert.equal(live.consumablesQuote(a,issued,{},1,100,now).stock.tear,1);
  }finally{live.close()}
 });

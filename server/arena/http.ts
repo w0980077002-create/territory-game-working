@@ -9,8 +9,8 @@ import {issueSession,readSession,verifyTelegram} from './auth';
 import {ArenaError,ArenaService} from './service';
 import {readArenaLevels} from './roster';
 import {LiveArena} from './live';
-import {healingPotion} from '../../src/arena/potion';
-import {validBelt,validStock} from '../../src/arena/belt';
+import {consumablePrice,healingPotion,type ConsumableId,type ConsumableStock} from '../../src/arena/potion';
+import {isBeltItem,validBelt,validStock} from '../../src/arena/belt';
 import {MAX_PROOF_MOVES,type ProofMove} from '../../src/arena/localProof';
 import {validArenaBuild} from '../../src/arena/hero';
 import {capacities,type ArenaMode,type LiveAction} from '../../src/arena/match';
@@ -170,24 +170,36 @@ async function readW066Attack(publisher:Options['scorePublisher'],telegram:strin
  }catch{/* W066 outages leave local duels available as training. */}
 }
 
-type Stock={status:'ok';gold:number;stage:number;issued:number;attack:number};
+type Stock={status:'ok';gold:number;stage:number;issued:ConsumableStock;spent:ConsumableStock;attack:number};
 const boundedInt=(value:unknown,min:number,max:number):value is number=>
  typeof value==='number'&&Number.isSafeInteger(value)&&value>=min&&value<=max;
+const validLedger=(value:unknown):value is ConsumableStock=>!!value&&typeof value==='object'&&!Array.isArray(value)&&
+ Object.entries(value).every(([item,total])=>isBeltItem(item)&&boundedInt(total,0,Number.MAX_SAFE_INTEGER));
 
-async function stockFromW066(publisher:Options['scorePublisher'],input:{telegram:string;name:string;operation?:string;stage?:number;price?:number}){
+async function arenaPublisherRequest(publisher:Options['scorePublisher'],route:string,input:unknown,timeout=2500){
  if(!publisher)return;
+ const endpoint=new URL(publisher.url);
+ if(!endpoint.pathname.endsWith('/arena-result'))return;
+ endpoint.pathname=endpoint.pathname.replace(/arena-result$/,route);
+ return fetch(endpoint,{method:'POST',redirect:'error',signal:AbortSignal.timeout(timeout),
+  headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},body:JSON.stringify(input)});
+}
+
+async function stockFromW066(publisher:Options['scorePublisher'],input:{telegram:string;name:string;operation?:string;stage?:number;price?:number;item?:ConsumableId},legacy=false){
  try{
-  const endpoint=new URL(publisher.url);
-  if(!endpoint.pathname.endsWith('/arena-result'))return;
-  endpoint.pathname=endpoint.pathname.replace(/arena-result$/,'arena-potions');
-  const response=await fetch(endpoint,{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
-   headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},body:JSON.stringify(input)});
-  if(!response.ok)return;
+  const response=await arenaPublisherRequest(publisher,legacy?'arena-potions':'arena-consumables',input);
+  if(response?.status===409)return {status:'conflict'} as const;
+  if(!response?.ok)return;
   const data=await response.json();
   if(data.status==='price_changed'||data.status==='insufficient')return {status:data.status} as {status:'price_changed'|'insufficient'};
+  if(legacy&&boundedInt(data.issued,0,Number.MAX_SAFE_INTEGER)){
+   data.issued={potion:data.issued};data.spent={};
+  }
+  const issued:unknown=data.issued,spent:unknown=data.spent;
   if(data.status==='ok'&&boundedInt(data.stage,1,1_000_000)&&boundedInt(data.gold,0,Number.MAX_SAFE_INTEGER)&&
-   boundedInt(data.issued,0,Number.MAX_SAFE_INTEGER)&&boundedInt(data.attack,1,1_000_041))return data as Stock;
- }catch{/* A quote can be retried with the same operation ID. */}
+   boundedInt(data.attack,1,1_000_041)&&validLedger(issued)&&validLedger(spent)&&
+   Object.entries(spent).every(([item,total])=>total<=(issued[item as ConsumableId]??0)))return data as Stock;
+ }catch{/* An interrupted purchase can be retried with its operation ID. */}
 }
 
 export function createArenaServer(options:Options){
@@ -245,10 +257,12 @@ export function createArenaServer(options:Options){
    if(options.allowedUsers&&!options.allowedUsers.has(session.id))throw new ArenaError(403,'Этот аккаунт не приглашён на Арену');
    requestLimit(session.id,now);
    const actor={id:session.id,controller:session.lease+':'+tab};
-   if(req.method==='GET'&&pathname==='/arena-api/live/potions'){
-    const data=await stockFromW066(options.scorePublisher,{telegram:actor.id,name:service.playerName(actor.id)});
+   if(req.method==='GET'&&(pathname==='/arena-api/live/potions'||pathname==='/arena-api/live/consumables')){
+    const legacy=pathname.endsWith('/potions');
+    const data=await stockFromW066(options.scorePublisher,{telegram:actor.id,name:service.playerName(actor.id)},legacy);
     if(data?.status!=='ok')throw new ArenaError(503,'Запас зелий временно недоступен');
-    json(res,200,live.potionQuote(actor,data.issued,data.stage,healingPotion.cost(data.stage),data.gold,clock()));
+    json(res,200,legacy?live.potionQuote(actor,data.issued.potion??0,data.stage,healingPotion.cost(data.stage),data.gold,clock()):
+     live.consumablesQuote(actor,data.issued,data.spent,data.stage,data.gold,clock()));
     return;
    }
    if(req.method==='GET'&&pathname==='/arena-api/live/recent'){json(res,200,live.recent(actor,now));return}
@@ -282,28 +296,36 @@ export function createArenaServer(options:Options){
       throw new ArenaError(400,'Проверьте характеристики героя и сохранение');
      }
      const name=service.playerName(actor.id);
-     const stock=await stockFromW066(options.scorePublisher,{telegram:actor.id,name});
+     const profile={telegram:actor.id,name};
+     const stock=await stockFromW066(options.scorePublisher,profile)??await stockFromW066(options.scorePublisher,profile,true);
      json(res,200,live.join(actor,input.mode as ArenaMode,input.build,name,clock(),options.local===true||stock?.status==='ok',
-      stock?.status==='ok'?stock.issued:0,input.stage as number|undefined,input.localPotions as number|undefined,input.belt,input.stock));
+      stock?.status==='ok'?stock.issued:0,input.stage as number|undefined,input.localPotions as number|undefined,input.belt,
+      input.stock as ConsumableStock|undefined,stock?.status==='ok'?stock.spent:undefined));
      return;
     }
-    case '/arena-api/live/potions':{
-     exact(input,'operation','stage','price');
-     if(typeof input.operation!=='string'||!uuid.test(input.operation)||!boundedInt(input.stage,1,1_000_000)||
-      input.price!==healingPotion.cost(input.stage))throw new ArenaError(400,'Проверьте цену зелья');
+    case '/arena-api/live/potions':
+    case '/arena-api/live/consumables':{
+     const legacy=pathname.endsWith('/potions'),item=legacy?'potion':input.item;
+     exact(input,'operation','stage','price',...(legacy?[]:['item']));
+     if(!isBeltItem(item)||typeof input.operation!=='string'||!uuid.test(input.operation)||!boundedInt(input.stage,1,1_000_000)||
+      input.price!==consumablePrice(item,input.stage))throw new ArenaError(400,'Проверьте цену расходника');
      const data=await stockFromW066(options.scorePublisher,{telegram:actor.id,name:service.playerName(actor.id),
-      operation:input.operation,stage:input.stage,price:input.price as number});
+      operation:input.operation,stage:input.stage,price:input.price as number,...(legacy?{}:{item})},legacy);
+     if(data?.status==='conflict')throw new ArenaError(409,'Номер покупки уже использован');
      if(data?.status==='price_changed')throw new ArenaError(409,'Цена обновилась');
      if(data?.status==='insufficient')throw new ArenaError(422,'Недостаточно подтверждённого золота');
      if(data?.status!=='ok')throw new ArenaError(503,'Покупка временно недоступна');
-     json(res,200,live.potionQuote(actor,data.issued,data.stage,healingPotion.cost(data.stage),data.gold,clock()));
+     json(res,200,legacy?live.potionQuote(actor,data.issued.potion??0,data.stage,healingPotion.cost(data.stage),data.gold,clock()):
+      live.consumablesQuote(actor,data.issued,data.spent,data.stage,data.gold,clock()));
      return;
     }
-    case '/arena-api/live/local-potion':{
-     exact(input,'id','operation');
-     if(typeof input.id!=='string'||!uuid.test(input.id)||typeof input.operation!=='string'||!uuid.test(input.operation))
-      throw new ArenaError(400,'Некорректный расход зелья');
-     json(res,200,{accepted:live.useLocalPotion(actor,input.id,input.operation,actionTime)});
+    case '/arena-api/live/local-potion':
+    case '/arena-api/live/local-consumable':{
+     const legacy=pathname.endsWith('/local-potion'),item=legacy?'potion':input.item;
+     exact(input,'id','operation',...(legacy?[]:['item']));
+     if(!isBeltItem(item)||typeof input.id!=='string'||!uuid.test(input.id)||typeof input.operation!=='string'||!uuid.test(input.operation))
+      throw new ArenaError(400,'Некорректный расход');
+     json(res,200,{accepted:live.useLocalConsumable(actor,input.id,input.operation,item,actionTime)});
      return;
     }
     case '/arena-api/live/local-finish':{
@@ -384,7 +406,7 @@ export function createArenaServer(options:Options){
  const worker=setInterval(()=>{
   try{const now=clock();service.tick(now);live.tick(now)}catch{console.error('Arena clock could not update its database')}
  },500).unref();
- let publishing=false,closing=false,publishFailed=false;
+ let publishing=false,closing=false,publishFailed=false,spendingFailed=false;
  const publisher=options.scorePublisher;
  const publication=publisher?setInterval(async()=>{
   if(publishing||closing)return;
@@ -415,6 +437,18 @@ export function createArenaServer(options:Options){
   }catch{
    if(!closing&&!publishFailed)console.error('W066 Arena score delivery will retry');
    publishFailed=true;
+  }
+  try{
+   const entries=closing?[]:live.pendingSpending();
+   if(entries.length){
+    const response=await arenaPublisherRequest(publisher,'arena-consumable-spending',{entries},4000);
+    if(!response?.ok||!(await response.json()).accepted)throw new Error('Spending delivery was rejected');
+    if(!closing)live.confirmSpending(entries);
+    spendingFailed=false;
+   }
+  }catch{
+   if(!closing&&!spendingFailed)console.error('W066 Arena consumable spending delivery will retry');
+   spendingFailed=true;
   }finally{publishing=false}
  },5000).unref():undefined;
  server.on('close',()=>{closing=true;clearInterval(worker);clearInterval(publication);service.close();live.close()});

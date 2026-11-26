@@ -1,5 +1,5 @@
 import {telegramAccountId,tg} from '../core/telegram';
-import type {PotionQuote} from './potion';
+import type {ConsumableId,ConsumablesQuote} from './potion';
 import {arenaApiOrigin,onlineArenaEnabled} from './staging';
 
 const sessionKey=()=> 'vvr-arena-session:'+(telegramAccountId()??localFixture()??'anonymous');
@@ -40,5 +40,5 @@ export async function sessionRequest<T>(path:string,data?:Record<string,unknown>
   return request<T>(path,await login(),data);
  }
 }
-export type PotionOperation={operation:string;stage:number;price:number};
-export const potionRequest=(data?:PotionOperation)=>sessionRequest<PotionQuote>('live/potions',data);
+export type ConsumableOperation={operation:string;stage:number;price:number;item:ConsumableId};
+export const consumablesRequest=(data?:ConsumableOperation)=>sessionRequest<ConsumablesQuote>('live/consumables',data);
