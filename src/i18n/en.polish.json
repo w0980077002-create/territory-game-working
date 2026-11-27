@@ -90,5 +90,9 @@
  "Спутники теперь дополняют экипировку, а не заменяют её. Бонус дружины — +0,15% здоровья и атаки за звезду, всего не более +35%. После 20★ и 20-го уровня сила спутника растёт медленнее. Уровень Гуся добавляет герою не более +20% здоровья.": "Companions now complement gear instead of replacing it. The squad bonus is +0.15% health and attack per star, +35% at most. Past 20★ and level 20 a companion grows stronger more slowly. The Goose level adds at most +20% health to the hero.",
  "Звёзды, уровни, пробуждения и все ресурсы сохранены. Развитые спутники стали слабее, поэтому экипировка и заточка снова важны.": "Stars, levels, awakenings and all resources are kept. Developed companions are weaker now, so gear and upgrades matter again.",
  "Во вкладке «Звёзды» появилась подсказка: сколько у вас копий, Душ и Печатей и где взять недостающие. Старые осколки больше не выпадают — их можно обменять на Души.": "The «Stars» tab now shows how many copies, Souls and Seals you have and where to get the missing ones. Old shards no longer drop — you can exchange them for Souls.",
- "На Арене — боевой пояс из 7 слотов и 20 зелий и эликсиров. Их можно купить за золото в Лавке, раздел «Зелья и эликсиры».": "The Arena has a 7-slot battle belt and 20 potions and elixirs. Buy them for gold in the Shop, «Potions and elixirs» section."
+ "На Арене — боевой пояс из 7 слотов и 20 зелий и эликсиров. Их можно купить за золото в Лавке, раздел «Зелья и эликсиры».": "The Arena has a 7-slot battle belt and 20 potions and elixirs. Buy them for gold in the Shop, «Potions and elixirs» section.",
+ "После заточки до +{0}: {1} CP": "After sharpening to +{0}: {1} CP",
+ "· {0} золота": "· {0} gold",
+ "После {0}-го уровня сила спутника растёт медленнее: +{1}% за уровень.": "After level {0} the companion grows stronger more slowly: +{1}% per level.",
+ "После {0}-го уровня сила спутника растёт медленнее: +{1}% за уровень. Здоровье героя от уровня Гуся уже на пределе +{2}%.": "After level {0} the companion grows stronger more slowly: +{1}% per level. The hero's health from the Goose level is already at its +{2}% limit."
 }

@@ -24,6 +24,15 @@ export function EffectComparison({item,p}:{item:Item;p:Player}){
   <small>CP отражает характеристики героя. Свойства могут менять тактику даже при меньшей силе.</small>
  </div>;
 }
+/** A new piece usually arrives at +0 while the worn one is sharpened: show the honest comparison after sharpening it
+ * to the worn level, with the gold it costs. Display only — no economy change. */
+export function SharpenedComparison({item,old,p}:{item:Item;old?:Item;p:Player}){
+ if(!old||item.percent||old.upgrade<=item.upgrade)return null;
+ let next=item,gold=0;
+ for(let n=item.upgrade;n<old.upgrade;n++){const step=upgradePreview(next);gold+=step.cost;next=step.next}
+ const delta=compareItem(next,p);
+ return <p className={`trophy-value sharpened ${delta>=0?'positive':'negative'}`}>{`После заточки до +${old.upgrade}: ${delta>=0?'+':''}${delta} CP`}<small>{` · ${gold.toLocaleString('ru')} золота`}</small></p>;
+}
 export function UpgradePlan({item,p}:{item:Item;p:Player}){const {cost,next}=upgradePreview(item);const [confirm,setConfirm]=useState(false);const g=useGame(),costly=cost>p.gold*.25;return <div className="upgrade-plan"><strong>Следующее усиление: +{next.upgrade}</strong><div className="upgrade-stats">{item.percent&&next.percent?<>HP {item.percent.hp}% → {next.percent.hp}% · Атака {item.percent.attack}% → {next.percent.attack}% · Защита {item.percent.defense}% → {next.percent.defense}%</>:<>Атака {item.attack} → {next.attack} · HP {item.hp} → {next.hp} · Защита {item.defense} → {next.defense}</>}</div><p>CP героя: {stats(p).cp} → {stats(p).cp+compareItem(next,p)} · цена {cost} золота<br/><small>Доступно: {Math.floor(p.gold)} золота</small></p><button className="action" disabled={p.gold<cost||!Number.isFinite(cost)} onClick={()=>{if(costly&&!confirm){setConfirm(true);return}const before=useGame.getState().p.equipment[item.slot];g.upgrade(item.slot,{id:item.id,upgrade:item.upgrade});if(before)forgeFeedback(before);setConfirm(false)}}>{p.gold<cost?'Недостаточно золота':confirm?`Подтвердить +${next.upgrade} · ${cost} золота`:`Усилить +${next.upgrade} · ${cost} золота`}</button>{confirm&&<button className="action secondary" onClick={()=>setConfirm(false)}>Отмена</button>}</div>}
 /** What changes if `item` replaces `old`: every stat and the hero's CP, signed and coloured. */
 export function StatDelta({item,old,p}:{item:Item;old?:Item;p:Player}){

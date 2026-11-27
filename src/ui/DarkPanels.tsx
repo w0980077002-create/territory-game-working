@@ -242,6 +242,9 @@ export function RelicsPanel({p}:{p:Player}){
 }
 
 // ───────────────────────── Companions ─────────────────────────
+/** Relative gain of the companion's own power from one more level (the number the level button already previews). */
+const levelGain=(species:string,pet:ReturnType<typeof followerProgress>)=>
+ companionPower(species,{...pet,lv:pet.lv+1}).power/companionPower(species,pet).power-1;
 /** Stars tab: what the player has, what the next star needs, where to get it and the one button that leads there. */
 function StarGuide({name,stars,cap,copies,price,souls,seals,shards,onMerge,onSummon}:{name:string;stars:number;cap:number;copies:number;
  price:number;souls:number;seals:number;shards:number;onMerge:()=>void;onSummon:()=>void}){
@@ -317,6 +320,7 @@ export function SquadPanel({p}:{p:Player}){
      {position===2?<Btn kind="secondary" onClick={()=>petClearReserve(picked)}>Освободить сопровождение II</Btn>:<Btn kind="secondary" onClick={()=>petActivate(picked,2)}>В сопровождение II</Btn>}
     </div>}
     {tab==='level'&&(pet.lv>=FOLLOWER_MAX_LEVEL?<p className="hint">Предел повышения · {FOLLOWER_MAX_LEVEL}</p>:<Btn disabled={p.gold<petLevelCost(pet.lv)} onClick={()=>petLevel(picked)}>Повысить уровень · {fmt(petLevelCost(pet.lv))} золота <small>→ {job(species,companionPower(species,{...pet,lv:pet.lv+1}))}</small></Btn>)}
+    {tab==='level'&&pet.lv>=companionBalance.levelKnee&&pet.lv<FOLLOWER_MAX_LEVEL&&<p className="hint">{`После ${companionBalance.levelKnee}-го уровня сила спутника растёт медленнее: +${(Math.round(levelGain(species,pet)*1000)/10).toLocaleString("ru")}% за уровень.`}{species==='goose_aviator'&&pet.lv>=Math.round(companionBalance.gooseHpCap/companionBalance.gooseHpPerLevel)?` Здоровье героя от уровня Гуся уже на пределе +${Math.round(companionBalance.gooseHpCap*100)}%.`:''}</p>}
     </>:undefined}><div className="pet-card" style={{'--rarity':companionColors[def.rarity]} as React.CSSProperties}>
    <div className="pet-head compact-pet"><div className={`pet-portrait ${pet.aw?'awake':''}`}><img src={art(species)} alt=""/></div><div><small>{companionRarity[def.rarity]} · {def.role==='striker'?'боец':'хранитель'}</small><br/><b>{own?'Ур. '+pet.lv+' · ':''}{stars(pet.st)}</b></div></div>
    {tab==='level'&&<details className="saga-disclosure"><summary>Эффекты в бою</summary>
