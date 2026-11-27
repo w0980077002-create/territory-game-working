@@ -65,6 +65,48 @@ export function AdminGate(){
  </form>;
 }
 
+type Report={days:number;newPlayers:number;activePlayers:number;funnel:{m5:number;m15:number;m30:number};
+ d1:{eligible:number;returned:number};d7:{eligible:number;returned:number};
+ battles:Record<string,{count:number;wins:number}>;purchases:{sku:string;currency:string;count:number;total:number}[];
+ errors:{code:string;count:number;players:number;example?:string}[]};
+const share=(part:number,whole:number)=>whole?`${part} из ${whole} · ${Math.round(part/whole*100)} %`:'нет данных';
+
+/** Launch metrics from W066: first-session funnel, D1/D7, battles, purchases and client errors. */
+function AdminAnalytics(){
+ const [days,setDays]=useState(14);
+ const [report,setReport]=useState<Report>();
+ const [notice,setNotice]=useState('');
+ const [busy,setBusy]=useState(false);
+ async function load(range:number){
+  setDays(range);setBusy(true);setNotice('');
+  try{setReport(await community<Report>('admin_analytics',{days:range}));}
+  catch{setNotice('Отчёт временно недоступен. Войдите в администрирование снова.');}
+  finally{setBusy(false);}
+ }
+ return <details className="saga-disclosure" onToggle={event=>{if((event.target as HTMLDetailsElement).open&&!report&&!busy)void load(days)}}>
+  <summary>Аналитика</summary>
+  <div className="admin-analytics">
+   {[1,7,14,30].map(range=><button type="button" key={range} className="action secondary" disabled={busy}
+    aria-pressed={days===range} onClick={()=>void load(range)}>{range===1?'Сутки':range+' дн.'}</button>)}
+   {report&&<>
+    <p>Новых игроков · {report.newPlayers} · активных · {report.activePlayers}</p>
+    <p>Первая сессия ≥5 мин · {share(report.funnel.m5,report.newPlayers)}</p>
+    <p>≥15 мин · {share(report.funnel.m15,report.newPlayers)}</p>
+    <p>≥30 мин · {share(report.funnel.m30,report.newPlayers)}</p>
+    <p>Вернулись на 1-й день · {share(report.d1.returned,report.d1.eligible)}</p>
+    <p>Вернулись на 7-й день · {share(report.d7.returned,report.d7.eligible)}</p>
+    <h3>Бои</h3>
+    {Object.keys(report.battles).length?Object.entries(report.battles).map(([mode,b])=><p key={mode}>{mode} · {b.count} · побед {share(b.wins,b.count)}</p>):<p>Боёв пока нет.</p>}
+    <h3>Покупки</h3>
+    {report.purchases.length?report.purchases.map(p=><p key={p.sku+p.currency}>{p.sku} · {p.currency} · {p.count} шт. · {p.total}</p>):<p>Покупок пока нет.</p>}
+    <h3>Ошибки клиента</h3>
+    {report.errors.length?report.errors.map(e=><p key={e.code}>{e.code} · {e.count} раз · игроков {e.players}{e.example?' · '+e.example:''}</p>):<p>Ошибок нет.</p>}
+   </>}
+   {notice&&<p role="status">{notice}</p>}
+  </div>
+ </details>;
+}
+
 const passwordText:Record<string,string>={
  ok:'Логин и пароль изменены.',invalid:'Текущий пароль неверен.',
  weak_password:'Новый пароль: от 8 до 72 символов и не совпадает со старым.',
@@ -224,6 +266,7 @@ export function NetworkAdmin({onExit}:{onExit:()=>void}){
     </li>)}</ul>
     {status.history.length>=30&&<button type="button" className="action secondary" onClick={()=>void older()}>Предыдущие записи</button>}
    </details>
+   <AdminAnalytics/>
    <AdminPassword/>
    <button type="button" className="action secondary" onClick={()=>{void community('admin_lock').catch(()=>{});onExit();}}>Выйти из администрирования</button>
    {notice&&<p role="status">{notice}</p>}
