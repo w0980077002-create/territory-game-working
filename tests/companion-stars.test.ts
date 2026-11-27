@@ -57,3 +57,21 @@ test('companion balance D2: capped squad bonus, softer star and level growth, ca
  const p=save(roster(37));squadBox(p);const kept=squadState(p);
  assert.deepEqual([kept.instances[followerId('senior_driller')].st,kept.instances[followerId('senior_driller')].lv,kept.shards.senior_driller],[37,100,18],'stars, levels and old shards kept');
 });
+
+test('update news arrive as an unread letter, are read once and deleted for good',async()=>{
+ const {mailbox,unreadMail,applyMail}=await import('../src/saga/mail');
+ const {newsLetters}=await import('../src/saga/news');
+ const p=save({});const news=newsLetters[0],now=news.date+1000;
+ assert.equal(unreadMail(p,news.date-1),0,'not before its date');
+ const before=unreadMail(p,now);
+ const letter=mailbox(p,now).find(l=>l.id===news.id)!;
+ assert.ok(letter&&!letter.read&&!letter.pending&&letter.body?.length,'text letter without attachments');
+ applyMail(p,{kind:'read',id:news.id},now,now);
+ assert.equal(unreadMail(p,now),before-1);
+ assert.ok(mailbox(p,now).find(l=>l.id===news.id)!.read);
+ applyMail(p,{kind:'deleteRead'},now,now);
+ assert.equal(mailbox(p,now).find(l=>l.id===news.id),undefined,'deleted');
+ assert.equal(unreadMail(p,now),before-1,'never comes back as unread');
+ applyMail(p,{kind:'read',id:news.id},now,now);
+ assert.equal(mailbox(p,now).find(l=>l.id===news.id),undefined,'a stale read does not restore it');
+});

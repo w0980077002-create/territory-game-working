@@ -41,7 +41,7 @@ export function MailPanel({p}: {p:Player}) {
         <Icon name="mail"/>
         <span>
           <strong>{entry.title??'Награды карнавала'}</strong>
-          <small><time dateTime={new Date(entry.date).toISOString()}>{dateFormat.format(entry.date)}</time> · {entry.pending ? 'Вложения' : 'Получено'}</small>
+          <small><time dateTime={new Date(entry.date).toISOString()}>{dateFormat.format(entry.date)}</time> · {entry.body ? 'Новости' : entry.pending ? 'Вложения' : 'Получено'}</small>
         </span>
         {!entry.read && <span className="mail-unread" aria-label="Непрочитанное письмо"/>}
         <b aria-hidden="true">›</b>
@@ -51,12 +51,13 @@ export function MailPanel({p}: {p:Player}) {
       <small>Сюда приходят незабранные награды завершённых событий.</small>
     </div>}
     {letter && <CardDialog key={letter.id} title={letter.title??'Награды карнавала'} className="mail-detail" onClose={()=>setSelected(undefined)}
-      actions={letter.pending ? <button type="button" className="action mail-gold"
+      actions={letter.body ? undefined : letter.pending ? <button type="button" className="action mail-gold"
         onClick={()=>action({kind:'claim',id:letter.id,slot})}>Забрать</button> : <span className="mail-delivered">✓ Вложения получены</span>}>
       <div className="mail-message">
         <span>{letter.title??'Карнавал'} · {monthFormat.format(letter.date)}</span>
         <time dateTime={new Date(letter.date).toISOString()}>{dateFormat.format(letter.date)}</time>
       </div>
+      {letter.body && <div className="mail-news">{letter.body.map((line,i)=><p key={i}>{line}</p>)}</div>}
       {letter.pending && <div className="mail-attachments">
         <RewardArt reward={letter.claimableReward??letter.reward}/>{!!letter.pendingHorn&&<p>После получения в письме останется зарядов Рога: {letter.pendingHorn}</p>}
         {letter.chests?.map((name,i)=><p key={i}>{name} · сундук появится в Событиях</p>)}

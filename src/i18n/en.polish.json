@@ -84,5 +84,11 @@
  "Звезда {0} за {1} старых осколков": "Star {0} for {1} old shards",
  "Звезда {0} за старые осколки: {1}/{2}. Не хватает {3}, а новых осколков не будет.": "Star {0} for old shards: {1}/{2}. {3} short, and no new shards will drop.",
  "Обмен: {0} старых осколков → {1} Душ. Души тратятся в Призыве на копии спутников, а копии дают звёзды.": "Exchange: {0} old shards → {1} Souls. Souls buy companion copies in the Summon, and copies give stars.",
- "Лучший экземпляр вида даёт герою +{0}% здоровья и атаки за звезду, всего не более +{1}%.": "The best copy of each kind gives the hero +{0}% health and attack per star, +{1}% at most."
+ "Лучший экземпляр вида даёт герою +{0}% здоровья и атаки за звезду, всего не более +{1}%.": "The best copy of each kind gives the hero +{0}% health and attack per star, +{1}% at most.",
+ "Что нового: спутники и Арена": "What's new: companions and the Arena",
+ "Новости": "News",
+ "Спутники теперь дополняют экипировку, а не заменяют её. Бонус дружины — +0,15% здоровья и атаки за звезду, всего не более +35%. После 20★ и 20-го уровня сила спутника растёт медленнее. Уровень Гуся добавляет герою не более +20% здоровья.": "Companions now complement gear instead of replacing it. The squad bonus is +0.15% health and attack per star, +35% at most. Past 20★ and level 20 a companion grows stronger more slowly. The Goose level adds at most +20% health to the hero.",
+ "Звёзды, уровни, пробуждения и все ресурсы сохранены. Развитые спутники стали слабее, поэтому экипировка и заточка снова важны.": "Stars, levels, awakenings and all resources are kept. Developed companions are weaker now, so gear and upgrades matter again.",
+ "Во вкладке «Звёзды» появилась подсказка: сколько у вас копий, Душ и Печатей и где взять недостающие. Старые осколки больше не выпадают — их можно обменять на Души.": "The «Stars» tab now shows how many copies, Souls and Seals you have and where to get the missing ones. Old shards no longer drop — you can exchange them for Souls.",
+ "На Арене — боевой пояс из 7 слотов и 20 зелий и эликсиров. Их можно купить за золото в Лавке, раздел «Зелья и эликсиры».": "The Arena has a 7-slot battle belt and 20 potions and elixirs. Buy them for gold in the Shop, «Potions and elixirs» section."
 }

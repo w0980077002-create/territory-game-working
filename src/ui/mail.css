@@ -106,3 +106,6 @@
   font-size: 13px;
   padding-inline: 6px;
 }
+
+.mail-news { display: grid; gap: 8px; }
+.mail-news p { margin: 0; line-height: 1.4; }
