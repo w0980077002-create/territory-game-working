@@ -113,7 +113,7 @@ test('companions: saved shards, legacy awakening, talents and the active pair',(
  assert.ok(A.petActivate('08_armored_boar'));assert.equal(battle!.squad.striker.id,'08_armored_boar');assert.equal(A.petActivate('08_armored_boar'),false);assert.equal(R.squadState(P()).act[1],'brown_white_dog');
  const power=battle!.gooseDamage();assert.ok(A.petLevel('08_armored_boar'));battle!.tuneTeam();assert.ok(battle!.gooseDamage()>power);
  assert.ok(A.petLevel('goose_aviator'));assert.equal(P().companions[0],2,'the goose level stays in the approved save field');
- const hp=stats(P()).hp;assert.ok(A.petStar('08_armored_boar'));assert.equal(R.squadState(P()).own['08_armored_boar'].sh,190);assert.ok(stats(P()).hp>hp,'stars support the hero');
+ const bonus=R.squadBonus(P()).hpPct;assert.ok(A.petStar('08_armored_boar'));assert.equal(R.squadState(P()).own['08_armored_boar'].sh,190);assert.ok(Math.abs(R.squadBonus(P()).hpPct-bonus-R.companionBalance.squadPerStar)<1e-9,'stars support the hero');
  assert.equal(A.petAwaken('08_armored_boar'),false);give(p=>{const pet=R.squadBox(p).instances[R.followerId('08_armored_boar')];pet.st=3;pet.lv=20;R.addDusk(p,5)});
  assert.ok(A.petAwaken('08_armored_boar'));assert.equal(A.petAwaken('08_armored_boar'),false);assert.equal(R.duskCount(P()),0);battle!.tuneTeam();assert.equal(battle!.squad.striker.awake,true);
  assert.equal(R.talentPoints(R.squadState(P()).own['08_armored_boar']),4);for(let n=0;n<4;n++)assert.ok(A.petTalent('08_armored_boar',2));assert.equal(A.petTalent('08_armored_boar',0),false,'no free points');
