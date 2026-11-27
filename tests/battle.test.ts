@@ -382,3 +382,44 @@ test('the same actual Hammer kill settles with each paid mode and is included in
   b.destroy();
  }
 });
+
+test('reload on a boss victory restores the boss encounter plan, not the next wave',()=>{
+ useGame.setState(s=>({p:{...s.p,stage:3,wave:5,encounter:undefined,rewardOffer:undefined}}));
+ const b=scene();
+ assert.equal(b.plan.boss,true);
+ const title=b.plan.title;
+ b.units.forEach(u=>u.hp=0);b.phase='fight';b.update(.1);
+ const p=useGame.getState().p;
+ assert.equal(p.encounter?.phase,'victory');
+ assert.ok(p.wave!==5||p.stage!==3,'progress advanced past the boss');
+ b.destroy();
+ const restored=scene(false);
+ assert.equal(restored.phase,'victory');
+ assert.equal(restored.plan.boss,true,'the restored plan describes the boss that was beaten');
+ assert.equal(restored.plan.title,title);
+ restored.destroy();
+});
+
+test('the training duel keeps the 60 s duel frame but fights by regular rules, while campaign bosses still escalate',()=>{
+ useGame.setState(s=>({p:{...s.p,encounter:undefined,rewardOffer:undefined,lairAttempt:undefined},panel:null}));
+ const b=scene(false);
+ b.startMode('arena');
+ b.toggle();
+ b.update(3);
+ assert.equal(b.mode,'arena');
+ assert.equal(b.boss,true,'duel presentation and timer stay');
+ assert.equal(b.bossRules,false);
+ const foe=b.units[0];
+ foe.hp=foe.max*.2;
+ b.enemyStep(foe,.016);
+ assert.equal(foe.bossPhase,1,'no hidden ×1.25 / ×1.6 phases');
+ b.destroy();
+ useGame.setState(s=>({p:{...s.p,stage:3,wave:5,encounter:undefined},panel:null}));
+ const c=scene();
+ assert.equal(c.mode,'campaign');
+ assert.equal(c.bossRules,true);
+ c.units[0].hp=c.units[0].max*.2;
+ c.enemyStep(c.units[0],.016);
+ assert.equal(c.units[0].bossPhase,3,'campaign bosses keep their phases');
+ c.destroy();
+});

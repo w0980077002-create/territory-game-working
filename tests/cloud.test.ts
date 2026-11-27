@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {cloudLoad,cloudSave,readCloud,CLOUD_WRITE_TIMEOUT_MS} from '../src/core/telegram';
+import {cloudDigest,cloudLoad,cloudSave,readCloud,CLOUD_ABANDON_MS,CLOUD_WRITE_TIMEOUT_MS} from '../src/core/telegram';
 const tick=async()=>{for(let i=0;i<20;i++)await new Promise(r=>setTimeout(r,5))};
 /** Deterministic text that gzip cannot shrink much, so uploads still span several chunks. */
 const noise=(n:number,seed=7)=>{const abc=[...'АБВГДЕЖЗabcdefgh0123456789🪽'];let x=seed>>>0,out='';for(let i=0;i<n;i++){x=(Math.imul(x,1103515245)+12345)>>>0;out+=abc[(x>>>16)%abc.length]}return out};
@@ -115,4 +115,52 @@ test('a delayed metadata receipt acknowledges the actual commit exactly once',as
  assert.deepEqual(results,[false]);
  meta.done(null);meta.done(null);
  assert.deepEqual(results,[false]);assert.equal(late,1);
+});
+
+test('a write Telegram never answers is abandoned, so later backups resume without a restart',async t=>{
+ const data=new Map([['save_meta',JSON.stringify({generation:'0',count:1})],['save_0_0','previous']]);
+ const pending:{key:string;value:string;done:(e:unknown)=>void}[]=[];
+ Object.defineProperty(globalThis,'window',{value:{Telegram:{WebApp:{initData:'test',CloudStorage:{
+  getItem:(key:string,cb:(err:unknown,value?:string)=>void)=>cb(null,data.get(key)),
+  setItem:(key:string,value:string,done:(error:unknown)=>void)=>pending.push({key,value,done}),
+ }}}},configurable:true});
+ assert.equal(await cloudLoad(),'previous');
+ t.mock.timers.enable({apis:['setTimeout']});
+ const results:boolean[]=[];
+ await cloudSave('lost',ok=>results.push(ok));
+ const lost=pending.splice(0);
+ assert.equal(lost.length,1);
+ t.mock.timers.tick(CLOUD_WRITE_TIMEOUT_MS);
+ await cloudSave('still blocked',ok=>results.push(ok));
+ assert.deepEqual(results,[false,false],'the bank stays quarantined while Telegram may still answer');
+ t.mock.timers.tick(CLOUD_ABANDON_MS);
+ await cloudSave('resumed',ok=>results.push(ok));
+ assert.equal(pending.length,1,'a new upload starts after the abandon window');
+ const row=pending.shift()!;data.set(row.key,row.value);row.done(null);
+ const meta=pending.shift()!;data.set(meta.key,meta.value);meta.done(null);
+ assert.deepEqual(results,[false,false,true]);
+ assert.equal(await cloudLoad(),'resumed');
+ // The abandoned upload answers at last: it may overwrite its chunk, but it never writes metadata.
+ data.set(lost[0].key,lost[0].value);lost[0].done(null);
+ assert.equal(pending.length,0);
+ const read=await readCloud();
+ assert.equal(read.status,'damaged','a chunk from the abandoned upload is detected, not restored');
+});
+
+test('cloud metadata digest refuses mixed chunks and keeps older copies without a digest readable',async()=>{
+ const data=new Map<string,string>();
+ Object.defineProperty(globalThis,'window',{value:{Telegram:{WebApp:{initData:'test',CloudStorage:{
+  getItem:(key:string,cb:(err:unknown,value?:string)=>void)=>cb(null,data.get(key)??''),
+  setItem:(key:string,value:string,cb?:(e:unknown)=>void)=>{data.set(key,value);cb?.(null)},
+ }}}},configurable:true});
+ data.set('save_meta',JSON.stringify({generation:'1',count:2}));data.set('save_1_0','{"a":');data.set('save_1_1','1}');
+ assert.equal(await cloudLoad(),'{"a":1}');
+ data.set('save_meta',JSON.stringify({generation:'1',count:2,h:cloudDigest('{"a":1}')}));
+ assert.equal(await cloudLoad(),'{"a":1}');
+ data.set('save_1_1','2}');
+ assert.deepEqual(await readCloud(),{status:'damaged'});
+ const raw=JSON.stringify({fresh:noise(9000)});
+ await cloudSave(raw);await tick();
+ assert.equal(JSON.parse(data.get('save_meta')!).generation,'0','the next backup goes to the other bank');
+ assert.equal(await cloudLoad(),raw);
 });

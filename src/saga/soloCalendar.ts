@@ -1,6 +1,5 @@
 import type {Player} from '../core/types';
 import {peekBox,sagaOf} from './save';
-import {dayMs} from './soloEconomy';
 
 export const eventSchedule={
  followers:{name:'Спринт последователей',first:9,last:13},
