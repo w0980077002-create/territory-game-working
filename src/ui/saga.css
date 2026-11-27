@@ -255,3 +255,4 @@
 .game .defeat-ribbon div{display:flex;gap:10px;margin-top:12px}
 .game .defeat-ribbon button{flex:1;min-width:0;min-height:max(64px,calc(44px / var(--game-scale)));border:3px solid #1c292e;border-radius:12px;background:linear-gradient(#f1d587,#bb853d);color:#352a27;font-size:23px;line-height:1.05;padding:6px 4px;box-shadow:inset 0 2px #fff1be,0 3px #091724}
 .game .chapter-reward-ready{border:3px solid #e8c46e;border-radius:14px;background:linear-gradient(#5a4a2a55,#1b2f4255);padding:4px 12px;margin-bottom:14px}
+.saga-modal .trophy-sharpened{font:700 15px Georgia,serif;text-align:center;margin:-10px 0 14px}.trophy-sharpened small{color:#a4b7be;font:11px Arial,sans-serif}
