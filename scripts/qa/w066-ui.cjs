@@ -103,7 +103,7 @@ const rewards={
      }
      return route.fulfill({headers,json:{status:'ineligible'}});
     });
-    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false,premium=15,premiumOrders=new Map(),premiumClosed=false,adminUnlocked=false,adminCalls=[];
+    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false,premium=15,premiumOrders=new Map(),premiumClosed=false,adminUnlocked=false,adminCalls=[],tracked=[];
     await context.route(endpoint,async route=>{
      const request=route.request();
      const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization'};
@@ -168,7 +168,18 @@ const rewards={
       else if(premium<10)data={status:'insufficient',balance:premium};
       else{premium-=10;data={status:'ok',balance:premium,receipt:{...offers[0],operationId:body.operationId}};premiumOrders.set(body.operationId,data);}
      }
+     if(action==='track'){
+      assert.ok(Array.isArray(body.events)&&body.events.length>=1&&body.events.length<=25);
+      for(const event of body.events){
+       assert.ok(/^[0-9a-f-]{36}$/.test(event.session));
+       assert.ok(!JSON.stringify(event).includes(initData),'no Telegram data in analytics');
+      }
+      tracked.push(...body.events);data={stored:body.events.length};
+     }
      if(action.startsWith('admin_'))adminCalls.push(action);
+     if(action==='admin_analytics')data={days:body.days??14,newPlayers:4,activePlayers:9,funnel:{m5:3,m15:2,m30:1},
+      d1:{eligible:4,returned:2},d7:{eligible:2,returned:1},battles:{campaign:{count:40,wins:31}},
+      purchases:[{sku:'horn',currency:'gems',count:3,total:300}],errors:[{code:'typeerror',count:2,players:1,example:'x is undefined'}]};
      if(action==='admin_unlock'){
       adminUnlocked=body.login==='owner'&&body.password==='qa-owner-pass';
       data={status:adminUnlocked?'ok':'invalid'};
@@ -317,6 +328,16 @@ const rewards={
     await menu.getByRole('button',{name:'Войти'}).click();
     await menu.getByText('Администрирование').waitFor();
     await menu.getByText('Логин и пароль').waitFor();
+    await menu.getByText('Аналитика',{exact:true}).click();
+    await menu.getByText('Первая сессия ≥5 мин · 3 из 4 · 75 %').waitFor();
+    await menu.getByText('Вернулись на 1-й день · 2 из 4 · 50 %').waitFor();
+    await menu.getByText('typeerror · 2 раз · игроков 1 · x is undefined').waitFor();
+    await menu.getByRole('button',{name:'7 дн.'}).click();
+    for(let i=0;i<40&&adminCalls.filter(a=>a==='admin_analytics').length<2;i++)await page.waitForTimeout(100);
+    assert.ok(adminCalls.filter(a=>a==='admin_analytics').length>=2);
+    // The first analytics batch leaves 3 s after launch.
+    for(let i=0;i<40&&!tracked.some(event=>event.kind==='enter');i++)await page.waitForTimeout(250);
+    assert.ok(tracked.some(event=>event.kind==='enter'),'the launch is reported');
     assert.equal(await fits(menu),true);
     await menu.getByRole('button',{name:'Выйти из администрирования'}).click();
     await menu.getByText('Администрирование').waitFor({state:'detached'});

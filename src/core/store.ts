@@ -16,6 +16,7 @@ import {lootStorageNotice,observeLootSave} from './lootStorage';
 import {SAVE_KEY,telegramProfile,carnivalNow,mailAcceptanceProfile} from './profile';
 import {acceptedMailCarnival} from '../qa/mailAcceptance';
 export {SAVE_KEY,isolatedProfile} from './profile';
+import {track} from './analyticsBus';
 import {validEncounter} from '../game/snapshot';
 import {uniques,uniqueOf,namedDrop,gearRules} from './gear';
 import {upgradePreview,forgeLevel,applyForgeMastery} from './forge';
@@ -519,6 +520,7 @@ export const useGame=create<Store>((set,get)=>{
    }
   })){unsaved(get());return false}
   if(id==='horn')lastHornPurchase=performance.now();
+  track('purchase',{sku:offer.id,currency:offer.currency,price:offer.price});
   haptic(true);g.notice('Получено: '+title);return true;
  },
  win:(mode,encounterId,snapshot,tally,onHammerPaid)=>{const g=get(),now=Date.now();let extra='';if(mode==='darkness'){const run=realmRun(g.p);if(!run||encounterId&&run.lastCombatId===encounterId)return false;let won=false;return g.mutate(p=>{won=realmVictory(p,encounterId,snapshot?.units.length??1);if(won)soloVictory(p,carnivalNow())})&&won;}if(encounterId&&(g.p.lastBattleReward===encounterId||g.p.claimed.includes('battle:'+encounterId)))return false;let loot:Item|undefined,disposition:ReturnType<typeof placeLoot>|undefined,hammerGold=0;

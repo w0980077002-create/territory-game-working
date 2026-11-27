@@ -1,0 +1,17 @@
+name: Live check · W066 functions
+# Probes the live W066 functions whenever their code or these checks change on codex-build, or on demand.
+on:
+  push:
+    branches: [codex-build]
+    paths: ['supabase/**', 'scripts/qa/live-*.sh', '.github/workflows/live-check.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/qa
+      - run: scripts/qa/live-functions.sh

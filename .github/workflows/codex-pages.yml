@@ -34,6 +34,8 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: codex-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -43,3 +45,20 @@ jobs:
           enablement: true
       - uses: actions/deploy-pages@v4
         id: deployment
+  # The session that develops the game cannot reach these hosts; GitHub's runner checks them after every release.
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/qa
+      - uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: built
+      - run: tar -xf built/artifact.tar -C built
+      - name: Published page serves this build
+        run: scripts/qa/live-pages.sh "${{ needs.deploy.outputs.page_url }}" built
+      - name: Live W066 functions answer with the deployed contract
+        run: scripts/qa/live-functions.sh

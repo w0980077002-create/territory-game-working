@@ -28,6 +28,7 @@ createRoot(document.getElementById('root')!).render(<App/>);
 // Register Telegram arrivals before opening any online panel, including a referral launch.
 if(communityEnabled&&telegramProfile){
  const account=telegramProfile;
+ void import('./community/analytics').then(module=>module.startAnalytics());
  startCampaignProof(telegramProfile,()=>useGame.getState().notice('Победа над боссом кампании подтверждена'));
  const startParam=new URLSearchParams(tg()?.initData).get('start_param');
  let loadingReferral=false;

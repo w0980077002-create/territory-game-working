@@ -27,6 +27,7 @@ const key='lootborn-codex-v1:telegram:'+account;
    if(route.request().method()==='OPTIONS')return route.fulfill({status:204,headers});
    const {action,body}=route.request().postDataJSON();
    if(action==='referrals')return route.fulfill({json:{},headers});
+   if(action==='track')return route.fulfill({json:{stored:body.events.length},headers});
    assert.equal(action,'login');
    assert.equal(body.initData,initData);
    await route.fulfill({json:{token:'campaign-browser-session'},headers});

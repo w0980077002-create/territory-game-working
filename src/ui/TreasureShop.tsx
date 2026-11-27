@@ -8,6 +8,7 @@ import {Icon,gearIcon} from './Icon';
 import {CompactFilter} from './CompactFilter';
 import {RewardArt, rewardParts} from './RewardArt';
 import {ArenaRequestError,consumablesRequest,signedArena,type ConsumableOperation} from '../arena/client';
+import {track} from '../core/analyticsBus';
 import {buyPremiumOffer,communityEnabled,CommunityError,readPremiumWallet,type PremiumOffer,type PremiumWallet} from '../community/client';
 import {consumableIds,consumableStock,type ConsumableId,type ConsumablesQuote} from '../arena/potion';
 /** Shop id → Arena consumable kind (the potion keeps its old id `arena-potion`). */
@@ -50,6 +51,7 @@ function PremiumGems(){
   setBusy(true);setMessage('');
   try{
    const result=await buyPremiumOffer(order.sku,order.operationId) as PremiumReply;
+   if(result.status==='ok'&&result.receipt&&order!==pending)track('purchase',{sku:result.receipt.sku,currency:'paid_gems',price:result.receipt.price});
    if(result.status==='ok'&&result.receipt)setMessage(`Получено: ${premiumNames[result.receipt.resource]??result.receipt.resource} × ${result.receipt.amount}`);
    else if(result.status==='insufficient')setMessage('Недостаточно самоцветов аккаунта');
    else if(result.status==='refunded')setMessage('Эта покупка отменена, самоцветы возвращены');
