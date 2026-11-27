@@ -30,7 +30,7 @@ export function unreadMail(p: Player, now: number) {
   const read = readLetters(p);
   return carnivalMailPeriods(p, now).filter(period => read?.[period.id] !== period.endAt).length
     +eventMail(p,now).filter(letter=>read?.[letter.id]!==letter.date).length
-    +newsLetters.filter(letter=>letter.date<=now&&read?.[letter.id]!==letter.date&&read?.[letter.id]!==-letter.date).length;
+    +newsLetters.filter(letter=>letter.date<=now&&read?.[letter.id]===0).length;
 }
 
 export function mailbox(p: Player, now: number, rewardNow=Date.now()): MailLetter[] {
@@ -48,7 +48,7 @@ export function mailbox(p: Player, now: number, rewardNow=Date.now()): MailLette
     !ids.has(id) && (/^\d{4}-\d{2}$/.test(id)||windowFromKey(id)) && Number.isSafeInteger(date) && date > 0 && date < 8.64e15
       ? [{id, date, read:true, pending:false, reward:{}, title:windowFromKey(id)?eventSchedule[windowFromKey(id)!.id].name:undefined}] : []);
   // A read news letter is deleted by storing its date negated, so it never comes back as unread.
-  const news = newsLetters.filter(letter => letter.date <= now && read?.[letter.id] !== -letter.date)
+  const news = newsLetters.filter(letter => letter.date <= now && (read?.[letter.id] === 0 || read?.[letter.id] === letter.date))
     .map(({id,date,title,body}) => ({id, date, title, body, read:read?.[id] === date, pending:false, reward:{}}));
   return [...pending, ...news, ...history].sort((a,b) => b.date-a.date);
 }
@@ -82,7 +82,7 @@ export function applyMail(p: Player, action: MailAction, now: number, rewardNow:
     const period = selected[0];
     const local=solo.find(letter=>letter.id===action.id),news=newsLetters.find(letter=>letter.id===action.id&&letter.date<=now);
     if (period||local) boxOf<ReadLetters>(p, 'mail', () => ({}))[action.id] = period?.endAt??local!.date;
-    else if (news && peekBox<ReadLetters>(p,'mail')?.[news.id] !== -news.date) boxOf<ReadLetters>(p, 'mail', () => ({}))[news.id] = news.date;
+    else if (news && peekBox<ReadLetters>(p,'mail')?.[news.id] === 0) boxOf<ReadLetters>(p, 'mail', () => ({}))[news.id] = news.date;
     return;
   }
   const rewards:Reward[]=[], items:string[]=[];

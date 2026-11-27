@@ -26,11 +26,6 @@ async function verifyMail(page,width) {
  await persist();
  await page.clock.setFixedTime(Date.UTC(2027,0,8,12));
  await persist();
- // This flow counts carnival letters only: the update news letter (src/saga/news.ts, covered by unit tests) is
- // marked read and deleted, as for a player who has already seen it.
- await page.evaluate(() => window.__lootborn.useGame.getState().mutate(p => {
-  p.saga??={v:1,n:{},flags:[],seen:[],trophies:[],box:{}};(p.saga.box.mail??={})['news:2026-11-27']=-Date.UTC(2026,10,27,12);return true;
- }));
  const openMail = async () => {
   await page.getByRole('button',{name:'Почта',exact:true}).tap();
   await page.getByRole('dialog',{name:'Почта',exact:true}).waitFor();

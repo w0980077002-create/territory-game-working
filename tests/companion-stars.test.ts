@@ -61,7 +61,11 @@ test('companion balance D2: capped squad bonus, softer star and level growth, ca
 test('update news arrive as an unread letter, are read once and deleted for good',async()=>{
  const {mailbox,unreadMail,applyMail}=await import('../src/saga/mail');
  const {newsLetters}=await import('../src/saga/news');
- const p=save({});const news=newsLetters[0],now=news.date+1000;
+ const {migrateNews}=await import('../src/saga/news');
+ const news=newsLetters[0],now=news.date+1000;
+ const fresh=save({});fresh.savedAt=news.date+5;migrateNews(fresh);
+ assert.equal(mailbox(fresh,now).some(l=>l.id===news.id),false,'a hero started after the update gets no news');
+ const p=save({});p.savedAt=news.date-86_400_000;migrateNews(p);
  assert.equal(unreadMail(p,news.date-1),0,'not before its date');
  const before=unreadMail(p,now);
  const letter=mailbox(p,now).find(l=>l.id===news.id)!;
