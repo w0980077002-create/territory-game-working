@@ -7,7 +7,7 @@ import {glacierAttackBonus} from '../core/progression';
  */
 import type {Player,Slot} from '../core/types';
 import {peekBox,boxOf,sagaOf} from '../saga/save';
-import {runeBonuses} from '../saga/runes';
+import {runeBonuses,runeRules} from '../saga/runes';
 import {followerEconomy} from '../saga/soloEconomy';
 import {evoPower} from '../saga/companions';
 
@@ -59,10 +59,11 @@ export const darkEffectIds=Object.keys(darkEffects) as DarkEffectId[];
 export const DARK_STORAGE=60;
 export const darkMaxUpgrade=(r:number)=>5+r*2;
 export const darkName=(i:DarkItem)=>`${darkRarity[i.r]} · ${darkSlots[i.s].name}`;
+const darkPercentLevelCap=40;
 export function darkValue(i:DarkItem){
  const def=darkSlots[i.s],q=1+i.r*.35;
  if(flat(def.stat)){const base=def.stat==='attack'?4+i.l*3:def.stat==='hp'?30+i.l*22:3+i.l*2;return Math.round(base*q*(1+i.u*.08))}
- return def.base*(1+Math.min(i.l,40)*.02)*q*(1+i.u*.06);
+ return def.base*(1+Math.min(i.l,darkPercentLevelCap)*.02)*q*(1+i.u*.06);
 }
 export const darkEffectOf=(i?:DarkItem|null)=>i&&i.r>=3&&i.e&&Object.hasOwn(darkEffects,i.e)?{id:i.e as DarkEffectId,def:darkEffects[i.e as DarkEffectId],value:darkEffects[i.e as DarkEffectId].values[i.r-3]}:undefined;
 /** A single number to sort and compare dark items; never used for combat. */
@@ -349,6 +350,23 @@ function runeBonus(p:Player){
  for(const {key,amount} of runeBonuses(p).bonuses)bonus[key]+=amount;
  return bonus;
 }
+/** Upper bound from equipment slots, gems, relics and rune choices. */
+export function maxSkillPowerBonus(heroLevel:number){
+ const rarity=darkRarity.length-1;
+ const dark=darkSlots.reduce((sum,slot,s)=>slot.stat==='skill'?
+  sum+darkValue({id:'',s,r:rarity,l:darkPercentLevelCap,u:darkMaxUpgrade(rarity)}):sum,0);
+ // A socket row allows at most one stone of each type.
+ const gems=gemSlots.length*gemIds.reduce((sum,id)=>sum+(gemTypes[id].stat==='skill'?gemValue(id,GEM_MAX):0),0);
+ const relicsBonus=relicIds.reduce((sum,id)=>sum+(relics[id].passive?.[0]==='skill'?relics[id].passive![1]*RELIC_MAX:0),0);
+ const {resonance,passives,path,rankCosts}=runeRules;
+ const maxRank=9*rankCosts.length;
+ const skillOnly=(bonus:{key:string;amount:number})=>bonus.key==='skill'?bonus.amount:0;
+ const runeBase=resonance.reduce((sum,bonus)=>sum+(bonus.ranks<=maxRank?skillOnly(bonus):0),0);
+ const runePassive=Math.max(0,...passives.filter(row=>heroLevel>=row.level).map(skillOnly));
+ const runePath=path.reduce((sum,row)=>sum+(heroLevel>=row.level?Math.max(0,...row.options.map(skillOnly)):0),0);
+ return dark+gems+relicsBonus+runeBase+runePassive+runePath;
+}
+
 export const powerParts=(p:Player)=>[['Тёмная энергия',darkBonus(p)],['Драгоценные камни',gemBonus(p)],['Реликвии',relicBonus(p)],['Спутники',squadBonus(p)],['Руны и пассивы',runeBonus(p)]] as [string,Bonus][];
 /** Fight-wide special effects of all systems, computed once per encounter by the battle engine. */
 export interface Aura {execute30:number;execute35:number;boss:number;opening:number;thorns:number;veil:number;killHeal:number;regen:number;firstBlock:boolean;boltEvery:number;boltPower:number;rally:number;cooldownRate:number;foeHpCut:number;heroDamage:number}
