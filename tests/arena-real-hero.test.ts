@@ -10,10 +10,11 @@ import {localArena,prepareLocalConsumable,prepareLocalPotion,settleLocalPotion,S
 import {advanceLive,applyLive,capacities,viewLive,type ArenaMode} from '../src/arena/match';
 import {CHAT_MS,MATCH_WAIT_MS} from '../src/arena/protocol';
 import {applyPurchase,shopOffers} from '../src/saga/shop';
-import {replayProof} from '../src/arena/localProof';
+import {localBattle,replayProof} from '../src/arena/localProof';
 import {consumableStacks,healingPotion} from '../src/arena/potion';
 import {createFighter,resolveStrike} from '../server/arena/duel';
 import {LiveArena} from '../server/arena/live';
+import {curve,threat} from '../src/saga/regions';
 import {hero,seeded} from '../scripts/sim/arena';
 
 test('the arena build uses the actual hero statistics with no normalization or double counting',()=>{
@@ -31,6 +32,22 @@ test('the arena build uses the actual hero statistics with no normalization or d
   {...build,skillDamage:100},
   {...build,runes:[0,1,3]},
  ])assert.equal(validArenaBuild(invalid),false);
+});
+
+test('new Solo duels match bot strength to the hero while team bots retain campaign stats',()=>{
+ const build=arenaBuild(hero(83,true));
+ const duel=(stage:number)=>localBattle('duel','duel',build,stage,0,0,seeded(11));
+ const t=threat(190),expectedHp=Math.round(t.bossHp*curve.arena_hp);
+ const early=duel(20),late=duel(190);
+ assert.equal(early.game.players[1].maxHp,late.game.players[1].maxHp);
+ assert.equal(early.game.players[1].attack,late.game.players[1].attack);
+ assert.equal(early.game.players[0].maxHp,build.stats.hp);
+ assert.equal(viewLive(early,SOLO_ACTOR,SOLO_ACTOR,0,true).ranked,false);
+ for(const mode of ['team','chaos'] as const){
+  const team=localBattle(mode,mode,build,190,0,0,seeded(11));
+  assert.equal(team.game.players[1].maxHp,expectedHp);
+  assert.equal(team.game.players[1].defense,Math.round(t.def));
+ }
 });
 
 test('real attack, defence, crit, block, dodge and lifesteal resolve through the shared strike',()=>{
