@@ -29,6 +29,32 @@ pg < tests/pg/w066-arena-rooms.sql
 pg < tests/pg/w066-arena-railway.sql
 pg < tests/pg/w066-arena-potions.sql
 pg < tests/pg/w066-arena-consumables.sql
+pg < tests/pg/w066-premium-wallet.sql
+pg <<'SQL'
+select vvr.resolve_player('84682','Premium purchase race') as player \gset
+select public.vvr_premium_credit(:'player','11111111-aaaa-4111-8111-111111111111',10);
+SQL
+buy_premium() {
+  pg -At -v operation="$1" <<'SQL'
+select id from vvr.players where telegram_id='84682' \gset
+set role service_role;
+select public.vvr_premium_wallet(:'id',:'operation','horn-10')->>'status';
+SQL
+}
+buy_premium '11111111-aaaa-4111-8111-111111111112' > "$results/premium-buy-a" & first=$!
+buy_premium '11111111-aaaa-4111-8111-111111111113' > "$results/premium-buy-b" & second=$!
+wait "$first"
+wait "$second"
+test "$(sort "$results/premium-buy-a" "$results/premium-buy-b")" = "$(printf 'insufficient\nok')"
+pg <<'SQL'
+do $$
+declare player uuid:=(select id from vvr.players where telegram_id='84682');
+begin
+ assert (select count(*) from vvr.premium_purchase_orders where player_id=player)=1;
+ assert (select balance from vvr.wallets where player_id=player and resource='horn')=10;
+end;
+$$;
+SQL
 pg <<'SQL'
 insert into vvr.arena_publishers values('railway',repeat('9',64))
  on conflict(name) do update set token_hash=excluded.token_hash;
