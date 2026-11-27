@@ -35,15 +35,16 @@ begin
   end;
   assert public.vvr_admin_unlock(owner_id,'owner','start-pass')->>'status'='invalid';
 
-  -- Five failures lock the login for 15 minutes, even for the right password.
-  for i in 1..4 loop
+  -- Five failures in a row (the old-login attempt above is the first) lock the login for 15 minutes,
+  -- even for the right password.
+  for i in 1..3 loop
     assert public.vvr_admin_unlock(owner_id,'jarl','guess')->>'status'='invalid';
   end loop;
   assert public.vvr_admin_unlock(owner_id,'jarl','guess')->>'status'='invalid';
   assert public.vvr_admin_unlock(owner_id,'jarl','new-password-1')->>'status'='locked';
 
   reset role;
-  assert (select count(*) from vvr.admin_actions where kind='login_failed')=8;
+  assert (select count(*) from vvr.admin_actions where kind='login_failed')=7;
   assert (select count(*) from vvr.admin_actions where kind='password_changed')=1;
   assert not exists(select from vvr.admin_actions where args::text like '%pass%');
 end $$;
