@@ -7,7 +7,7 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','equip','unequip','enhance']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','premium_wallet','equip','unequip','enhance']);
 const maxInput=16_384;
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
@@ -23,6 +23,7 @@ function valid(action:string,body:Record<string,unknown>){
   case 'auction':case 'chat':case 'guild':return keys===0;
   case 'referrals':return keys===0||(keys===1&&isUuid(body.before));
   case 'brotherhood_claim':return keys===1&&isUuid(body.award);
+  case 'premium_wallet':return keys===0||(keys===2&&isUuid(body.operationId)&&typeof body.sku==='string'&&/^[a-z0-9-]{1,48}$/.test(body.sku));
   case 'brotherhood_admin':return keys===0||(keys===1&&typeof body.enabled==='boolean');
   case 'trade':
    if(!isUuid(body.operationId))return false;
@@ -207,6 +208,10 @@ Deno.serve(async request=>{
   const auth=request.headers.get('authorization');
   const player=auth?.startsWith('Bearer ')?await readVvrSession(auth.slice(7),sessionKey,now):undefined;
   if(!player)return reply(401,{error:'session_required'});
+  if(value.action==='premium_wallet'){
+   const result=await rpc('vvr_premium_wallet',{p_player:player,p_operation:value.body.operationId??null,p_sku:value.body.sku??null});
+   return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'premium_wallet_request_rejected'});
+  }
   if(value.action==='referrals'){
    const result=await rpc('vvr_referrals',{p_player:player,p_before:value.body.before??null});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'referrals_unavailable'});

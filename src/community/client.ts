@@ -129,3 +129,12 @@ async function requestW066Function<T>(slug:string,body:object,timeout:number):Pr
  }
  return response.json() as Promise<T>;
 }
+
+export type PremiumOffer={sku:string;price:number;resource:string;amount:number};
+export type PremiumWallet={status:'ok';balance:number;offers:PremiumOffer[]};
+export type PremiumPurchase={status:'ok';balance:number;receipt:PremiumOffer&{operationId:string}}|
+ {status:'insufficient';balance:number};
+
+export const readPremiumWallet=()=>community<PremiumWallet>('premium_wallet',{},AbortSignal.timeout?.(7500));
+export const buyPremiumOffer=(sku:string,operationId:string)=>
+ community<PremiumPurchase>('premium_wallet',{sku,operationId},AbortSignal.timeout?.(7500));
