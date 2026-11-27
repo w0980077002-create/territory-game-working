@@ -103,7 +103,7 @@ const rewards={
      }
      return route.fulfill({headers,json:{status:'ineligible'}});
     });
-    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false,premium=15,premiumOrders=new Map();
+    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false,premium=15,premiumOrders=new Map(),premiumClosed=false;
     await context.route(endpoint,async route=>{
      const request=route.request();
      const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization'};
@@ -163,7 +163,7 @@ const rewards={
      }
      if(action==='premium_wallet'){
       const offers=[{sku:'horn-10',price:10,resource:'horn',amount:10}];
-      if(!body.sku)data={status:'ok',balance:premium,offers};
+      if(!body.sku)data={status:'ok',balance:premium,offers,...(premiumClosed?{purchaseAvailable:false}:{})};
       else if(premiumOrders.has(body.operationId))data=premiumOrders.get(body.operationId);
       else if(premium<10)data={status:'insufficient',balance:premium};
       else{premium-=10;data={status:'ok',balance:premium,receipt:{...offers[0],operationId:body.operationId}};premiumOrders.set(body.operationId,data);}
@@ -379,6 +379,11 @@ const rewards={
      await button('Наборы припасов').tap();
      const premiumBox=page.getByRole('region',{name:'Самоцветы аккаунта'});
      await premiumBox.getByText('15',{exact:true}).waitFor();
+     // B4: purchaseAvailable=false hides the action until B5.
+     premiumClosed=true;await button('Ежедневные').tap();await button('Наборы припасов').tap();
+     await premiumBox.getByText('Покупки за самоцветы аккаунта скоро откроются.').waitFor();
+     assert.equal(await premiumBox.getByRole('button').count(),0);
+     premiumClosed=false;await button('Ежедневные').tap();await button('Наборы припасов').tap();
      await premiumBox.getByRole('button',{name:'Заряды Рога Трофеев × 10 · 10 самоцветов'}).tap();
      await premiumBox.getByText('Получено: Заряды Рога Трофеев × 10').waitFor();
      await premiumBox.getByText('5',{exact:true}).waitFor();

@@ -112,5 +112,8 @@
  "Недостаточно самоцветов аккаунта": "Not enough account gems",
  "Не удалось подтвердить покупку · попробуйте ещё раз": "Could not confirm the purchase · try again",
  "Самоцветы аккаунта доступны после входа через Telegram": "Account gems are available after signing in with Telegram",
- "Кошелёк самоцветов временно недоступен": "The gem wallet is temporarily unavailable"
+ "Кошелёк самоцветов временно недоступен": "The gem wallet is temporarily unavailable",
+ "Эта покупка отменена, самоцветы возвращены": "This purchase was cancelled, gems returned",
+ "Покупки временно недоступны": "Purchases are temporarily unavailable",
+ "Покупки за самоцветы аккаунта скоро откроются.": "Purchases with account gems open soon."
 }

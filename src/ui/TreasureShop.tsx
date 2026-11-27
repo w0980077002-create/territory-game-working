@@ -29,9 +29,12 @@ const limitText = (offer: ShopOffer) => offer.limit === 'daily' ? 'Одна по
 
 const premiumNames:Record<string,string>={horn:'Заряды Рога Трофеев'};
 const premiumKey=SAVE_KEY+':premium-operation';
+// B4 contract (#144): purchaseAvailable=false hides buying until B5; purchases may answer unavailable or refunded.
+type PremiumState=PremiumWallet&{purchaseAvailable?:boolean};
+type PremiumReply={status:string;balance?:number;receipt?:PremiumOffer&{operationId:string}};
 /** B5a: account gems kept by the server (W066). Shown only to signed players; Stars top-up arrives with B5. */
 function PremiumGems(){
- const [wallet,setWallet]=useState<PremiumWallet>(),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const [wallet,setWallet]=useState<PremiumState>(),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  useEffect(()=>{
   let active=true;
   readPremiumWallet().then(value=>{if(active)setWallet(value)})
@@ -46,10 +49,12 @@ function PremiumGems(){
   try{sessionStorage.setItem(premiumKey,JSON.stringify(order))}catch{/* retry stays possible in this dialog */}
   setBusy(true);setMessage('');
   try{
-   const result=await buyPremiumOffer(order.sku,order.operationId);
-   if(result.status==='ok')setMessage(`Получено: ${premiumNames[result.receipt.resource]??result.receipt.resource} × ${result.receipt.amount}`);
-   else setMessage('Недостаточно самоцветов аккаунта');
-   setWallet(current=>current&&{...current,balance:result.balance});
+   const result=await buyPremiumOffer(order.sku,order.operationId) as PremiumReply;
+   if(result.status==='ok'&&result.receipt)setMessage(`Получено: ${premiumNames[result.receipt.resource]??result.receipt.resource} × ${result.receipt.amount}`);
+   else if(result.status==='insufficient')setMessage('Недостаточно самоцветов аккаунта');
+   else if(result.status==='refunded')setMessage('Эта покупка отменена, самоцветы возвращены');
+   else{setMessage('Покупки временно недоступны');setWallet(current=>current&&{...current,purchaseAvailable:false});}
+   if(typeof result.balance==='number')setWallet(current=>current&&{...current,balance:result.balance!});
    try{sessionStorage.removeItem(premiumKey)}catch{/* nothing to clear */}
   }catch(error){
    if(error instanceof CommunityError&&[400,409,422].includes(error.status))try{sessionStorage.removeItem(premiumKey)}catch{/* nothing to clear */}
@@ -59,7 +64,8 @@ function PremiumGems(){
  return <section className="premium-gems" aria-label="Самоцветы аккаунта">
   <header><Icon name="gem"/><strong>Самоцветы аккаунта</strong>{wallet&&<b>{wallet.balance.toLocaleString('ru')}</b>}</header>
   <p className="hint">Хранятся на сервере и не теряются при смене устройства. Пополнение через Telegram Stars появится позже.</p>
-  {wallet&&<div className="premium-offers">{wallet.offers.map(offer=><button key={offer.sku} type="button" className="action secondary"
+  {wallet?.purchaseAvailable===false&&<p className="hint">Покупки за самоцветы аккаунта скоро откроются.</p>}
+  {wallet&&wallet.purchaseAvailable!==false&&<div className="premium-offers">{wallet.offers.map(offer=><button key={offer.sku} type="button" className="action secondary"
    disabled={busy||wallet.balance<offer.price} onClick={()=>void buy(offer)}>
    {`${premiumNames[offer.resource]??offer.resource} × ${offer.amount} · ${offer.price} самоцветов`}</button>)}</div>}
   {message&&<p role="status">{message}</p>}
