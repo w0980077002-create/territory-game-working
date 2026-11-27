@@ -136,6 +136,25 @@ test('local wins cannot reach the ranking and use the approved Solo duel reward'
  assert.equal(startLocalArena(p,'bot-only','duel',clock+1000),false);
 });
 
+test('a closed network queue sends each player to local training separately',()=>{
+ const arena=new LiveArena(':memory:',seeded(17));
+ let now=Date.now();
+ const build=arenaBuild(hero(35,true));
+ const actors=Array.from({length:capacities.team},(_,i)=>({id:String(100+i),controller:'one'}));
+ try{
+  const tickets=actors.map(actor=>arena.join(actor,'team',build,'Игрок',now,false,0,
+   undefined,undefined,undefined,undefined,{},true).search!.id);
+  assert.equal(new Set(tickets).size,actors.length);
+  for(let step=0;step<20;step++){
+   now+=1000;
+   for(const actor of actors)arena.state(actor,now);
+   arena.tick(now);
+  }
+  for(const [index,actor] of actors.entries())assert.equal(arena.state(actor,now).local?.id,tickets[index]);
+  assert.deepEqual(arena.pendingTeams(),[]);
+ }finally{arena.close();}
+});
+
 for(const mode of Object.keys(capacities) as ArenaMode[]){
  test(mode+': one local fallback, reconnect, full human settlement and duplicate command rejection',()=>{
   const root=mkdtempSync(join(tmpdir(),'vvr-live-test-')),path=join(root,'arena.sqlite');

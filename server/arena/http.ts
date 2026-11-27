@@ -189,8 +189,10 @@ async function networkAllowed(options:Options,telegram:string,feature:string){
  if(options.local||!options.scorePublisher)return true;
  try{
   const response=await arenaPublisherRequest(options.scorePublisher,'arena-policy',{telegram,feature},1500);
-  return response?.ok===true&&(await response.json()).allowed===true;
- }catch{return false;}
+  if(!response?.ok)return;
+  const {allowed}=await response.json();
+  if(typeof allowed==='boolean')return allowed;
+ }catch{/* Unavailable W066 cannot authorize network chat or ranked matching. */}
 }
 
 async function stockFromW066(publisher:Options['scorePublisher'],input:{telegram:string;name:string;operation?:string;stage?:number;price?:number;item?:ConsumableId},legacy=false){
@@ -309,7 +311,7 @@ export function createArenaServer(options:Options){
      const stock=allowed?(await stockFromW066(options.scorePublisher,profile)??await stockFromW066(options.scorePublisher,profile,true)):undefined;
      json(res,200,live.join(actor,input.mode as ArenaMode,input.build,name,clock(),options.local===true||stock?.status==='ok',
       stock?.status==='ok'?stock.issued:0,input.stage as number|undefined,input.localPotions as number|undefined,input.belt,
-      input.stock as ConsumableStock|undefined,stock?.status==='ok'?stock.spent:undefined));
+      input.stock as ConsumableStock|undefined,stock?.status==='ok'?stock.spent:undefined,allowed===false));
      return;
     }
     case '/arena-api/live/potions':
