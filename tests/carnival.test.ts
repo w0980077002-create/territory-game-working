@@ -100,8 +100,9 @@ function oldGiftAndSeason() {
 test('mail links real closed prizes, excludes direct claims and persists read state and payment atomically', t => {
   t.mock.timers.enable({apis:['Date','setTimeout'],now:at(11,1)});
   start(Date.now());
-  const mail = () => mailbox(state().p,Date.now());
-  const unread = () => unreadMail(state().p,Date.now());
+  // Update news letters are global text letters; these tests cover carnival prizes only.
+  const mail = () => mailbox(state().p,Date.now()).filter(letter=>!letter.body);
+  const unread = () => unreadMail(state().p,Date.now())-mailbox(state().p,Date.now()).filter(letter=>letter.body&&!letter.read).length;
   wins('campaign',3,'mail-chapter');
   assert.deepEqual(mail(), [], 'active prizes stay in the carnival');
   assert.equal(claimCarnivalReward(december,'task:1:1').status,'claimed');
@@ -145,6 +146,7 @@ test('mail links real closed prizes, excludes direct claims and persists read st
 });
 
 test('mail bulk claim preserves Horn overflow and slot choice and delivers gear to storage once', t => {
+ const carnivalMail=()=>mailbox(state().p,Date.now()).filter(letter=>!letter.body);
   t.mock.timers.enable({apis:['Date','setTimeout'],now:at(11,7)});
   start(Date.now());
   state().persist();
@@ -162,22 +164,22 @@ test('mail bulk claim preserves Horn overflow and slot choice and delivers gear 
   state().mailAction({kind:'claimAll'});
   reload();
   assert.equal(state().p.gems, before + 12);
-  assert.equal(mailbox(state().p,Date.now())[0].reward.horn, 6);
-  assert.ok(mailbox(state().p,Date.now())[0].gear);
+  assert.equal(carnivalMail()[0].reward.horn, 6);
+  assert.ok(carnivalMail()[0].gear);
   state().mailAction({kind:'deleteRead'});
-  assert.equal(mailbox(state().p,Date.now()).length, 1);
+  assert.equal(carnivalMail().length, 1);
 
   state().mailAction({kind:'claim',id:december,slot:'ring1'});
   reload();
   assert.equal(state().p.gems, before + 42);
   assert.equal(state().p.pendingLoot?.length, 1);
   assert.equal(state().p.pendingLoot?.[0].slot, 'ring1');
-  assert.equal(mailbox(state().p,Date.now())[0].pending, true);
+  assert.equal(carnivalMail()[0].pending, true);
   state().mutate(p => {p.horn-=6});
   state().mailAction({kind:'claimAll'});
   reload();
   assert.equal(state().p.horn, balance.horn_test_settings.maximum_charges);
-  assert.equal(mailbox(state().p,Date.now())[0].pending, false);
+  assert.equal(carnivalMail()[0].pending, false);
   assert.equal(state().p.pendingLoot?.length, 1);
 });
 
