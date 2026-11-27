@@ -94,5 +94,15 @@
  "После заточки до +{0}: {1} CP": "After sharpening to +{0}: {1} CP",
  "· {0} золота": "· {0} gold",
  "После {0}-го уровня сила спутника растёт медленнее: +{1}% за уровень.": "After level {0} the companion grows stronger more slowly: +{1}% per level.",
- "После {0}-го уровня сила спутника растёт медленнее: +{1}% за уровень. Здоровье героя от уровня Гуся уже на пределе +{2}%.": "After level {0} the companion grows stronger more slowly: +{1}% per level. The hero's health from the Goose level is already at its +{2}% limit."
+ "После {0}-го уровня сила спутника растёт медленнее: +{1}% за уровень. Здоровье героя от уровня Гуся уже на пределе +{2}%.": "After level {0} the companion grows stronger more slowly: +{1}% per level. The hero's health from the Goose level is already at its +{2}% limit.",
+ "Поражения": "Losses",
+ "ТОП-50 Арены": "Arena TOP 50",
+ "Войдите через Telegram для просмотра рейтинга": "Sign in with Telegram to see the ranking",
+ "Полный рейтинг (1–50) ›": "Full ranking (1–50) ›",
+ "Дуэль": "Duel",
+ "Начать бой": "Start battle",
+ "Хаос": "Chaos",
+ "Боевой пояс": "Battle belt",
+ "{0} · ур.{1} · +{2} · ↑ в рюкзаке +{3} силы": "{0} · Lv.{1} · +{2} · ↑ in backpack +{3} power",
+ "Нажмите топоры внизу — начать бой": "Tap the axes below to start the battle"
 }
