@@ -1,4 +1,4 @@
-import {useEffect,useRef,useState,type FormEvent} from 'react';
+import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import {community} from '../community/client';
 
 const flags={
@@ -20,7 +20,89 @@ type Player={id:string;name:string;paidGems:number;
  orders:{operation_id:string;sku:string;price:number;amount:number;created_at:string;refunded_at:string|null}[];
  sanctions:{kind:Sanction;reason:string;expires_at:string|null;assigned_role:string}[]};
 
-export function NetworkAdmin(){
+const TAPS=5,TAP_WINDOW_MS=3000;
+
+/** Hidden entrance: five taps on the «Меню» title, then login and password checked by W066. */
+export function AdminGate(){
+ const [open,setOpen]=useState(false);
+ const [unlocked,setUnlocked]=useState(false);
+ const [login,setLogin]=useState('');
+ const [password,setPassword]=useState('');
+ const [notice,setNotice]=useState('');
+ const [busy,setBusy]=useState(false);
+ const taps=useRef<number[]>([]);
+ useEffect(()=>{
+  const tap=(event:Event)=>{
+   if((event as CustomEvent).detail!=='menu')return;
+   const now=Date.now();
+   taps.current=[...taps.current.filter(at=>now-at<TAP_WINDOW_MS),now];
+   if(taps.current.length>=TAPS){taps.current=[];setOpen(true);}
+  };
+  window.addEventListener('vvr:title-tap',tap);
+  return ()=>window.removeEventListener('vvr:title-tap',tap);
+ },[]);
+ const exit=useCallback(()=>{setUnlocked(false);setOpen(false);},[]);
+ if(!open)return null;
+ if(unlocked)return <NetworkAdmin onExit={exit}/>;
+ async function submit(event:FormEvent){
+  event.preventDefault();
+  setBusy(true);
+  setNotice('');
+  try{
+   const result=await community<{status:string;until?:string}>('admin_unlock',{login,password});
+   setPassword('');
+   if(result.status==='ok'){setLogin('');setUnlocked(true);}
+   else setNotice(result.status==='locked'?'Слишком много попыток. Повторите позже.':'Неверный логин или пароль.');
+  }catch{setNotice('Вход временно недоступен.');}
+  finally{setBusy(false);}
+ }
+ return <form className="wb-admin admin-login" onSubmit={event=>void submit(event)}>
+  <label>Логин<input autoComplete="username" autoCapitalize="none" maxLength={32} required value={login} onChange={event=>setLogin(event.target.value)}/></label>
+  <label>Пароль<input type="password" autoComplete="current-password" maxLength={72} required value={password} onChange={event=>setPassword(event.target.value)}/></label>
+  <button className="action secondary" disabled={busy}>Войти</button>
+  <button type="button" className="action secondary" onClick={()=>{setOpen(false);setNotice('');setPassword('');}}>Отмена</button>
+  {notice&&<p role="status">{notice}</p>}
+ </form>;
+}
+
+const passwordText:Record<string,string>={
+ ok:'Логин и пароль изменены.',invalid:'Текущий пароль неверен.',
+ weak_password:'Новый пароль: от 8 до 72 символов и не совпадает со старым.',
+ bad_login:'Логин: 3–32 символа, латиница в нижнем регистре, цифры, «_», «.», «-».',
+};
+
+function AdminPassword(){
+ const [oldPassword,setOld]=useState('');
+ const [login,setLogin]=useState('');
+ const [password,setPassword]=useState('');
+ const [repeat,setRepeat]=useState('');
+ const [notice,setNotice]=useState('');
+ const [busy,setBusy]=useState(false);
+ async function submit(event:FormEvent){
+  event.preventDefault();
+  if(password!==repeat){setNotice('Пароли не совпадают.');return;}
+  setBusy(true);
+  setNotice('');
+  try{
+   const result=await community<{status:string}>('admin_password',{oldPassword,login,password});
+   setNotice(passwordText[result.status]??'Изменение отклонено.');
+   if(result.status==='ok'){setOld('');setPassword('');setRepeat('');}
+  }catch{setNotice('Изменение временно недоступно. Войдите снова.');}
+  finally{setBusy(false);}
+ }
+ return <details className="saga-disclosure"><summary>Логин и пароль</summary>
+  <form onSubmit={event=>void submit(event)}>
+   <label>Текущий пароль<input type="password" autoComplete="current-password" maxLength={72} required value={oldPassword} onChange={event=>setOld(event.target.value)}/></label>
+   <label>Новый логин<input autoComplete="username" autoCapitalize="none" maxLength={32} required value={login} onChange={event=>setLogin(event.target.value)}/></label>
+   <label>Новый пароль<input type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={password} onChange={event=>setPassword(event.target.value)}/></label>
+   <label>Повторите пароль<input type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={repeat} onChange={event=>setRepeat(event.target.value)}/></label>
+   <button className="action secondary" disabled={busy}>Сохранить</button>
+   {notice&&<p role="status">{notice}</p>}
+  </form>
+ </details>;
+}
+
+export function NetworkAdmin({onExit}:{onExit:()=>void}){
  const [status,setStatus]=useState<Status>();
  const [history,setHistory]=useState<Entry[]>([]);
  const [player,setPlayer]=useState<Player|null>();
@@ -35,9 +117,9 @@ export function NetworkAdmin(){
  const target=useRef('');
  useEffect(()=>{
   const abort=new AbortController();
-  void community<Status>('admin_status',{},abort.signal).then(setStatus,()=>{});
+  void community<Status>('admin_status',{},abort.signal).then(setStatus,()=>{if(!abort.signal.aborted)onExit();});
   return ()=>abort.abort();
- },[]);
+ },[onExit]);
  if(!status)return null;
 
  async function find(event:FormEvent){
@@ -86,7 +168,7 @@ export function NetworkAdmin(){
   }catch{setNotice('Журнал временно недоступен.');}
  }
  const disabled=busy||reason.trim().length<3;
- return <details className="saga-disclosure">
+ return <details className="saga-disclosure" open>
   <summary>Администрирование</summary>
   <div className="wb-admin">
    <form onSubmit={event=>void find(event)}>
@@ -142,6 +224,8 @@ export function NetworkAdmin(){
     </li>)}</ul>
     {status.history.length>=30&&<button type="button" className="action secondary" onClick={()=>void older()}>Предыдущие записи</button>}
    </details>
+   <AdminPassword/>
+   <button type="button" className="action secondary" onClick={()=>{void community('admin_lock').catch(()=>{});onExit();}}>Выйти из администрирования</button>
    {notice&&<p role="status">{notice}</p>}
   </div>
  </details>;

@@ -103,7 +103,7 @@ const rewards={
      }
      return route.fulfill({headers,json:{status:'ineligible'}});
     });
-    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false,premium=15,premiumOrders=new Map(),premiumClosed=false;
+    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false,premium=15,premiumOrders=new Map(),premiumClosed=false,adminUnlocked=false,adminCalls=[];
     await context.route(endpoint,async route=>{
      const request=route.request();
      const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization'};
@@ -167,6 +167,16 @@ const rewards={
       else if(premiumOrders.has(body.operationId))data=premiumOrders.get(body.operationId);
       else if(premium<10)data={status:'insufficient',balance:premium};
       else{premium-=10;data={status:'ok',balance:premium,receipt:{...offers[0],operationId:body.operationId}};premiumOrders.set(body.operationId,data);}
+     }
+     if(action.startsWith('admin_'))adminCalls.push(action);
+     if(action==='admin_unlock'){
+      adminUnlocked=body.login==='owner'&&body.password==='qa-owner-pass';
+      data={status:adminUnlocked?'ok':'invalid'};
+     }
+     if(action==='admin_lock'){adminUnlocked=false;data={status:'ok'};}
+     if(action==='admin_status'){
+      if(!adminUnlocked){await route.fulfill({status:403,json:{error:'admin_request_rejected'},headers});return;}
+      data={role:'owner',flags:{arena_ranked:true,arena_team:true,auction_trade:true,chat:true,world_boss:true,premium_shop:false},history:[]};
      }
      if(action==='ranking')data={season:{name:'Северный сезон'},seasons:[],rows:[{rank:1,name:'Алиса',points:70,mine:true}]};
      await route.fulfill({json:data,headers});
@@ -293,6 +303,25 @@ const rewards={
     await backup.getByRole('button',{name:'Сохранить в облаке'}).waitFor();
     assert.equal(await fits(backup),true);
     await backup.getByRole('button',{name:'Закрыть'}).click();
+    // B4.1: the admin panel is hidden; five taps on the title, then server-checked login and password.
+    await openMenu();
+    const menu=page.getByRole('dialog',{name:'Меню',exact:true});
+    assert.equal(await menu.getByText('Администрирование').count(),0);
+    assert.equal(adminCalls.length,0,'ordinary menu does not probe admin access');
+    for(let i=0;i<5;i++)await menu.getByRole('heading',{name:'Меню'}).click();
+    await menu.getByLabel('Логин').fill('owner');
+    await menu.getByLabel('Пароль').fill('wrong');
+    await menu.getByRole('button',{name:'Войти'}).click();
+    await menu.getByText('Неверный логин или пароль.').waitFor();
+    await menu.getByLabel('Пароль').fill('qa-owner-pass');
+    await menu.getByRole('button',{name:'Войти'}).click();
+    await menu.getByText('Администрирование').waitFor();
+    await menu.getByText('Логин и пароль').waitFor();
+    assert.equal(await fits(menu),true);
+    await menu.getByRole('button',{name:'Выйти из администрирования'}).click();
+    await menu.getByText('Администрирование').waitFor({state:'detached'});
+    assert.equal(adminUnlocked,false);
+    await menu.getByRole('button',{name:'Закрыть'}).click();
     if(width===430){
      await button('Приключения').click();
      await page.getByRole('button',{name:/^Мировой босс/}).click();
