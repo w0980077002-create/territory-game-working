@@ -333,6 +333,7 @@ const rewards={
     await menu.getByText('Вернулись на 1-й день · 2 из 4 · 50 %').waitFor();
     await menu.getByText('typeerror · 2 раз · игроков 1 · x is undefined').waitFor();
     await menu.getByRole('button',{name:'7 дн.'}).click();
+    for(let i=0;i<40&&adminCalls.filter(a=>a==='admin_analytics').length<2;i++)await page.waitForTimeout(100);
     assert.ok(adminCalls.filter(a=>a==='admin_analytics').length>=2);
     // The first analytics batch leaves 3 s after launch.
     for(let i=0;i<40&&!tracked.some(event=>event.kind==='enter');i++)await page.waitForTimeout(250);
