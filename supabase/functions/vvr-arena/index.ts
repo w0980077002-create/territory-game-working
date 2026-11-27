@@ -23,4 +23,4 @@ Deno.serve(makeArenaHandler(rpc,async(token,now)=>{
  const {sessionKey,botToken}=await secrets();
  if(!project||!role||sessionKey.length<32||sessionKey===botToken)throw new Error('arena_unavailable');
  return readVvrSession(token,sessionKey,now);
-},origin));
+},origin,undefined,undefined,true));

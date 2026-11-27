@@ -28,6 +28,6 @@ Deno.serve(async req=>{
  if(raw.length>12_000)return new Response('{"error":"world_boss_bad_request"}',{status:413,headers});
  let input:unknown=null;try{input=JSON.parse(raw)}catch{/* handled as bad request */}
  const botToken=explicitBotToken||(await readSecrets()).botToken;
- const reply=await handle(input,{botToken,rpc});
+ const reply=await handle(input,{botToken,rpc,networkPolicy:true});
  return new Response(JSON.stringify(reply.body),{status:reply.status,headers:{...headers,'Content-Type':'application/json','Cache-Control':'no-store'}});
 });

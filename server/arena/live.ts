@@ -9,7 +9,7 @@ import {beltHas,DEFAULT_BELT,isBeltItem,sanitizeBelt} from '../../src/arena/belt
 import {compatible,type Entrant} from './duel';
 
 type Actor={id:string;controller:string};
-type QueueEntry=Entrant&{ticket:string;mode:ArenaMode;since:number;seenAt:number;localStage?:number;localPotions?:number;localStock?:Partial<Record<ConsumableId,number>>};
+type QueueEntry=Entrant&{ticket:string;mode:ArenaMode;since:number;seenAt:number;localStage?:number;localPotions?:number;localStock?:Partial<Record<ConsumableId,number>>;localOnly?:boolean};
 type Active={id:string;json:string};
 type Search={mode:ArenaMode;entries:QueueEntry[];deadline:number};
 const idle=12_000;
@@ -102,8 +102,8 @@ export class LiveArena {
  private searches(mode:ArenaMode,now:number){
   const groups:Search[]=[];
   for(const player of this.queue(mode,now)){
-   let group=groups.find(({entries,deadline})=>entries.length<capacities[mode]&&player.since<=deadline&&
-    entries.every(other=>Math.abs(other.level-player.level)<=LEVEL_RANGE&&other.rankEligible===player.rankEligible));
+   let group=player.localOnly?undefined:groups.find(({entries,deadline})=>entries.length<capacities[mode]&&player.since<=deadline&&
+    entries.every(other=>!other.localOnly&&Math.abs(other.level-player.level)<=LEVEL_RANGE&&other.rankEligible===player.rankEligible));
    if(!group){
     group={mode,entries:[],deadline:player.since+MATCH_WAIT_MS};groups.push(group);
    }
@@ -296,7 +296,7 @@ export class LiveArena {
   return {stage,price,gold,stock:this.availablePotions(actor.id,issued),reserved:this.reserved(actor.id,now).potion??0};
  }
 
- join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean,issued:ConsumableStock|number=0,localStage?:number,localPotions?:number,belt?:unknown,localStock?:ConsumableStock,spent:ConsumableStock={}){
+ join(actor:Actor,mode:ArenaMode,build:ArenaBuild,name:string,now:number,rankEligible:boolean,issued:ConsumableStock|number=0,localStage?:number,localPotions?:number,belt?:unknown,localStock?:ConsumableStock,spent:ConsumableStock={},localOnly=false){
   return this.transaction(()=>{
    const current=this.read(actor,now);
    if(current.search||current.battle&&!current.battle.result)return current;
@@ -311,7 +311,7 @@ export class LiveArena {
    const potions=stock.potion;
    delete stock.potion;
    const entrant:QueueEntry={...actor,mode,ticket,build,hero:build.hero,level:build.level,name,kit:'balanced',rating:1000,
-    rankEligible,loadout,potions,stock,localStage,localPotions:beltHas(loadout,'potion')?localPotions:0,
+    rankEligible,localOnly,loadout,potions,stock,localStage,localPotions:beltHas(loadout,'potion')?localPotions:0,
     localStock:beltStock(loadout,localStock??{}),since:now,seenAt:now};
    this.db.prepare('INSERT OR REPLACE INTO arena_live_queue VALUES(?,?,?,?,?)').run(actor.id,mode,now,now,JSON.stringify(entrant));
    this.pair(mode,now);

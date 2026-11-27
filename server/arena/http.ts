@@ -185,6 +185,16 @@ async function arenaPublisherRequest(publisher:Options['scorePublisher'],route:s
   headers:{Authorization:'Bearer '+publisher.token,'Content-Type':'application/json'},body:JSON.stringify(input)});
 }
 
+async function networkAllowed(options:Options,telegram:string,feature:string){
+ if(options.local||!options.scorePublisher)return true;
+ try{
+  const response=await arenaPublisherRequest(options.scorePublisher,'arena-policy',{telegram,feature},1500);
+  if(!response?.ok)return;
+  const {allowed}=await response.json();
+  if(typeof allowed==='boolean')return allowed;
+ }catch{/* Unavailable W066 cannot authorize network chat or ranked matching. */}
+}
+
 async function stockFromW066(publisher:Options['scorePublisher'],input:{telegram:string;name:string;operation?:string;stage?:number;price?:number;item?:ConsumableId},legacy=false){
  try{
   const response=await arenaPublisherRequest(publisher,legacy?'arena-potions':'arena-consumables',input);
@@ -297,10 +307,11 @@ export function createArenaServer(options:Options){
      }
      const name=service.playerName(actor.id);
      const profile={telegram:actor.id,name};
-     const stock=await stockFromW066(options.scorePublisher,profile)??await stockFromW066(options.scorePublisher,profile,true);
+     const allowed=await networkAllowed(options,actor.id,input.mode==='duel'?'arena_ranked':'arena_team');
+     const stock=allowed?(await stockFromW066(options.scorePublisher,profile)??await stockFromW066(options.scorePublisher,profile,true)):undefined;
      json(res,200,live.join(actor,input.mode as ArenaMode,input.build,name,clock(),options.local===true||stock?.status==='ok',
       stock?.status==='ok'?stock.issued:0,input.stage as number|undefined,input.localPotions as number|undefined,input.belt,
-      input.stock as ConsumableStock|undefined,stock?.status==='ok'?stock.spent:undefined));
+      input.stock as ConsumableStock|undefined,stock?.status==='ok'?stock.spent:undefined,allowed===false));
      return;
     }
     case '/arena-api/live/potions':
@@ -339,6 +350,7 @@ export function createArenaServer(options:Options){
      exact(input,'id','moves');
      if(typeof input.id!=='string'||!uuid.test(input.id)||!Array.isArray(input.moves)||input.moves.length>MAX_PROOF_MOVES)
       throw new ArenaError(400,'Некорректная запись боя');
+     if(!await networkAllowed(options,actor.id,'brotherhood'))throw new ArenaError(403,'Клятва временно недоступна');
      const moves=input.moves.map((move):ProofMove=>{
       if(!Array.isArray(move)||move.length!==2||!boundedInt(move[0],0,actionTime))
        throw new ArenaError(400,'Некорректное время хода');
@@ -363,14 +375,17 @@ export function createArenaServer(options:Options){
      const {action,round,sequence}=input;
      if(typeof round!=='number'||!Number.isSafeInteger(round)||round<0||round>60||
       typeof sequence!=='number'||!Number.isSafeInteger(sequence)||sequence<=0)throw new ArenaError(400,'Некорректное действие');
-     json(res,200,live.act(actor,target,revision,parseLiveAction(action),round,sequence,actionTime));
+     const move=parseLiveAction(action);
+     if(move.kind==='chat'&&!await networkAllowed(options,actor.id,'arena_chat'))throw new ArenaError(403,'Чат недоступен');
+     json(res,200,live.act(actor,target,revision,move,round,sequence,clock()));
      return;
     }
     case '/arena-api/join':{
      exact(input,'hero','kit');
      const hero=arenaHeroes.find(value=>value===input.hero);
      if(!hero||!hasKey(arenaKits,input.kit))throw new ArenaError(400,'Выберите класс героя и экипировку');
-     const attack=await readW066Attack(options.scorePublisher,actor.id,service.playerName(actor.id));
+     const allowed=await networkAllowed(options,actor.id,'arena_ranked');
+     const attack=allowed?await readW066Attack(options.scorePublisher,actor.id,service.playerName(actor.id)):undefined;
     json(res,200,service.join(actor,hero,input.kit as ArenaKit,clock(),attack,options.local===true||attack!==undefined));return;
     }
     case '/arena-api/resume':
@@ -392,7 +407,8 @@ export function createArenaServer(options:Options){
      const {match,text}=input;
      if(typeof match!=='string'||!uuid.test(match)||typeof text!=='string'||text.length>200)
       throw new ArenaError(400,'Допустимо до 200 символов');
-     json(res,200,service.chat(actor,match,text,actionTime));return;
+     if(!await networkAllowed(options,actor.id,'arena_chat'))throw new ArenaError(403,'Чат недоступен');
+     json(res,200,service.chat(actor,match,text,clock()));return;
     }
     default:throw new ArenaError(404,'Действие не найдено');
    }

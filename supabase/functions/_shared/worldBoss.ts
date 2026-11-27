@@ -7,7 +7,7 @@
 import {verifyTelegramIdentity} from './vvr-identity.ts';
 export interface Identity {telegramId:string;name:string}
 export type Rpc=(name:string,args:Record<string,unknown>)=>Promise<unknown>;
-export interface Deps {botToken:string;rpc:Rpc;now?:()=>number}
+export interface Deps {botToken:string;rpc:Rpc;now?:()=>number;networkPolicy?:boolean}
 export interface Reply {status:number;body:unknown}
 
 const INIT_MAX_AGE=24*60*60; // Mini App sessions stay open for long; the signature still binds the user.
@@ -46,6 +46,9 @@ export async function handle(input:unknown,deps:Deps):Promise<Reply>{
  if(!who)return {status:401,body:{error:'world_boss_auth_required'}};
  const id=who.telegramId;
  try{
+  if(deps.networkPolicy&&(body.action==='state'||body.action==='attack'||body.action==='claim')&&
+   await deps.rpc('vvr_network_policy',{p_telegram:id,p_feature:'world_boss'})!==true)
+   return {status:403,body:{error:'world_boss_unavailable'}};
   switch(body.action){
    case 'state':return ok(await deps.rpc('vvr_world_boss_state',{p_telegram_id:id}));
    case 'attack':

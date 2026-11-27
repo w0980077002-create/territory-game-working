@@ -17,10 +17,11 @@ test('W066 Edge attributes only a signed start parameter and reads only the sess
   const name=String(url).split('/').at(-1)!;
   rpcCalls.push({name,args:JSON.parse(String(init?.body))});
   const result:Record<string,unknown>={
+   vvr_network_policy:true,
    vvr_referrals:{startParam:'ref_'+player,rows:[],next:null},
    vvr_brotherhood_claim:{status:'received',wallet:{gems:25}},
   };
-  if(name==='vvr_brotherhood_admin')return Response.json({code:'42501'},{status:403});
+  if(name==='vvr_brotherhood_admin'||name==='vvr_admin_find_player')return Response.json({code:'42501'},{status:403});
   return Response.json(result[name]??player);
  };
  try{
@@ -45,6 +46,7 @@ test('W066 Edge attributes only a signed start parameter and reads only the sess
   assert.equal((await post('login',{initData:String(signed()),inviter})).status,400);
   assert.equal(rpcCalls.length,0);
   assert.equal((await post('login',{initData:String(signed('ref_'+inviter))})).status,200);
+  assert.deepEqual(rpcCalls.shift(),{name:'vvr_network_policy',args:{p_feature:'brotherhood',p_telegram:'801'}});
   assert.deepEqual(rpcCalls.shift(),{name:'vvr_resolve_referred_player',
    args:{p_telegram:'801',p_name:'Friend',p_inviter:inviter}});
   for(const parameter of [undefined,'ref_invalid','mail_acceptance']){
@@ -59,6 +61,7 @@ test('W066 Edge attributes only a signed start parameter and reads only the sess
   const state=await post('referrals',{},session);
   assert.equal(state.status,200);
   assert.deepEqual(await state.json(),{startParam:'ref_'+player,rows:[],next:null});
+  assert.deepEqual(rpcCalls.shift(),{name:'vvr_network_policy',args:{p_feature:'brotherhood',p_player:player}});
   assert.deepEqual(rpcCalls.shift(),{name:'vvr_referrals',args:{p_player:player,p_before:null}});
   assert.equal((await post('brotherhood_claim',{award:inviter})).status,401);
   assert.equal((await post('brotherhood_claim',{award:inviter,level:100},session)).status,400);
@@ -66,9 +69,14 @@ test('W066 Edge attributes only a signed start parameter and reads only the sess
   assert.equal((await post('brotherhood_admin',{enabled:'yes'},session)).status,400);
   assert.equal(rpcCalls.length,0);
   assert.deepEqual(await (await post('brotherhood_claim',{award:inviter},session)).json(),{status:'received',wallet:{gems:25}});
+  assert.deepEqual(rpcCalls.shift(),{name:'vvr_network_policy',args:{p_feature:'brotherhood',p_player:player}});
   assert.deepEqual(rpcCalls.shift(),{name:'vvr_brotherhood_claim',args:{p_player:player,p_award:inviter}});
   assert.equal((await post('brotherhood_admin',{enabled:false},session)).status,403);
   assert.deepEqual(rpcCalls.shift(),{name:'vvr_brotherhood_admin',args:{p_player:player,p_enabled:false}});
+  assert.equal((await post('admin_find_player',{telegramId:'802'})).status,401);
+  assert.equal((await post('admin_find_player',{telegramId:'802',actor:inviter},session)).status,400);
+  assert.equal((await post('admin_find_player',{telegramId:'802'},session)).status,403);
+  assert.deepEqual(rpcCalls.shift(),{name:'vvr_admin_find_player',args:{p_actor:player,p_telegram:'802'}});
  }finally{
   globalThis.fetch=network;
   Reflect.deleteProperty(globalThis,'Deno');

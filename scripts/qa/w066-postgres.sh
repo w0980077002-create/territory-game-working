@@ -29,6 +29,8 @@ pg < tests/pg/w066-arena-rooms.sql
 pg < tests/pg/w066-arena-railway.sql
 pg < tests/pg/w066-arena-potions.sql
 pg < tests/pg/w066-arena-consumables.sql
+pg < tests/pg/w066-admin-access.sql
+pg -c "update vvr.network_features set enabled=true where name='premium_shop';"
 pg < tests/pg/w066-premium-wallet.sql
 pg <<'SQL'
 select vvr.resolve_player('84682','Premium purchase race') as player \gset
@@ -54,6 +56,7 @@ begin
  assert (select balance from vvr.wallets where player_id=player and resource='horn')=10;
 end;
 $$;
+update vvr.network_features set enabled=false where name='premium_shop';
 SQL
 pg <<'SQL'
 insert into vvr.arena_publishers values('railway',repeat('9',64))
