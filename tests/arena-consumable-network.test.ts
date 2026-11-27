@@ -7,10 +7,14 @@ import {join} from 'node:path';
 import {setTimeout as wait} from 'node:timers/promises';
 import {test} from 'node:test';
 import {createArenaServer} from '../server/arena/http';
-import {arenaBuild} from '../src/arena/hero';
+import {arenaBuild,validArenaBuild} from '../src/arena/hero';
 import {capacities,type LiveAction,type LiveBattle} from '../src/arena/match';
 import {consumableIds,consumablePrice,type ConsumableId,type ConsumableStock} from '../src/arena/potion';
-import {freshPlayer} from '../src/core/store';
+import {freshPlayer,parseSave} from '../src/core/store';
+import {localArena,startLocalArena} from '../src/arena/local';
+import {darkBox,darkMaxUpgrade,darkRarity,darkSlots,gemBox,gemCode,gemSlots,GEM_MAX,RELIC_MAX} from '../src/dark/rules';
+import {runeRules} from '../src/saga/runes';
+import {boxOf} from '../src/saga/save';
 
 const sessionKey='session-key-only-for-server-consumable-tests';
 const secret='publisher-token-only-for-consumable-tests';
@@ -93,6 +97,38 @@ test('all 20 kinds spend exactly once through authenticated 1×1, 3×3 and 20×2
  },tab);
  try{
   arenaUrl=await listen(server);
+  const runologist=freshPlayer();
+  runologist.heroClass='runologist';
+  runologist.level=110;
+  runologist.stage=190;
+  runologist.darkFloor=41;
+  runologist.equipment.weapon!.set=runologist.equipment.armor!.set='rune';
+  const gems=gemBox(runologist);
+  for(const slot of gemSlots)gems.sock[slot]=[gemCode('amethyst',GEM_MAX),null,null];
+  const grimoire=darkSlots.findIndex(slot=>slot.stat==='skill'),rarity=darkRarity.length-1;
+  darkBox(runologist).eq[grimoire]={id:'grimoire',s:grimoire,r:rarity,l:40,u:darkMaxUpgrade(rarity)};
+  boxOf(runologist,'relics',()=>({lv:{gjallar:RELIC_MAX}}));
+  boxOf(runologist,'runes',()=>({v:1,revision:0,ranks:Array(9).fill(runeRules.rankCosts.length),
+   dust:0,passive:null,last:null,path:[2,null,null,0]}));
+  const developed=arenaBuild(runologist);
+  assert.ok(developed.stats.skillDamage>6);
+  assert.equal(validArenaBuild(developed),true);
+  assert.equal(validArenaBuild({...developed,stats:{...developed.stats,skillDamage:developed.stats.skillDamage+.01}}),false);
+  const developedClient=await newClient(800);
+  for(const mode of ['duel','team','chaos'] as const){
+   const player=structuredClone(runologist);
+   assert.equal(startLocalArena(player,'runologist-'+mode,mode,now),true);
+   const saved=parseSave(JSON.stringify(player));
+   assert.ok(saved);
+   assert.equal(localArena(saved)?.match.mode,mode);
+   assert.equal(localArena(saved)?.match.game.players[0].combat?.build.stats.skillDamage,developed.stats.skillDamage);
+
+   const pending=await developedClient.request('join',{mode,build:developed});
+   assert.equal(pending.status,200);
+   const search=pending.data.search;
+   assert.equal(search.mode,mode);
+   assert.equal((await developedClient.request('cancel',{target:search.id,revision:search.revision})).status,200);
+  }
   const build=arenaBuild(freshPlayer());
   const expected:{id:string;items:readonly ConsumableId[]}[]=[];
   let firstId=1000;

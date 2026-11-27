@@ -1,8 +1,8 @@
-import {odinCallMaxLevel,stats} from '../core/formulas';
+import {odinCallMaxLevel,skillDamageMultiplier,stats} from '../core/formulas';
 import balance from '../../config/test-balance.v1.json';
 import {gearRules,equippedUniques} from '../core/gear';
 import type {GearEffectId,Player,Stats} from '../core/types';
-import {combatAura,companions,squadCombat,type Aura} from '../dark/rules';
+import {combatAura,companions,maxSkillPowerBonus,squadCombat,type Aura} from '../dark/rules';
 import {branchOf} from '../saga/companions';
 import {hasPerk,perkIds,setCounts,setIds,type PerkId,type SetId} from '../saga/gear';
 import {runeMultiplier,runeRules} from '../saga/runes';
@@ -39,7 +39,7 @@ function fields(value:unknown,limits:Record<string,readonly [number,number]>){
   Object.entries(limits).every(([key,[min,max]])=>bounded(value[key],min,max));
 }
 const statLimits={hp:[1,1e9],attack:[1,1e8],defense:[0,1e8],aspd:[1,1.32],crit:[0,.9],critDamage:[1,6],
- lifesteal:[0,.7],dodge:[0,.45],skillDamage:[1,5],reduction:[0,.5]} as const;
+ lifesteal:[0,.7],dodge:[0,.45],reduction:[0,.5]} as const;
 const auraLimits={execute30:[0,.6],execute35:[0,.3],boss:[0,.6],opening:[0,.6],thorns:[0,.6],veil:[0,.6],
  killHeal:[0,.6],regen:[0,.01],boltEvery:[0,6],boltPower:[0,1.8],rally:[0,.3],cooldownRate:[1,1.12],
  foeHpCut:[0,.1],heroDamage:[0,.3]} as const;
@@ -49,7 +49,7 @@ const ids=(value:unknown,allowed:readonly string[])=>Array.isArray(value)&&value
  new Set(value).size===value.length&&value.every(v=>allowed.includes(v));
 export function validArenaBuild(value:unknown):value is ArenaBuild{
  if(!record(value)||Object.keys(value).length!==13||!int(value.level,1,1_000_000)||!arenaHeroes.includes(value.hero as ArenaHero)||
-  !fields(value.stats,statLimits)||!triple(value.skills,n=>int(n,1,1_000_000))||
+  !triple(value.skills,n=>int(n,1,1_000_000))||
   !triple(value.runes,n=>int(n,0,2))||
   !triple(value.runePower,n=>bounded(n,1,1+runeRules.rankCosts.length*runeRules.upgradeEffect))||
   !specByHero[value.hero as ArenaHero].includes(String(value.spec))||
@@ -58,6 +58,9 @@ export function validArenaBuild(value:unknown):value is ArenaBuild{
   !ids(value.perks,perkIds)||!ids(value.unique,Object.keys(gearRules.effects))||
   !Array.isArray(value.branches)||value.branches.length!==2||!value.branches.every(n=>int(n,-1,1))||!record(value.aura)||!Array.isArray(value.followers)||value.followers.length<2||value.followers.length>3)
   return false;
+ const maxSkillDamage=skillDamageMultiplier(value.hero as ArenaHero,Number(value.sets.rune),maxSkillPowerBonus(Number(value.level)));
+ // The game adds bonuses from several sources in a different order.
+ if(!fields(value.stats,{...statLimits,skillDamage:[1,maxSkillDamage+1e-12]}))return false;
  const {firstBlock,...aura}=value.aura;
  const speed=balance.new_player_test_start.attacks_per_second*(value.hero==='ranger'?1.2:1)*(Number(value.sets.storm)>=2?1.1:1);
  return Number((value.stats as Record<string,unknown>).aspd)===speed&&
