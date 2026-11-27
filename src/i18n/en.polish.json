@@ -83,5 +83,6 @@
  "Старые осколки остались от прежней системы и больше не выпадают.": "Old shards come from the previous system and no longer drop.",
  "Звезда {0} за {1} старых осколков": "Star {0} for {1} old shards",
  "Звезда {0} за старые осколки: {1}/{2}. Не хватает {3}, а новых осколков не будет.": "Star {0} for old shards: {1}/{2}. {3} short, and no new shards will drop.",
- "Обмен: {0} старых осколков → {1} Душ. Души тратятся в Призыве на копии спутников, а копии дают звёзды.": "Exchange: {0} old shards → {1} Souls. Souls buy companion copies in the Summon, and copies give stars."
+ "Обмен: {0} старых осколков → {1} Душ. Души тратятся в Призыве на копии спутников, а копии дают звёзды.": "Exchange: {0} old shards → {1} Souls. Souls buy companion copies in the Summon, and copies give stars.",
+ "Лучший экземпляр вида даёт герою +{0}% здоровья и атаки за звезду, всего не более +{1}%.": "The best copy of each kind gives the hero +{0}% health and attack per star, +{1}% at most."
 }

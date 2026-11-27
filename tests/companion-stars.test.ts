@@ -38,3 +38,22 @@ test('the star guide is translated for English players',()=>{
  ])assert.equal(translate(ru),expected);
  assert.ok(readFileSync('src/ui/DarkPanels.tsx','utf8').includes('StarGuide'));
 });
+
+test('companion balance D2: capped squad bonus, softer star and level growth, capped Goose HP; saves untouched',async()=>{
+ const {companionBalance,companionPower}=await import('../src/dark/rules');
+ const {stats}=await import('../src/core/formulas');
+ const roster=(st:number)=>({v:2,shards:{senior_driller:18},formation:[followerId('goose_aviator'),followerId('brown_white_dog'),null],
+  instances:Object.fromEntries(companionIds.map(id=>[followerId(id),newFollower(id,100,[],st)]))});
+ const {squadBonus}=await import('../src/dark/rules');
+ assert.ok(Math.abs(squadBonus(save(roster(10))).hpPct-companionIds.length*10*.0015)<1e-9,'0.15% per star');
+ assert.equal(squadBonus(save(roster(40))).hpPct,companionBalance.squadCap,'6 × 40★ would be +36%: capped at +35%');
+ const pet=(lv:number,st:number)=>({lv,st,sh:0,aw:false,t:[0,0,0]});
+ const boar=(lv:number,st:number)=>companionPower('08_armored_boar',pet(lv,st)).power;
+ assert.ok(Math.abs(boar(1,40)/boar(1,0)-(1+2+.4))<1e-9,'+0.1 per star to 20, then +0.02');
+ assert.ok(Math.abs(boar(20,0)/boar(1,0)-(.34+20*.045)/(.34+.045)*(1+.12*2)/1)<1e-9,'full level growth to 20');
+ assert.ok(boar(100,0)<boar(20,0)*1.6,'level growth softened after 20');
+ const goose=(lv:number)=>{const p=freshPlayer();p.companions=[lv,1];return stats(p).hp};
+ assert.equal(goose(10),goose(100),'Goose level adds at most +20% hero HP');
+ const p=save(roster(37));squadBox(p);const kept=squadState(p);
+ assert.deepEqual([kept.instances[followerId('senior_driller')].st,kept.instances[followerId('senior_driller')].lv,kept.shards.senior_driller],[37,100,18],'stars, levels and old shards kept');
+});

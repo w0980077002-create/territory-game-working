@@ -19,7 +19,7 @@ import {resources,resCount,duskCount,type ResId,bonusLines,statNames,statText,
  darkSlots,darkRarity,darkColors,darkState,darkValue,darkEffectOf,darkName,darkScore,darkUpgradeCost,darkMaxUpgrade,darkSalvageValue,darkBonus,darkEffectTotals,darkEffects,darkEffectIds,darkResonance,DARK_STORAGE,type DarkItem,
  gemTypes,gemSlots,gemState,parseGem,gemLabel,gemText,gemBonus,gemSynthGold,socketOpen,socketRules,GEM_MAX,GEM_SHOP_PRICE,
  relics,relicIds,relicLevel,relicRarity,relicColors,relicUnlockCost,relicUpgradeCost,relicCollection,RELIC_MAX,type RelicId,
- squadBonus,companions,companionIds,companionRarity,companionColors,squadState,followerProgress,followerId,FOLLOWER_MAX_LEVEL,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,followerStarCap,talentDefs,talentPoints,TALENT_MAX,powerParts} from '../dark/rules';
+ squadBonus,companions,companionIds,companionRarity,companionColors,squadState,followerProgress,followerId,FOLLOWER_MAX_LEVEL,companionPower,legacyPet,starCost,STAR_MAX,AWAKEN,followerStarCap,companionBalance,talentDefs,talentPoints,TALENT_MAX,powerParts} from '../dark/rules';
 import {blessings,blessingIds,realmRun,realmLast,realmSelected,roomReward,floorName,lordFloor,floorBoss,roomTitles,REALM_COST,ROOMS,type BlessingId,type RealmLast,type RealmTotals} from '../dark/realm';
 import {collectRealmReward,realmSelect,realmStart,realmResume,realmAbandon,darkEquip,darkUnequip,darkUpgrade,darkSalvage,darkSalvageMany,darkBulkList,
  gemInsert,gemRemove,gemSynth,gemSynthAll,gemBuy,relicUnlock,relicUpgrade,petLevel,petLevelCost,petStar,petAwaken,petTalent,petTalentReset,petActivate,petClearReserve,totalFollowerTalent} from '../dark/actions';
@@ -303,7 +303,7 @@ export function SquadPanel({p}:{p:Player}){
     <span>ур.{member.lv} · {stars(member.st)}</span>
    </button>:<div key={i} className="squad-vacancy"><small>{labels[i]}</small><strong>Свободно</strong><span>Выберите в каталоге</span></div>;
   })}</div>
-  <details className="saga-disclosure squad-bonus"><summary>Бонус дружины</summary>{bonusLines(squadBonus(p)).join(' · ')||'Звёзды и таланты ещё не развиты'}<p>Лучший экземпляр вида даёт герою +0,5% здоровья и атаки за звезду.</p></details>
+  <details className="saga-disclosure squad-bonus"><summary>Бонус дружины</summary>{bonusLines(squadBonus(p)).join(' · ')||'Звёзды и таланты ещё не развиты'}<p>{`Лучший экземпляр вида даёт герою +${String(+(companionBalance.squadPerStar*100).toFixed(2)).replace(".",",")}% здоровья и атаки за звезду, всего не более +${Math.round(companionBalance.squadCap*100)}%.`}</p></details>
   <div className="workspace-toolbar"><b>Каталог · {s.owned.length}/{companionIds.length}</b><button onClick={()=>setSummoning(true)}>Призыв</button></div>
   <div className="local-scroll"><div className="squad-grid">{roster.map(({id,species,copy})=>{
    const d=companions[species],o=s.instances[id];
@@ -386,7 +386,7 @@ export function SquadPanel({p}:{p:Player}){
      <img src={art(offer.species)} alt=""/><b>{companions[offer.species].name}</b><small>{companionRarity[companions[offer.species].rarity]}{offer.guarantee?' · гарантия':''}</small>
      <Btn disabled={souls<followerRules.prices[companions[offer.species].rarity]||Object.keys(s.instances).length>=followerRules.maxOwned} onClick={()=>buyFollower(i,market.revision)}>{followerRules.prices[companions[offer.species].rarity]} Душ</Btn>
     </span>:<span key={i}>Куплено</span>)}</div>
-    <details className="saga-disclosure"><summary>Гарантии · {market.legendary}/{followerRules.legendary} · {market.mythic}/{followerRules.mythic}</summary><p>Легендарное предложение {market.legendary}/{followerRules.legendary}. Мифическое {market.mythic}/{followerRules.mythic} · ожидает новых видов.</p><p>Бесплатно · {followerRules.freeDaily-market.daily} сегодня, {followerRules.freeWeekly-market.weekly} на неделе.</p></details>
+    <details className="saga-disclosure"><summary>Гарантии · {market.legendary}/{followerRules.legendary}</summary><p>Легендарное предложение {market.legendary}/{followerRules.legendary}.</p><p>Бесплатно · {followerRules.freeDaily-market.daily} сегодня, {followerRules.freeWeekly-market.weekly} на неделе.</p></details>
     {confirm==='refresh'?<div className="squad-placement"><Btn onClick={()=>{if(repeat(()=>refreshFollowers(market.revision,true)))setConfirm('')}}>Отказаться от гарантии и обновить</Btn><Btn onClick={()=>setConfirm('')}>Отмена</Btn></div>:<Btn disabled={!!market.offers.length&&!freeRefresh(market)&&souls<followerRules.refresh} onClick={()=>market.offers.some(offer=>offer?.guarantee)?setConfirm('refresh'):repeat(()=>refreshFollowers(market.revision))}>{!market.offers.length?'Открыть предложения':freeRefresh(market)?'Обновить бесплатно':'Обновить за '+followerRules.refresh+' Душ'}</Btn>}
     <details className="saga-disclosure"><summary>Шансы обычных предложений</summary><div className="bonus-card">{followerRules.weights.map((_,i)=><span key={i}><b>Место {i+1}</b> {offerOdds(i).map(({id,chance})=>companions[id].name+' '+(chance*100).toFixed(2)+'%').join(' · ')}</span>)}</div></details>
    </div>

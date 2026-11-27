@@ -175,6 +175,11 @@ export const companions:Record<string,CompanionDef>={
 };
 export const companionIds=Object.keys(companions);
 export const legacyPet=(id:string)=>id==='goose_aviator'?0:id==='brown_white_dog'?1:-1;
+/** Companion balance D2 (owner-approved after the Battle-engine comparison, Issue #81): companions complement
+ * gear instead of replacing it. Squad bonus per star with a cap; star and level growth soften past 20. */
+export const companionBalance={squadPerStar:.0015,squadCap:.35,starKnee:20,starPower:.1,starPowerAfter:.02,levelKnee:20,levelAfter:.15,gooseHpPerLevel:.02,gooseHpCap:.2} as const;
+const starFactor=(st:number)=>1+companionBalance.starPower*Math.min(st,companionBalance.starKnee)+companionBalance.starPowerAfter*Math.max(0,st-companionBalance.starKnee);
+const levelSteps=(lv:number)=>Math.min(lv,companionBalance.levelKnee)+companionBalance.levelAfter*Math.max(0,lv-companionBalance.levelKnee);
 export const STAR_MAX=5;
 export const starCost=[10,20,40,70,110];
 export const AWAKEN={stars:3,level:20,dusk:5,gold:5000};
@@ -299,7 +304,7 @@ export const talentSpent=(pet:Pet)=>pet.t.reduce((a,b)=>a+b,0);
 /** Own power of one companion: its job multiplier, action interval and the awakened ability. */
 export function companionPower(id:string,pet:Pet){
  const def=companions[id],talents=pet.t,legacy=legacyPet(id)>=0;
- const power=(def.base+pet.lv*def.perLevel)*(legacy?evoPower(pet.lv):1+Math.min(3,Math.floor(pet.lv/10))*.12)*(1+pet.st*.1)*(1+talents[0]*.08)*(pet.aw?1.25:1)*(1+(pet.extra??0)*.025);
+ const power=(def.base+levelSteps(pet.lv)*def.perLevel)*(legacy?evoPower(pet.lv):1+Math.min(3,Math.floor(pet.lv/10))*.12)*starFactor(pet.st)*(1+talents[0]*.08)*(pet.aw?1.25:1)*(1+(pet.extra??0)*.025);
  return {power,interval:def.interval*(1-talents[1]*.04)*(pet.aw?.85:1)};
 }
 export interface CombatFollower {
@@ -326,7 +331,7 @@ export function squadBonus(p:Player){
  const best=new Map<string,number>();
  for(const pet of Object.values(s.instances))best.set(pet.species,Math.max(best.get(pet.species)??0,pet.st+(pet.aw?2:0)));
  for(const value of best.values())stars+=value;
- b.hpPct+=stars*.005;b.atkPct+=stars*.005;
+ const squad=Math.min(companionBalance.squadCap,stars*companionBalance.squadPerStar);b.hpPct+=squad;b.atkPct+=squad;
  const primary=s.instances[s.formation[1]],third=s.formation[2]?s.instances[s.formation[2]]:null;
  const protection=primary.talents[2].rank+(third&&companions[third.species].role==='guardian'?third.talents[2].rank:0);
  b.reduction+=protection*.01;
