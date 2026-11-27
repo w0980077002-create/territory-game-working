@@ -26,7 +26,7 @@ import {HonorPanel} from './HonorPanel';
 import {MailPanel} from './MailPanel';
 import {SaveTools} from './SaveTools';
 import {ReferralPanel} from './ReferralPanel';
-import {NetworkAdmin} from './NetworkAdmin';
+import {AdminGate} from './NetworkAdmin';
 import {unreadMail} from '../saga/mail';
 import {canClaimHonor,honorRank} from '../saga/honor';
 import './windowContent.css';
@@ -491,7 +491,7 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
    <button type="button" onClick={()=>g.open('equipment')}><Icon name="armor"/><span>Экипировка</span><b aria-hidden="true">›</b></button>
    <button type="button" onClick={()=>g.open('save-tools')}><Icon name="chest"/><span>Сохранение и восстановление</span><b aria-hidden="true">›</b></button>
   </nav>
-  {Community&&<NetworkAdmin/>}
+  {Community&&<AdminGate/>}
   {isolatedProfile&&<Action kind="secondary" onClick={mainHero}>Вернуться к основному герою</Action>}
   <details className="saga-disclosure menu-heroes" open={confirmHero||undefined}>
    <summary>Другие герои на этом устройстве</summary>

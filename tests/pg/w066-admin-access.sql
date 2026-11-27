@@ -13,6 +13,9 @@ declare
   player_arg jsonb := jsonb_build_object('player',target_id);
 begin
   insert into vvr.admin_access(player_id,role) values(owner_id,'owner'),(operator_id,'operator');
+  insert into vvr.admin_credentials(player_id,login,password_hash,unlocked_until)
+   select id,'admin'||telegram_id,extensions.crypt('unused-password',extensions.gen_salt('bf',4)),clock_timestamp()+interval '1 hour'
+   from vvr.players where id in (owner_id,operator_id);
   assert not has_function_privilege('anon','public.vvr_admin_find_player(uuid,text)','EXECUTE');
   assert not has_function_privilege('authenticated','public.vvr_admin_apply(uuid,uuid,text,text,jsonb)','EXECUTE');
   assert not has_function_privilege('service_role','vvr.vvr_premium_wallet_internal(uuid,uuid,text)','EXECUTE');

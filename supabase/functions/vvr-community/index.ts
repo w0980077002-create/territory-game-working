@@ -7,7 +7,7 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_find_player','admin_status','admin_apply','premium_wallet','equip','unequip','enhance']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','premium_wallet','equip','unequip','enhance']);
 const sanctions=['chat_mute','trade_ban','network_ban'];
 const flagNames=['arena_ranked','arena_team','auction_trade','chat','world_boss','premium_shop'];
 const networkActions:Partial<Record<string,string>>={
@@ -21,6 +21,8 @@ const isUuid=(id:unknown):id is string=>typeof id==='string'&&uuid.test(id);
 function isRecord(value:unknown):value is Record<string,unknown>{
  return !!value&&typeof value==='object'&&!Array.isArray(value);
 }
+
+const text=(value:unknown,max:number)=>typeof value==='string'&&value.length>0&&value.length<=max;
 
 function validAdmin(body:Record<string,unknown>){
  if(Object.keys(body).length!==4||!isUuid(body.operationId)||typeof body.reason!=='string'||
@@ -48,6 +50,9 @@ function valid(action:string,body:Record<string,unknown>){
   case 'admin_find_player':return keys===1&&typeof body.telegramId==='string'&&/^[1-9][0-9]{0,15}$/.test(body.telegramId);
   case 'admin_status':return keys===0||keys===1&&Number.isSafeInteger(body.before)&&Number(body.before)>0;
   case 'admin_apply':return validAdmin(body);
+  case 'admin_unlock':return keys===2&&text(body.login,32)&&text(body.password,72);
+  case 'admin_lock':return keys===0;
+  case 'admin_password':return keys===3&&text(body.oldPassword,72)&&text(body.login,32)&&text(body.password,72);
   case 'trade':
    if(!isUuid(body.operationId))return false;
    return body.kind==='list'?keys===4&&isUuid(body.itemId)&&typeof body.price==='number'&&
@@ -253,6 +258,13 @@ Deno.serve(async request=>{
    const policy=await rpc('vvr_network_policy',{p_feature:feature,p_player:player});
    if(!policy.ok)return reply(503,{error:'network_policy_unavailable'});
    if(policy.data!==true)return reply(403,{error:'network_feature_restricted'});
+  }
+  if(value.action==='admin_unlock'||value.action==='admin_lock'||value.action==='admin_password'){
+   const result=value.action==='admin_unlock'
+    ?await rpc('vvr_admin_unlock',{p_actor:player,p_login:value.body.login,p_password:value.body.password})
+    :value.action==='admin_lock'?await rpc('vvr_admin_lock',{p_actor:player})
+    :await rpc('vvr_admin_password',{p_actor:player,p_old:value.body.oldPassword,p_login:value.body.login,p_password:value.body.password});
+   return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'admin_request_rejected'});
   }
   if(value.action==='admin_find_player'){
    const result=await rpc('vvr_admin_find_player',{p_actor:player,p_telegram:value.body.telegramId});
