@@ -242,6 +242,26 @@ export function RelicsPanel({p}:{p:Player}){
 }
 
 // ───────────────────────── Companions ─────────────────────────
+/** Stars tab: what the player has, what the next star needs, where to get it and the one button that leads there. */
+function StarGuide({name,stars,cap,copies,price,souls,seals,shards,onMerge,onSummon}:{name:string;stars:number;cap:number;copies:number;
+ price:number;souls:number;seals:number;shards:number;onMerge:()=>void;onSummon:()=>void}){
+ const soulsWithSeals=souls+seals*followerRules.sealSouls,short=Math.max(0,price-souls);
+ if(stars>=cap)return <div className="bonus-card star-guide"><b>{`Предел звёзд · ★ ${stars}/${cap}`}</b>
+  <span>Чтобы поднять предел, откройте следующие ступени во вкладке «Пробуждение».</span></div>;
+ return <div className="bonus-card star-guide">
+  <b>{`Как получить ★ ${stars+1}`}</b>
+  <span>{`Объедините спутника с копией «${name}» из каталога. Копия без звёзд даёт +1 звезду, копия с ★ N даёт N+1.`}</span>
+  <span>{`Свободные копии: ${copies} · Души: ${fmt(souls)} · Печати призыва: ${fmt(seals)}`}</span>
+  {copies>0?<Btn onClick={onMerge}>Объединить с копией</Btn>:<>
+   <span>{`Копия появляется в Призыве случайно, цена ${price} Душ${short?` · не хватает ${fmt(short)}`:''}.`}</span>
+   {short>0&&soulsWithSeals>=price&&<span>Обменяйте печати призыва на Души в Призыве.</span>}
+   <Btn kind="secondary" onClick={onSummon}>Открыть Призыв</Btn>
+   <small>{`1 печать призыва = ${followerRules.sealSouls} Душ. Печати дают Лавка, каждая 3-я победа на Арене и Царство тьмы.`}</small>
+   {shards>0&&<small>{`Старые осколки обмениваются на Души: ${followerRules.shardSouls} Души за штуку.`}</small>}
+   <small>{`Предложения Призыва обновляются бесплатно раз в день (до ${followerRules.freeWeekly} раз в неделю) или за ${followerRules.refresh} Душ.`}</small>
+  </>}
+ </div>;
+}
 export function SquadPanel({p}:{p:Player}){
  const repeat=useRepeatAction();
  const s=squadState(p);
@@ -263,11 +283,13 @@ export function SquadPanel({p}:{p:Player}){
  const market=followerMarket(p),souls=balanceOf(p,'soul'),seals=resCount(p,'seal');
  const awake=instance&&nextAwakening(instance),stones=balanceOf(p,'awake'),fragments=balanceOf(p,'awakeShard');
  const candidates=Object.entries(s.instances).filter(([id,member])=>id!==picked&&member.species===species);
+ // Copies that can be merged right now: not in the formation, not protected and not the starter follower itself.
+ const donors=candidates.filter(([id,member])=>!s.formation.includes(id)&&!member.locked&&!(legacyPet(member.species)>=0&&id===followerId(member.species)));
  const merge=donor?followerMerge(p,picked,donor,mergeTalent):null;
  const stars=(value:number)=>value?'★ '+value:'без звёзд';
  const describeTalents=(slots:readonly {rank:number}[])=>slots.map((slot,i)=>slot.rank?'Ячейка '+(i+1)+' · ранг '+slot.rank:null).filter(Boolean).join(', ')||'без талантов';
  const shards=pet.sh>0&&<div className="bonus-card">
-   <span>Старые осколки · {pet.sh}. Можно потратить на развитие или обменять остаток на {pet.sh*followerRules.shardSouls} Душ.</span>
+   <span>{`Обмен: ${pet.sh} старых осколков → ${pet.sh*followerRules.shardSouls} Душ. Души тратятся в Призыве на копии спутников, а копии дают звёзды.`}</span>
    {confirm==='shards'?<div className="squad-placement"><Btn onClick={()=>{if(exchangeFollowerShards(species,pet.sh))setConfirm('')}}>Подтвердить обмен</Btn><Btn onClick={()=>setConfirm('')}>Отмена</Btn></div>:<Btn kind="secondary" onClick={()=>setConfirm('shards')}>Обменять осколки</Btn>}
   </div>;
  const rankTalent=(i:number)=>talentDefs[def.role][i]??{name:'Мастерство '+(i+1),text:def.role==='striker'?'+2,5% силы удара за ранг':'+2,5% силы лечения за ранг'};
@@ -311,6 +333,9 @@ export function SquadPanel({p}:{p:Player}){
       {legacy<0&&<Btn kind="secondary" onClick={()=>protectFollower(picked,!instance.locked)}>{instance.locked?'Снять защиту':'Защитить'}</Btn>}
       {!!candidates.length&&<Btn onClick={()=>setMergeOpen(!mergeOpen)}>{mergeOpen?'Назад к звёздам':'Выбрать донора'}</Btn>}
      </div>
+     {!mergeOpen&&<StarGuide name={def.name} stars={pet.st} cap={followerStarCap(instance.step)} copies={donors.length}
+      price={followerRules.prices[def.rarity]} souls={souls} seals={seals} shards={pet.sh}
+      onMerge={()=>setMergeOpen(true)} onSummon={()=>{setDetail(false);setSummoning(true)}}/>}
      {mergeOpen&&<>
       <CompactFilter label="Материал" value={donor} options={[{value:'',label:'Выберите спутника',icon:'people'},...candidates.map(([id,member])=>({value:id,label:'№'+(roster.find(entry=>entry.id===id)?.copy??1)+' · ур. '+member.lv+' · ★ '+member.st+(s.formation.includes(id)||member.locked?' · защищён':''),icon:'people'}))]} onChange={id=>{setDonor(id);setMergeTalent(null);setConfirm('')}}/>
       {donor&&(!merge?<p>Донор в строю, защищён или превышен предел звёзд.</p>:<>
@@ -321,7 +346,9 @@ export function SquadPanel({p}:{p:Player}){
       </>)}
      </>}
      {pet.sh>0&&<details className="saga-disclosure"><summary>Старые осколки · {pet.sh}</summary>
-      {pet.st<STAR_MAX&&<Btn kind="secondary" disabled={pet.sh<starCost[pet.st]} onClick={()=>petStar(picked)}>Звезда {pet.st+1} · осколки {pet.sh}/{starCost[pet.st]}</Btn>}{shards}
+      <p className="hint">Старые осколки остались от прежней системы и больше не выпадают.</p>
+      {pet.st<STAR_MAX&&(pet.sh>=starCost[pet.st]?<Btn kind="secondary" onClick={()=>petStar(picked)}>{`Звезда ${pet.st+1} за ${starCost[pet.st]} старых осколков`}</Btn>
+       :<p>{`Звезда ${pet.st+1} за старые осколки: ${pet.sh}/${starCost[pet.st]}. Не хватает ${starCost[pet.st]-pet.sh}, а новых осколков не будет.`}</p>)}{shards}
      </details>}
     </>}
     {tab==='awake'&&instance&&<>

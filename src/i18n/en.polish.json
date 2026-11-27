@@ -66,5 +66,22 @@
  "{0} под защитой Радуги Биврёста": "{0} protected by the Bifröst Rainbow",
  "Хитрость Локи, ": "Cunning of Loki, ",
  "Гром Тора, ": "Thunder of Thor, ",
- "Зелья в Лавке": "Potions in the Shop"
+ "Зелья в Лавке": "Potions in the Shop",
+ "Предел звёзд · ★ {0}/{1}": "Star limit · ★ {0}/{1}",
+ "Чтобы поднять предел, откройте следующие ступени во вкладке «Пробуждение».": "To raise the limit, open the next stages on the «Awakening» tab.",
+ "Как получить ★ {0}": "How to get ★ {0}",
+ "Объедините спутника с копией «{0}» из каталога. Копия без звёзд даёт +1 звезду, копия с ★ N даёт N+1.": "Merge the companion with a copy of «{0}» from the catalog. A copy with no stars gives +1 star, a copy with ★ N gives N+1.",
+ "Свободные копии: {0} · Души: {1} · Печати призыва: {2}": "Free copies: {0} · Souls: {1} · Summon seals: {2}",
+ "Объединить с копией": "Merge with a copy",
+ "Копия появляется в Призыве случайно, цена {0} Душ · не хватает {1}.": "A copy appears in the Summon at random, price {0} Souls · {1} short.",
+ "Копия появляется в Призыве случайно, цена {0} Душ.": "A copy appears in the Summon at random, price {0} Souls.",
+ "Обменяйте печати призыва на Души в Призыве.": "Exchange summon seals for Souls in the Summon.",
+ "Открыть Призыв": "Open the Summon",
+ "1 печать призыва = {0} Душ. Печати дают Лавка, каждая 3-я победа на Арене и Царство тьмы.": "1 summon seal = {0} Souls. Seals come from the Shop, every 3rd Arena victory and the Dark Realm.",
+ "Старые осколки обмениваются на Души: {0} Души за штуку.": "Old shards exchange for Souls: {0} Souls each.",
+ "Предложения Призыва обновляются бесплатно раз в день (до {0} раз в неделю) или за {1} Душ.": "Summon offers refresh free once a day (up to {0} times a week) or for {1} Souls.",
+ "Старые осколки остались от прежней системы и больше не выпадают.": "Old shards come from the previous system and no longer drop.",
+ "Звезда {0} за {1} старых осколков": "Star {0} for {1} old shards",
+ "Звезда {0} за старые осколки: {1}/{2}. Не хватает {3}, а новых осколков не будет.": "Star {0} for old shards: {1}/{2}. {3} short, and no new shards will drop.",
+ "Обмен: {0} старых осколков → {1} Душ. Души тратятся в Призыве на копии спутников, а копии дают звёзды.": "Exchange: {0} old shards → {1} Souls. Souls buy companion copies in the Summon, and copies give stars."
 }

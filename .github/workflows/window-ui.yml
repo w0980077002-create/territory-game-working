@@ -106,6 +106,8 @@ jobs:
         run: BASE_URL=http://localhost:5173/ OUT=.tmp/window-qa/carnival node scripts/qa/carnival-ui.cjs
       - name: Verify hero, backpack and salvage protection
         run: BASE_URL=http://localhost:5173/ node scripts/qa/solo11-ui.cjs
+      - name: Verify companion stars guide on old saves
+        run: BASE_URL=http://localhost:5173/ OUT=.tmp/window-qa/companion-stars node scripts/qa/companion-stars.cjs
       - name: Verify Telegram fullscreen and safe areas
         run: BASE_URL=http://localhost:5173/ node scripts/qa/telegram-fullscreen.cjs
       - name: Verify Telegram save and restore
