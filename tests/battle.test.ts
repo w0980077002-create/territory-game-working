@@ -382,3 +382,20 @@ test('the same actual Hammer kill settles with each paid mode and is included in
   b.destroy();
  }
 });
+
+test('reload on a boss victory restores the boss encounter plan, not the next wave',()=>{
+ useGame.setState(s=>({p:{...s.p,stage:3,wave:5,encounter:undefined,rewardOffer:undefined}}));
+ const b=scene();
+ assert.equal(b.plan.boss,true);
+ const title=b.plan.title;
+ b.units.forEach(u=>u.hp=0);b.phase='fight';b.update(.1);
+ const p=useGame.getState().p;
+ assert.equal(p.encounter?.phase,'victory');
+ assert.ok(p.wave!==5||p.stage!==3,'progress advanced past the boss');
+ b.destroy();
+ const restored=scene(false);
+ assert.equal(restored.phase,'victory');
+ assert.equal(restored.plan.boss,true,'the restored plan describes the boss that was beaten');
+ assert.equal(restored.plan.title,title);
+ restored.destroy();
+});

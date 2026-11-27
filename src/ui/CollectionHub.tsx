@@ -12,7 +12,6 @@ import {soloAction} from '../saga/soloAction';
 import {Album} from './SagaPanels';
 import {GameTabs} from './CompactGame';
 import {Icon,gearIcon} from './Icon';
-import {RewardArt} from './RewardArt';
 import {MiniReward} from './MiniReward';
 import './collections.css';
 
@@ -35,7 +34,7 @@ function Milestones({p,id}:{p:Player;id:CollectionId}){
 /** «Коллекция»: everything found so far and what is still ahead, with fill indicators and one-time milestones. */
 export function CollectionHub({p}:{p:Player}){
  const [tab,setTab]=useState<Tab>('album');
- const pages=collectionPages(p),found=new Set(gearFound(p)),squad=squadState(p),look=wingLook(p);
+ const pages=collectionPages(p),found=new Set(gearFound(p)),squad=squadState(p);
  const page=tab==='album'?undefined:pages.find(c=>c.id===tab);
  return <section className="collection-hub">
   <GameTabs label="Коллекции" value={tab} items={tabs} onChange={setTab}/>

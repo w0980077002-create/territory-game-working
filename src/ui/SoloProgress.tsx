@@ -3,7 +3,6 @@ import {GameTabs,GameTile,GameTiles} from './CompactGame';
 import {CardDialog} from './SagaUI';
 import {Icon,gearIcon,statIcon} from './Icon';
 import type {Player} from '../core/types';
-import {stats} from '../core/formulas';
 import {useGame} from '../core/store';
 import {balanceOf,soloResources} from '../saga/soloEconomy';
 import {WingLookGallery} from './CollectionHub';

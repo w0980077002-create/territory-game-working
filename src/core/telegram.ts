@@ -15,6 +15,10 @@ let cloudBank=0;
 let cloudWriting=false;
 let cloudWriteExpired=false;
 export const CLOUD_WRITE_TIMEOUT_MS=8000;
+/** After this extra wait a write Telegram never answered is abandoned, so backups resume without a restart. */
+export const CLOUD_ABANDON_MS=60_000;
+/** FNV-1a over the stored text: a bank mixed with chunks of an abandoned upload is refused, not restored. */
+export function cloudDigest(text:string){let h=0x811c9dc5;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0}return h.toString(16).padStart(8,'0')}
 /** `superseded`: a newer save replaced this queued one before it started, which is not a failure. */
 export type CloudFailure='too-large'|'failed'|'superseded';
 type CloudDone=(ok:boolean,reason?:CloudFailure)=>void;
@@ -77,7 +81,7 @@ export function cloudSave(raw:string,done?:CloudDone,lateCommit?:()=>void):Promi
   const chunks=split(packed);
   if(!chunks.length){finish(false,'failed');return}
   if(chunks.length>CLOUD_MAX_CHUNKS){finish(false,'too-large');return}
-  let left=chunks.length,failed=false,finished=false;
+  let left=chunks.length,failed=false,finished=false,abandoned=false;
   deadline=setTimeout(()=>{
    // Tell the caller promptly, but quarantine this bank until Telegram has finished every outstanding write.
    // An old callback may still describe a successful write; the active bank must stay out of its path.
@@ -86,20 +90,29 @@ export function cloudSave(raw:string,done?:CloudDone,lateCommit?:()=>void):Promi
    queuedCloud=null;
    done?.(false,'failed');
    queued?.done?.(false,'failed');
+   // Telegram may never answer (a lost bridge call). Abandon this upload for good: its late callbacks are ignored,
+   // it never writes metadata, and a bank mixed with its chunks fails the digest check on read.
+   deadline=setTimeout(()=>{
+    if(finished)return;
+    finished=true;abandoned=true;
+    cloudWriteExpired=false;cloudWriting=false;
+    queuedCloud?.done?.(false,'failed');queuedCloud=null;
+   },CLOUD_ABANDON_MS);
   },CLOUD_WRITE_TIMEOUT_MS);
   const end=(success:boolean)=>{if(finished)return;finished=true;finish(success)};
   chunks.forEach((value,i)=>{
    let completed=false;
-   const chunkDone=(err:unknown,stored?:boolean)=>{if(completed)return;completed=true;failed ||= !!err||stored===false;
+   const chunkDone=(err:unknown,stored?:boolean)=>{if(completed||abandoned)return;completed=true;failed ||= !!err||stored===false;
     if(--left!==0)return;
     if(failed||cloudWriteExpired){end(false);return}
-    try{cloud.setItem('save_meta',JSON.stringify({generation,count:chunks.length,...(packed.z?{z:1}:{})}),(error,stored)=>end(!error&&stored!==false))}catch{end(false)}
+    try{cloud.setItem('save_meta',JSON.stringify({generation,count:chunks.length,...(packed.z?{z:1}:{}),h:cloudDigest(chunks.join(''))}),(error,stored)=>end(!error&&stored!==false))}catch{end(false)}
    };
    try{cloud.setItem(`save_${generation}_${i}`,value,chunkDone)}catch(error){chunkDone(error)}
   });
  });
 }
-export type CloudRead={status:'empty'|'unavailable'}|{status:'found';raw:string};
+/** `damaged`: metadata points to chunks that fail the digest; the next backup rewrites the other bank. */
+export type CloudRead={status:'empty'|'unavailable'|'damaged'}|{status:'found';raw:string};
 export function readCloud():Promise<CloudRead>{return new Promise(resolve=>{
  const t=tg();if(!t?.initData||!t.CloudStorage){resolve({status:'unavailable'});return}
  const cloud=t.CloudStorage;let finished=false;
@@ -109,8 +122,8 @@ export function readCloud():Promise<CloudRead>{return new Promise(resolve=>{
   if(finished)return;if(err){finish({status:'unavailable'});return}
   if(raw===''||raw===undefined){finish({status:'empty'});return}
   if(typeof raw!=='string'){finish({status:'unavailable'});return}
-  try{const {generation,count,z}=JSON.parse(raw);
-   if(!['0','1'].includes(generation)||!Number.isInteger(count)||count<1||count>CLOUD_MAX_CHUNKS||z!==undefined&&z!==1)throw Error();
+  try{const {generation,count,z,h}=JSON.parse(raw);
+   if(!['0','1'].includes(generation)||!Number.isInteger(count)||count<1||count>CLOUD_MAX_CHUNKS||z!==undefined&&z!==1||h!==undefined&&typeof h!=='string')throw Error();
    // The next upload must go to the other bank, even if reading this one fails part way.
    cloudBank=Number(generation);
    const keys=Array.from({length:count},(_,i)=>`save_${generation}_${i}`);
@@ -119,6 +132,8 @@ export function readCloud():Promise<CloudRead>{return new Promise(resolve=>{
     if(finished)return;
     if(values.length!==count||values.some(value=>typeof value!=='string'||!value)){finish({status:'unavailable'});return}
     const joined=values.join('');
+    // Copies written before the digest existed have no `h` and stay readable.
+    if(h!==undefined&&cloudDigest(joined)!==h){finish({status:'damaged'});return}
     if(!z){finish({status:'found',raw:joined});return}
     inflate(joined).then(text=>finish({status:'found',raw:text}),()=>finish({status:'unavailable'}));
    };

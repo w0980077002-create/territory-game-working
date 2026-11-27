@@ -9,9 +9,11 @@ export type Mood='city'|'tense'|'boss';
 export interface AudioFrame {enabled:boolean;running:boolean;hidden:boolean;volume:number;mood:Mood;wind:number;walked:number;quality:number}
 const scales:Record<Mood,number[]>={city:[293.66,349.23,392,440,523.25,587.33,698.46],tense:[146.83,164.81,174.61,220,233.08,293.66],boss:[73.42,87.31,98,110,116.54]};
 const drones:Record<Mood,[number,number]>={city:[146.83,220],tense:[73.42,110],boss:[65.41,98]};
+/** Five time constants of the 50 ms fade: inaudible before the context stops. */
+const SUSPEND_AFTER_MS=250;
 export class AudioDirector {
  ctx?:AudioContext;contexts=0;private master?:GainNode;private world?:GainNode;private fx?:GainNode;private windGain?:GainNode;private windFilter?:BiquadFilterNode;private droneGain?:GainNode;private droneOsc:OscillatorNode[]=[];
- private noise?:AudioBuffer;private voices=0;private last=new Map<string,number>();private nextBeat=0;private beat=0;private stride=0;private mood:Mood='city';private wanted=false;
+ private noise?:AudioBuffer;private voices=0;private last=new Map<string,number>();private nextBeat=0;private beat=0;private stride=0;private mood:Mood='city';private wanted=false;private suspendTimer?:ReturnType<typeof setTimeout>;
  /** Call from a user gesture. Safe to call repeatedly: there is only ever one context. */
  unlock(enabled:boolean){
   this.wanted=enabled;if(!enabled&&!this.ctx)return;
@@ -35,7 +37,17 @@ export class AudioDirector {
  frame(s:AudioFrame){
   const c=this.ctx;if(!c||!this.master||!this.world)return;this.wanted=s.enabled;
   const on=s.enabled&&!s.hidden,now=c.currentTime;
-  if(!on){this.master.gain.setTargetAtTime(0,now,.05);if(c.state==='running'&&this.master.gain.value<.004)void c.suspend();return}
+  if(!on){
+   this.master.gain.setTargetAtTime(0,now,.05);
+   if(c.state==='running'&&this.master.gain.value<.004)void c.suspend();
+   // Hidden pages get no further frames: finish the fade and suspend, so the context does not run in the background.
+   else if(s.hidden&&c.state==='running'&&this.suspendTimer===undefined)this.suspendTimer=setTimeout(()=>{
+    this.suspendTimer=undefined;
+    if(this.ctx===c&&(typeof document==='undefined'||document.hidden||!this.wanted))void c.suspend();
+   },SUSPEND_AFTER_MS);
+   return;
+  }
+  if(this.suspendTimer!==undefined){clearTimeout(this.suspendTimer);this.suspendTimer=undefined}
   if(c.state==='suspended')void c.resume();if(c.state!=='running')return;
   this.master.gain.setTargetAtTime([0,.45,.75,1][Math.max(1,Math.min(3,s.volume))],now,.08);
   this.world.gain.setTargetAtTime(s.running?1:0,now,s.running?.25:.09);

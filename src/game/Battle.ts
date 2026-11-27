@@ -11,19 +11,19 @@ import {useGame,registerEncounterProvider,mayStartLoot} from '../core/store';
 import {stats,damage,skillPowerMultiplier,odinCallSeconds} from '../core/formulas';
 import type {EncounterSnapshot,Fighter,Projectile,BattleView,Player,Stats,FollowerEncounter,FollowerImpact} from '../core/types';
 import balance from '../../config/test-balance.v1.json';
-import {characters,enemyIds,bossIds,miniIds,heroArt,skillData,rarityColors} from '../data/catalog';
+import {characters,heroArt,skillData} from '../data/catalog';
 import {haptic} from '../core/telegram';
 import {validEncounter,encounterData} from './snapshot';
 import {sound,unlockAudio} from './Sound';
 import {drawActor,drawFallback,warmRun} from './animation';
-import {sceneImage,sceneImageReady,sceneImageRevision} from './sceneImages';
+import {sceneImage,sceneImageRevision} from './sceneImages';
 import {enemyPlacement,travelActorSafe,healthAnchorX} from './sceneLayout';
 import {clips,legacyBodyHeight} from './actorGeometry';
-import {newJourney,nextSite,stepJourney,projectX,districts,siteX} from './Journey';
-import {chapterOne,encounterBriefs,firstChapter} from './Chapter';
+import {newJourney,nextSite,projectX,siteX} from './Journey';
+import {chapterOne,firstChapter} from './Chapter';
 import {ComicFeedback} from './ComicFeedback';
 import {poseFrame,enemyLunge,type Rect} from './actorGeometry';
-import {swordTip,swordCanReach,reactionOffset,projectilePoint,projectileVisualPath,drawSwordWave} from './Impact';
+import {swordTip,swordCanReach,reactionOffset,projectileVisualPath,drawSwordWave} from './Impact';
 import {layoutLabels,feedbackBands,type CombatLabel,type PlacedLabel} from './CombatLabels';
 import {WorldRenderer} from './WorldRenderer';
 import {heroLook} from './heroLook';
@@ -37,11 +37,11 @@ import {think,interrupted,onWindup,strikeMultiplier,absorb,breakCovers,died,type
 import {audio} from './AudioDirector';
 import type {WorldEventSnapshot,TeamSnapshot} from '../core/types';
 import {planFor} from '../saga/encounters';
-import {hazards,hazardPhase,affixes,regionOf,stageGold,type EncounterPlan,type HazardId} from '../saga/regions';
+import {hazards,hazardPhase,affixes,regionOf,type EncounterPlan,type HazardId} from '../saga/regions';
 import {paintBiomeBack,paintBiomeFront,paintHazard} from './BiomeArt';
 import {setCounts,hasPerk} from '../saga/gear';
 import {specId} from '../saga/specs';
-import {branchOf,evoPower,combos} from '../saga/companions';
+import {branchOf,combos} from '../saga/companions';
 import {bumpCount} from '../saga/save';
 import {combatAura,squadCombat,type CombatFollower} from '../dark/rules';
 import {realmRun,realmLast,realmDefeat,realmVictory,realmChoose,realmPlan} from '../dark/realm';
@@ -78,7 +78,7 @@ export class Battle implements TeamHost {
  destroy(){this.canvas.removeEventListener?.('pointerup',this.portalTap);this.checkpoint();this.stopped=true;this.unbind();cancelAnimationFrame(this.raf)}
  lairRevives=0;
  snapshot():EncounterSnapshot{const worldEvent=this.director.snapshot();return structuredClone({version:1,balanceRevision:BALANCE_REVISION,gearProcs:this.gear.entries,...(this.mode==='dungeon'?{lairRevives:this.lairRevives}:{}),followers:this.followers,...(worldEvent?{worldEvent}:{}),team:this.brain.snapshot(),...(this.pendingMode?{pendingMode:this.pendingMode}:{}),entryPaid:this.entryPaid,intro:this.intro,combatTime:this.combatTime,impactStop:this.impactStop,autoDecision:this.autoDecision,hazard:this.hazard,journey:this.journey,id:this.id,stage:this.stage,wave:this.wave,mode:this.mode,hp:this.hp,maxHp:this.maxHp,potionCd:this.potionCd,...(this.hammerKills?{hammerKills:this.hammerKills}:{}),heroX:this.heroX,phase:this.phase,units:this.units,cooldowns:this.cooldowns,timer:this.timer,delay:this.delay,clock:this.clock,autoCd:this.autoCd,compCd:this.compCd,buff:this.buff,shield:this.shield,burn:this.burn,burnTick:this.burnTick,stun:this.stun,boss:this.boss,heroAttack:this.heroAttack,heroHurt:this.heroHurt,heroPending:this.heroPending,projectiles:this.projectiles,pressure:this.pressure,defensePressure:this.defensePressure,poison:this.poison,poisonTick:this.poisonTick,slow:this.slow,rewarded:this.rewarded,...(this.curse?{curse:this.curse}:{}),...(Object.keys(this.perk).length?{perk:this.perk}:{})})}
- restorePlayer(){this.hammerKills=0;this.lairRevives=0;this.potionCd=0;this.gear.reset();this.followers=undefined;this.followerSavePending=false;this.gooseAttack=0;this.dogCast=0;this.reservePose=0;this.curse=0;this.perk={};this.hazardCycle=-1;this.hazardWarn=-1;this.worldEvent=undefined;this.team=undefined;this.comics.reset();this.running=false;this.pendingMode=undefined;this.entryPaid=false;this.intro=0;this.combatTime=0;this.impactStop=0;this.autoDecision=0;this.hazard={remaining:0,tick:0,damage:0};const p=useGame.getState().p,s=p.encounter;if(validEncounter(s)&&(s.mode==='darkness'&&!!realmRun(p)||isPaidLairAttempt(s)&&s.id===p.lairAttempt?.id||(s.stage===p.stage&&s.wave===p.wave)||s.phase==='victory'&&s.id===p.lastBattleReward)){Object.assign(this,structuredClone(encounterData(rebaseEncounter(s,planFor({...p,stage:s.stage,wave:s.wave},s.mode,s.mode==='dungeon'?s.units[0]?.id:undefined)))));this.entryPaid=s.entryPaid??['dungeon','darkness'].includes(s.mode);this.journey=s.journey?structuredClone(s.journey):newJourney(s.stage,s.wave,s.phase!=='walk');this.heroX=projectX(this.journey.worldX,this.journey.cameraX);this.plan=planFor({...p,stage:s.stage},this.mode,this.mode==='dungeon'?s.units[0]?.id:undefined);this.placeEncounter(!s.journey);if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.running=false;this.fx=[];this.projectiles=this.projectiles.map(b=>({...b,encounterId:b.encounterId??this.id,targetId:b.targetId??this.units[b.target]?.id,targetRole:b.targetRole??this.units[b.target]?.role}));}else{this.journey=newJourney(p.stage,p.wave);this.mode='campaign';this.hp=stats(p).hp;this.maxHp=this.hp;this.spawn()}this.gear.entries=validEncounter(s)&&s.id===this.id?structuredClone(s.gearProcs??[]):[];this.gear.sync(p);this.tuneTeam();this.brain.restore(this.team);this.director.onRestore(this.worldEvent);this.worldEvent=undefined;this.team=undefined;if(this.mode==='darkness'){const run=realmRun(p),last=realmLast(p);if(run?.lastCombatId===s?.id&&!this.realmWaiting())this.spawn(false);if(!run&&last&&!last.ack){this.phase=last.win?'victory':'defeat';this.running=false;useGame.getState().open('realm')}}this.publish()}
+ restorePlayer(){this.hammerKills=0;this.lairRevives=0;this.potionCd=0;this.gear.reset();this.followers=undefined;this.followerSavePending=false;this.gooseAttack=0;this.dogCast=0;this.reservePose=0;this.curse=0;this.perk={};this.hazardCycle=-1;this.hazardWarn=-1;this.worldEvent=undefined;this.team=undefined;this.comics.reset();this.running=false;this.pendingMode=undefined;this.entryPaid=false;this.intro=0;this.combatTime=0;this.impactStop=0;this.autoDecision=0;this.hazard={remaining:0,tick:0,damage:0};const p=useGame.getState().p,s=p.encounter;if(validEncounter(s)&&(s.mode==='darkness'&&!!realmRun(p)||isPaidLairAttempt(s)&&s.id===p.lairAttempt?.id||(s.stage===p.stage&&s.wave===p.wave)||s.phase==='victory'&&s.id===p.lastBattleReward)){Object.assign(this,structuredClone(encounterData(rebaseEncounter(s,planFor({...p,stage:s.stage,wave:s.wave},s.mode,s.mode==='dungeon'?s.units[0]?.id:undefined)))));this.entryPaid=s.entryPaid??['dungeon','darkness'].includes(s.mode);this.journey=s.journey?structuredClone(s.journey):newJourney(s.stage,s.wave,s.phase!=='walk');this.heroX=projectX(this.journey.worldX,this.journey.cameraX);this.plan=planFor({...p,stage:s.stage,wave:s.wave},this.mode,this.mode==='dungeon'?s.units[0]?.id:undefined);this.placeEncounter(!s.journey);if(this.realmWaiting()){this.phase='waiting';for(const u of this.units){u.hp=0;u.dead=2}}this.running=false;this.fx=[];this.projectiles=this.projectiles.map(b=>({...b,encounterId:b.encounterId??this.id,targetId:b.targetId??this.units[b.target]?.id,targetRole:b.targetRole??this.units[b.target]?.role}));}else{this.journey=newJourney(p.stage,p.wave);this.mode='campaign';this.hp=stats(p).hp;this.maxHp=this.hp;this.spawn()}this.gear.entries=validEncounter(s)&&s.id===this.id?structuredClone(s.gearProcs??[]):[];this.gear.sync(p);this.tuneTeam();this.brain.restore(this.team);this.director.onRestore(this.worldEvent);this.worldEvent=undefined;this.team=undefined;if(this.mode==='darkness'){const run=realmRun(p),last=realmLast(p);if(run?.lastCombatId===s?.id&&!this.realmWaiting())this.spawn(false);if(!run&&last&&!last.ack){this.phase=last.win?'victory':'defeat';this.running=false;useGame.getState().open('realm')}}this.publish()}
  checkpoint(){return useGame.getState().persist()}
  /** Reserve actions and their impacts stop on an unsuccessful write. Resume retries the same state. */
  saveFollowerAction(){
@@ -596,7 +596,7 @@ export class Battle implements TeamHost {
  }
  actors.push({y:this.journey.worldY,paint:()=>this.character(heroArt[p.heroClass],heroDrawX+(gates?0:attackLunge),this.journey.worldY,214,gates?0:this.heroAttack,gates?0:this.heroHurt,walking,this.phase==='defeat'?.65:0,0,this.phase==='victory',false,false,this.journey.distance/160,true)});
  if(!dark&&this.phase==='victory'&&this.boss)actors.push({y:724,paint:()=>this.character('cappuccina_approved',650,724,110,Math.floor(this.clock*4)%2?.5:.2,0,false)});
- for(const [i,u] of this.units.entries()){
+ for(const u of this.units){
   const reveal=this.phase==='walk'?(u.reveal??0):1;if(u.dead>1.1||reveal<=0)continue;const v=this.visual(u);
   actors.push({y:v.y,paint:()=>{c.save();c.globalAlpha*=reveal;
    if(u.windup>0){c.save();const glow=c.createRadialGradient(v.x,v.y,5,v.x,v.y,this.boss?85:50);glow.addColorStop(0,'#ffb06c66');glow.addColorStop(1,'#ff533600');c.fillStyle=glow;c.fillRect(v.x-90,v.y-35,180,45);c.strokeStyle='#ffbd79';c.lineWidth=3;c.beginPath();c.ellipse(v.x,v.y,this.boss?74:45,9,0,0,Math.PI*2);c.stroke();c.save();c.translate(v.x,v.y);c.scale(1,.18);c.strokeStyle=u.windup<=.85?'#c2faff':'#ffbb78';c.lineWidth=5;c.beginPath();c.arc(0,0,this.boss?74:45,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-u.windup/(u.castTotal??1.7)));c.stroke();c.restore();c.restore()}

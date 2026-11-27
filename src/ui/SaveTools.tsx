@@ -55,7 +55,7 @@ export function SaveTools() {
     const result=await readCloud();
     if(!current(id))return;
     if(result.status!=='found'){
-      notice(result.status==='empty'?'В Telegram пока нет резервной копии':'Копия Telegram недоступна · попробуйте ещё раз');
+      notice(result.status==='empty'?'В Telegram пока нет резервной копии':result.status==='damaged'?'Копия Telegram повреждена · новая копия будет записана при следующем сохранении':'Копия Telegram недоступна · попробуйте ещё раз');
       return;
     }
     const player=parseSave(result.raw,true);
