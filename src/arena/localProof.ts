@@ -1,3 +1,6 @@
+import {createFighter,resolveStrike} from '../../server/arena/duel';
+import {MITIGATION_CAP} from '../core/formulas';
+import {zones,type ArenaZone} from './protocol';
 import {curve,threat} from '../saga/regions';
 import type {ArenaBuild} from './hero';
 import type {ArenaElixir} from './protocol';
@@ -18,6 +21,43 @@ export function arenaRandom(seed:number){
  return {next:()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/2**32;},state:()=>state};
 }
 
+const duelTierRatio=1.6;
+const duelZones=Object.keys(zones) as ArenaZone[];
+
+function smoothDuelTier(value:number,anchor:number,pivot:number){
+ const position=Math.log(Math.max(anchor,value)/anchor)/Math.log(duelTierRatio);
+ // Interpolate between neighboring tier centers and temper growth above the middle tiers.
+ const centered=position-.5-.18*Math.max(0,position-pivot);
+ return anchor*duelTierRatio**Math.max(0,centered);
+}
+
+function duelBotStats(hero:ArenaBuild,bot:ArenaBuild){
+ const defense=100+15*hero.level;
+ const reference={...bot,stats:{...bot.stats,hp:1e9,defense,dodge:0}};
+ const fighter=(id:string,build:ArenaBuild)=>createFighter({
+  id,name:id,hero:build.hero,level:build.level,build,controller:'',kit:'balanced',rating:1000,
+ },0);
+ const opening:number[]=[];
+ for(let seed=0;seed<12;seed++){
+  const rng=arenaRandom(seed*1777+821).next,a=fighter('hero',hero),b=fighter('reference',reference);
+  const feed={log:[],chat:[],messageId:0};
+  for(let turn=0;turn<3;turn++){
+   const block=(seed*3+turn+1)%4;
+   resolveStrike(feed,a,b,{attack:duelZones[(seed+turn)%4],blocks:['head','chest'],skill:null},
+    [duelZones[block],duelZones[(block+1)%4]],1800+turn*2100,rng);
+  }
+  opening.push(b.maxHp-b.hp);
+ }
+ const upperQuartile=opening.sort((a,b)=>a-b)[8];
+ const {hp,defense:heroDefense,reduction}=hero.stats;
+ const mitigation=Math.min(MITIGATION_CAP,heroDefense/(heroDefense+defense));
+ // Some opening hits bypass armor, so only part of its benefit informs the bot's attack tier.
+ const effectiveHp=hp/((1-reduction)*(1-.3*mitigation));
+ return {...bot.stats,defense,
+  hp:Math.round(2*smoothDuelTier(upperQuartile,30+hero.level*8,6)),
+  attack:Math.round(.1*smoothDuelTier(effectiveHp,120+hero.level*18,3))};
+}
+
 export function localBattle(id:string,mode:ArenaMode,build:ArenaBuild,stage:number,potions:number,now:number,rng:()=>number,loadout?:(ArenaElixir|null)[],stock?:Partial<Record<ConsumableId,number>>){
  const t=threat(stage);
  const bot:ArenaBuild={...build,hero:build.hero==='berserker'?'ranger':'berserker',
@@ -28,6 +68,7 @@ export function localBattle(id:string,mode:ArenaMode,build:ArenaBuild,stage:numb
   aura:{execute30:0,execute35:0,boss:0,opening:0,thorns:0,veil:0,killHeal:0,regen:0,firstBlock:false,
    boltEvery:0,boltPower:0,rally:0,cooldownRate:1,foeHpCut:0,heroDamage:0},followers:[],branches:[-1,-1],
  };
+ if(mode==='duel')bot.stats=duelBotStats(build,bot);
  return buildMatch(id,mode,[{id:SOLO_ACTOR,name:'Вы',hero:build.hero,level:build.level,controller:SOLO_ACTOR,
   kit:'balanced',rating:1000,potions,rankEligible:false,build,...(loadout?{loadout}:{}),...(stock?{stock}:{})}],now,rng,bot);
 }
