@@ -30,6 +30,7 @@ pg < tests/pg/w066-arena-railway.sql
 pg < tests/pg/w066-arena-potions.sql
 pg < tests/pg/w066-arena-consumables.sql
 pg < tests/pg/w066-premium-wallet.sql
+pg < tests/pg/w066-admin-access.sql
 pg <<'SQL'
 select vvr.resolve_player('84682','Premium purchase race') as player \gset
 select public.vvr_premium_credit(:'player','11111111-aaaa-4111-8111-111111111111',10);
