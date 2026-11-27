@@ -103,7 +103,7 @@ const rewards={
      }
      return route.fulfill({headers,json:{status:'ineligible'}});
     });
-    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false;
+    let balance=100,posted='',trade,chatPost,guild=null,claimed=false,equipped=null,enhanced=false,premium=15,premiumOrders=new Map(),premiumClosed=false;
     await context.route(endpoint,async route=>{
      const request=route.request();
      const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,authorization'};
@@ -160,6 +160,13 @@ const rewards={
       if(body.kind==='create')guild={id:listing,name:body.name,role:'leader',members:[{name:'Алиса',role:'leader'}],applications:[]};
       if(body.kind==='leave')guild=null;
       data={directory:[],guild};
+     }
+     if(action==='premium_wallet'){
+      const offers=[{sku:'horn-10',price:10,resource:'horn',amount:10}];
+      if(!body.sku)data={status:'ok',balance:premium,offers,...(premiumClosed?{purchaseAvailable:false}:{})};
+      else if(premiumOrders.has(body.operationId))data=premiumOrders.get(body.operationId);
+      else if(premium<10)data={status:'insufficient',balance:premium};
+      else{premium-=10;data={status:'ok',balance:premium,receipt:{...offers[0],operationId:body.operationId}};premiumOrders.set(body.operationId,data);}
      }
      if(action==='ranking')data={season:{name:'Северный сезон'},seasons:[],rows:[{rank:1,name:'Алиса',points:70,mine:true}]};
      await route.fulfill({json:data,headers});
@@ -368,6 +375,20 @@ const rewards={
      await page.getByText('Расходник добавлен в рюкзак',{exact:true}).waitFor();
      assert.equal(bought.tear,1);
      await button('Закрыть карточку').tap();
+     // B5a: account gems from the server wallet; one purchase, then not enough for a second.
+     await button('Наборы припасов').tap();
+     const premiumBox=page.getByRole('region',{name:'Самоцветы аккаунта'});
+     await premiumBox.getByText('15',{exact:true}).waitFor();
+     // B4: purchaseAvailable=false hides the action until B5.
+     premiumClosed=true;await button('Ежедневные').tap();await button('Наборы припасов').tap();
+     await premiumBox.getByText('Покупки за самоцветы аккаунта скоро откроются.').waitFor();
+     assert.equal(await premiumBox.getByRole('button').count(),0);
+     premiumClosed=false;await button('Ежедневные').tap();await button('Наборы припасов').tap();
+     await premiumBox.getByRole('button',{name:'Заряды Рога Трофеев × 10 · 10 самоцветов'}).tap();
+     await premiumBox.getByText('Получено: Заряды Рога Трофеев × 10').waitFor();
+     await premiumBox.getByText('5',{exact:true}).waitFor();
+     assert.equal(await premiumBox.getByRole('button',{name:/Заряды Рога/}).isDisabled(),true);
+     assert.equal(premiumOrders.size,1);
     }
     await button('Аукцион').tap();
     await page.getByRole('dialog',{name:'Аукцион'}).waitFor();
