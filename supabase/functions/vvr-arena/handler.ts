@@ -55,7 +55,7 @@ function buildRoster(mode:TeamMode,players:readonly string[],profiles:Ticket['ro
  return roster;
 }
 
-export function makeArenaHandler(rpc:Rpc,session:(token:string,now:number)=>Promise<string|undefined>,origin:string,clock=Date.now,rng=Math.random){
+export function makeArenaHandler(rpc:Rpc,session:(token:string,now:number)=>Promise<string|undefined>,origin:string,clock=Date.now,rng=Math.random,networkPolicy=false){
  const rooms=new TeamRoomService({
   read:(player,room)=>rpc<Ticket>('vvr_arena_room',{p_player:player,p_room:room}),
   checkpoint:(room,expected,snapshot,finished)=>rpc<number|null>('vvr_arena_checkpoint',{
@@ -86,6 +86,8 @@ export function makeArenaHandler(rpc:Rpc,session:(token:string,now:number)=>Prom
    }
    if(data.action==='join'&&size===3&&(data.mode==='team'||data.mode==='chaos')&&
      typeof data.hero==='string'&&arenaHeroes.includes(data.hero as ArenaHero)){
+    if(networkPolicy&&!await rpc<boolean>('vvr_network_policy',{p_player:player,p_feature:'arena_team'}))
+     return reply(403,{error:'network_feature_restricted'});
     const ticket=await rpc<Ticket>('vvr_arena_join',{p_player:player,p_mode:data.mode,p_hero:data.hero});
     return reply(200,await rooms.interact(player,ticket.id,now));
    }
@@ -95,6 +97,8 @@ export function makeArenaHandler(rpc:Rpc,session:(token:string,now:number)=>Prom
    if(data.action==='room'&&size===2&&uuid(data.room))return reply(200,await rooms.interact(player,data.room,now));
    if(data.action==='command'&&size===3&&uuid(data.room)){
     const move=command(data.command);
+    if(move?.kind==='chat'&&networkPolicy&&!await rpc<boolean>('vvr_network_policy',{p_player:player,p_feature:'arena_chat'}))
+     return reply(403,{error:'network_feature_restricted'});
     if(move)return reply(200,await rooms.interact(player,data.room,now,move));
    }
    return reply(400,{error:'invalid_arena_request'});

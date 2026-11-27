@@ -44,6 +44,7 @@ test('all 20 kinds spend exactly once through authenticated 1×1, 3×3 and 20×2
   let raw='';for await(const chunk of req)raw+=chunk;
   const input=JSON.parse(raw);
   const reply=(data:unknown,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data))};
+  if(req.url==='/arena-policy')return reply({allowed:true});
   if(req.url==='/arena-consumable-spending'){
    for(const {telegram,item,total} of input.entries as {telegram:string;item:ConsumableId;total:number}[]){
     const {issued,spent}=account(telegram);

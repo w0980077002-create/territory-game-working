@@ -7,13 +7,33 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_find_player','premium_wallet','equip','unequip','enhance']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_find_player','admin_status','admin_apply','premium_wallet','equip','unequip','enhance']);
+const sanctions=['chat_mute','trade_ban','network_ban'];
+const flagNames=['arena_ranked','arena_team','auction_trade','chat','world_boss','premium_shop'];
+const networkActions:Partial<Record<string,string>>={
+ auction:'auction_trade',trade:'auction_trade',chat:'chat_view',post:'chat',hide:'chat',
+ referrals:'brotherhood',brotherhood_claim:'brotherhood',
+};
 const maxInput=16_384;
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
 const isUuid=(id:unknown):id is string=>typeof id==='string'&&uuid.test(id);
 function isRecord(value:unknown):value is Record<string,unknown>{
  return !!value&&typeof value==='object'&&!Array.isArray(value);
+}
+
+function validAdmin(body:Record<string,unknown>){
+ if(Object.keys(body).length!==4||!isUuid(body.operationId)||typeof body.reason!=='string'||
+  body.reason.trim().length<3||body.reason.length>280||!isRecord(body.payload))return false;
+ const p=body.payload,keys=Object.keys(p).length;
+ if(body.kind==='flag')return keys===2&&typeof p.name==='string'&&flagNames.includes(p.name)&&typeof p.enabled==='boolean';
+ if(!isUuid(p.player))return false;
+ if(body.kind==='credit')return keys===2&&Number.isSafeInteger(p.amount)&&Number(p.amount)>0&&Number(p.amount)<=1_000_000;
+ if(body.kind==='cancel_purchase')return keys===2&&isUuid(p.purchase);
+ if(typeof p.kind!=='string'||!sanctions.includes(p.kind))return false;
+ if(body.kind==='lift')return keys===2;
+ return body.kind==='sanction'&&keys===3&&(p.expiresAt===null||typeof p.expiresAt==='string'&&
+  /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(p.expiresAt)&&Number.isFinite(Date.parse(p.expiresAt)));
 }
 
 function valid(action:string,body:Record<string,unknown>){
@@ -26,6 +46,8 @@ function valid(action:string,body:Record<string,unknown>){
   case 'premium_wallet':return keys===0||(keys===2&&isUuid(body.operationId)&&typeof body.sku==='string'&&/^[a-z0-9-]{1,48}$/.test(body.sku));
   case 'brotherhood_admin':return keys===0||(keys===1&&typeof body.enabled==='boolean');
   case 'admin_find_player':return keys===1&&typeof body.telegramId==='string'&&/^[1-9][0-9]{0,15}$/.test(body.telegramId);
+  case 'admin_status':return keys===0||keys===1&&Number.isSafeInteger(body.before)&&Number(body.before)>0;
+  case 'admin_apply':return validAdmin(body);
   case 'trade':
    if(!isUuid(body.operationId))return false;
    return body.kind==='list'?keys===4&&isUuid(body.itemId)&&typeof body.price==='number'&&
@@ -102,14 +124,18 @@ async function backup(request:Request,sessionKey:string,reply:(status:number,bod
  return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'snapshot_request_rejected'});
 }
 
-async function arenaPublisher(request:Request,kind:'profile'|'team'|'duel'|'potions'|'consumables'|'spending',reply:(status:number,body:unknown)=>Response){
+async function arenaPublisher(request:Request,kind:'profile'|'team'|'duel'|'potions'|'consumables'|'spending'|'policy',reply:(status:number,body:unknown)=>Response){
  const bearer=request.headers.get('authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
  if(!bearer)return reply(401,{error:'arena_publisher_required'});
  let data:unknown;
  try{data=await input(request,kind==='team'||kind==='spending'?16384:2048);}catch{return reply(400,{error:'invalid_arena_result'});}
  if(!isRecord(data))return reply(400,{error:'invalid_arena_result'});
  const validDate=(time:unknown)=>typeof time==='string'&&Number.isFinite(Date.parse(time));
- if(kind==='team'){
+ if(kind==='policy'){
+  if(Object.keys(data).length!==2||typeof data.telegram!=='string'||!/^[1-9][0-9]{0,15}$/.test(data.telegram)||
+   typeof data.feature!=='string'||!['arena_ranked','arena_team','arena_chat','brotherhood'].includes(data.feature))
+   return reply(400,{error:'invalid_arena_policy'});
+ }else if(kind==='team'){
   if((Object.keys(data).length!==7&&!(Object.keys(data).length===8&&data.local===true))||!isUuid(data.match)||!['team','chaos'].includes(String(data.mode))||
    !validDate(data.startedAt)||!validDate(data.finishedAt)||!['hp','time','afk'].includes(String(data.reason))||
    ![0,1,null].includes(data.winner as number|null)||!Array.isArray(data.members))
@@ -129,8 +155,18 @@ async function arenaPublisher(request:Request,kind:'profile'|'team'|'duel'|'poti
  }
  const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(bearer)));
  const tokenHash=Array.from(hash,byte=>byte.toString(16).padStart(2,'0')).join('');
+ if(kind==='policy'){
+  const result=await rpc('vvr_network_policy',{p_feature:data.feature,p_telegram:data.telegram,p_token_hash:tokenHash});
+  return result.ok?reply(200,{allowed:result.data===true}):reply(rpcError(result.data),{error:'arena_policy_rejected'});
+ }
  if(kind==='team'){
   if(data.local===true){
+   const member=data.members[0];
+   if(data.members.length!==1||!isRecord(member)||typeof member.telegram!=='string'||
+    !/^[1-9][0-9]{0,15}$/.test(member.telegram))return reply(400,{error:'invalid_arena_result'});
+   const policy=await rpc('vvr_network_policy',{p_feature:'brotherhood',p_telegram:member.telegram,p_token_hash:tokenHash});
+   if(!policy.ok)return reply(rpcError(policy.data),{error:'arena_policy_rejected'});
+   if(policy.data!==true)return reply(200,{accepted:true});
    const result=await rpc('vvr_ingest_arena_oath',{
     p_token_hash:tokenHash,p_match:data.match,p_mode:data.mode,p_started:data.startedAt,p_finished:data.finishedAt,
     p_reason:data.reason,p_members:data.members,
@@ -177,7 +213,7 @@ Deno.serve(async request=>{
  const path=new URL(request.url).pathname;
  const publisherRoutes={
   'arena-result':'duel','arena-profile':'profile','arena-team-result':'team','arena-potions':'potions',
-  'arena-consumables':'consumables','arena-consumable-spending':'spending',
+  'arena-consumables':'consumables','arena-consumable-spending':'spending','arena-policy':'policy',
  } as const;
  const route=path.slice(path.lastIndexOf('/')+1);
  if(Object.hasOwn(publisherRoutes,route)){
@@ -200,7 +236,10 @@ Deno.serve(async request=>{
    if(!identity)return reply(401,{error:'telegram_required'});
    const inviter=identity.startParam?.startsWith('ref_')?identity.startParam.slice(4):undefined;
    const args={p_telegram:identity.telegramId,p_name:identity.displayName};
-   const {ok,data}=isUuid(inviter)
+   const canRefer=isUuid(inviter)&&await rpc('vvr_network_policy',{
+    p_feature:'brotherhood',p_telegram:identity.telegramId,
+   }).then(policy=>policy.ok&&policy.data===true,()=>false);
+   const {ok,data}=canRefer
     ?await rpc('vvr_resolve_referred_player',{...args,p_inviter:inviter})
     :await rpc('vvr_resolve_player',args);
    if(!ok||!isUuid(data))return reply(503,{error:'unavailable'});
@@ -209,9 +248,22 @@ Deno.serve(async request=>{
   const auth=request.headers.get('authorization');
   const player=auth?.startsWith('Bearer ')?await readVvrSession(auth.slice(7),sessionKey,now):undefined;
   if(!player)return reply(401,{error:'session_required'});
+  const feature=networkActions[value.action];
+  if(feature){
+   const policy=await rpc('vvr_network_policy',{p_feature:feature,p_player:player});
+   if(!policy.ok)return reply(503,{error:'network_policy_unavailable'});
+   if(policy.data!==true)return reply(403,{error:'network_feature_restricted'});
+  }
   if(value.action==='admin_find_player'){
    const result=await rpc('vvr_admin_find_player',{p_actor:player,p_telegram:value.body.telegramId});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'admin_search_rejected'});
+  }
+  if(value.action==='admin_status'||value.action==='admin_apply'){
+   const result=value.action==='admin_status'
+    ?await rpc('vvr_admin_status',{p_actor:player,p_before:value.body.before??null})
+    :await rpc('vvr_admin_apply',{p_actor:player,p_operation:value.body.operationId,
+      p_kind:value.body.kind,p_reason:value.body.reason,p_payload:value.body.payload});
+   return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'admin_request_rejected'});
   }
   if(value.action==='premium_wallet'){
    const result=await rpc('vvr_premium_wallet',{p_player:player,p_operation:value.body.operationId??null,p_sku:value.body.sku??null});

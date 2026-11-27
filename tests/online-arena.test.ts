@@ -211,13 +211,15 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
  let now=start;
  const credential='a'.repeat(64);
  const profileRequests:string[]=[];
+ let muted=false;
  const publisher=createServer(async(req,res)=>{
   const chunks:Buffer[]=[];
   for await(const chunk of req)chunks.push(chunk);
   const body=JSON.parse(Buffer.concat(chunks).toString());
   assert.equal(req.headers.authorization,'Bearer '+credential);
   res.setHeader('Content-Type','application/json');
-  if(req.url==='/arena-profile'){
+  if(req.url==='/arena-policy')res.end(JSON.stringify({allowed:!(muted&&body.feature==='arena_chat'&&body.telegram==='1')}));
+  else if(req.url==='/arena-profile'){
    assert.deepEqual(Object.keys(body).sort(),['name','telegram']);
    profileRequests.push(body.telegram);
    res.end(JSON.stringify({attack:body.telegram==='1'?130:100}));
@@ -289,6 +291,9 @@ test('two authenticated HTTP identities finish a real duel, rejoin, and keep roo
   assert.equal((await one('state')).data.match.opponent.name,'Герой 2');
   assert.equal((await stranger('room?match='+id)).status,404);
   assert.equal((await stranger('chat',{match:id,text:'Вне комнаты'})).status,404);
+  muted=true;
+  assert.equal((await one('chat',{match:id,text:'Чат закрыт'})).status,403);
+  muted=false;
   assert.equal((await one('chat',{match:id,text:'https://t.me/abc'})).status,400);
   const chatReplies=await Promise.all([1,2].map(()=>one('chat',{match:id,text:'Хорошего боя'})));
   assert.deepEqual(chatReplies.map(reply=>reply.status).sort(),[200,429]);

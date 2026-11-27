@@ -32,7 +32,7 @@ type Replay=(hero:HeroClass,seed:number,commands:NonNullable<ReturnType<typeof p
  =>{ticks:number;player:Player}|null;
 type GiftItem=(operation:string,context:unknown)=>unknown;
 
-export function makeCampaignHandler(rpc:Rpc,readPlayer:ReadPlayer,verify:Verify,origin:string,giftItem?:GiftItem,replay?:Replay){
+export function makeCampaignHandler(rpc:Rpc,readPlayer:ReadPlayer,verify:Verify,origin:string,giftItem?:GiftItem,replay?:Replay,networkPolicy=false){
  return async (request:Request):Promise<Response>=>{
   const headers={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'content-type,authorization',
    'Access-Control-Allow-Methods':'POST,OPTIONS','Cache-Control':'no-store','Content-Type':'application/json',Vary:'Origin'};
@@ -48,6 +48,9 @@ export function makeCampaignHandler(rpc:Rpc,readPlayer:ReadPlayer,verify:Verify,
    const input=await jsonInput(request);
    if(!record(input))return reply(400,{error:'invalid_request'});
    const keys=Object.keys(input).length;
+   if(networkPolicy&&(input.action==='horn_open'||input.action==='solo_open')&&
+    await rpc('vvr_network_policy',{p_player:player,p_feature:'brotherhood'})!==true)
+    return reply(403,{error:'network_feature_restricted'});
    if(input.action==='horn_state'&&keys===1){
     return reply(200,await rpc('vvr_brotherhood_horn',{p_player:player,p_action:'state'}));
    }
