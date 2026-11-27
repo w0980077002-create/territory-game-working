@@ -320,3 +320,8 @@
 /* Treasure shop: 9 categories (with «Зелья и эликсиры») sit in two even rows. */
 .treasure-shop .shop-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .treasure-shop .shop-tabs > button { font-size: 9.5px; letter-spacing: -.1px; hyphens: auto; }
+
+/* First start: the axes pulse until the very first fight begins. */
+.bottom .central.first-start { animation: first-start-pulse 1.4s ease-in-out infinite; }
+@keyframes first-start-pulse { 0%,100% { filter: drop-shadow(0 0 0 rgba(255,214,120,0)); } 50% { filter: drop-shadow(0 0 14px rgba(255,214,120,.95)); } }
+@media (prefers-reduced-motion: reduce) { .bottom .central.first-start { animation: none; filter: drop-shadow(0 0 10px rgba(255,214,120,.9)); } }
