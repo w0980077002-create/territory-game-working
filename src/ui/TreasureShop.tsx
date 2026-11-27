@@ -8,6 +8,7 @@ import {Icon,gearIcon} from './Icon';
 import {CompactFilter} from './CompactFilter';
 import {RewardArt, rewardParts} from './RewardArt';
 import {ArenaRequestError,consumablesRequest,signedArena,type ConsumableOperation} from '../arena/client';
+import {buyPremiumOffer,communityEnabled,CommunityError,readPremiumWallet,type PremiumOffer,type PremiumWallet} from '../community/client';
 import {consumableIds,consumableStock,type ConsumableId,type ConsumablesQuote} from '../arena/potion';
 /** Shop id → Arena consumable kind (the potion keeps its old id `arena-potion`). */
 const arenaKind=(id:string)=>consumableIds.find(kind=>id===(kind==='potion'?'arena-potion':'arena-'+kind)) as ConsumableId|undefined;
@@ -26,6 +27,44 @@ const limitText = (offer: ShopOffer) => offer.limit === 'daily' ? 'Одна по
   : offer.limit === 'weekly' ? 'Одна покупка в неделю · с понедельника 00:00 UTC'
   : offer.limit === 'once' ? 'Одна покупка на героя' : arenaKind(offer.id)?'Одна порция за покупку':'Количество зависит от свободного места в Роге';
 
+const premiumNames:Record<string,string>={horn:'Заряды Рога Трофеев'};
+const premiumKey=SAVE_KEY+':premium-operation';
+/** B5a: account gems kept by the server (W066). Shown only to signed players; Stars top-up arrives with B5. */
+function PremiumGems(){
+ const [wallet,setWallet]=useState<PremiumWallet>(),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ useEffect(()=>{
+  let active=true;
+  readPremiumWallet().then(value=>{if(active)setWallet(value)})
+   .catch(error=>{if(active)setMessage(error instanceof CommunityError&&error.status===401?'Самоцветы аккаунта доступны после входа через Telegram':'Кошелёк самоцветов временно недоступен')});
+  return ()=>{active=false};
+ },[]);
+ async function buy(offer:PremiumOffer){
+  if(busy)return;
+  let pending:{sku:string;operationId:string}|null=null;
+  try{pending=JSON.parse(sessionStorage.getItem(premiumKey)??'null')}catch{/* fresh operation */}
+  const order=pending?.sku===offer.sku?pending:{sku:offer.sku,operationId:crypto.randomUUID()};
+  try{sessionStorage.setItem(premiumKey,JSON.stringify(order))}catch{/* retry stays possible in this dialog */}
+  setBusy(true);setMessage('');
+  try{
+   const result=await buyPremiumOffer(order.sku,order.operationId);
+   if(result.status==='ok')setMessage(`Получено: ${premiumNames[result.receipt.resource]??result.receipt.resource} × ${result.receipt.amount}`);
+   else setMessage('Недостаточно самоцветов аккаунта');
+   setWallet(current=>current&&{...current,balance:result.balance});
+   try{sessionStorage.removeItem(premiumKey)}catch{/* nothing to clear */}
+  }catch(error){
+   if(error instanceof CommunityError&&[400,409,422].includes(error.status))try{sessionStorage.removeItem(premiumKey)}catch{/* nothing to clear */}
+   setMessage('Не удалось подтвердить покупку · попробуйте ещё раз');
+  }finally{setBusy(false)}
+ }
+ return <section className="premium-gems" aria-label="Самоцветы аккаунта">
+  <header><Icon name="gem"/><strong>Самоцветы аккаунта</strong>{wallet&&<b>{wallet.balance.toLocaleString('ru')}</b>}</header>
+  <p className="hint">Хранятся на сервере и не теряются при смене устройства. Пополнение через Telegram Stars появится позже.</p>
+  {wallet&&<div className="premium-offers">{wallet.offers.map(offer=><button key={offer.sku} type="button" className="action secondary"
+   disabled={busy||wallet.balance<offer.price} onClick={()=>void buy(offer)}>
+   {`${premiumNames[offer.resource]??offer.resource} × ${offer.amount} · ${offer.price} самоцветов`}</button>)}</div>}
+  {message&&<p role="status">{message}</p>}
+ </section>;
+}
 function NetworkConsumable({item,localStock}:{item:ConsumableId;localStock:number}){
  const operationKey=SAVE_KEY+':network-'+item+'-operation';
  const [quote,setQuote]=useState<ConsumablesQuote>(),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
@@ -107,6 +146,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
     <div className="shop-counter">
       <div className="shop-sign"><strong>Прилавок<br/>северного купца</strong><span>Новые товары в 00:00 UTC</span></div>
     </div>
+    {communityEnabled&&signed&&category==='supplies'&&<PremiumGems/>}
     <div className="shop-wallet">
       {Object.entries(shopCurrencies).map(([id, def]) => {
         const amount = p[id as keyof typeof shopCurrencies];

@@ -104,5 +104,13 @@
  "Хаос": "Chaos",
  "Боевой пояс": "Battle belt",
  "{0} · ур.{1} · +{2} · ↑ в рюкзаке +{3} силы": "{0} · Lv.{1} · +{2} · ↑ in backpack +{3} power",
- "Нажмите топоры внизу — начать бой": "Tap the axes below to start the battle"
+ "Нажмите топоры внизу — начать бой": "Tap the axes below to start the battle",
+ "Самоцветы аккаунта": "Account gems",
+ "Хранятся на сервере и не теряются при смене устройства. Пополнение через Telegram Stars появится позже.": "Kept on the server and never lost when you switch devices. Top-up with Telegram Stars is coming later.",
+ "Заряды Рога Трофеев × {0} · {1} самоцветов": "Trophy Horn charges × {0} · {1} gems",
+ "Получено: {0} × {1}": "Received: {0} × {1}",
+ "Недостаточно самоцветов аккаунта": "Not enough account gems",
+ "Не удалось подтвердить покупку · попробуйте ещё раз": "Could not confirm the purchase · try again",
+ "Самоцветы аккаунта доступны после входа через Telegram": "Account gems are available after signing in with Telegram",
+ "Кошелёк самоцветов временно недоступен": "The gem wallet is temporarily unavailable"
 }
