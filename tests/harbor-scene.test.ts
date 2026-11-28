@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 const app=readFileSync(new URL('../src/ui/App.tsx',import.meta.url),'utf8');
 const collection=readFileSync(new URL('../src/ui/CollectionStatus.tsx',import.meta.url),'utf8');
 const art=readFileSync(new URL('../src/ui/HarborScene.tsx',import.meta.url),'utf8');
+const naval=readFileSync(new URL('../src/ui/NavalPanel.tsx',import.meta.url),'utf8');
 const css=readFileSync(new URL('../src/ui/harbor.css',import.meta.url),'utf8');
 test('port routes to the existing game panels',()=>{
  assert.match(app,/panel==='port'&&/);
@@ -15,7 +16,10 @@ test('shipyard displays only saved ships, offers selection and keeps the real tr
  assert.match(app,/ships=\{fleet\.ships\}/);
  assert.match(art,/const ship = ships\[index\]/);
  assert.match(art,/onChooseShip\?\.\(ship\.id\)/);
- for(const action of ['claim','buy','upgrade'])assert.ok(app.includes("shipAction('"+action+"'"));
+ assert.match(art,/length:NAVAL.maxShips/);
+ assert.match(app,/shipAction\('claim'\)/);
+ assert.match(app,/<NavalPanel fleet=\{fleet\} ship=\{currentShip\}/);
+ assert.match(naval,/mutate\(draft => applyNaval\(draft, action, Date\.now\(\)\), true\)/);
 });
 test('painted mobile harbor has accessible controls and reduced motion',()=>{
  assert.match(art,/aria-pressed=/);

@@ -368,7 +368,7 @@ let browser;
     for(const label of ['Кузница','Верфь','Рюкзак','Спутники','Реликвии'])assert.equal(await harbor.getByRole('button',{name:label,exact:true}).count(),1);
     await harbor.getByRole('button',{name:'Кузница',exact:true}).click();await page.getByRole('button',{name:'Создание',exact:true}).click();await page.getByRole('button',{name:'Экипировка',exact:true}).click();await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();
     for(const [label,target] of [['Спутники','companions'],['Реликвии','relic'],['Царство тьмы','realm'],['Тёмная энергия','darkgear'],['Камни','gems'],['Благословение','blessing'],['Таланты','talents']]){await harbor.getByRole('button',{name:label,exact:true}).click();await page.locator(`[data-panel="${target}"]`).waitFor();if(target==='realm')assert.equal(await page.locator('[data-panel="realm"] .modal-header button').count(),1,'one return to the harbor');await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();}
-    await harbor.getByRole('button',{name:'Верфь',exact:true}).click();assert.ok(await page.getByRole('button',{name:/Построить драккар/}).isVisible());await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();
+    await harbor.getByRole('button',{name:'Верфь',exact:true}).click();assert.ok(await page.getByRole('button',{name:/Построить корабль/}).isVisible());await page.getByRole('button',{name:'‹ В гавань',exact:true}).click();
    }
    await page.getByRole('button',{name:'Закрыть',exact:true}).click();assert.equal(await page.locator('.saga-modal').count(),0);await open(page,panel);
   }

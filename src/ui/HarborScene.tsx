@@ -1,9 +1,10 @@
 import type {CSSProperties} from 'react';
 import {Icon} from './Icon';
 import './harbor.css';
+import {NAVAL, HULLS} from '../core/navalBalance';
+import type {Ship} from '../core/shipyard';
 import './harborLife.css';
 
-type Ship = {id: string; level: number};
 const buildings = [
   {id:'blessing',label:'Благословение',icon:'crown',x:17,y:18,color:'gold'},
   {id:'talents',label:'Таланты',icon:'skill',x:50,y:31,color:'gold'},
@@ -33,14 +34,14 @@ export function HarborScene({view,ships,selectedShipId,onNavigate,onChooseShip,b
     <div className="harbor-reflections" aria-hidden="true"/>
     {yard && <div className="harbor-glints" aria-hidden="true"/>}
     {yard ? <div className="harbor-berths">
-      {[0,1,2].map(index => {
+      {Array.from({length:NAVAL.maxShips}, (_,index) => {
         const ship = ships[index];
         return ship ? <button key={ship.id} className="harbor-boat-pick" type="button"
           aria-pressed={selectedShipId === ship.id}
-          aria-label={'Выбрать драккар ' + (index + 1) + ', уровень ' + ship.level}
+          aria-label={`Причал ${index + 1} · ${HULLS[ship.hull ?? 'scout'].name}, уровень ${ship.level}`}
           onClick={() => onChooseShip?.(ship.id)}>
           <Icon name="ship" className="harbor-bob"/>
-          <span>Драккар {index + 1}<b>ур. {ship.level}</b></span>
+          <span>Судно {index + 1}<b>ур. {ship.level}</b></span>
         </button> : <div key={index} className="harbor-empty"><span>Причал {index + 1}</span></div>;
       })}
     </div> : <>

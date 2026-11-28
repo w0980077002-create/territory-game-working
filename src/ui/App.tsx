@@ -1,3 +1,4 @@
+import {NavalPanel} from './NavalPanel';
 import {forgeLevel,forgeMasteryBonus} from '../core/forge';
 import {GameTabs} from './CompactGame';
 import {LairPanel} from './LairPanel';
@@ -11,13 +12,13 @@ import {GiftHorn} from './GiftHorn';
 import {hornRefillDue} from '../core/store';
 import {CompactFilter} from './CompactFilter';
 import {Backpack,type BackpackTab,type BackpackView} from './Backpack';
-import {DialogShell,HeroPortrait,TrophyReveal,ForgeEcho,LevelUpFeedback,TAP_GUARD_MS} from './SagaUI';
+import {Action,DialogShell,HeroPortrait,TrophyReveal,ForgeEcho,LevelUpFeedback,TAP_GUARD_MS} from './SagaUI';
 import {AutobattleDialog} from './AutobattleDialog';
 import {InventoryGrid} from './InventoryGrid';
 import {ItemDetails,EffectComparison,SharpenedComparison,UpgradePlan,BuildGuide,HuntGoals,StatDelta,QuickSwap} from './GearDetails';
 import {useEffect,useRef,useState} from 'react';
 import {useGame,compareItem,bestUpgrade,bestUpgrades,refill,backupCloud,acknowledgeCloud,finishInitialCloudRead,restoreInitialCloudProfile,isKnownCloud,parseSave,SAVE_KEY,hornPurchase,isolatedProfile,unreadableSave,requiresSalvageConfirmation,salvageRestriction,salvageYield,campaignBossReward,guaranteedBossTrophy} from '../core/store';
-import {SHIP_RULES,starterShipyard,previewShips,shipCollection,shipRate,shipCapacity,shipBuyCost,shipUpgradeCost} from '../core/shipyard';
+import {SHIP_RULES,starterShipyard,previewShips,shipCollection,shipRate,shipCapacity} from '../core/shipyard';
 import {TreasureShop} from './TreasureShop';
 import {HarborScene} from './HarborScene';
 import {CollectionStatus,MineCollection,useCollectionClock} from './CollectionStatus';
@@ -80,7 +81,6 @@ const campaignGoal=(stage:number)=>{
 };
 const modeNames:Record<string,string>={campaign:'Глава',farm:'Фарм',dungeon:'Логово',darkness:'Тьма',arena:'Арена'};
 const fmt=(v:number)=>v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e4?`${(v/1000).toFixed(1)}K`:Math.round(v).toLocaleString('ru');
-function Action({children,onClick,disabled=false,kind=''}:{children:React.ReactNode;onClick:()=>void;disabled?:boolean;kind?:string}){return <button className={`action ${kind}`} onClick={onClick} disabled={disabled}>{children}</button>}
 function Row({icon,title,detail,children}:{icon:string;title:string;detail?:string;children?:React.ReactNode}){return <div className="row"><Icon name={icon}/><div className="row-content"><strong>{title}</strong>{detail&&<small>{detail}</small>}</div>{children}</div>}
 function Gear({slot,item,better,onClick}:{slot:Slot;item?:Item;better?:boolean;onClick:()=>void}){return <button className={`gear gear-${slot} ${!item?'empty':''}${better?' has-better':''}`} style={{'--rarity':item?rarityColors[item.rarity]:'#7a92a1'} as React.CSSProperties} onClick={onClick} aria-label={`${slotNames[slot]}${item?` уровень ${item.level}, усиление ${item.upgrade}`:' · не надето'}${better?' · в рюкзаке есть сильнее':''}`}><span className="gear-face" aria-hidden="true"><Icon name={gearIcon(slot,item)}/>{better&&<i className="gear-better" aria-hidden="true">▲</i>}<span>{item?<><i>ур.</i>{item.level}{item.upgrade?<> <b>+{item.upgrade}</b></>:null}</>:slot==='wings'?'Получить крылья':'Пусто'}</span></span></button>}
 function Side({icon,label,panel,style,badge=false}:{icon:string;label:string;panel:string;style:React.CSSProperties;badge?:boolean}){const open=useGame(s=>s.open);return <button className={`side${style.right!==undefined?' side-right':''}${icon==='menu'?' side-menu':''}`} style={style} aria-label={label||titles[panel]||panel} onClick={()=>open(panel)}><span className="side-medal">{icon==='menu'?<img className="icon illustrated forge-menu-art" src={new URL('../../public/art/interface/forge-menu.svg',import.meta.url).href} alt="" aria-hidden="true" draggable={false}/>:<Icon name={icon}/>} {badge&&<i>!</i>}</span><span>{label}</span></button>}
@@ -335,7 +335,7 @@ function FirstRegionTip({p,onOpen}:{p:Player;onOpen:()=>void}){
 function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestTab)=>void}){const g=useGame(),p=g.p,panel=g.panel!,s=stats(p);const currentLegend=campaignGoal(p.stage);const chapterReward=<div className="chapter-claim"><span><Icon name="scroll"/> {p.bosses>p.mission?'Награда · '+(campaignGoal(p.mission+1)??stageLabel(p.mission+1)):'Следующий босс · '+(currentLegend??stageLabel(p.stage))}{p.bosses>p.mission&&<RewardArt reward={chapterRewardFor(p.mission)}/>}</span><Action disabled={p.bosses<=p.mission} onClick={()=>g.claim('mission',p.mission)}>Получить награду</Action></div>;const shipClock=useCollectionClock(panel==='port'||panel==='shipyard');
  const {fleet,amount:claimable,waitMs:shipWait,progress:shipProgress}=shipCollection(p.shipyard??starterShipyard(shipClock),shipClock);
  const shipLimit=(p.redDiamonds??0)+claimable>1_000_000_000;
- const buildCost=shipBuyCost(fleet.ships.length);const [selectedShipId,setSelectedShipId]=useState('drakkar-1');const currentShip=fleet.ships.find(s=>s.id===selectedShipId)??fleet.ships[0];const [forgeTab,setForgeTab]=useState('forge');const [harborHelp,setHarborHelp]=useState(false);const [classOpen,setClassOpen]=useState(false);const [backpackTab,setBackpackTab]=useState<BackpackTab>('pack');const [filter,setFilter]=useState<LootFilter>('all');const [order,setOrder]=useState('power');const [confirmHero,setConfirmHero]=useState(false);const newHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Сначала сохраните текущего героя · проверьте место в браузере');return}const id='hero-'+Date.now().toString(36);const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const openHero=(id:string)=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const mainHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';if(mailAcceptanceProfile)url.searchParams.set('hero','');location.assign(url.href)};const purchase=hornPurchase(p);const slot=panel==='wings'?'wings':panel.startsWith('gear:')?panel.split(':')[1] as Slot:undefined;const item=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.id===g.selected);const old=slot?p.equipment[slot]:item?p.equipment[item.slot]:undefined;const isTrophy=!!item&&p.rewardOffer?.itemId===item.id&&!p.rewardOffer.resolved;const finish=()=>{if(useGame.getState().p.rewardOffer?.resolved){g.open(null);battle?.continueAfterLoot()}};
+ const [selectedShipId,setSelectedShipId]=useState('drakkar-1');const currentShip=fleet.ships.find(s=>s.id===selectedShipId)??fleet.ships[0];const [forgeTab,setForgeTab]=useState('forge');const [harborHelp,setHarborHelp]=useState(false);const [classOpen,setClassOpen]=useState(false);const [backpackTab,setBackpackTab]=useState<BackpackTab>('pack');const [filter,setFilter]=useState<LootFilter>('all');const [order,setOrder]=useState('power');const [confirmHero,setConfirmHero]=useState(false);const newHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Сначала сохраните текущего героя · проверьте место в браузере');return}const id='hero-'+Date.now().toString(36);const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const openHero=(id:string)=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';url.searchParams.set('hero',id);location.assign(url.href)};const mainHero=()=>{battle?.pause();g.persist();if(useGame.getState().storageError){g.notice('Не удалось сохранить героя · используйте экспорт');return}const url=new URL(location.href);url.search='';if(mailAcceptanceProfile)url.searchParams.set('hero','');location.assign(url.href)};const purchase=hornPurchase(p);const slot=panel==='wings'?'wings':panel.startsWith('gear:')?panel.split(':')[1] as Slot:undefined;const item=[...p.inventory,...(p.pendingLoot??[])].find(i=>i.id===g.selected);const old=slot?p.equipment[slot]:item?p.equipment[item.slot]:undefined;const isTrophy=!!item&&p.rewardOffer?.itemId===item.id&&!p.rewardOffer.resolved;const finish=()=>{if(useGame.getState().p.rewardOffer?.resolved){g.open(null);battle?.continueAfterLoot()}};
  const scrollMemory=useRef(new Map<string,number>()).current;
  const [packView,setPackView]=useState<BackpackView>({filter:'all',order:'newest'});
  const gearBack=panel==='item'&&g.back?g.leaveItem:slot?()=>g.open('equipment'):undefined;
@@ -445,16 +445,13 @@ function Panel({questTab,setQuestTab}:{questTab:QuestTab;setQuestTab:(tab:QuestT
  {panel==='shipyard'&&<>
   <HarborScene view="shipyard" ships={fleet.ships} selectedShipId={currentShip.id} onChooseShip={setSelectedShipId}/>
   <div className="harbor-economy"><strong className="content-with-icon"><Icon name="red-diamond"/>{fmt(p.redDiamonds??0)} красных алмазов</strong><span>Добыча: {shipRate(fleet)}/час · запас: {shipCapacity(fleet)}</span></div>
-  <details className="saga-disclosure"><summary>На кораблях · {(Math.floor(fleet.stored*100)/100).toFixed(2)}</summary><p>Драккары добывают алмазы и вне игры. Запас рассчитан на 12 часов.</p></details>
+  <details className="saga-disclosure"><summary>На кораблях · {(Math.floor(fleet.stored*100)/100).toFixed(2)}</summary><p>Драккары старого флота добывают игровые красные алмазы и вне игры. Запас рассчитан на 12 часов.</p></details>
   {shipLimit?<p className="hint">Достигнут лимит алмазов. Обменяйте часть запаса у корабельщика.</p>:<CollectionStatus title="Следующий алмаз" waitMs={shipWait} progress={shipProgress} readyText={`К сбору · ${claimable} красных алмазов`}/>}
   <Action disabled={claimable<=0||shipLimit} onClick={()=>g.shipAction('claim')}>{claimable>0?'Забрать '+claimable+' красных алмазов':'Добыча продолжается'}</Action>
   <Row icon="red-diamond" title="Обмен у корабельщика" detail={`${SHIP_RULES.sealPrice} красных алмазов → 1 печать призыва для спутников`}>
     <Action disabled={(p.redDiamonds??0)<SHIP_RULES.sealPrice} onClick={()=>g.shipAction('trade')}>{(p.redDiamonds??0)<SHIP_RULES.sealPrice?`Нужно ${SHIP_RULES.sealPrice} алмазов`:`Обменять · ${SHIP_RULES.sealPrice} алмазов`}</Action>
   </Row>
-  <Row icon="ship" title={'Драккар '+currentShip.id.split('-')[1]+' · ур. '+currentShip.level} detail={'Приносит '+currentShip.level+' алмазов/час'}>
-    <Action disabled={shipUpgradeCost(currentShip.level)===null||p.gold<(shipUpgradeCost(currentShip.level)??Infinity)} onClick={()=>g.shipAction('upgrade',currentShip.id)}>{shipUpgradeCost(currentShip.level)===null?'Макс. уровень':'Улучшить · '+shipUpgradeCost(currentShip.level)+' зол.'}</Action>
-  </Row>
-  <Action disabled={buildCost===null||p.gold<(buildCost??Infinity)} onClick={()=>g.shipAction('buy')}>{buildCost===null?'Все три корабля построены':'Построить драккар · '+buildCost+' золота'}</Action>
+  <NavalPanel fleet={fleet} ship={currentShip} now={shipClock}/>
  </>}
  {panel==='relic'&&<RelicsPanel p={p}/>}
  {panel==='lair'&&<LairPanel p={p}/>}
