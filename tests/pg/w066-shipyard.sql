@@ -72,7 +72,11 @@ begin
  assert public.vvr_shipyard_paid(stranger,'cosmetic',ship)->>'status'='unavailable';
  assert public.vvr_shipyard_paid(buyer,'cosmetic',ship)->>'status'='ok';
  assert public.vvr_shipyard_paid(buyer,'cosmetic',ship)->>'status'='ok';
- assert public.vvr_shipyard_paid(buyer,'state')@>'{"blue":100,"cosmetic":true}';
+ assert public.vvr_shipyard_paid(buyer,'state')@>'{"blue":100,"cosmetic":true,"planner":false}';
+ assert public.vvr_shipyard_paid(stranger,'planner',ship)->>'status'='unavailable';
+ assert public.vvr_shipyard_paid(buyer,'planner',ship)->>'status'='ok';
+ assert public.vvr_shipyard_paid(buyer,'planner',ship)->>'status'='ok';
+ assert public.vvr_shipyard_paid(buyer,'state')@>'{"blue":0,"cosmetic":true,"planner":true}';
  assert public.vvr_shipyard_paid(buyer,'state')->>'gold'='295';
  begin
   perform public.vvr_stars_refund_begin(owner_id,ship);
@@ -94,8 +98,9 @@ begin
  assert public.vvr_shipyard_refunded(ship,'51002','shipyard-charge-a',250);
  assert public.vvr_shipyard_order(buyer,'scout')->>'status'='unavailable';
  assert public.vvr_shipyard_refunded(ship,'51002','shipyard-charge-a',250);
- assert public.vvr_shipyard_paid(buyer,'state')@>'{"blue":0,"cosmetic":false,"gold":295}';
+ assert public.vvr_shipyard_paid(buyer,'state')@>'{"blue":0,"cosmetic":false,"planner":false,"gold":295}';
  assert public.vvr_shipyard_paid(buyer,'cosmetic',ship)->>'status'='unavailable';
+ assert public.vvr_shipyard_paid(buyer,'planner',ship)->>'status'='unavailable';
  reset role;
  select count(*) into balance from vvr.finance_ledger where kind='stars_refund' and ref='shipyard-charge-c';
  assert balance=1;

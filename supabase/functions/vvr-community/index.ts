@@ -60,7 +60,7 @@ function valid(action:string,body:Record<string,unknown>){
   case 'shipyard_invoice':return keys===1&&typeof body.hull==='string'&&['scout','merchant','warship','dragon','odin'].includes(body.hull);
   case 'shipyard_paid':
    if(body.kind==='state')return keys===1;
-   if(body.kind==='cosmetic')return keys===2&&isUuid(body.order);
+   if(body.kind==='cosmetic'||body.kind==='planner')return keys===2&&isUuid(body.order);
    if(!isUuid(body.order)||!Number.isSafeInteger(body.version)||Number(body.version)<1||Number(body.version)>2147483647)return false;
    if(body.kind==='launch')return keys===4&&[1,4,8,12,24].includes(Number(body.hours))&&typeof body.hours==='number';
    if(body.kind==='outfit')return keys===4&&typeof body.rig==='string'&&['sails','nets','pennant'].includes(body.rig);

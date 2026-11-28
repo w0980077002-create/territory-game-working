@@ -88,7 +88,7 @@ export async function handleStarsAction(action:string,body:Record<string,unknown
   const order=r.data as {status:string;order?:string;title?:string;stars?:number;gems?:number;kind?:string};
   if(order.status!=='ok')return reply(200,order);
   const link=await botApi(botToken,'createInvoiceLink',{title:order.title,
-   description:order.kind==='ship'?'Корабль на аккаунт за 250 Stars. Разбор через 21 день. Компенсация действует в морской косметике. Возврат: /paysupport.':order.kind==='support'?'Добровольная поддержка разработки игры.':`${order.gems} самоцветов на аккаунт VIKING VS ROME.`,
+   description:order.kind==='ship'?'Корабль на аккаунт за 250 Stars. Разбор через 21 день. Компенсация действует на морскую косметику и планировщик. Возврат: /paysupport.':order.kind==='support'?'Добровольная поддержка разработки игры.':`${order.gems} самоцветов на аккаунт VIKING VS ROME.`,
    payload:order.order,currency:'XTR',prices:[{label:order.title,amount:order.stars}]});
   return link.ok?reply(200,{status:'ok',link:link.result,order:order.order}):reply(503,{error:'invoice_failed'});
  }

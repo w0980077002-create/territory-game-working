@@ -6,7 +6,7 @@ import {tg} from '../core/telegram';
 import {Action} from './SagaUI';
 
 type PaidState = {
-  open: boolean; blue: number; cosmetic: boolean; cosmeticOrder: string|null; gold: number; materials: number; seals: number;
+  open: boolean; blue: number; cosmetic: boolean; cosmeticOrder: string|null; planner: boolean; plannerOrder: string|null; gold: number; materials: number; seals: number;
   ship: null | {order: string; hull: Hull; level: number; version: number; state: 'pending'|'active'|'refunding';
     repair: number; rig?: Rig; salvageAt: string|null; voyage: null | {hours: number; endsAt: string}};
 };
@@ -42,7 +42,7 @@ export function PaidNavalPanel({hull, now, localFleetSize, onReserved}: {
     return () => controller.abort();
   }, [load]);
 
-  if (!state || (!state.open && !state.ship && !state.gold && !state.materials && !state.seals && !state.blue && !state.cosmetic)) return null;
+  if (!state || (!state.open && !state.ship && !state.gold && !state.materials && !state.seals && !state.blue && !state.cosmetic && !state.planner)) return null;
 
   async function buy() {
     const app = tg();
@@ -69,7 +69,8 @@ export function PaidNavalPanel({hull, now, localFleetSize, onReserved}: {
 
   async function perform(kind: string, extra: object = {}) {
     const ship = state?.ship;
-    const command = kind === 'cosmetic' && state?.cosmeticOrder ? {kind,order:state.cosmeticOrder}
+    const purchaseOrder = kind === 'cosmetic' ? state?.cosmeticOrder : kind === 'planner' ? state?.plannerOrder : undefined;
+    const command = purchaseOrder ? {kind,order:purchaseOrder}
       : ship?.state === 'active' ? {kind,order:ship.order,version:ship.version,...extra} : null;
     if (busy || !command) return;
     setBusy(true);
@@ -99,7 +100,16 @@ export function PaidNavalPanel({hull, now, localFleetSize, onReserved}: {
     {(state.blue>0 || state.cosmetic) && <p>Синие алмазы Верфи · {state.blue}</p>}
     {state.cosmetic ? <strong className="content-with-icon"><span aria-hidden="true">⚑</span> Флаг Северной гавани</strong>
       : state.cosmeticOrder && <Action disabled={busy} onClick={()=>void perform('cosmetic')}>Флаг Северной гавани · 600 синих</Action>}
-    {state.open && (!ship || ship.state==='pending') && <p>Разбор доступен через 21 день после оплаты. Компенсация действует в морской косметике. Возврат неиспользованного корпуса в течение 14 дней через /paysupport.</p>}
+    {state.planner ? <details className="saga-disclosure">
+      <summary>Сравнить экспедиции</summary>
+      <ul>{ROUTES.map(option => {
+        const plan = voyageReward(ship ? {id:ship.order,hull:ship.hull,level:ship.level,rig:ship.rig} :
+          {id:'preview',hull,level:1},option.hours);
+        return <li key={option.hours}>{option.hours} ч · {plan.gold-plan.repair} золота после ремонта · {plan.materials} материалов · {plan.seals} печатей</li>;
+      })}</ul>
+      {ship?.voyage && <p>Текущий рейс завершится {new Date(ship.voyage.endsAt).toLocaleString('ru')}.</p>}
+    </details> : state.plannerOrder && <Action disabled={busy} onClick={()=>void perform('planner')}>Планировщик экспедиций · 100 синих</Action>}
+    {state.open && (!ship || ship.state==='pending') && <p>Разбор доступен через 21 день после оплаты. Компенсация действует на морскую косметику и планировщик. Возврат неиспользованного корпуса в течение 14 дней через /paysupport.</p>}
     {(!ship || ship.state === 'pending') && state.open && <Action disabled={busy || localFleetSize >= NAVAL.maxShips}
       onClick={() => void buy()}>{ship ? 'Открыть счёт снова' : 'Купить · ' + HULLS[hull].name + ' · ' + NAVAL.stars + ' Stars'}</Action>}
     {ship?.state === 'pending' && <p>Ожидается подтверждение заказа.</p>}
