@@ -176,7 +176,10 @@ const rewards={
       }
       tracked.push(...body.events);data={stored:body.events.length};
      }
-     if(action==='stars_offers')data={open:false,admin:false,balance:0,offers:[{sku:'gems-100',kind:'gems',title:'100 самоцветов',stars:50,gems:200}]};
+     if(action==='stars_offers')data={open:!!process.env.QA_STARS_OPEN,admin:false,balance:process.env.QA_STARS_OPEN?120:0,offers:[
+      ['gems-100',50,200,true],['gems-320',150,640,true],['gems-550',250,550,false],['gems-1150',500,2300,true],['gems-2400',1000,4800,true],
+      ['gems-6200',2500,12400,true],['gems-13000',5000,26000,true],['support-50',50,0,false],['support-250',250,0,false],['support-1000',1000,0,false]]
+      .map(([sku,stars,gems,bonus])=>({sku,kind:sku.startsWith('support')?'support':'gems',title:sku,stars,gems,bonus}))};
      if(action.startsWith('admin_'))adminCalls.push(action);
      if(action==='admin_analytics')data={days:body.days??14,newPlayers:4,activePlayers:9,funnel:{m5:3,m15:2,m30:1},
       d1:{eligible:4,returned:2},d7:{eligible:2,returned:1},battles:{campaign:{count:40,wins:31}},
@@ -427,9 +430,17 @@ const rewards={
      assert.equal(bought.tear,1);
      await button('Закрыть карточку').tap();
      // B5a: account gems from the server wallet; one purchase, then not enough for a second.
+     await button('Донат').tap();
+     const stars=page.getByRole('region',{name:'Telegram Stars'});
+     if(process.env.QA_STARS_OPEN){
+      await stars.getByRole('button',{name:/Купить · gems-100 · 50 Stars/}).waitFor();
+      await page.screenshot({path:`.tmp/donate-${width}.png`});
+     }else{
+      await stars.getByText('Покупки за Stars скоро откроются.').waitFor();
+      assert.equal(await stars.getByRole('button').count(),0,'closed shop shows no Stars buttons');
+     }
      await button('Витрина').tap();
-     await page.getByRole('region',{name:'Telegram Stars'}).getByText('Покупки за Stars скоро откроются.').waitFor();
-     assert.equal(await page.getByRole('region',{name:'Telegram Stars'}).getByRole('button').count(),0,'closed shop shows no Stars buttons');
+     assert.equal(await page.getByRole('region',{name:'Telegram Stars'}).count(),0,'the window holds no real-money offers');
      await button('Наборы припасов').tap();
      const premiumBox=page.getByRole('region',{name:'Самоцветы аккаунта'});
      await premiumBox.getByText('15',{exact:true}).waitFor();
