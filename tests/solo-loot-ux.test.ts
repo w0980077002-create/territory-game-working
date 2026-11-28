@@ -30,8 +30,8 @@ test('mine timer agrees with the cooldown and capped offline receipts',()=>{
  const lastAt=1000;
  assert.equal(previewMine(lastAt,lastAt-1000).waitMs,601_000);
  assert.equal(previewMine(lastAt,lastAt+599_999).waitMs,1);
- assert.deepEqual(previewMine(lastAt,lastAt+600_000),{waitMs:0,progress:1,gold:1200,chaosite:10});
- assert.deepEqual(previewMine(lastAt,lastAt+86_400_000),{waitMs:0,progress:1,gold:86400,chaosite:720});
+ assert.deepEqual(previewMine(lastAt,lastAt+600_000),{waitMs:0,progress:1,gold:1200,chaosite:5});
+ assert.deepEqual(previewMine(lastAt,lastAt+86_400_000),{waitMs:0,progress:1,gold:3600,chaosite:10});
 });
 
 test('ship timer uses actual fleet rate, stored fractions and the claim boundary',()=>{

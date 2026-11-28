@@ -164,7 +164,7 @@ test('all four professions and six sets use the same price, bonus and nonprofita
    p.gold=1e6;p.saga=freshSaga();p.saga.n[matKey(sets[id].material)]=250;
   });
   const plan=craftPlan(id,G().p,true);
-  assert.deepEqual([plan.level,plan.gold,plan.mats,plan.rarity],[levels[i]+1,90*(levels[i]+1),18,3]);
+  assert.deepEqual([plan.level,plan.gold,plan.mats,plan.rarity],[levels[i]+1,Math.round(90*(Math.min(25,levels[i]+1)+.75*Math.max(0,levels[i]+1-25))),18,3]);
   const worn=structuredClone(G().p.equipment);
   for(const profession of professions)for(const slot of profession.slots){
    const before=G().p,material=matCount(before,plan.material),gold=before.gold;

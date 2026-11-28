@@ -1,3 +1,4 @@
+import { repeatSupply } from '../core/economyBalance';
 /**
  * Dark Realm: seven introductory foes, four persistent portal choices and the final boss.
  * Loot is banked in the itinerary and issued only by an atomic result acknowledgment. The fight itself
@@ -83,7 +84,7 @@ export function roomReward(floor:number,room:number,first:boolean){
  const lord=lordFloor(floor)?1.5:1,stage=floorStage(floor);
  if(room<ROOMS-1)return {ess:3+floor,gold:Math.round(stageGold(stage,false)*1.2),xp:stageXp(stage,false),shard:0,dusk:0,gemChance:0,sealChance:0,gems:0,items:0};
  if(room===ROOMS-1)return {ess:5+floor*2,gold:Math.round(stageGold(stage,false)*2),xp:stageXp(stage,false)*2,shard:1,dusk:0,gemChance:.3,sealChance:0,gems:0,items:0};
- return {ess:Math.round((10+floor*4)*lord),gold:Math.round(stageGold(stage,true)*lord),xp:stageXp(stage,true),shard:Math.round((2+Math.floor(floor/3))*lord),dusk:1+Math.floor(floor/10),gemChance:first?1:.6,sealChance:first?1:.25,gems:first?20+floor*5:5,items:first?2:1};
+ return {ess:Math.round((10+floor*4)*lord),gold:Math.round(stageGold(stage,true)*lord),xp:stageXp(stage,true),shard:Math.round((2+Math.floor(floor/3))*lord),dusk:1+Math.floor(floor/10),gemChance:first?1:.6,sealChance:first?1:.25,gems:first?20+floor*5:repeatSupply(5),items:first?2:1};
 }
 export interface RoomLoot {totals:RealmTotals;items:DarkItem[];gem?:string}
 /** Rolls one room. Pure for a given random source; the caller applies it inside a single mutation. */

@@ -1,3 +1,4 @@
+import { repeatSupply } from '../core/economyBalance';
 /**
  * Road events: reproducible planning and idempotent one-time outcomes.
  * A campaign "leg" is the walk to one encounter. Each leg can hold one event and
@@ -61,13 +62,13 @@ export function settle(p:Player,plan:LegPlan,choice:string,addItem?:(p:Player)=>
  if(plan.kind==='cache'&&choice==='act'){
   seen();gold(Math.round(base*2.2));
   if(plan.variant.id==='barrel'&&horn(p,1))out.lines.push('+1 заряд Рога');
-  if(plan.variant.id==='nest'){p.gems+=2;out.lines.push('+2 самоцвета')}
+  if(plan.variant.id==='nest'){const gems=repeatSupply(2);p.gems+=gems;out.lines.push(`+${gems} самоцвета`)}
   if(plan.variant.id==='shield'){out.item=addItem?.(p);if(out.item)out.lines.push(out.item.name)}
   out.feats.push(...bump(p,'cache'));note(w,`${plan.variant.done} · этап ${plan.stage}`);
  }else if(plan.kind==='caravan'&&choice==='act'){
   seen();gold(Math.round(base*2.6));w.gift={leg:plan.leg};out.lines.push('Лечение в следующем бою');
   if(plan.variant.id==='courier'&&horn(p,1))out.lines.push('+1 заряд Рога');
-  if(plan.variant.id==='boar'){p.gems+=2;out.lines.push('+2 самоцвета')}
+  if(plan.variant.id==='boar'){const gems=repeatSupply(2);p.gems+=gems;out.lines.push(`+${gems} самоцвета`)}
   out.feats.push(...bump(p,'caravan'));note(w,`${plan.variant.done} · этап ${plan.stage}`);
  }else if(plan.kind==='altar'&&plan.options.includes(choice)){
   const boon=boons.find(b=>b.id===choice)!;seen();w.boon={id:boon.id,leg:plan.leg};out.lines.push(`${boon.name}: ${boon.short}`);

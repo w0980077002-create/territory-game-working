@@ -1,3 +1,4 @@
+import { repeatReward } from '../core/economyBalance';
 import balance from '../../config/test-balance.v1.json';
 import type {EncounterSnapshot,Player} from '../core/types';
 import {miniIds} from '../data/catalog';
@@ -8,7 +9,7 @@ import {utcDay} from './soloEconomy';
 export const lairRules={
  entry:balance.combat_test_settings.mode_entry_chaosite,perKeeper:2,perDay:5,revives:2,heal:.5,
  keeperSpawns:[1,2,3],
- raidReward:{gold:150,gems:5,xp:50,res:{shard:2}},
+ get raidReward(){return repeatReward({gold:150,gems:5,xp:50,res:{shard:2}})},
 } as const;
 export function isPaidLairAttempt(s:EncounterSnapshot|undefined):s is EncounterSnapshot{
  return !!s&&s.mode==='dungeon'&&s.entryPaid!==false&&!s.rewarded&&

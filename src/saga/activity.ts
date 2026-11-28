@@ -1,3 +1,4 @@
+import { repeatReward } from '../core/economyBalance';
 /**
  * Daily activity track (master spec §48.9): a 20/40/60/80/100 scale on top of the existing daily quests.
  * Points come only from daily quests already claimed today (20 each), so no action is counted twice and
@@ -11,13 +12,13 @@ import {dayOf} from './quests';
 export const ACTIVITY_PER_QUEST=20;
 export const activityMilestones=[20,40,60,80,100] as const;
 export function activityReward(p:Player,index:number):Reward{
- return [
+ return repeatReward<Reward>([
   {gold:stageCoins(p,.6)},
   {horn:1},
   {gems:5},
   {chaosite:10},
   {gems:10,mats:{[regionMaterial(p)]:3}},
- ][index]??{};
+ ][index]??{});
 }
 interface ActivityBox {day:string;claimed:number[]}
 interface QuestBox {day?:{id:string;claimed:string[]}}

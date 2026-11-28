@@ -1,3 +1,4 @@
+import { repeatReward } from '../core/economyBalance';
 import type {Player, Slot} from '../core/types';
 import type {SetId} from './gear';
 import {materialIds, setOfRegion} from './gear';
@@ -30,6 +31,7 @@ const getGear = (period: PeriodSave) => ({
 interface Schedule {id: string; startAt: number; endAt: number}
 interface PeriodSave extends Schedule {
   v: 1;
+  economyRevision?: 1;
   stage: number;
   level: number;
   progress: number[];
@@ -57,7 +59,7 @@ function currentWindow(now: number, latest?: PeriodSave): Schedule {
 }
 
 function newPeriod(p: Player, window: Schedule): PeriodSave {
-  return {...window, v:CARNIVAL_RULES_VERSION, stage:p.stage, level:p.level, progress:tasks.flatMap(() => [0,0]), claims:{}};
+  return {...window, v:CARNIVAL_RULES_VERSION, economyRevision:1, stage:p.stage, level:p.level, progress:tasks.flatMap(() => [0,0]), claims:{}};
 }
 
 const validInteger = (n: unknown, min: number, max = Number.MAX_SAFE_INTEGER): n is number =>
@@ -78,7 +80,7 @@ function parsePeriod(raw: unknown): PeriodSave | undefined {
     const received = p.claims?.[entry.id];
     if (validInteger(received,-1,(entry.reward.horn ?? 0)-1)) claims[entry.id] = received;
   }
-  return {id:p.id,startAt:p.startAt,endAt:p.endAt,v:p.v,stage:p.stage,level:p.level,progress,claims};
+  return {id:p.id,startAt:p.startAt,endAt:p.endAt,v:p.v,...(p.economyRevision===1?{economyRevision:1}:{}),stage:p.stage,level:p.level,progress,claims};
 }
 
 export function normalizeCarnival(raw: unknown): CarnivalSave | undefined {
@@ -150,10 +152,11 @@ export function updateCarnival(before: Player, after: Player, now: number): Carn
 
 type RewardTemplate = Reward & {bossGold?: number; regionMaterials?: number};
 function resolveReward(period: PeriodSave, {bossGold, regionMaterials, ...reward}: RewardTemplate): Reward {
-  return {...reward,
-    ...(bossGold ? {gold:Math.round(stageGold(period.stage,true)*bossGold)} : {}),
+  const adjusted = {...reward,
+    ...(bossGold ? {gold:Math.round(stageGold(period.stage,true,period.economyRevision===1?undefined:100)*bossGold)} : {}),
     ...(regionMaterials ? {mats:{[materialIds[regionIndex(period.stage)%6]]:regionMaterials}} : {}),
   };
+  return period.economyRevision===1 ? repeatReward(adjusted) : adjusted;
 }
 
 type RewardStatus = 'locked'|'in_progress'|'claimable'|'claimed';

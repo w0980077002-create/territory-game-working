@@ -95,7 +95,7 @@ const swapKey=(p:Player)=>slots.map(slot=>p.equipment[slot]?.id??'').join()+JSON
 /** Large backpacks and storage stay importable; this only rejects unreasonable files. */
 /** «+» next to a currency: real places to earn it, each button performs that action. */
 function ResourceSources({kind,returnTo}:{kind:string;returnTo?:string}){const g=useGame(),p=g.p;const today=p.daily!==new Date().toISOString().slice(0,10);
- const mine=<Row icon="rune" title="Северная шахта" detail={`2 золота/сек · 1 Хаосит/мин · копится до ${balance.resource_test_settings.offline_accrual_limit_hours} ч`}><MineCollection compact/></Row>;
+ const mine=<Row icon="rune" title="Северная шахта" detail="Золото и Хаосит · накопление ограничено"><MineCollection compact/></Row>;
  const daily=<Row icon="gift" title="Ежедневный подарок" detail={rewardText(dailyGift().base)}><Action kind={today?'':'secondary'} onClick={()=>g.open('rewards')}>{today?'Забрать':'Открыть'}</Action></Row>;
  const quests=<Row icon="scroll" title="Задания" detail="Ежедневные, недельные и сюжетные цели"><Action kind="secondary" onClick={()=>g.open('quests')}>Перейти</Action></Row>;
  const shop=<Row icon="chest" title="Лавка сокровищ" detail="Припасы за золото, самоцветы и жетоны Арены"><Action kind="secondary" onClick={()=>g.open('shop')}>Перейти</Action></Row>;

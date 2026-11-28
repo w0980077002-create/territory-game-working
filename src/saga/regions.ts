@@ -1,3 +1,4 @@
+import economyStageOne from '../../config/economy-stage-1.json';
 /**
  * Saga campaign: six regions × ten stages, each stage = four encounters and a boss.
  * Pure data and rules: no store, DOM or engine imports, so every number is reproducible in tests.
@@ -117,9 +118,9 @@ export function growth(stage:number,kind:'hp'|'atk'){
  const rate=Math.log(ratio),anchor=last*ratio**(lastCalibratedStage-table.length);
  return anchor*(1+legendSoftening*Math.log1p(rate*(s-lastCalibratedStage)/legendSoftening));
 }
-export const stageGold=(stage:number,boss:boolean)=>{
+export const stageGold=(stage:number,boss:boolean,latePercent=economyStageOne.lateCampaignGoldPercent)=>{
  const s=numericStage(stage),base=boss?balance.test_rewards.boss_win_gold_base:balance.test_rewards.regular_win_gold_base;
- return Math.min(Number.MAX_SAFE_INTEGER,Math.round(base*1.14**(Math.min(s,curve.gold_soft_cap_stage)-1)*(1+Math.max(0,s-curve.gold_soft_cap_stage)*curve.gold_linear_after_cap)));
+ return Math.min(Number.MAX_SAFE_INTEGER,Math.round(base*1.14**(Math.min(s,curve.gold_soft_cap_stage)-1)*(1+Math.max(0,s-curve.gold_soft_cap_stage)*curve.gold_linear_after_cap*latePercent/100)));
 };
 export const stageXp=(stage:number,boss:boolean)=>{
  const base=boss?balance.combat_test_settings.boss_victory_xp:balance.combat_test_settings.wave_victory_xp;
