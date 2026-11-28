@@ -10,7 +10,6 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
 const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury','premium_wallet','equip','unequip','enhance']);
-for(const action of ['assortment','assortment_invoice','rewarded_ad']) actions.add(action);
 const sanctions=['chat_mute','trade_ban','network_ban'];
 const flagNames=['arena_ranked','arena_team','auction_trade','chat','world_boss','premium_shop','stars_shop'];
 const starsActions=new Set(['stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury']);
@@ -27,6 +26,9 @@ function isRecord(value:unknown):value is Record<string,unknown>{
 }
 
 const text=(value:unknown,max:number)=>typeof value==='string'&&value.length>0&&value.length<=max;
+
+const assortmentActions=new Set(['assortment','assortment_invoice','rewarded_ad']);
+for(const action of assortmentActions) actions.add(action);
 
 function validAdmin(body:Record<string,unknown>){
  if(Object.keys(body).length!==4||!isUuid(body.operationId)||typeof body.reason!=='string'||
@@ -298,7 +300,7 @@ Deno.serve(async request=>{
     :await rpc('vvr_admin_password',{p_actor:player,p_old:value.body.oldPassword,p_login:value.body.login,p_password:value.body.password});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'admin_request_rejected'});
   }
-  if(value.action==='assortment'||value.action==='assortment_invoice'||value.action==='rewarded_ad'){
+  if(assortmentActions.has(value.action)){
    return await assortmentAction(value.action,value.body,player,botToken,rpc,reply,
     Deno.env.get('VVR_REWARDED_AD_URL'),Deno.env.get('VVR_REWARDED_AD_SECRET'));
   }
