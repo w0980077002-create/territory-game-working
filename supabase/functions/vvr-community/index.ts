@@ -1,6 +1,7 @@
 import {issueVvrSession,readVvrSession,verifyTelegramIdentity} from '../_shared/vvr-identity.ts';
 import {makeSecretReader} from '../_shared/w066-secrets.ts';
 import {handleStarsAction,handleWebhook} from '../_shared/stars.ts';
+import {handleTonAction} from '../_shared/ton.ts';
 
 const project=Deno.env.get('SUPABASE_URL');
 const roleKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -8,7 +9,7 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury','premium_wallet','equip','unequip','enhance']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury','ton_proof_payload','admin_crypto_sync','premium_wallet','equip','unequip','enhance']);
 const sanctions=['chat_mute','trade_ban','network_ban'];
 const flagNames=['arena_ranked','arena_team','auction_trade','chat','world_boss','premium_shop','stars_shop'];
 const starsActions=new Set(['stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury']);
@@ -62,7 +63,8 @@ function valid(action:string,body:Record<string,unknown>){
   case 'admin_finance':return keys===0||keys===1&&Number.isSafeInteger(body.days)&&Number(body.days)>=1&&Number(body.days)<=3650;
   case 'admin_bot':return keys===0||keys===1&&body.connect===true;
   case 'admin_stars_refund':return keys===1&&isUuid(body.order);
-  case 'ton_wallet':return keys===1&&(body.action==='get'||body.action==='unlink')||keys===2&&body.action==='link'&&typeof body.address==='string'&&/^-?[0-9]:[0-9a-f]{64}$/.test(body.address);
+  case 'ton_wallet':return keys===1&&(body.action==='get'||body.action==='unlink')||keys===3&&body.action==='link'&&typeof body.address==='string'&&/^-?[0-9]:[0-9a-f]{64}$/.test(body.address)&&isRecord(body.proof);
+  case 'ton_proof_payload':case 'admin_crypto_sync':return keys===0;
   case 'admin_treasury':return keys===0;
   case 'track':return keys===1&&Array.isArray(body.events)&&body.events.length>=1&&body.events.length<=25;
   case 'admin_password':return keys===3&&text(body.oldPassword,72)&&text(body.login,32)&&text(body.password,72);
@@ -292,6 +294,8 @@ Deno.serve(async request=>{
     :await rpc('vvr_admin_password',{p_actor:player,p_old:value.body.oldPassword,p_login:value.body.login,p_password:value.body.password});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'admin_request_rejected'});
   }
+  // Wallet ownership proofs live apart from Stars: ton_wallet is answered here, not by stars.ts.
+  if(['ton_wallet','ton_proof_payload','admin_crypto_sync'].includes(value.action))return await handleTonAction(value.action,value.body,player,sessionKey,rpc,reply,rpcError);
   if(starsActions.has(value.action))return await handleStarsAction(value.action,value.body,player,botToken,sessionKey,project,rpc,reply,rpcError);
   if(value.action==='track'){
    const result=await rpc('vvr_track',{p_player:player,p_events:value.body.events});
