@@ -8,10 +8,10 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury','premium_wallet','equip','unequip','enhance']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','stars_offers','stars_invoice','shipyard_invoice','shipyard_paid','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury','premium_wallet','equip','unequip','enhance']);
 const sanctions=['chat_mute','trade_ban','network_ban'];
 const flagNames=['arena_ranked','arena_team','auction_trade','chat','world_boss','premium_shop','stars_shop'];
-const starsActions=new Set(['stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury']);
+const starsActions=new Set(['stars_offers','stars_invoice','shipyard_invoice','shipyard_paid','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury']);
 const networkActions:Partial<Record<string,string>>={
  auction:'auction_trade',trade:'auction_trade',market_workshop:'auction_trade',chat:'chat_view',post:'chat',hide:'chat',
  referrals:'brotherhood',brotherhood_claim:'brotherhood',
@@ -58,6 +58,14 @@ function valid(action:string,body:Record<string,unknown>){
   case 'admin_analytics':return keys===0||keys===1&&Number.isSafeInteger(body.days)&&Number(body.days)>=1&&Number(body.days)<=90;
   case 'stars_offers':return keys===0;
   case 'stars_invoice':return keys===1&&typeof body.sku==='string'&&/^[a-z0-9-]{1,32}$/.test(body.sku);
+  case 'shipyard_invoice':return keys===1&&typeof body.hull==='string'&&['scout','merchant','warship','dragon','odin'].includes(body.hull);
+  case 'shipyard_paid':
+   if(body.kind==='state')return keys===1;
+   if(body.kind==='cosmetic'||body.kind==='planner')return keys===2&&isUuid(body.order);
+   if(!isUuid(body.order)||!Number.isSafeInteger(body.version)||Number(body.version)<1||Number(body.version)>2147483647)return false;
+   if(body.kind==='launch')return keys===4&&[1,4,8,12,24].includes(Number(body.hours))&&typeof body.hours==='number';
+   if(body.kind==='outfit')return keys===4&&typeof body.rig==='string'&&['sails','nets','pennant'].includes(body.rig);
+   return keys===3&&typeof body.kind==='string'&&['claim','repair','upgrade','salvage'].includes(body.kind);
   case 'premium_transfer':return keys===2&&isUuid(body.operationId)&&Number.isSafeInteger(body.amount)&&Number(body.amount)>=1&&Number(body.amount)<=1_000_000;
   case 'admin_finance':return keys===0||keys===1&&Number.isSafeInteger(body.days)&&Number(body.days)>=1&&Number(body.days)<=3650;
   case 'admin_bot':return keys===0||keys===1&&body.connect===true;

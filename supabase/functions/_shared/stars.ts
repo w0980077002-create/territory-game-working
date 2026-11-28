@@ -31,7 +31,7 @@ export async function handleWebhook(request:Request,sessionKey:string,botToken:s
  if(isRecord(query)&&isRecord(query.from)){
   const order=String(query.invoice_payload??''),amount=Number(query.total_amount);
   const valid=query.currency==='XTR'&&uuid.test(order)&&Number.isSafeInteger(amount)&&
-   (await rpc('vvr_stars_precheck',{p_order:order,p_telegram:String(query.from.id),p_stars:amount})).data===true;
+   (await rpc('vvr_shipyard_precheck',{p_order:order,p_telegram:String(query.from.id),p_stars:amount,p_query:String(query.id??'')})).data===true;
   await botApi(botToken,'answerPreCheckoutQuery',valid?{pre_checkout_query_id:query.id,ok:true}:
    {pre_checkout_query_id:query.id,ok:false,error_message:'Заказ устарел. Откройте Лавку и повторите покупку.'});
   return ok();
@@ -39,15 +39,22 @@ export async function handleWebhook(request:Request,sessionKey:string,botToken:s
  const message=update.message;
  if(!isRecord(message)||!isRecord(message.from))return ok();
  const chat=isRecord(message.chat)?message.chat.id:message.from.id;
+ const refunded=message.refunded_payment;
+ if(isRecord(refunded)&&refunded.currency==='XTR'&&uuid.test(String(refunded.invoice_payload))&&
+    isRecord(message.chat)&&message.chat.type==='private'){
+  const result=await rpc('vvr_shipyard_refunded',{p_order:refunded.invoice_payload,p_telegram:String(message.chat.id),
+   p_stars:Number(refunded.total_amount),p_charge:String(refunded.telegram_payment_charge_id??'')});
+  return result.ok?ok():new Response('{}',{status:500});
+ }
  const payment=message.successful_payment;
- if(isRecord(payment)){
+ if(isRecord(payment)&&payment.currency==='XTR'&&Number.isSafeInteger(payment.total_amount)){
   const result=await rpc('vvr_stars_paid',{p_order:uuid.test(String(payment.invoice_payload))?payment.invoice_payload:null,
    p_telegram:String(message.from.id),p_stars:Number(payment.total_amount),p_charge:String(payment.telegram_payment_charge_id??'')});
   if(!result.ok)return new Response('{}',{status:500});
   const data=isRecord(result.data)?result.data:{};
   await botApi(botToken,'sendMessage',{chat_id:chat,text:data.status==='ok'&&Number(data.gems)>0
    ?`Спасибо! Начислено ${data.gems} самоцветов. Откройте Лавку в игре, чтобы перенести их герою.`
-   :'Спасибо за поддержку VIKING VS ROME!'}).catch(()=>undefined);
+   :'Платёж получен. Откройте Лавку или Верфь, чтобы проверить покупку.'}).catch(()=>undefined);
   return ok();
  }
  const text=typeof message.text==='string'?message.text.trim():'';
@@ -69,13 +76,19 @@ export async function handleStarsAction(action:string,body:Record<string,unknown
   const r=await rpc('vvr_stars_offers',{p_player:player});
   return r.ok?reply(200,r.data):reply(rpcError(r.data),{error:'stars_unavailable'});
  }
- if(action==='stars_invoice'){
-  const r=await rpc('vvr_stars_order',{p_player:player,p_sku:body.sku});
+ if(action==='shipyard_paid'){
+  const r=await rpc('vvr_shipyard_paid',{p_player:player,p_action:body.kind,p_order:body.order??null,
+   p_version:body.version??null,p_hours:body.hours??null,p_rig:body.rig??null});
+  return r.ok?reply(200,r.data):reply(rpcError(r.data),{error:'shipyard_rejected'});
+ }
+ if(action==='stars_invoice'||action==='shipyard_invoice'){
+  const r=action==='shipyard_invoice'?await rpc('vvr_shipyard_order',{p_player:player,p_hull:body.hull}):
+   await rpc('vvr_stars_order',{p_player:player,p_sku:body.sku});
   if(!r.ok)return reply(rpcError(r.data),{error:'stars_unavailable'});
   const order=r.data as {status:string;order?:string;title?:string;stars?:number;gems?:number;kind?:string};
   if(order.status!=='ok')return reply(200,order);
   const link=await botApi(botToken,'createInvoiceLink',{title:order.title,
-   description:order.kind==='support'?'Добровольная поддержка разработки игры.':`${order.gems} самоцветов на аккаунт VIKING VS ROME.`,
+   description:order.kind==='ship'?'Корабль на аккаунт за 250 Stars. Разбор через 21 день. Компенсация действует на морскую косметику и планировщик. Возврат: /paysupport.':order.kind==='support'?'Добровольная поддержка разработки игры.':`${order.gems} самоцветов на аккаунт VIKING VS ROME.`,
    payload:order.order,currency:'XTR',prices:[{label:order.title,amount:order.stars}]});
   return link.ok?reply(200,{status:'ok',link:link.result,order:order.order}):reply(503,{error:'invoice_failed'});
  }
@@ -113,7 +126,7 @@ export async function handleStarsAction(action:string,body:Record<string,unknown
    if(!set.ok)return reply(200,{status:'failed',error:set.description});
   }
   const [me,after,balance]=await Promise.all([botApi(botToken,'getMe'),botApi(botToken,'getWebhookInfo'),
-   botApi(botToken,'getMyStarBalance').catch(()=>({ok:false}))]);
+   botApi(botToken,'getMyStarBalance').catch(()=>({ok:false,result:undefined}))]);
   const hook=isRecord(after.result)?after.result:{};
   return reply(200,{status:'ok',bot:isRecord(me.result)?me.result.username:null,
    webhook:{ours:hook.url===url,url:hook.url?String(hook.url).replace(/bot[^/]*$/,''):'',pending:hook.pending_update_count??0,
@@ -122,12 +135,13 @@ export async function handleStarsAction(action:string,body:Record<string,unknown
  }
  if(action==='admin_stars_refund'){
   if(!owner)return reply(403,{error:'owner_required'});
-  const begin=await rpc('vvr_stars_refund_begin',{p_actor:player,p_order:body.order});
+  const begin=await rpc('vvr_shipyard_refund_begin',{p_actor:player,p_order:body.order});
   if(!begin.ok)return reply(rpcError(begin.data),{error:'admin_request_rejected'});
-  const b=begin.data as {status:string;telegram?:string;charge?:string};
+  const b=begin.data as {status:string;telegram?:string;charge?:string;ship?:boolean};
   if(b.status!=='ok')return reply(200,b);
-  const refund=await botApi(botToken,'refundStarPayment',{user_id:Number(b.telegram),telegram_payment_charge_id:b.charge}).catch(()=>({ok:false}));
-  const finish=await rpc('vvr_stars_refund_finish',{p_actor:player,p_order:body.order,p_ok:refund.ok===true});
+  const refund=await botApi(botToken,'refundStarPayment',{user_id:Number(b.telegram),telegram_payment_charge_id:b.charge}).catch(()=>null);
+  if(!refund&&b.ship)return reply(200,{status:'refund_pending'});
+  const finish=await rpc('vvr_stars_refund_finish',{p_actor:player,p_order:body.order,p_ok:refund?.ok===true});
   return finish.ok?reply(200,finish.data):reply(rpcError(finish.data),{error:'admin_request_rejected'});
  }
  return reply(400,{error:'invalid_request'});
