@@ -1,0 +1,38 @@
+[
+  {
+    "run": 1,
+    "seconds": 195.6,
+    "dusk": 1,
+    "chaosite": 95
+  },
+  {
+    "run": 2,
+    "seconds": 176.95,
+    "dusk": 2,
+    "chaosite": 90
+  },
+  {
+    "run": 3,
+    "seconds": 184.05,
+    "dusk": 3,
+    "chaosite": 85
+  },
+  {
+    "run": 4,
+    "seconds": 173.5,
+    "dusk": 4,
+    "chaosite": 80
+  },
+  {
+    "run": 5,
+    "seconds": 192.85,
+    "dusk": 5,
+    "chaosite": 75
+  },
+  {
+    "run": 6,
+    "seconds": 186.4,
+    "dusk": 6,
+    "chaosite": 70
+  }
+]
