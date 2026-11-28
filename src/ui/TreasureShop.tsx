@@ -9,6 +9,7 @@ import {CompactFilter} from './CompactFilter';
 import {RewardArt, rewardParts} from './RewardArt';
 import {ArenaRequestError,consumablesRequest,signedArena,type ConsumableOperation} from '../arena/client';
 import {track} from '../core/analyticsBus';
+import {StarsStore} from './StarsStore';
 import {buyPremiumOffer,communityEnabled,CommunityError,readPremiumWallet,type PremiumOffer,type PremiumWallet} from '../community/client';
 import {consumableIds,consumableStock,type ConsumableId,type ConsumablesQuote} from '../arena/potion';
 /** Shop id → Arena consumable kind (the potion keeps its old id `arena-potion`). */
@@ -65,7 +66,7 @@ function PremiumGems(){
  }
  return <section className="premium-gems" aria-label="Самоцветы аккаунта">
   <header><Icon name="gem"/><strong>Самоцветы аккаунта</strong>{wallet&&<b>{wallet.balance.toLocaleString('ru')}</b>}</header>
-  <p className="hint">Хранятся на сервере и не теряются при смене устройства. Пополнение через Telegram Stars появится позже.</p>
+  <p className="hint">Хранятся на сервере и не теряются при смене устройства. Пополнение — в разделе «Витрина» за Telegram Stars.</p>
   {wallet?.purchaseAvailable===false&&<p className="hint">Покупки за самоцветы аккаунта скоро откроются.</p>}
   {wallet&&wallet.purchaseAvailable!==false&&<div className="premium-offers">{wallet.offers.map(offer=><button key={offer.sku} type="button" className="action secondary"
    disabled={busy||wallet.balance<offer.price} onClick={()=>void buy(offer)}>
@@ -154,6 +155,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
     <div className="shop-counter">
       <div className="shop-sign"><strong>Прилавок<br/>северного купца</strong><span>Новые товары в 00:00 UTC</span></div>
     </div>
+    {communityEnabled&&signed&&category==='all'&&<StarsStore/>}
     {communityEnabled&&signed&&category==='supplies'&&<PremiumGems/>}
     <div className="shop-wallet">
       {Object.entries(shopCurrencies).map(([id, def]) => {

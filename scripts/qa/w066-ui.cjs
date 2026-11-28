@@ -176,6 +176,7 @@ const rewards={
       }
       tracked.push(...body.events);data={stored:body.events.length};
      }
+     if(action==='stars_offers')data={open:false,admin:false,balance:0,offers:[{sku:'gems-100',kind:'gems',title:'100 самоцветов',stars:50,gems:200}]};
      if(action.startsWith('admin_'))adminCalls.push(action);
      if(action==='admin_analytics')data={days:body.days??14,newPlayers:4,activePlayers:9,funnel:{m5:3,m15:2,m30:1},
       d1:{eligible:4,returned:2},d7:{eligible:2,returned:1},battles:{campaign:{count:40,wins:31}},
@@ -426,6 +427,9 @@ const rewards={
      assert.equal(bought.tear,1);
      await button('Закрыть карточку').tap();
      // B5a: account gems from the server wallet; one purchase, then not enough for a second.
+     await button('Витрина').tap();
+     await page.getByRole('region',{name:'Telegram Stars'}).getByText('Покупки за Stars скоро откроются.').waitFor();
+     assert.equal(await page.getByRole('region',{name:'Telegram Stars'}).getByRole('button').count(),0,'closed shop shows no Stars buttons');
      await button('Наборы припасов').tap();
      const premiumBox=page.getByRole('region',{name:'Самоцветы аккаунта'});
      await premiumBox.getByText('15',{exact:true}).waitFor();

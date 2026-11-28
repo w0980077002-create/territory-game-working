@@ -18,6 +18,8 @@ probe "community: unknown action rejected" "$base/vvr-community" '{"action":"no_
 probe "community: analytics action deployed" "$base/vvr-community" '{"action":"track","body":{"events":[{}]}}' 401 session_required
 probe "community: admin analytics deployed" "$base/vvr-community" '{"action":"admin_analytics","body":{}}' 401 session_required
 probe "community: admin login deployed" "$base/vvr-community" '{"action":"admin_unlock","body":{"login":"x","password":"y"}}' 401 session_required
+probe "community: Stars shop deployed" "$base/vvr-community" '{"action":"stars_offers","body":{}}' 401 session_required
+probe "community: Stars webhook rejects unsigned calls" "$base/vvr-community/stars-webhook" '{}' 401 '{}'
 probe "community: Arena policy route" "$base/vvr-community/arena-policy" '{}' 401 arena_publisher_required
 probe "world boss: signature required" "$base/vvr-world-boss" '{"action":"state"}' 401 world_boss_auth_required
 } | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
