@@ -83,6 +83,14 @@ export async function handleStarsAction(action:string,body:Record<string,unknown
   const r=await rpc('vvr_premium_transfer',{p_player:player,p_operation:body.operationId,p_amount:body.amount});
   return r.ok?reply(200,r.data):reply(rpcError(r.data),{error:'transfer_rejected'});
  }
+ if(action==='ton_wallet'){
+  const r=await rpc('vvr_ton_wallet',{p_player:player,p_action:body.action,p_address:body.address??null});
+  return r.ok?reply(200,r.data):reply(rpcError(r.data),{error:'wallet_rejected'});
+ }
+ if(action==='admin_treasury'){
+  const r=await rpc('vvr_treasury',{p_actor:player});
+  return r.ok?reply(200,r.data):reply(rpcError(r.data),{error:'admin_request_rejected'});
+ }
  if(action==='admin_finance'){
   const r=await rpc('vvr_finance_report',{p_actor:player,p_days:body.days??30});
   return r.ok?reply(200,r.data):reply(rpcError(r.data),{error:'admin_request_rejected'});
