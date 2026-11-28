@@ -32,7 +32,7 @@ test('ton_proof links only a wallet whose on-chain key signed our fresh payload 
  assert.equal(await verifyProof(secret,'player-a','0:'+'cd'.repeat(32),proof,now),'signature','another address');
  assert.equal(await verifyProof(secret,'player-a',address,await sign(keys,address,payload,Math.floor(now/1000),'evil.example'),now),'domain');
  assert.equal(await verifyProof(secret,'player-a',address,proof,now+16*60_000),'expired');
- assert.equal(await verifyProof(secret,'player-a',address,{...proof,payload:payload.slice(0,-1)+'0'},now),'expired','forged payload');
+ assert.equal(await verifyProof(secret,'player-a',address,{...proof,payload:payload.slice(0,-1)+(payload.endsWith('0')?'1':'0')},now),'expired','forged payload');
  const other=await crypto.subtle.generateKey({name:'Ed25519'},true,['sign','verify']) as CryptoKeyPair;
  assert.equal(await verifyProof(secret,'player-a',address,await sign(other,address,payload,Math.floor(now/1000)),now),'signature','key that does not own the wallet');
  chainKey=undefined;
