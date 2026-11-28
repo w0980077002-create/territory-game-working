@@ -6,7 +6,7 @@ import {tg} from '../core/telegram';
 import {Action} from './SagaUI';
 
 type PaidState = {
-  open: boolean; gold: number; materials: number; seals: number;
+  open: boolean; blue: number; cosmetic: boolean; cosmeticOrder: string|null; gold: number; materials: number; seals: number;
   ship: null | {order: string; hull: Hull; level: number; version: number; state: 'pending'|'active'|'refunding';
     repair: number; rig?: Rig; salvageAt: string|null; voyage: null | {hours: number; endsAt: string}};
 };
@@ -42,7 +42,7 @@ export function PaidNavalPanel({hull, now, localFleetSize, onReserved}: {
     return () => controller.abort();
   }, [load]);
 
-  if (!state || (!state.open && !state.ship && !state.gold && !state.materials && !state.seals)) return null;
+  if (!state || (!state.open && !state.ship && !state.gold && !state.materials && !state.seals && !state.blue && !state.cosmetic)) return null;
 
   async function buy() {
     const app = tg();
@@ -68,12 +68,15 @@ export function PaidNavalPanel({hull, now, localFleetSize, onReserved}: {
   }
 
   async function perform(kind: string, extra: object = {}) {
-    if (!state?.ship || state.ship.state !== 'active' || busy) return;
+    const ship = state?.ship;
+    const command = kind === 'cosmetic' && state?.cosmeticOrder ? {kind,order:state.cosmeticOrder}
+      : ship?.state === 'active' ? {kind,order:ship.order,version:ship.version,...extra} : null;
+    if (busy || !command) return;
     setBusy(true);
     try {
       const result = await community<{status: string; compensation?: number}>('shipyard_paid',
-        {kind, order: state.ship.order, version: state.ship.version, ...extra}, AbortSignal.timeout(8000));
-      setMessage(result.compensation ? `На аккаунт зачислено ${result.compensation} синих алмазов. Перенос герою доступен в Лавке.`
+        command, AbortSignal.timeout(8000));
+      setMessage(result.compensation ? `Получено ${result.compensation} синих алмазов Верфи.`
         : result.status === 'ok' ? 'Готово' : messages[result.status] ?? 'Действие недоступно');
       setConfirm(false);
       await load();
@@ -93,9 +96,12 @@ export function PaidNavalPanel({hull, now, localFleetSize, onReserved}: {
   return <details className="saga-disclosure">
     <summary>Верфь Stars</summary>
     <p>Морской счёт · {state.gold} золота, {state.materials} материалов, {state.seals} печатей</p>
+    {(state.blue>0 || state.cosmetic) && <p>Синие алмазы Верфи · {state.blue}</p>}
+    {state.cosmetic ? <strong className="content-with-icon"><span aria-hidden="true">⚑</span> Флаг Северной гавани</strong>
+      : state.cosmeticOrder && <Action disabled={busy} onClick={()=>void perform('cosmetic')}>Флаг Северной гавани · 600 синих</Action>}
+    {state.open && (!ship || ship.state==='pending') && <p>Разбор доступен через 21 день после оплаты. Компенсация действует в морской косметике. Возврат неиспользованного корпуса в течение 14 дней через /paysupport.</p>}
     {(!ship || ship.state === 'pending') && state.open && <Action disabled={busy || localFleetSize >= NAVAL.maxShips}
       onClick={() => void buy()}>{ship ? 'Открыть счёт снова' : 'Купить · ' + HULLS[hull].name + ' · ' + NAVAL.stars + ' Stars'}</Action>}
-    {state.open && !ship && <p>Неиспользованный корпус можно вернуть в течение 14 дней через /paysupport. Разбор доступен через 21 день после оплаты.</p>}
     {ship?.state === 'pending' && <p>Ожидается подтверждение заказа.</p>}
     {ship?.state === 'refunding' && <p>Возврат на проверке Telegram.</p>}
     {ship?.state === 'active' && <>

@@ -22,10 +22,14 @@ create table vvr.paid_hulls (
   voyage jsonb,
   repair integer not null default 0 check(repair>=0),
   rig text check(rig in ('sails','nets','pennant')),
-  compensation integer check(compensation in (600,625,650,675,700))
+  compensation integer check(compensation in (600,625,650,675,700)),
+  cosmetic_spent boolean not null default false,
+  check(not cosmetic_spent or compensation>=600)
 );
 create index paid_hulls_player on vvr.paid_hulls(player_id);
 create unique index paid_hulls_live on vvr.paid_hulls(player_id) where state in ('pending','active','refunding');
+create unique index paid_hulls_cosmetic on vvr.paid_hulls(player_id)
+ where state='salvaged' and cosmetic_spent;
 create table vvr.paid_harbor (
   player_id uuid primary key references vvr.players(id),
   gold bigint not null default 0 check(gold between 0 and 1000000000),
@@ -170,15 +174,30 @@ begin
    jsonb_build_object('order',ship.order_id,'state',ship.state,'hull',ship.hull,'level',ship.level,
      'version',ship.version,'repair',ship.repair,'voyage',ship.voyage,'rig',ship.rig,
      'salvageAt',paid.paid_at+interval '21 days') end,
+   'blue',coalesce((select sum(compensation-case when cosmetic_spent then 600 else 0 end)
+    from vvr.paid_hulls where player_id=p_player and state='salvaged'),0),
+   'cosmetic',exists(select from vvr.paid_hulls where player_id=p_player and state='salvaged' and cosmetic_spent),
+   'cosmeticOrder',(select order_id from vvr.paid_hulls where player_id=p_player and state='salvaged' and not cosmetic_spent
+    order by order_id limit 1),
    'gold',coalesce(bag.gold,0),'materials',coalesce(bag.materials,0),'seals',coalesce(bag.seals,0));
  end if;
- if p_action is null or p_action not in ('launch','claim','repair','outfit','upgrade','salvage') or p_version is null then
+ if p_action is null or p_action not in ('launch','claim','repair','outfit','upgrade','salvage','cosmetic') or (p_action<>'cosmetic' and p_version is null) then
   return '{"status":"invalid"}';
  end if;
  select * into paid from vvr.stars_orders where id=p_order and player_id=p_player for update;
  if not found or paid.status<>'paid' then return '{"status":"unavailable"}'; end if;
  select * into ship from vvr.paid_hulls where order_id=p_order and player_id=p_player for update;
  if not found then return '{"status":"unavailable"}'; end if;
+ if p_action='cosmetic' then
+  if ship.state<>'salvaged' or ship.compensation<600 then return '{"status":"unavailable"}'; end if;
+  if ship.cosmetic_spent then return '{"status":"ok"}'; end if;
+  begin
+   update vvr.paid_hulls set cosmetic_spent=true where order_id=p_order;
+  exception when unique_violation then
+   return '{"status":"occupied"}';
+  end;
+  return '{"status":"ok"}';
+ end if;
  if p_action='salvage' and ship.state='salvaged' then
   return jsonb_build_object('status','ok','compensation',ship.compensation);
  end if;
@@ -217,7 +236,6 @@ begin
    when 'salvage' then
     if paid.paid_at is null or paid.paid_at+interval '21 days'>clock_timestamp() then return '{"status":"hold"}'; end if;
     payout:=575+25*ship.level;
-    perform public.vvr_premium_credit(p_player,p_order,payout);
     ship.state:='salvaged';
   end case;
  end if;
