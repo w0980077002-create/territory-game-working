@@ -49,7 +49,7 @@ export function PaidNavalPanel({hull, now, localFleetSize, onReserved}: {
     if (busy || !app?.openInvoice || localFleetSize >= NAVAL.maxShips) return;
     setBusy(true);
     try {
-      const invoice = await community<{status: string; link?: string}>('shipyard_invoice', {hull}, AbortSignal.timeout(8000));
+      const invoice = await community<{status: string; link?: string}>('shipyard_invoice', {hull:state?.ship?.hull ?? hull}, AbortSignal.timeout(8000));
       if (invoice.status !== 'ok' || !invoice.link) {
         setMessage(messages[invoice.status] ?? 'Счёт недоступен');
         await load();
@@ -94,7 +94,8 @@ export function PaidNavalPanel({hull, now, localFleetSize, onReserved}: {
     <summary>Верфь Stars</summary>
     <p>Морской счёт · {state.gold} золота, {state.materials} материалов, {state.seals} печатей</p>
     {(!ship || ship.state === 'pending') && state.open && <Action disabled={busy || localFleetSize >= NAVAL.maxShips}
-      onClick={() => void buy()}>{ship ? 'Открыть счёт снова' : 'Купить · ' + HULLS[hull].name + ' · 250 Stars'}</Action>}
+      onClick={() => void buy()}>{ship ? 'Открыть счёт снова' : 'Купить · ' + HULLS[hull].name + ' · ' + NAVAL.stars + ' Stars'}</Action>}
+    {state.open && !ship && <p>Неиспользованный корпус можно вернуть в течение 14 дней через /paysupport. Разбор доступен через 21 день после оплаты.</p>}
     {ship?.state === 'pending' && <p>Ожидается подтверждение заказа.</p>}
     {ship?.state === 'refunding' && <p>Возврат на проверке Telegram.</p>}
     {ship?.state === 'active' && <>
