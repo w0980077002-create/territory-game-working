@@ -327,3 +327,33 @@ end;
 $$;
 SQL
 echo 'W066 Postgres: identity, grants, escrow race, moderation and ranking verified'
+
+# Two independent connections may try to claim the same approved manual payout.
+# All values and the enabled state exist only in this disposable, networkless cluster.
+pg <<'SQL'
+select vvr.resolve_player('54091','Release test owner') as owner,vvr.resolve_player('54092','Release test player') as player \gset
+insert into vvr.admin_access(player_id,role) values(:'owner','owner');
+insert into vvr.admin_credentials(player_id,login,password_hash,unlocked_until)
+ values(:'owner','redrace',extensions.crypt('scratch',extensions.gen_salt('bf',4)),clock_timestamp()+interval '5 minutes');
+update vvr.red_treasury set enabled=true,withdrawals_enabled=true,network='testnet',asset='USDT',fee_asset='native',
+ treasury_address='vault-fixture',fee_address='fee-fixture',address_pattern='^[a-z-]{4,60}$',
+ reserve=50000,outstanding=50000,fees=100,fees_held=10 where id;
+insert into vvr.red_wallets(player_id,held) values(:'player',50000);
+insert into vvr.red_withdrawals(id,player_id,units,destination,network,asset,status,reviewed_at,reviewed_by,fee_cap)
+ values('54092000-0000-4000-8000-000000000001',:'player',50000,'receiver-fixture','testnet','USDT','approved',
+  clock_timestamp(),:'owner',10);
+SQL
+dispatch_red() {
+  pg -Atq -v operation="$1" <<'SQL'
+select id as owner from vvr.players where telegram_id='54091' \gset
+set role service_role;
+select public.vvr_red_action(:'owner',jsonb_build_object('kind','dispatch','operation',:'operation',
+ 'request','54092000-0000-4000-8000-000000000001'))->>'status';
+SQL
+}
+dispatch_red 54091000-0000-4000-8000-000000000001 > "$results/red-a" & first=$!
+dispatch_red 54091000-0000-4000-8000-000000000002 > "$results/red-b" & second=$!
+wait "$first"
+wait "$second"
+test "$(sort "$results/red-a" "$results/red-b")" = $'invalid_transition\nok'
+echo 'W066 red ledger: one concurrent dispatch reserved'
