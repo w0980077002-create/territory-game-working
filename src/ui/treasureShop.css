@@ -203,6 +203,6 @@
   background: var(--art-panel); color: #fff0d6; font-size: 13px; }
 .stars-account > .icon { width: 26px; height: 22px; }
 .stars-account > span { flex: 1; }
-.stars-account > .stars-transfer { flex: 0 0 auto; width: auto; min-height: 28px; padding: 0 14px; }
+.stars-account > .stars-transfer { flex: 0 0 auto; width: auto; min-height: 44px; padding: 0 14px; }
 .stars-offer .shop-buy b { color: #ffe08a; }
 .stars-store > .hint { margin: 0; font-size: 11px; line-height: 1.25; }

@@ -56,7 +56,7 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   const shopControls=await page.locator('.treasure-shop button').evaluateAll(controls=>controls
    .map(control=>control.getBoundingClientRect().height));
   assert.ok(shopControls.every(height=>height>=44),width+' shop targets are at least 44 CSS px high');
-  assert.equal(await page.locator('.shop-tabs button > .icon').count(),9,'every shop category has an icon');
+  assert.equal(await page.locator('.shop-tabs button > .icon').count(),10,'every shop category, Донат included, has an icon');
   const visibleTiles=await page.locator('.shop-offer').evaluateAll(tiles=>{
    const body=tiles[0].closest('.modal-body').getBoundingClientRect();
    return tiles.map(tile=>tile.getBoundingClientRect()).filter(rect=>rect.top>=body.top&&rect.bottom<=body.bottom+1);
