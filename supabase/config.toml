@@ -11,3 +11,7 @@ verify_jwt = false
 
 [functions.vvr-campaign]
 verify_jwt = false
+
+# The isolated red-ledger draft authenticates W066 sessions and signed verifier receipts itself.
+[functions.vvr-red-ledger]
+verify_jwt = false
