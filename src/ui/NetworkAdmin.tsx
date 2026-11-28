@@ -2,7 +2,7 @@ import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import {community} from '../community/client';
 
 const flags={
- arena_ranked:'Рейтинговая Арена',arena_team:'Командная Арена',auction_trade:'Аукцион и обмен',
+ stars_shop:'Покупки за Telegram Stars',arena_ranked:'Рейтинговая Арена',arena_team:'Командная Арена',auction_trade:'Аукцион и обмен',
  chat:'Чат',world_boss:'Мировой босс',premium_shop:'Покупки за платные самоцветы',
 };
 const sanctions={chat_mute:'Запрет чата',trade_ban:'Запрет торговли',network_ban:'Запрет сетевых функций'};
@@ -102,6 +102,65 @@ function AdminAnalytics(){
     <h3>Ошибки клиента</h3>
     {report.errors.length?report.errors.map(e=><p key={e.code}>{e.code} · {e.count} раз · игроков {e.players}{e.example?' · '+e.example:''}</p>):<p>Ошибок нет.</p>}
    </>}
+   {notice&&<p role="status">{notice}</p>}
+  </div>
+ </details>;
+}
+
+type Bot={status:string;bot:string|null;webhook:{ours:boolean;url:string;pending:number;lastError:string|null};stars:{amount?:number}|number|null;current?:string;error?:string};
+type Finance={totals:Record<string,number>;payers:number;pending:number;
+ orders:{id:string;sku:string;stars:number;gems:number;status:string;created_at:string;telegram:string}[]};
+/** Estimated owner revenue per Star in USD; Telegram's withdrawal rate is shown by Fragment and may change. */
+const STAR_USD=0.013;
+const orderStatus:Record<string,string>={paid:'оплачен',refunded:'возвращён',refunding:'возврат…'};
+const refundText:Record<string,string>={refunded:'Stars возвращены игроку.',restored:'Telegram не выполнил возврат · самоцветы возвращены игроку.',
+ gems_spent:'Самоцветы уже потрачены · возврат невозможен.',not_paid:'Заказ уже не в статусе «оплачен».'};
+
+/** Owner finance: bot payment webhook, Stars income, refunds and the net result. */
+function AdminFinance({owner}:{owner:boolean}){
+ const [bot,setBot]=useState<Bot>();
+ const [finance,setFinance]=useState<Finance>();
+ const [notice,setNotice]=useState('');
+ const [busy,setBusy]=useState(false);
+ async function load(connect=false){
+  setBusy(true);setNotice('');
+  try{
+   const [b,f]=await Promise.all([community<Bot>('admin_bot',connect?{connect:true}:{}),community<Finance>('admin_finance',{days:3650})]);
+   setBot(b);setFinance(f);
+   if(b.status==='webhook_in_use')setNotice('У бота уже есть другой обработчик · подключение отменено, чтобы его не сломать.');
+   else if(b.status==='failed')setNotice('Telegram отклонил подключение: '+(b.error??''));
+  }catch{setNotice('Финансы временно недоступны. Войдите в администрирование снова.');}
+  finally{setBusy(false);}
+ }
+ async function refund(order:string){
+  if(busy||!window.confirm('Вернуть Stars игроку и списать начисленные самоцветы?'))return;
+  setBusy(true);
+  try{const r=await community<{status:string}>('admin_stars_refund',{order});setNotice(refundText[r.status]??'Возврат отклонён.');}
+  catch{setNotice('Возврат не выполнен · попробуйте ещё раз.');}
+  finally{setBusy(false);void load();}
+ }
+ const t=finance?.totals??{},sales=t['stars_sale:XTR']??0,support=t['stars_support:XTR']??0,refunds=t['stars_refund:XTR']??0;
+ const net=sales+support+refunds;
+ const balance=typeof bot?.stars==='number'?bot.stars:bot?.stars?.amount;
+ return <details className="saga-disclosure" onToggle={event=>{if((event.target as HTMLDetailsElement).open&&!finance&&!busy)void load()}}>
+  <summary>Финансы и Stars</summary>
+  <div className="admin-analytics">
+   {bot&&<>
+    <p>Бот · @{bot.bot??'?'} · приём платежей {bot.webhook.ours?'подключён':'не подключён'}{bot.webhook.pending?` · в очереди ${bot.webhook.pending}`:''}</p>
+    {bot.webhook.lastError&&<p>Последняя ошибка Telegram · {bot.webhook.lastError}</p>}
+    {balance!==undefined&&<p>Баланс Stars бота · ⭐ {balance}</p>}
+    {owner&&!bot.webhook.ours&&<button type="button" className="action secondary" disabled={busy} onClick={()=>void load(true)}>Подключить приём платежей</button>}
+   </>}
+   {finance&&<>
+    <p>Продажи · ⭐ {sales} · поддержка · ⭐ {support} · возвраты · ⭐ {Math.abs(refunds)}</p>
+    <p>Итог · ⭐ {net} ≈ ${(net*STAR_USD).toFixed(2)} к выводу через Fragment (оценка)</p>
+    <p>Платящих игроков · {finance.payers} · неоплаченных счетов · {finance.pending}</p>
+    {finance.orders.map(o=><div key={o.id}>
+     <p>{new Date(o.created_at).toLocaleString()} · {o.sku} · ⭐ {o.stars} · {o.gems} самоц. · {orderStatus[o.status]??o.status} · игрок {o.telegram}</p>
+     {owner&&o.status==='paid'&&<button type="button" className="action secondary" disabled={busy} onClick={()=>void refund(o.id)}>Вернуть Stars</button>}
+    </div>)}
+   </>}
+   <button type="button" className="action secondary" disabled={busy} onClick={()=>void load()}>Обновить</button>
    {notice&&<p role="status">{notice}</p>}
   </div>
  </details>;
@@ -266,6 +325,7 @@ export function NetworkAdmin({onExit}:{onExit:()=>void}){
     </li>)}</ul>
     {status.history.length>=30&&<button type="button" className="action secondary" onClick={()=>void older()}>Предыдущие записи</button>}
    </details>
+   <AdminFinance owner={status.role==='owner'}/>
    <AdminAnalytics/>
    <AdminPassword/>
    <button type="button" className="action secondary" onClick={()=>{void community('admin_lock').catch(()=>{});onExit();}}>Выйти из администрирования</button>

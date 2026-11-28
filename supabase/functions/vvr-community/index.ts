@@ -1,5 +1,6 @@
 import {issueVvrSession,readVvrSession,verifyTelegramIdentity} from '../_shared/vvr-identity.ts';
 import {makeSecretReader} from '../_shared/w066-secrets.ts';
+import {handleStarsAction,handleWebhook} from '../_shared/stars.ts';
 
 const project=Deno.env.get('SUPABASE_URL');
 const roleKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -7,9 +8,10 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','premium_wallet','equip','unequip','enhance']);
+const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','premium_wallet','equip','unequip','enhance']);
 const sanctions=['chat_mute','trade_ban','network_ban'];
-const flagNames=['arena_ranked','arena_team','auction_trade','chat','world_boss','premium_shop'];
+const flagNames=['arena_ranked','arena_team','auction_trade','chat','world_boss','premium_shop','stars_shop'];
+const starsActions=new Set(['stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund']);
 const networkActions:Partial<Record<string,string>>={
  auction:'auction_trade',trade:'auction_trade',chat:'chat_view',post:'chat',hide:'chat',
  referrals:'brotherhood',brotherhood_claim:'brotherhood',
@@ -53,6 +55,12 @@ function valid(action:string,body:Record<string,unknown>){
   case 'admin_unlock':return keys===2&&text(body.login,32)&&text(body.password,72);
   case 'admin_lock':return keys===0;
   case 'admin_analytics':return keys===0||keys===1&&Number.isSafeInteger(body.days)&&Number(body.days)>=1&&Number(body.days)<=90;
+  case 'stars_offers':return keys===0;
+  case 'stars_invoice':return keys===1&&typeof body.sku==='string'&&/^[a-z0-9-]{1,32}$/.test(body.sku);
+  case 'premium_transfer':return keys===2&&isUuid(body.operationId)&&Number.isSafeInteger(body.amount)&&Number(body.amount)>=1&&Number(body.amount)<=1_000_000;
+  case 'admin_finance':return keys===0||keys===1&&Number.isSafeInteger(body.days)&&Number(body.days)>=1&&Number(body.days)<=3650;
+  case 'admin_bot':return keys===0||keys===1&&body.connect===true;
+  case 'admin_stars_refund':return keys===1&&isUuid(body.order);
   case 'track':return keys===1&&Array.isArray(body.events)&&body.events.length>=1&&body.events.length<=25;
   case 'admin_password':return keys===3&&text(body.oldPassword,72)&&text(body.login,32)&&text(body.password,72);
   case 'trade':
@@ -232,6 +240,9 @@ Deno.serve(async request=>{
  if(new URL(request.url).pathname.endsWith('/backup')){
   try{return await backup(request,sessionKey,reply);}catch{return reply(503,{error:'unavailable'});}
  }
+ if(route==='stars-webhook'){
+  try{return await handleWebhook(request,sessionKey,botToken,rpc);}catch{return new Response('{}',{status:500});}
+ }
  let value:unknown;
  try{value=await input(request);}catch{return reply(400,{error:'invalid_request'});}
  if(!isRecord(value)||Object.keys(value).length!==2||typeof value.action!=='string'||!actions.has(value.action)||
@@ -268,6 +279,7 @@ Deno.serve(async request=>{
     :await rpc('vvr_admin_password',{p_actor:player,p_old:value.body.oldPassword,p_login:value.body.login,p_password:value.body.password});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'admin_request_rejected'});
   }
+  if(starsActions.has(value.action))return await handleStarsAction(value.action,value.body,player,botToken,sessionKey,project,rpc,reply,rpcError);
   if(value.action==='track'){
    const result=await rpc('vvr_track',{p_player:player,p_events:value.body.events});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'track_rejected'});

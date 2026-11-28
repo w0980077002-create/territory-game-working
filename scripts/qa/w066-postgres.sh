@@ -32,6 +32,7 @@ pg < tests/pg/w066-arena-consumables.sql
 pg < tests/pg/w066-admin-access.sql
 pg < tests/pg/w066-admin-password.sql
 pg < tests/pg/w066-analytics.sql
+pg < tests/pg/w066-stars.sql
 pg -c "update vvr.network_features set enabled=true where name='premium_shop';"
 pg < tests/pg/w066-premium-wallet.sql
 pg <<'SQL'
