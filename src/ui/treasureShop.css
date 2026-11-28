@@ -197,3 +197,12 @@
 .premium-gems header b { margin-left: auto; color: #9fd8ff; }
 .premium-gems .hint { margin: 0; }
 .premium-offers { display: grid; gap: 6px; }
+/* Donate tab: Telegram Stars cards reuse the shop offer frame. */
+.stars-store { display: grid; gap: 4px; }
+.stars-account { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border: 2px solid #9e6a43; border-radius: 9px 4px;
+  background: var(--art-panel); color: #fff0d6; font-size: 13px; }
+.stars-account > .icon { width: 26px; height: 22px; }
+.stars-account > span { flex: 1; }
+.stars-account > .stars-transfer { flex: 0 0 auto; width: auto; min-height: 44px; padding: 0 14px; }
+.stars-offer .shop-buy b { color: #ffe08a; }
+.stars-store > .hint { margin: 0; font-size: 11px; line-height: 1.25; }

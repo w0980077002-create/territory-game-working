@@ -17,10 +17,10 @@ const arenaKind=(id:string)=>consumableIds.find(kind=>id===(kind==='potion'?'are
 import {CardDialog} from './SagaUI';
 import './treasureShop.css';
 
-const categories = [['all','Витрина'], ...shopCategories] as const;
+const categories = [['all','Витрина'], ...shopCategories, ['donate','Донат']] as const;
 const categoryIcons = {
   all:'chest', daily:'event', resources:'coins', materials:'mat-harbor',
-  equipment:'helmet', growth:'skill', horn:'horn', elixirs:'elixir-valhalla-heart', supplies:'gift',
+  equipment:'helmet', growth:'skill', horn:'horn', elixirs:'elixir-valhalla-heart', supplies:'gift', donate:'gem',
 } satisfies Record<typeof categories[number][0],string>;
 const featured = ['arena-potion','travel-stipend','region-supplies','expedition-kit','mine-reserve','summon-seal','forge-parcel','basic-equipment'];
 const compactCoins = new Intl.NumberFormat('ru', {notation:'compact',maximumFractionDigits:1});
@@ -155,7 +155,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
     <div className="shop-counter">
       <div className="shop-sign"><strong>Прилавок<br/>северного купца</strong><span>Новые товары в 00:00 UTC</span></div>
     </div>
-    {communityEnabled&&signed&&category==='all'&&<StarsStore/>}
+    {category==='donate'&&(communityEnabled&&signed?<StarsStore/>:<p className="hint">Покупки за Telegram Stars доступны в игре внутри Telegram.</p>)}
     {communityEnabled&&signed&&category==='supplies'&&<PremiumGems/>}
     <div className="shop-wallet">
       {Object.entries(shopCurrencies).map(([id, def]) => {
@@ -171,7 +171,7 @@ export function TreasureShop({p, source, sources, onFreeSpace}: {
         onClick={() => setCategory(id)}><Icon name={categoryIcons[id]}/><span>{label}</span></button>)}
     </div>
     {packFull && <div className="capacity-help"><p className="hint">Рюкзак полон. Перед покупкой снаряжения разберите выбранную вещь в рюкзаке.</p>{freeSpace}</div>}
-    <div className="shop-grid">
+    <div className="shop-grid" hidden={category==="donate"}>
       {visible.map(offer => {
         const signedConsumable=signed&&!!arenaKind(offer.id);
         const signedPotion=signedConsumable&&offer.id==='arena-potion';

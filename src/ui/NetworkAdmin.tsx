@@ -108,7 +108,7 @@ function AdminAnalytics(){
 }
 
 type Bot={status:string;bot:string|null;webhook:{ours:boolean;url:string;pending:number;lastError:string|null};stars:{amount?:number}|number|null;current?:string;error?:string};
-type Finance={totals:Record<string,number>;payers:number;pending:number;
+type Finance={sales:number;support:number;refunds:number;test:number;testCount:number;earned:number;withdrawable:number;payers:number;pending:number;
  orders:{id:string;sku:string;stars:number;gems:number;status:string;created_at:string;telegram:string}[]};
 /** Estimated owner revenue per Star in USD; Telegram's withdrawal rate is shown by Fragment and may change. */
 const STAR_USD=0.013;
@@ -120,13 +120,15 @@ const refundText:Record<string,string>={refunded:'Stars возвращены и�
 function AdminFinance({owner}:{owner:boolean}){
  const [bot,setBot]=useState<Bot>();
  const [finance,setFinance]=useState<Finance>();
+ const [treasury,setTreasury]=useState<{ton:string;linkedWallets:number}>();
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState(false);
  async function load(connect=false){
   setBusy(true);setNotice('');
   try{
-   const [b,f]=await Promise.all([community<Bot>('admin_bot',connect?{connect:true}:{}),community<Finance>('admin_finance',{days:3650})]);
-   setBot(b);setFinance(f);
+   const [b,f,t]=await Promise.all([community<Bot>('admin_bot',connect?{connect:true}:{}),community<Finance>('admin_finance',{days:3650}),
+    community<{ton:string;linkedWallets:number}>('admin_treasury').catch(()=>undefined)]);
+   setBot(b);setFinance(f);setTreasury(t);
    if(b.status==='webhook_in_use')setNotice('У бота уже есть другой обработчик · подключение отменено, чтобы его не сломать.');
    else if(b.status==='failed')setNotice('Telegram отклонил подключение: '+(b.error??''));
   }catch{setNotice('Финансы временно недоступны. Войдите в администрирование снова.');}
@@ -139,26 +141,26 @@ function AdminFinance({owner}:{owner:boolean}){
   catch{setNotice('Возврат не выполнен · попробуйте ещё раз.');}
   finally{setBusy(false);void load();}
  }
- const t=finance?.totals??{},sales=t['stars_sale:XTR']??0,support=t['stars_support:XTR']??0,refunds=t['stars_refund:XTR']??0;
- const net=sales+support+refunds;
  const balance=typeof bot?.stars==='number'?bot.stars:bot?.stars?.amount;
  return <details className="saga-disclosure" onToggle={event=>{if((event.target as HTMLDetailsElement).open&&!finance&&!busy)void load()}}>
   <summary>Финансы и Stars</summary>
   <div className="admin-analytics">
    {bot&&<>
-    <p>Бот · @{bot.bot??'?'} · приём платежей {bot.webhook.ours?'подключён':'не подключён'}{bot.webhook.pending?` · в очереди ${bot.webhook.pending}`:''}</p>
-    {bot.webhook.lastError&&<p>Последняя ошибка Telegram · {bot.webhook.lastError}</p>}
-    {balance!==undefined&&<p>Баланс Stars бота · ⭐ {balance}</p>}
+    <p>@{bot.bot??'?'} · платежи {bot.webhook.ours?'✓':'не подключены'}{balance!==undefined?` · баланс бота ⭐ ${balance}`:''}{bot.webhook.pending?` · в очереди ${bot.webhook.pending}`:''}</p>
+    {bot.webhook.lastError&&<p>Ошибка Telegram · {bot.webhook.lastError}</p>}
     {owner&&!bot.webhook.ours&&<button type="button" className="action secondary" disabled={busy} onClick={()=>void load(true)}>Подключить приём платежей</button>}
    </>}
    {finance&&<>
-    <p>Продажи · ⭐ {sales} · поддержка · ⭐ {support} · возвраты · ⭐ {Math.abs(refunds)}</p>
-    <p>Итог · ⭐ {net} ≈ ${(net*STAR_USD).toFixed(2)} к выводу через Fragment (оценка)</p>
-    <p>Платящих игроков · {finance.payers} · неоплаченных счетов · {finance.pending}</p>
+    <p>Заработано ⭐ {finance.earned} · к выводу ⭐ {finance.withdrawable} ≈ ${(finance.withdrawable*STAR_USD).toFixed(2)}</p>
+    <p>Продажи ⭐ {finance.sales} · поддержка ⭐ {finance.support} · возвраты ⭐ {finance.refunds} · платящих {finance.payers}</p>
+    <p className="hint">К выводу — Stars старше 21 дня (правило Telegram), вывод через Fragment от 1000 ⭐; $ — оценка.{finance.testCount?` Тестовых покупок: ${finance.testCount}, в итоги не входят.`:''}</p>
+    {treasury&&<p>Казна TON · <code>{treasury.ton.slice(0,6)}…{treasury.ton.slice(-6)}</code> · кошельков игроков {treasury.linkedWallets}</p>}
+    <details className="saga-disclosure"><summary>Заказы · {finance.orders.length}</summary>
     {finance.orders.map(o=><div key={o.id}>
      <p>{new Date(o.created_at).toLocaleString()} · {o.sku} · ⭐ {o.stars} · {o.gems} самоц. · {orderStatus[o.status]??o.status} · игрок {o.telegram}</p>
      {owner&&o.status==='paid'&&<button type="button" className="action secondary" disabled={busy} onClick={()=>void refund(o.id)}>Вернуть Stars</button>}
     </div>)}
+    </details>
    </>}
    <button type="button" className="action secondary" disabled={busy} onClick={()=>void load()}>Обновить</button>
    {notice&&<p role="status">{notice}</p>}

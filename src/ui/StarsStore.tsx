@@ -5,7 +5,7 @@ import {tg} from '../core/telegram';
 import {track} from '../core/analyticsBus';
 import {Icon} from './Icon';
 
-type Offer={sku:string;kind:'gems'|'support'|'test';title:string;stars:number;gems:number};
+type Offer={sku:string;kind:'gems'|'support'|'test';title:string;stars:number;gems:number;bonus?:boolean};
 type Catalog={open:boolean;admin:boolean;balance:number;offers:Offer[]};
 type Transfer={operationId:string;amount:number};
 const transferKey=SAVE_KEY+':premium-transfer';
@@ -53,7 +53,7 @@ export function StarsStore(){
    open(result.link,status=>{
     setBusy(false);
     if(status==='paid'){
-     track('purchase',{sku:offer.sku,currency:'stars',price:offer.stars});
+     if(offer.kind!=='test')track('purchase',{sku:offer.sku,currency:'stars',price:offer.stars});
      setMessage(offer.kind==='support'?'Спасибо за поддержку проекта!':'Оплата прошла · самоцветы зачисляются на аккаунт');
      // Telegram confirms to the server separately; refresh until the balance arrives.
      for(const delay of [1500,4000,9000])setTimeout(()=>void load(),delay);
@@ -68,20 +68,28 @@ export function StarsStore(){
   void finishTransfer(t);
  }
  if(!catalog)return message?<p className="hint">{message}</p>:null;
- const gems=catalog.offers.filter(o=>o.kind!=='support'),support=catalog.offers.filter(o=>o.kind==='support');
  const available=catalog.open||catalog.admin;
- return <section className="premium-gems stars-store" aria-label="Telegram Stars">
-  <header><Icon name="gem"/><strong>Самоцветы за Telegram Stars</strong><b>{catalog.balance.toLocaleString('ru')}</b></header>
-  {catalog.balance>0&&<button type="button" className="action" disabled={busy} onClick={transfer}>Перенести {catalog.balance.toLocaleString('ru')} самоцветов герою</button>}
+ // New commercial kinds only need a card face here; payment and crediting stay on the server catalog.
+ const card=(o:Offer)=>{
+  const support=o.kind==='support';
+  return <article className="shop-offer stars-offer" key={o.sku} data-offer={o.sku} data-value={o.bonus?'prime':support?'bundle':undefined}>
+   {o.bonus&&<em className="shop-ribbon" title="Первая покупка ×2">×2</em>}
+   <div className="shop-item">
+    <span className="shop-item-picture"><Icon name={support?'gift':'gem'}/>{!support&&<b>×{o.gems.toLocaleString('ru')}</b>}</span>
+    <strong>{support?'Поддержка проекта':o.kind==='test'?'Проверка':'Самоцветы'}</strong>
+   </div>
+   <button type="button" className="shop-buy" disabled={busy||!available} aria-label={`Купить · ${o.title} · ${o.stars} Stars`}
+    onClick={()=>void buy(o)}><b>⭐ {o.stars.toLocaleString('ru')}</b></button>
+  </article>;
+ };
+ return <section className="stars-store" aria-label="Telegram Stars">
+  <div className="stars-account">
+   <Icon name="gem"/><span>На аккаунте <b>{catalog.balance.toLocaleString('ru')}</b></span>
+   {catalog.balance>0&&<button type="button" className="shop-buy stars-transfer" disabled={busy} onClick={transfer}>Герою</button>}
+  </div>
   {!catalog.open&&<p className="hint">{catalog.admin?'Продажи закрыты для игроков · вам доступна проверка оплаты.':'Покупки за Stars скоро откроются.'}</p>}
-  {available&&<div className="premium-offers">{gems.map(o=><button key={o.sku} type="button" className="action secondary" disabled={busy}
-   onClick={()=>void buy(o)}>{o.gems.toLocaleString('ru')} самоцветов · ⭐ {o.stars.toLocaleString('ru')}</button>)}</div>}
-  {available&&support.length>0&&<details className="saga-disclosure"><summary>Поддержать проект</summary>
-   <p className="hint">Добровольная поддержка разработки. Не даёт игровых преимуществ.</p>
-   <div className="premium-offers">{support.map(o=><button key={o.sku} type="button" className="action secondary" disabled={busy}
-    onClick={()=>void buy(o)}>⭐ {o.stars.toLocaleString('ru')}</button>)}</div>
-  </details>}
-  <p className="hint">Самоцветы хранятся на аккаунте Telegram и переносятся герою по кнопке. Неиспользованную покупку можно вернуть в течение 14 дней: /paysupport в чате бота.</p>
+  {available&&<div className="shop-grid">{catalog.offers.map(card)}</div>}
+  <p className="hint">Оплата Telegram Stars · возврат неиспользованного 14 дней через /paysupport · поддержка не даёт преимуществ.</p>
   {message&&<p role="status">{message}</p>}
  </section>;
 }
