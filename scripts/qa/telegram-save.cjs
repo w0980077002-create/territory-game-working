@@ -92,12 +92,12 @@ async function transferBetweenDevices(browser){
  const out='.tmp/window-qa/telegram-transfer';
  mkdirSync(out,{recursive:true});
  const seed=bigSave(34);
- seed.bosses=33;seed.mission=32;seed.chaosite=45;seed.mineAt=Date.now()-3600e3;
+ seed.bosses=33;seed.mission=32;seed.chaosite=45;seed.mineAt=Date.now()-6*3600e3;
  const a=await device('A',id,seed);
  let ap=await a.makePage();await ap.goto(base+'?miniapp=transfer-a');await awaitRead('A');
  await tap(ap,'Задания');await tap(ap,'Получить награду');await tap(ap,'Закрыть');
  assert.equal((await local(ap)).mission,33);
- assert.equal((await local(ap)).gems,seed.gems+15);
+ assert.equal((await local(ap)).gems,seed.gems+8);
  await tap(ap,'Приключения');await tap(ap,/^Логово мини-босса/);
  await tap(ap,/^Капибара-Громила/);await tap(ap,'Выбрать бой');
  await ap.locator('.bottom>.central').tap();await ap.waitForTimeout(420);

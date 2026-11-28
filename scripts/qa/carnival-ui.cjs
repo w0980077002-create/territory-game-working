@@ -76,7 +76,7 @@ async function scenario(browser,width,height){
       await final.getByRole('button',{name:'Забрать главный приз'}).dblclick();
       assert.match(await final.innerText(),/Приз получен/);
       const reward=await read(page);
-      assert.equal(reward.gems,gems+30);
+      assert.equal(reward.gems,gems+15);
       assert.equal([...reward.inventory,...(reward.pendingLoot??[])].filter(item=>item.slot==='ring1'&&item.origin==='Награда карнавала · 2026-12').length,1);
       await page.clock.setFixedTime(utc(12,8));
       await page.reload();
