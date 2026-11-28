@@ -33,6 +33,7 @@ if (![30,90,180].includes(minutes) || ![0,5,20,50,100].includes(dollars) ||
 }
 const checkpoints = new Set([1,7,14,30,60,90,180,365,days]);
 const stopAtLevel100 = process.env.SIM_STOP_AT_100 === '1';
+const fullSessions = process.env.SIM_FULL_SESSIONS === '1';
 const game = () => useGame.getState();
 const player = () => game().p;
 const origin = Date.UTC(2026, 0, 1, 10);
@@ -235,7 +236,7 @@ try {
       } else if (oldPhase !== 'defeat' && engine.phase === 'defeat') {
         activity.defeats++;
         dailyStreakDefeats++;
-        if (dailyStreakDefeats >= 3) {
+        if (!fullSessions && dailyStreakDefeats >= 3) {
           activity.skippedSeconds += (ticks-tick-1)*.05;
           break;
         }

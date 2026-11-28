@@ -1,7 +1,6 @@
 {
   "repeatSupplyPercent": 50,
-  "mineGoldCapMinutes": 30,
-  "mineChaositeCapMinutes": 20,
+  "mineFullReward": {"gold": 3600, "chaosite": 10},
   "lateCampaignGoldPercent": 65,
   "lateUpgrade": {"fromRank": 10, "marginalPercent": 75},
   "lateCraft": {"fromLevel": 25, "marginalPercent": 75},

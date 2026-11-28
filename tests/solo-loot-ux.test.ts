@@ -30,7 +30,11 @@ test('mine timer agrees with the cooldown and capped offline receipts',()=>{
  const lastAt=1000;
  assert.equal(previewMine(lastAt,lastAt-1000).waitMs,601_000);
  assert.equal(previewMine(lastAt,lastAt+599_999).waitMs,1);
- assert.deepEqual(previewMine(lastAt,lastAt+600_000),{waitMs:0,progress:1,gold:1200,chaosite:5});
+ assert.deepEqual(previewMine(lastAt,lastAt+600_000),{waitMs:0,progress:1,gold:50,chaosite:0});
+ assert.deepEqual(previewMine(lastAt,lastAt+21_600_000),{waitMs:0,progress:1,gold:1800,chaosite:5});
+ assert.equal(previewMine(lastAt,lastAt+43_199_999).gold,3599);
+ assert.equal(previewMine(lastAt,lastAt+43_199_999).chaosite,9);
+ assert.deepEqual(previewMine(lastAt,lastAt+43_200_000),{waitMs:0,progress:1,gold:3600,chaosite:10});
  assert.deepEqual(previewMine(lastAt,lastAt+86_400_000),{waitMs:0,progress:1,gold:3600,chaosite:10});
 });
 
