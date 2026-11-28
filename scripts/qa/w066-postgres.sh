@@ -36,6 +36,7 @@ pg < tests/pg/w066-analytics.sql
 pg < tests/pg/w066-stars.sql
 pg -c "update vvr.network_features set enabled=true where name='premium_shop';"
 pg < tests/pg/w066-premium-wallet.sql
+pg < tests/pg/w066-assortment.sql
 pg <<'SQL'
 select vvr.resolve_player('84682','Premium purchase race') as player \gset
 select public.vvr_premium_credit(:'player','11111111-aaaa-4111-8111-111111111111',10);

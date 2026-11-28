@@ -1,0 +1,9 @@
+.assortment-offer { display:grid; gap:.35rem; padding:.6rem 0; }
+[data-vvr-style="edition-north"] .saga-portrait,
+[data-vvr-style="edition-pass"] .saga-portrait { outline:2px solid #a8d9ee; }
+[data-vvr-style="edition-rome"] .saga-portrait { outline:2px solid #c96359; }
+[data-vvr-style="season-free"] .saga-portrait { outline:2px solid #aeb9c7; }
+[data-vvr-style="rewarded-ad"] .saga-portrait { outline:2px solid #bd8f69; }
+[data-vvr-style="edition-north"] .harbor-scene { box-shadow:inset 0 0 0 2px #a8d9ee; }
+[data-vvr-style="edition-rome"] .harbor-scene { box-shadow:inset 0 0 0 2px #c96359; }
+[data-vvr-style="edition-flag"] .harbor-scene { box-shadow:inset 0 0 0 2px #e1b876; }
