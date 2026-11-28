@@ -51,7 +51,8 @@ begin
  first_trade:=public.vvr_community(buyer,'trade',jsonb_build_object('kind','buy','operationId',buy_operation,'listingId',listing));
  assert first_trade=public.vvr_community(buyer,'trade',jsonb_build_object('kind','buy','operationId',buy_operation,'listingId',listing));
  assert (public.vvr_community(buyer,'auction','{}')->>'gold')::int=30;
- assert (public.vvr_community(seller,'auction','{}')->>'gold')::int=70;
+ assert (public.vvr_community(seller,'auction','{}')->>'gold')::int=63;
+ assert first_trade->>'commission'='7';
  assert jsonb_array_length(public.vvr_community(seller,'auction','{}')->'history')=2;
  assert (public.vvr_community(buyer,'auction','{}')->'items'->0->>'id')::uuid=asset;
  assert vvr.issue_item(seller,'world_boss',grant_event,'shield')=asset;

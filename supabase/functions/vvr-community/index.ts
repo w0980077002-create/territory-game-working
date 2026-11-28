@@ -8,12 +8,12 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
  sessionKey:Deno.env.get('VVR_SESSION_SECRET')??'',botToken:Deno.env.get('TELEGRAM_BOT_TOKEN')??'',
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
-const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury','premium_wallet','equip','unequip','enhance']);
+const actions=new Set(['login','auction','trade','market_workshop','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury','premium_wallet','equip','unequip','enhance']);
 const sanctions=['chat_mute','trade_ban','network_ban'];
 const flagNames=['arena_ranked','arena_team','auction_trade','chat','world_boss','premium_shop','stars_shop'];
 const starsActions=new Set(['stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury']);
 const networkActions:Partial<Record<string,string>>={
- auction:'auction_trade',trade:'auction_trade',chat:'chat_view',post:'chat',hide:'chat',
+ auction:'auction_trade',trade:'auction_trade',market_workshop:'auction_trade',chat:'chat_view',post:'chat',hide:'chat',
  referrals:'brotherhood',brotherhood_claim:'brotherhood',
 };
 const maxInput=16_384;
@@ -65,8 +65,18 @@ function valid(action:string,body:Record<string,unknown>){
   case 'admin_treasury':return keys===0;
   case 'track':return keys===1&&Array.isArray(body.events)&&body.events.length>=1&&body.events.length<=25;
   case 'admin_password':return keys===3&&text(body.oldPassword,72)&&text(body.login,32)&&text(body.password,72);
+  case 'market_workshop':
+   if(keys===0)return true;
+   if(!isUuid(body.operationId))return false;
+   if(body.kind==='choose')return keys===3&&typeof body.profession==='string'&&['smith','leatherworker','tailor','jeweler'].includes(body.profession);
+   if(body.kind==='gather')return keys===2;
+   return body.kind==='craft'&&keys===4&&isUuid(body.own)&&isUuid(body.partner);
   case 'trade':
    if(!isUuid(body.operationId))return false;
+   if(body.kind==='request')return keys===4&&typeof body.catalogId==='string'&&/^[-a-z0-9:]{1,48}$/.test(body.catalogId)
+    &&Number.isSafeInteger(body.price)&&Number(body.price)>=10&&Number(body.price)<=1_000_000_000;
+   if(body.kind==='withdraw')return keys===3&&isUuid(body.requestId);
+   if(body.kind==='fulfill')return keys===4&&isUuid(body.requestId)&&isUuid(body.itemId);
    return body.kind==='list'?keys===4&&isUuid(body.itemId)&&typeof body.price==='number'&&
     Number.isSafeInteger(body.price)&&body.price>=1&&body.price<=1_000_000_000:
     keys===3&&(body.kind==='buy'||body.kind==='cancel')&&isUuid(body.listingId);
@@ -323,6 +333,11 @@ Deno.serve(async request=>{
   if(value.action==='equip'||value.action==='unequip'){
    const result=await rpc('vvr_equipment',{p_player:player,p_action:value.action,p_item:value.body.item});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'equipment_request_rejected'});
+  }
+  if(value.action==='market_workshop'){
+   const {operationId,...command}=value.body;
+   const result=await rpc('vvr_market_workshop',{p_player:player,p_operation:operationId??null,p_body:command});
+   return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'workshop_rejected'});
   }
   if(value.action==='auction'){
    const [market,equipment]=await Promise.all([
