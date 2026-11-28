@@ -120,19 +120,25 @@ const refundText:Record<string,string>={refunded:'Stars возвращены и�
 function AdminFinance({owner}:{owner:boolean}){
  const [bot,setBot]=useState<Bot>();
  const [finance,setFinance]=useState<Finance>();
- const [treasury,setTreasury]=useState<{ton:string;linkedWallets:number}>();
+ const [treasury,setTreasury]=useState<{ton:string;linkedWallets:number;verifiedWallets?:number;cryptoTon?:number}>();
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState(false);
  async function load(connect=false){
   setBusy(true);setNotice('');
   try{
    const [b,f,t]=await Promise.all([community<Bot>('admin_bot',connect?{connect:true}:{}),community<Finance>('admin_finance',{days:3650}),
-    community<{ton:string;linkedWallets:number}>('admin_treasury').catch(()=>undefined)]);
+    community<{ton:string;linkedWallets:number;verifiedWallets?:number;cryptoTon?:number}>('admin_treasury').catch(()=>undefined)]);
    setBot(b);setFinance(f);setTreasury(t);
    if(b.status==='webhook_in_use')setNotice('У бота уже есть другой обработчик · подключение отменено, чтобы его не сломать.');
    else if(b.status==='failed')setNotice('Telegram отклонил подключение: '+(b.error??''));
   }catch{setNotice('Финансы временно недоступны. Войдите в администрирование снова.');}
   finally{setBusy(false);}
+ }
+ async function syncCrypto(){
+  setBusy(true);
+  try{const r=await community<{added:number;total:number}>('admin_crypto_sync');setNotice(`Новых поступлений · ${r.added} · всего ${r.total} TON`);}
+  catch{setNotice('Сеть TON временно недоступна · попробуйте позже.');}
+  finally{setBusy(false);void load();}
  }
  async function refund(order:string){
   if(busy||!window.confirm('Вернуть Stars игроку и списать начисленные самоцветы?'))return;
@@ -154,7 +160,8 @@ function AdminFinance({owner}:{owner:boolean}){
     <p>Заработано ⭐ {finance.earned} · к выводу ⭐ {finance.withdrawable} ≈ ${(finance.withdrawable*STAR_USD).toFixed(2)}</p>
     <p>Продажи ⭐ {finance.sales} · поддержка ⭐ {finance.support} · возвраты ⭐ {finance.refunds} · платящих {finance.payers}</p>
     <p className="hint">К выводу — Stars старше 21 дня (правило Telegram), вывод через Fragment от 1000 ⭐; $ — оценка.{finance.testCount?` Тестовых покупок: ${finance.testCount}, в итоги не входят.`:''}</p>
-    {treasury&&<p>Казна TON · <code>{treasury.ton.slice(0,6)}…{treasury.ton.slice(-6)}</code> · кошельков игроков {treasury.linkedWallets}</p>}
+    {treasury&&<p>Казна TON · <code>{treasury.ton.slice(0,6)}…{treasury.ton.slice(-6)}</code> · поступило {treasury.cryptoTon??0} TON · кошельков {treasury.verifiedWallets??0}/{treasury.linkedWallets} подтв.
+     {' '}<button type="button" className="action secondary" disabled={busy} onClick={()=>void syncCrypto()}>Проверить поступления</button></p>}
     <details className="saga-disclosure"><summary>Заказы · {finance.orders.length}</summary>
     {finance.orders.map(o=><div key={o.id}>
      <p>{new Date(o.created_at).toLocaleString()} · {o.sku} · ⭐ {o.stars} · {o.gems} самоц. · {orderStatus[o.status]??o.status} · игрок {o.telegram}</p>
