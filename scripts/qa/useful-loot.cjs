@@ -316,7 +316,7 @@ async function navalLifecycle({page, button, read}) {
  assert.ok(await next('Забрать добычу рейса').isDisabled());
  await page.clock.fastForward(4*3_600_000);
  await next('Забрать добычу рейса').tap();
- await next('Ремонт · 210 золота').tap();
+ await next('Ремонт · 95 золота').tap();
  await next(/Получить · 150 золота/).tap();
  assert.ok(await next(/Получить · 150 золота/).isDisabled());
  await next(/Построить корабль/).tap();
@@ -332,7 +332,7 @@ async function navalLifecycle({page, button, read}) {
  assert.equal(after.shipyard.ships.length,1);
  assert.equal(after.shipyard.naval.contracts,1);
  assert.equal(after.shipyard.naval.serial,1);
- assert.equal(after.gold,before.gold+380-210+150-8000+2400);
+ assert.equal(after.gold,before.gold+380-95+150-8000+2400);
  assert.equal(after.gems,before.gems);
  assert.equal(after.redDiamonds,before.redDiamonds);
 }

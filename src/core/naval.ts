@@ -1,5 +1,8 @@
-import {HULLS, NAVAL, RIGS, ROUTES, type Hull, type Rig, type RouteHours} from './navalBalance';
+import {HULLS, NAVAL, NAVAL_SHOP, RIGS, ROUTES, type Hull, type NavalOffer, type Rig, type RouteHours} from './navalBalance';
 import {previewShips, starterShipyard, validShipyard, type Ship, type ShipWallet} from './shipyard';
+
+import type {Player} from './types';
+import {addRes} from '../dark/rules';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -36,14 +39,24 @@ export function validNavalShip(ship: Ship, serial: number): boolean {
   return (ship.hull === undefined || has(HULLS, ship.hull))
     && (ship.legacyLevel === undefined || (legacy && amount(ship.legacyLevel, ship.level) && ship.legacyLevel > 0))
     && (ship.rig === undefined || has(RIGS, ship.rig))
-    && (ship.repair === undefined || amount(ship.repair, 1_000))
+    && (ship.repair === undefined || amount(ship.repair, 4_000))
     && (voyage === undefined || (!!voyage && !ship.repair && amount(voyage.endsAt)
       && ROUTES.some(r => r.hours === voyage.hours) && amount(voyage.repair, 4_000) && voyage.repair > 0
       && amount(voyage.gold, 4_000) && amount(voyage.materials, 20) && amount(voyage.seals, 20)));
 }
 
-function routeRepair(ship: Ship, cost: number): number {
-  return ship.hull === 'warship' ? Math.floor(cost * 90 / 100) : cost;
+export function buyNavalOffer(p: Player, id: NavalOffer): boolean {
+  const fleet = p.shipyard;
+  if (!fleet?.naval || !has(NAVAL_SHOP, id)) return false;
+  const offer = NAVAL_SHOP[id];
+  if (fleet.naval.seals < offer.seals) return false;
+  const naval = {...fleet.naval, seals: fleet.naval.seals - offer.seals};
+  if (id === 'materials') naval.materials += offer.amount;
+  if (!validNaval(naval) || (id === 'chaosite' && !Number.isSafeInteger(p.chaosite + offer.amount))) return false;
+  if (id === 'chaosite') p.chaosite += offer.amount;
+  if (id === 'summon') addRes(p, 'seal', offer.amount);
+  p.shipyard = {...fleet, naval};
+  return true;
 }
 
 export function voyageReward(ship: Ship, hours: RouteHours): VoyageReward {
@@ -53,11 +66,13 @@ export function voyageReward(ship: Ship, hours: RouteHours): VoyageReward {
   const goldBonus = (ship.rig === 'sails' ? 10 : 0) + (ship.hull === 'dragon' && hours >= 12 ? 10 : 0);
   const scale = (base: number, specialty: number, bonus: number) =>
     Math.floor(base * level * specialty * (100 + bonus) / 1_000_000);
+  const gold = scale(route.gold, hull.gold, goldBonus);
+  const repairPercent = NAVAL.repairPercent * (ship.hull === 'warship' ? 90 : 100);
   return {
-    gold: scale(route.gold, hull.gold, goldBonus),
+    gold,
     materials: scale(route.materials, hull.materials, ship.rig === 'nets' ? 25 : 0),
     seals: scale(route.seals, hull.seals, ship.rig === 'pennant' ? 25 : 0),
-    repair: routeRepair(ship, route.repair),
+    repair: Math.floor(gold * repairPercent / 10_000),
   };
 }
 

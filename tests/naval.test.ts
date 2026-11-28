@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {applyNaval, navalSalvage, voyageReward} from '../src/core/naval';
+import {applyNaval, buyNavalOffer, navalSalvage, voyageReward} from '../src/core/naval';
 import {HULLS, NAVAL, RIGS, ROUTES, type Hull} from '../src/core/navalBalance';
 import {shipCapacity, shipRate, starterShipyard, validShipyard, type ShipyardState} from '../src/core/shipyard';
 import {freshPlayer, parseSave} from '../src/core/store';
@@ -44,7 +44,7 @@ test('starter can run, collect, repair and finish a daily contract at zero gold'
   assert.equal(applyNaval(p, {type: 'contract'}, arrival), false);
   assert.equal(applyNaval(p, {type: 'contract'}, now + DAY), false);
   assert.equal(applyNaval(p, {type: 'launch', id, hours: 4}, now), false);
-  assert.equal(p.gold, 320);
+  assert.equal(p.gold, 435);
   assert.equal(p.redDiamonds, 1);
   assert.deepEqual([p.shipyard.naval?.materials, p.shipyard.naval?.seals], [3, 2]);
   assert.ok(validShipyard(p.shipyard));
@@ -56,7 +56,7 @@ test('all five hulls have positive gameside routes and the convoy hull reduces r
       let lastGold = 0;
       for (let level = 1; level <= 5; level++) {
         const reward = voyageReward({id: 'test', hull, level}, route.hours);
-        assert.equal(reward.repair, hull === 'warship' ? Math.floor(route.repair * 0.9) : route.repair);
+        assert.equal(reward.repair, Math.floor(reward.gold * (hull === 'warship' ? 225 : 250) / 1000));
         assert.ok(reward.gold > Math.max(reward.repair, lastGold));
         lastGold = reward.gold;
       }
@@ -100,4 +100,17 @@ test('fleet growth and refit have costs and dismantle preserves collected loot w
   assert.ok(p.gold < collected);
   assert.equal(shipRate(p.shipyard), 1);
   assert.ok(validShipyard(p.shipyard));
+});
+
+test('naval shop debits seals once per successful purchase and preserves old resources', () => {
+  const p = freshPlayer();
+  p.shipyard = {...starterShipyard(now), naval: {version: 1, serial: 0, contracts: 0, materials: 0, seals: 15}};
+  const before = p.chaosite;
+  assert.ok(buyNavalOffer(p, 'chaosite'));
+  assert.equal(p.chaosite, before + 3);
+  assert.equal(buyNavalOffer(p, 'chaosite'), false);
+  assert.ok(buyNavalOffer(p, 'materials'));
+  assert.equal(p.shipyard.naval?.materials, 4);
+  assert.equal(p.shipyard.naval?.seals, 0);
+  assert.ok(parseSave(JSON.stringify(p)));
 });

@@ -1,6 +1,6 @@
 import {useState} from 'react';
-import {applyNaval, emptyNaval, navalBuildReady, navalSalvage, voyageReward, type NavalAction} from '../core/naval';
-import {HULLS, NAVAL, RIGS, ROUTES, type Hull, type Rig} from '../core/navalBalance';
+import {applyNaval, buyNavalOffer, emptyNaval, navalBuildReady, navalSalvage, voyageReward, type NavalAction} from '../core/naval';
+import {HULLS, NAVAL, NAVAL_SHOP, RIGS, ROUTES, type Hull, type NavalOffer, type Rig} from '../core/navalBalance';
 import type {Ship, ShipyardState} from '../core/shipyard';
 import {useGame} from '../core/store';
 import {Action} from './SagaUI';
@@ -70,6 +70,17 @@ export function NavalPanel({fleet, ship, now}: {fleet: ShipyardState; ship: Ship
     <Action disabled={!canContract} onClick={() => perform({type: 'contract'}, 'Морской контракт выполнен')}>
       Получить · {NAVAL.contract.gold} золота, 1 материал и 1 печать
     </Action>
+    <details className="saga-disclosure">
+      <summary>Морская лавка · {naval.seals} печатей</summary>
+      {(Object.keys(NAVAL_SHOP) as NavalOffer[]).map(id => {
+        const offer = NAVAL_SHOP[id];
+        return <Action key={id} disabled={naval.seals < offer.seals} onClick={() => {
+          const {mutate, notice} = useGame.getState();
+          const ok = mutate(draft => buyNavalOffer(draft, id), true);
+          notice(ok ? 'Получено · ' + offer.name : 'Покупка недоступна');
+        }}>{offer.name} · {offer.seals} морских печатей</Action>;
+      })}
+    </details>
     <h3>Причалы · {fleet.ships.length}/{NAVAL.maxShips}</h3>
     {fleet.ships.length < NAVAL.maxShips && <>
       <label>Корпус <select value={hull} onChange={event => setHull(event.target.value as Hull)}>
