@@ -51,7 +51,8 @@ begin
  first_trade:=public.vvr_community(buyer,'trade',jsonb_build_object('kind','buy','operationId',buy_operation,'listingId',listing));
  assert first_trade=public.vvr_community(buyer,'trade',jsonb_build_object('kind','buy','operationId',buy_operation,'listingId',listing));
  assert (public.vvr_community(buyer,'auction','{}')->>'gold')::int=30;
- assert (public.vvr_community(seller,'auction','{}')->>'gold')::int=70;
+ assert (public.vvr_community(seller,'auction','{}')->>'gold')::int=63;
+ assert first_trade->>'commission'='7';
  assert jsonb_array_length(public.vvr_community(seller,'auction','{}')->'history')=2;
  assert (public.vvr_community(buyer,'auction','{}')->'items'->0->>'id')::uuid=asset;
  assert vvr.issue_item(seller,'world_boss',grant_event,'shield')=asset;
@@ -158,7 +159,7 @@ begin
  assert (select hp from vvr.world_boss_events where id=next_event)=900;
  assert (vvr.guild_boss_claim(starter,next_event)->>'firstClaim')::boolean;
  assert not (vvr.guild_boss_claim(starter,next_event)->>'firstClaim')::boolean;
- assert (public.vvr_community(starter,'auction','{}')->>'gold')::int=550;
+ assert (public.vvr_community(starter,'auction','{}')->>'gold')::int=500;
  assert not exists(select 1 from vvr.guild_boss_progress as progress
    where progress.event_id=next_event and progress.player_id=trained);
 end;

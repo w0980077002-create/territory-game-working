@@ -24,6 +24,7 @@ for file in supabase/migrations/*.sql; do pg -1 < "$file"; done
 pg < tests/pg/w066-community.sql
 pg < tests/pg/w066-snapshots.sql
 pg < tests/pg/w066-equipment.sql
+pg < tests/pg/w066-market-professions.sql
 pg < tests/pg/w066-arena-scores.sql
 pg < tests/pg/w066-arena-rooms.sql
 pg < tests/pg/w066-arena-railway.sql
@@ -253,7 +254,7 @@ grep -q 'listing_unavailable' "$results"/{a,b}
 pg <<'SQL'
 do $$
 begin
- assert (select balance from vvr.wallets w join vvr.players p on p.id=w.player_id where p.telegram_id='71001')=60;
+ assert (select balance from vvr.wallets w join vvr.players p on p.id=w.player_id where p.telegram_id='71001')=54;
  assert (select array_agg(balance order by balance) from vvr.wallets w join vvr.players p on p.id=w.player_id
    where p.telegram_id in ('71002','71003'))=array[40::bigint,100::bigint];
  assert (select count(*) from vvr.auction_listings where status='sold')=1;
