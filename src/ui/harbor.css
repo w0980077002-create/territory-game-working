@@ -122,7 +122,7 @@
     url('../../public/art/windows/harbor.webp') center 92% / cover no-repeat;
 }
 .harbor-shipyard .harbor-reflections { inset: 60% 0 0; }
-.harbor-berths { position: absolute; inset: 4px 4px 6px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
+.harbor-berths { position: absolute; inset: 4px 4px 6px; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 4px; }
 .harbor-boat-pick, .harbor-empty {
   display: grid;
   grid-template-rows: 1fr auto;
@@ -185,3 +185,7 @@
   .harbor-building > span { padding: 0 2px; gap: 1px; letter-spacing: -.2px; }
   .harbor-building .icon { width: 12px; height: 12px; }
 }
+
+.naval-panel { display: grid; gap: 8px; margin-block: 16px; }
+.naval-panel h3, .naval-panel p { margin: 0; }
+.naval-panel select { max-width: 100%; margin: 3px; color: #fbe6b3; background: #2c2625; }

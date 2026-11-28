@@ -8,6 +8,8 @@ import {Icon,gearIcon} from './Icon';
 import {sound,unlockAudio} from '../game/Sound';
 import {RewardNotice} from './RewardArt';
 
+export function Action({children,onClick,disabled=false,kind=''}:{children:React.ReactNode;onClick:()=>void;disabled?:boolean;kind?:string}){return <button className={`action ${kind}`} onClick={onClick} disabled={disabled}>{children}</button>}
+
 /** Shorter than a deliberate second tap, longer than a double tap. */
 export const TAP_GUARD_MS=350;
 

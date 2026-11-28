@@ -306,6 +306,37 @@ async function recommendation({page,button,close,read},variant){
  assert.equal(await tip.count(),0);
 }
 
+async function navalLifecycle({page, button, read}) {
+ await page.clock.install({time:new Date('2026-11-28T09:00:00Z')});
+ await button('Верфь').tap();
+ const yard=page.getByRole('region',{name:'Морские экспедиции'});
+ const next=label=>yard.getByRole('button',{name:label});
+ const before=await read();
+ await next('Отправить экспедицию').tap();
+ assert.ok(await next('Забрать добычу рейса').isDisabled());
+ await page.clock.fastForward(4*3_600_000);
+ await next('Забрать добычу рейса').tap();
+ await next('Ремонт · 210 золота').tap();
+ await next(/Получить · 150 золота/).tap();
+ assert.ok(await next(/Получить · 150 золота/).isDisabled());
+ await next(/Построить корабль/).tap();
+ await button(/Причал 2 · Торговый/).tap();
+ assert.ok(await yard.getByRole('heading',{name:'Торговый · уровень 1/5'}).isVisible());
+ await page.reload();
+ await button(/Верфь/).first().tap();
+ await button(/Причал 2 · Торговый/).tap();
+ await yard.getByText('Оснащение и разбор',{exact:true}).tap();
+ await next('Разобрать корабль').tap();
+ await next('Подтвердить разбор').tap();
+ const after=await read();
+ assert.equal(after.shipyard.ships.length,1);
+ assert.equal(after.shipyard.naval.contracts,1);
+ assert.equal(after.shipyard.naval.serial,1);
+ assert.equal(after.gold,before.gold+380-210+150-8000+2400);
+ assert.equal(after.gems,before.gems);
+ assert.equal(after.redDiamonds,before.redDiamonds);
+}
+
 (async()=>{
  fs.mkdirSync(out,{recursive:true});
  const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox']});
@@ -334,6 +365,12 @@ async function recommendation({page,button,close,read},variant){
   wallet.mineAt=now-598_000;
   wallet.shipyard={ships:[{id:'drakkar-1',level:1}],lastAt:now-3_597_000,stored:0};
   await withProfile(browser,viewport,'useful-loot-harvest',wallet,args=>harvest(args,now));
+  const yard=fixture(34);
+  yard.gold=10_000;
+  yard.shipyard={ships:[{id:'drakkar-1',level:1}],lastAt:now,stored:0,
+   naval:{version:1,serial:0,materials:21,seals:0,contracts:0}};
+  await withProfile(browser,viewport,'naval-lifecycle',yard,navalLifecycle);
+
   for(const variant of ['apply','skip','unaffordable']){
    const early=fixture(13);
    early.stage=11;
