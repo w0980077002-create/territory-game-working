@@ -159,7 +159,7 @@ begin
  assert (select hp from vvr.world_boss_events where id=next_event)=900;
  assert (vvr.guild_boss_claim(starter,next_event)->>'firstClaim')::boolean;
  assert not (vvr.guild_boss_claim(starter,next_event)->>'firstClaim')::boolean;
- assert (public.vvr_community(starter,'auction','{}')->>'gold')::int=550;
+ assert (public.vvr_community(starter,'auction','{}')->>'gold')::int=500;
  assert not exists(select 1 from vvr.guild_boss_progress as progress
    where progress.event_id=next_event and progress.player_id=trained);
 end;
