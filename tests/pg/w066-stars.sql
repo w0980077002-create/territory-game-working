@@ -46,7 +46,9 @@ begin
   assert public.vvr_stars_refund_finish(owner_id,o1,true)->>'status'='refunded';
   assert (public.vvr_stars_offers(owner_id)->>'balance')::int=0;
   r:=public.vvr_finance_report(owner_id,30);
-  assert (r->'totals'->>'stars_sale:XTR')::numeric=56 and (r->'totals'->>'stars_refund:XTR')::numeric=-1,r::text;
+  -- The 1-Star test stays out of commercial figures; the unmatched charge is counted for a manual refund.
+  assert (r->>'sales')::numeric=55 and (r->>'refunds')::numeric=0 and (r->>'test')::numeric=0 and (r->>'testCount')::int=1,r::text;
+  assert (r->>'payers')::int=1 and (r->>'withdrawable')::numeric=0,r::text;
   begin
     perform public.vvr_finance_report(buyer,30);
     raise exception 'player read finance';

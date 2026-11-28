@@ -53,7 +53,7 @@ export function StarsStore(){
    open(result.link,status=>{
     setBusy(false);
     if(status==='paid'){
-     track('purchase',{sku:offer.sku,currency:'stars',price:offer.stars});
+     if(offer.kind!=='test')track('purchase',{sku:offer.sku,currency:'stars',price:offer.stars});
      setMessage(offer.kind==='support'?'Спасибо за поддержку проекта!':'Оплата прошла · самоцветы зачисляются на аккаунт');
      // Telegram confirms to the server separately; refresh until the balance arrives.
      for(const delay of [1500,4000,9000])setTimeout(()=>void load(),delay);
