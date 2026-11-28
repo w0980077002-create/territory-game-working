@@ -37,7 +37,7 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await page.getByRole('button',{name:/^Выковать/}).evaluate(e=>{e.click();e.click()});
   await page.locator('[data-panel="item"]').waitFor();
   const craft=await page.evaluate(()=>{const p=window.__lootborn.useGame.getState().p;return {gold:p.gold,material:p.saga.n['mat:ember'],item:p.inventory.at(-1)}});
-  assert.equal(craft.gold,workshop.gold-workshop.level*90);
+  assert.equal(craft.gold,workshop.gold-Math.round(90*(Math.min(25,workshop.level)+Math.max(0,workshop.level-25)*.75)));
   assert.equal(craft.material,0);
   assert.equal(craft.item.slot,'ring1');
   assert.equal(craft.item.masterwork,true);
@@ -96,8 +96,8 @@ const base=process.env.BASE_URL||'http://localhost:4173/',out=process.env.OUT||'
   await category('Ресурсы');
   const beforeMine=await read();
   await purchase('mine-reserve').tap();
-  assert.equal((await read()).chaosite,beforeMine.chaosite+10);
-  assert.equal((await read()).gold,beforeMine.gold-150);
+  assert.equal((await read()).chaosite,beforeMine.chaosite+5);
+  assert.equal((await read()).gold,beforeMine.gold-350);
   await category('Развитие');
   const beforeSeal=(await read()).saga?.n['res:seal']??0;
   await purchase('summon-seal').tap();

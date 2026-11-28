@@ -12,8 +12,8 @@ test('forge loot stays within five levels and mastery is bounded',()=>{
  assert.equal(forgeLevel(p),44);
  assert.ok(forgeMasteryBonus(p)>0&&forgeMasteryBonus(p)<.25);
  assert.equal(craftPlan('frost',p).level,44);
- assert.equal(craftPlan('frost',p).gold,44*60);
- assert.equal(craftPlan('frost',p,true).gold,44*90);
+ assert.equal(craftPlan('frost',p).gold,2355);
+ assert.equal(craftPlan('frost',p,true).gold,3533);
  const drop=rollItem(p,'weapon');
  assert.ok(drop.level<=44);
  const ordinary=makeItem('weapon',44,drop.rarity);
@@ -34,7 +34,7 @@ test('forty enhancements increase stats by 5% of the original per rank, not nine
  let current=first;
  for(let rank=1;rank<=40;rank++){
   const {cost,next}=upgradePreview(current);
-  assert.equal(cost,Math.round(100*1.3**(rank-1)));
+  assert.equal(cost,Math.round(100*1.3**Math.min(10,rank-1)+75*Math.max(0,1.3**(rank-1)-1.3**10)));
   current=next;
   assert.equal(current.upgrade,rank);
   for(const key of ['attack','hp','defense'] as const)

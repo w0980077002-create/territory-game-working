@@ -1,3 +1,4 @@
+import { repeatReward } from '../core/economyBalance';
 import {grantSolo,soloResources,type SoloResource} from './soloEconomy';
 /** One honest reward shape for quests, expeditions, tower, raids and NPC events. Call `grant` inside a mutation. */
 import type {Player} from '../core/types';
@@ -8,6 +9,8 @@ import {materialIds,materials} from './gear';
 import {regionIndex,stageGold} from './regions';
 export interface Reward {gold?:number;gems?:number;horn?:number;chaosite?:number;tokens?:number;xp?:number;mats?:Record<string,number>;solo?:Partial<Record<SoloResource,number>>;res?:Partial<Record<ResId,number>>}
 export const chapterReward = {gold:200, gems:15} satisfies Reward;
+
+export const chapterRewardFor = (completed: number): Reward => completed === 0 ? chapterReward : repeatReward(chapterReward);
 
 export function combineRewards(rewards:readonly Reward[]): Reward {
  const total: Reward={};

@@ -89,7 +89,7 @@ test('chapter claim checks its own sequence and preserves the whole queue on a f
  G().claim('mission',3);
  assert.equal(P().mission,3);
  assert.equal(P().gold,gold+3*chapterReward.gold);
- assert.equal(P().gems,gems+3*chapterReward.gems);
+ assert.equal(P().gems,gems+chapterReward.gems+2*Math.round(chapterReward.gems/2));
 });
 
 test('Blessing caps each existing effect independently and blocks only a useless purchase',()=>{

@@ -1,3 +1,5 @@
+import economyStageOne from '../../config/economy-stage-1.json';
+import {lateGoldPrice} from '../core/economyBalance';
 /**
  * Player actions of the saga systems. Every action validates, then changes the save in ONE store mutation
  * and reports the result, so a double tap or a reload can never pay or charge twice.
@@ -37,7 +39,8 @@ export function engrave(slot:Slot,id:EngraveId){const p=G().p,item=p.equipment[s
 export const setUnlocked=(p:Player,set:SetId)=>regionIndex(p.stage)>=sets[set].region;
 export function craftPlan(set:SetId,p:Player,masterwork=false){
  const level=forgeLevel(p);
- return {level,gold:(masterwork?90:60)*level,mats:masterwork?18:12,material:sets[set].material,rarity:3};
+ const rate=masterwork?90:60;
+ return {level,gold:lateGoldPrice(rate*level,rate*economyStageOne.lateCraft.fromLevel,economyStageOne.lateCraft.marginalPercent),mats:masterwork?18:12,material:sets[set].material,rarity:3};
 }
 export function learnProfession(id:ProfessionId){
  const p=G().p;

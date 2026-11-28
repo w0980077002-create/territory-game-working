@@ -31,7 +31,7 @@ const slotNames={weapon:'Оружие',armor:'Доспех',helmet:'Шлем',sh
   const profile='button-routes-'+width+'x'+height;
   const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true});
   await context.route('https://telegram.org/**',route=>route.abort());
-  const fixture=require('./ui-fixture.cjs')();fixture.mineAt=Date.now()-3600e3;fixture.wingVisible=true;
+  const fixture=require('./ui-fixture.cjs')();fixture.mineAt=Date.now()-6*3600e3;fixture.wingVisible=true;
   await context.addInitScript(([k,p])=>{if(!localStorage.getItem(k))localStorage.setItem(k,JSON.stringify(p))},['lootborn-codex-v1:test:'+profile,fixture]);
   const page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));

@@ -151,8 +151,8 @@ async function harvest({page,button,close,read},now){
  const p=await read();
  await mine.tap();
  const collected=await read();
- assert.equal(collected.gold,p.gold+1200);
- assert.equal(collected.chaosite,p.chaosite+10);
+ assert.equal(collected.gold,p.gold+50);
+ assert.equal(collected.chaosite,p.chaosite);
  assert.equal(await mine.isDisabled(),true);
  await page.getByRole('navigation',{name:'Постройки гавани'}).getByRole('button',{name:'Верфь',exact:true}).tap();
  await page.getByText('Следующий алмаз через').waitFor();
@@ -204,7 +204,7 @@ async function workshops({page,button,read},locked=false){
  assert.equal(after.inventory.length,before.inventory.length+1);
  assert.equal(item.slot,'amulet');
  assert.equal(item.masterwork,true);
- assert.equal(after.gold,before.gold-90*item.level);
+ assert.equal(after.gold,before.gold-Math.round(90*(Math.min(25,item.level)+.75*Math.max(0,item.level-25))));
  assert.equal(after.saga.n['mat:peaks'],before.saga.n['mat:peaks']-18);
  assert.equal(after.saga.n['masterwork:jeweler'],1);
  await button('← Назад').tap();

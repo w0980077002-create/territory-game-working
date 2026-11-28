@@ -1,3 +1,4 @@
+import { repeatReward } from '../core/economyBalance';
 /**
  * Quests: a rotating daily pool, weekly goals, a story chain per region and long mastery tracks.
  * Progress is always derived from real counters in the save (never from timers), rewards are claimed once,
@@ -20,7 +21,10 @@ export function counter(p:Player,key:string):number{
 }
 const total=(p:Player,keys:string[])=>keys.reduce((a,k)=>a+counter(p,k),0);
 const mat=(p:Player,n:number)=>({[regionMaterial(p)]:n});
-export const dailyPool:QuestDef[]=[
+function repeatQuests(pool: QuestDef[]): QuestDef[] {
+ return pool.map(quest => ({...quest,reward:p=>repeatReward(quest.reward(p))}));
+}
+export const dailyPool=repeatQuests([
  {id:'d_wins',text:'Победить в 8 боях',keys:['stat:kills'],goal:8,reward:p=>({gold:stageCoins(p,1.5),horn:2})},
  {id:'d_boss',text:'Победить 2 боссов',keys:['stat:bosses','win:dungeon'],goal:2,reward:p=>({gems:12,mats:mat(p,3)})},
  {id:'d_interrupt',text:'Сорвать 5 вражеских атак',keys:['interrupt'],goal:5,reward:p=>({gold:stageCoins(p,1),gems:5})},
@@ -34,15 +38,15 @@ export const dailyPool:QuestDef[]=[
  {id:'d_lair',text:'Победить хозяина Логова',keys:['win:dungeon'],goal:1,reward:p=>({gems:8,chaosite:10})},
  {id:'d_hammer',text:'Применить Молот Тора 6 раз',keys:['skill:2'],goal:6,reward:p=>({gold:stageCoins(p,1)})},
  {id:'d_arena',text:'Выиграть поединок на Арене',keys:['win:arena'],goal:1,reward:()=>({tokens:15,gems:5})}
-];
-export const weeklyPool:QuestDef[]=[
+]);
+export const weeklyPool=repeatQuests([
  {id:'w_boss',text:'Победить 12 боссов',keys:['stat:bosses','win:dungeon'],goal:12,reward:p=>({gems:60,horn:6,mats:mat(p,10)})},
  {id:'w_stage',text:'Пройти 3 этапа саги',keys:['stat:stage'],goal:3,reward:p=>({gems:50,gold:stageCoins(p,6)})},
  {id:'w_interrupt',text:'Сорвать 40 вражеских атак',keys:['interrupt'],goal:40,reward:p=>({gems:40,mats:mat(p,8)})},
  {id:'w_dark',text:'Пройти 3 этажа Царства Тьмы',keys:['stat:dark'],goal:3,reward:()=>({gems:45,mats:{dusk:4}})},
  {id:'w_road',text:'Пережить 8 событий дороги',keys:['world:events'],goal:8,reward:p=>({gems:35,horn:5,gold:stageCoins(p,3)})},
  {id:'w_arena',text:'Выиграть 5 поединков на Арене',keys:['win:arena'],goal:5,reward:()=>({gems:35,tokens:60})}
-];
+]);
 export const DAILY_COUNT=6,WEEKLY_COUNT=4;
 export const dayOf=(now=Date.now())=>new Date(now).toISOString().slice(0,10);
 /** ISO-like week id (Monday based, UTC). */

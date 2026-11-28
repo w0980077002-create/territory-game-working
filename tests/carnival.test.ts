@@ -1,3 +1,4 @@
+import { repeatSupply } from '../src/core/economyBalance';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import balance from '../config/test-balance.v1.json';
@@ -163,7 +164,7 @@ test('mail bulk claim preserves Horn overflow and slot choice and delivers gear 
   state().mailAction({kind:'claimAll'});
   state().mailAction({kind:'claimAll'});
   reload();
-  assert.equal(state().p.gems, before + 12);
+  assert.equal(state().p.gems, before + repeatSupply(12));
   assert.equal(carnivalMail()[0].reward.horn, 6);
   assert.ok(carnivalMail()[0].gear);
   state().mailAction({kind:'deleteRead'});
@@ -171,7 +172,7 @@ test('mail bulk claim preserves Horn overflow and slot choice and delivers gear 
 
   state().mailAction({kind:'claim',id:december,slot:'ring1'});
   reload();
-  assert.equal(state().p.gems, before + 42);
+  assert.equal(state().p.gems, before + repeatSupply(12) + repeatSupply(30));
   assert.equal(state().p.pendingLoot?.length, 1);
   assert.equal(state().p.pendingLoot?.[0].slot, 'ring1');
   assert.equal(carnivalMail()[0].pending, true);
@@ -258,7 +259,7 @@ test('free route reaches 600 and atomically delivers the selected set piece to a
   assert.equal(prize.set,gear?.set);
   assert.equal(prize.level,gear?.level);
   assert.equal(prize.rarity,gear?.rarity);
-  assert.equal(state().p.gems,gems+30);
+  assert.equal(state().p.gems,gems+repeatSupply(30));
 });
 
 test('failed action and partially delivered Horn prize survive reload, next month and the new year', t => {

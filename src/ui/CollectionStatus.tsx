@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {previewMine} from '../core/mine';
+import {mineBufferHours,previewMine} from '../core/mine';
 import {useGame} from '../core/store';
 
 export function useCollectionClock(active=true){
@@ -38,7 +38,7 @@ export function MineCollection({compact=false}:{compact?:boolean}){
  const mine=previewMine(lastAt,useCollectionClock());
  return <div className="mine-collection">
   <div>
-   {!compact&&<p className="mine-summary">Северная шахта · 2 золота/сек · 1 Хаосит/мин · до 12 ч</p>}
+   {!compact&&<p className="mine-summary">Северная шахта · накопление до {mineBufferHours} ч</p>}
    <CollectionStatus title="Следующий сбор" {...mine} readyText={`К сбору · ${mine.gold} золота · ${mine.chaosite} Хаосита`}/>
   </div>
   <button className="action" aria-label={compact?undefined:'Собрать добычу шахтёров'} disabled={mine.waitMs>0} onClick={()=>claim('mine')}>

@@ -1,3 +1,4 @@
+import economyStageOne from '../../config/economy-stage-1.json';
 import {addConsumable,consumableIds,consumablePrice,consumables} from '../arena/potion';
 import {utcWeek} from './soloEconomy';
 import balance from '../../config/test-balance.v1.json';
@@ -74,11 +75,11 @@ const packs: ShopOffer[] = balance.test_store.test_packs.map(pack => ({
 }));
 
 const stock = economy.shop;
-type StockId = keyof typeof stock;
+type StockId = keyof typeof stock | 'mine-reserve' | 'long-march';
 
 function dailyOffer(id: StockId, category: Category, name: string, icon: string, description: string,
   currency: ShopCurrency, reward: Reward): ShopOffer {
-  return {id, category, name, icon, description, currency, reward, price:stock[id].price, limit:'daily'};
+  return {id, category, name, icon, description, currency, reward, price:id==='mine-reserve'?economyStageOne.shop.mineReserve.gold:id==='long-march'?economyStageOne.shop.longMarch.gold:stock[id].price, limit:'daily'};
 }
 
 export const shopEquipmentSlots=slots.filter(slot=>slot!=='wings');
@@ -97,9 +98,9 @@ export function shopOffers(p: Player, now = Date.now(), equipmentSlot:Slot='weap
     dailyOffer('travel-stipend','daily','Кошель разведчика','coins','Золото на первые усиления и обучение навыкам.','tokens',{gold:stock['travel-stipend'].amount}),
     dailyOffer('guard-stones','daily','Камни караула','rune','Хаосит для одного похода в Логово или Царство тьмы.','tokens',{chaosite:stock['guard-stones'].amount}),
     dailyOffer('blacksmith-coins','resources','Казна кузнеца','coins','Золото на экипировку, навыки и развитие спутников.','gems',{gold:stock['blacksmith-coins'].amount}),
-    dailyOffer('mine-reserve','resources','Запас шахтёров','rune','Хаосит для входа в Логово или Царство тьмы.','gold',{chaosite:stock['mine-reserve'].amount}),
+    dailyOffer('mine-reserve','resources','Запас шахтёров','rune','Хаосит для входа в Логово или Царство тьмы.','gold',{chaosite:economyStageOne.shop.mineReserve.chaosite}),
     dailyOffer('arena-pay','resources','Жалованье дружины','coins','Обменяйте жетоны Арены на золото для развития героя.','tokens',stock['arena-pay'].reward),
-    dailyOffer('long-march','resources','Запас для дальнего похода','rune','Хаосит на три входа в Логово или Царство тьмы.','gold',stock['long-march'].reward),
+    dailyOffer('long-march','resources','Запас для дальнего похода','rune','Хаосит для походов в Логово или Царство тьмы.','gold',{chaosite:economyStageOne.shop.longMarch.chaosite}),
     dailyOffer('region-supplies','materials',materials[material].name,`mat-${material}`,'Материал текущего региона для создания и перековки экипировки.','gems',{mats:{[material]:stock['region-supplies'].amount}}),
     dailyOffer('forge-parcel','materials','Посылка кузнеца','hammer','Золото и материал текущего региона для изготовления и улучшения вещей.','gems',
       {gold:stock['forge-parcel'].gold,mats:{[material]:stock['forge-parcel'].materials}}),

@@ -1,3 +1,4 @@
+import { repeatReward } from '../core/economyBalance';
 import type {Player} from '../core/types';
 import {carnivalNow} from '../core/profile';
 import {companions,companionIds} from '../dark/rules';
@@ -29,7 +30,7 @@ export const eventPrizes:Record<SoloEventId,readonly Prize[]>={
 };
 type Cell={name:string;reward:Reward};
 const gold:Cell={name:'Трюм с золотом',reward:{gold:180}};
-const pearl:Cell={name:'Самоцветы',reward:{gems:3}};
+const pearl:Cell={name:'Самоцветы',get reward(){return repeatReward({gems:3})}};
 const scroll:Cell={name:'Тайный свиток',reward:{solo:{scroll:2}}};
 const fragment:Cell={name:'Осколок пробуждения',reward:{solo:{awakeShard:1}}};
 const wing:Cell={name:'Перо ветра',reward:{solo:{wing:1}}};

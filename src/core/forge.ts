@@ -1,3 +1,5 @@
+import economy from '../../config/economy-stage-1.json';
+import {lateGoldPrice} from './economyBalance';
 import type {Item,Player} from './types';
 import {forgeBonus,nextForgeBonus} from './progression';
 import balance from '../../config/test-balance.v1.json';
@@ -23,10 +25,10 @@ export function applyForgeMastery(item:Item,p:Player):Item {
 // Legacy gear is left intact; its current stats become the baseline.
 export function upgradePreview(item:Item){
  const wings=item.slot==='wings';
- const cost=Math.round(
-  (wings?balance.wings_test_settings.rank_upgrade_base_gold_cost:balance.forge_test_settings.upgrade_gold_cost_base)*
-  (wings?balance.wings_test_settings.rank_upgrade_multiplier:balance.forge_test_settings.cost_multiplier_per_level)**item.upgrade
- );
+ const basePrice=wings?balance.wings_test_settings.rank_upgrade_base_gold_cost:balance.forge_test_settings.upgrade_gold_cost_base;
+ const growth=wings?balance.wings_test_settings.rank_upgrade_multiplier:balance.forge_test_settings.cost_multiplier_per_level;
+ const price=basePrice*growth**item.upgrade;
+ const cost=lateGoldPrice(price,basePrice*growth**economy.lateUpgrade.fromRank,economy.lateUpgrade.marginalPercent);
  const next=structuredClone(item);
  next.upgrade++;
  if(!wings){

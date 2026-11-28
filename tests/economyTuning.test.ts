@@ -14,8 +14,8 @@ test('owner-approved economy values (25.11.2026): finale bosses 2.2× HP, gold g
 });
 test('regions 1–3 pay exactly as before; later stages grow linearly from stage 30',()=>{
  for(const s of [1,10,20,30])assert.equal(stageGold(s,false),Math.round(25*1.14**(s-1)));
- assert.equal(stageGold(40,false),Math.round(25*1.14**29*(1+10*.05)));
- assert.equal(stageGold(60,true),Math.round(150*1.14**29*(1+30*.05)),'linear tail after the cap');
+ assert.equal(stageGold(40,false),Math.round(25*1.14**29*(1+10*.0325)));
+ assert.equal(stageGold(60,true),Math.round(150*1.14**29*(1+30*.0325)),'linear tail after the cap');
 });
 test('only the region finale boss is tougher; its timer and other bosses are unchanged',()=>{
  const p=freshPlayer();

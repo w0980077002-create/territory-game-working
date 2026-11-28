@@ -1,3 +1,4 @@
+import { repeatReward, repeatSupply } from '../core/economyBalance';
 import balance from '../../config/test-balance.v1.json';
 import economy from '../../config/solo-economy.v1.json';
 import type {Player} from '../core/types';
@@ -13,10 +14,10 @@ const maxHorn = balance.horn_test_settings.maximum_charges;
 
 export function dailyGift(now = Date.now()) {
   const index = Math.floor(now / DAY_MS) % economy.dailyExtras.length;
-  const extra: Reward = economy.dailyExtras[index];
+  const extra = repeatReward<Reward>(economy.dailyExtras[index]);
   return {
     day: dayOf(now),
-    base: {gold:balance.test_rewards.daily_login_gold, gems:balance.test_rewards.daily_login_gems, horn:5},
+    base: {gold:balance.test_rewards.daily_login_gold, gems:repeatSupply(balance.test_rewards.daily_login_gems), horn:5},
     extra,
   };
 }
