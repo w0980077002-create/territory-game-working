@@ -3,11 +3,12 @@ import {useEffect,useRef,useState} from 'react';
 import {community,CommunityError,connectCommunity,type Chat,type GuildChange,type GuildState,type Market,type Metric,type Ranking,type Trade} from '../community/client';
 import {tg} from '../core/telegram';
 import {lang} from '../i18n';
+import {MarketWorkbench, marketNames} from './MarketWorkbench';
 
 const l=(ru:string,en:string)=>lang==='en'?en:ru;
-const tradeNames={buy:l('Покупка','Purchase'),list:l('Размещение','Listing'),cancel:l('Снятие лота','Cancellation')};
+const tradeNames={buy:l('Покупка','Purchase'),list:l('Размещение','Listing'),cancel:l('Снятие лота','Cancellation'),request:l('Заявка','Buy order'),withdraw:l('Отмена заявки','Order cancellation'),fulfill:l('Сделка по заявке','Order filled')};
 const format=(n:number)=>n.toLocaleString(lang);
-const label=(catalog:string)=>({
+const label=(catalog:string)=>marketNames[catalog]??({
  'world-boss-trophy':l('Клинок победителя','Boss trophy blade'),
  weapon:l('Оружие','Weapon'),shield:l('Щит','Shield'),ring:l('Кольцо','Ring'),
 }[catalog]??catalog);
@@ -107,7 +108,7 @@ export function CommunityPanel({section}:{section:Section}){
  const guildView=tab==='guild'?view as GuildState|null:null;
  const guild=guildView?.guild;
  const roster=(action:GuildChange)=>void send('guild_roster',action,()=>setGuildName(''));
- const validPrice=Number.isInteger(Number(price))&&Number(price)>=1&&Number(price)<=1_000_000_000;
+ const validPrice=Number.isInteger(Number(price))&&Number(price)>=10&&Number(price)<=1_000_000_000;
  return <section className="vvr-community">
   {section==='auction'&&<div className="tabs wrap" role="group" aria-label={l('Разделы аукциона','Auction sections')}>
    <button type="button" aria-pressed={!tradingChat} className={!tradingChat?'selected':''} disabled={busy}
@@ -122,9 +123,9 @@ export function CommunityPanel({section}:{section:Section}){
    <p>{l('Золото для торговли','Trading gold')} · {format(market.gold)}</p>
    {market.equipment&&<>
     <p>{l('Сила атаки героя','Hero attack power')} · {format(market.equipment.attack)}</p>
-    {market.items.some(piece=>piece.catalogId==='world-boss-trophy')&&<details className="saga-disclosure">
+    {market.items.some(piece=>piece.catalogId==='world-boss-trophy'||piece.catalogId.startsWith('workshop-'))&&<details className="saga-disclosure">
      <summary>{l('Серверная экипировка','Online equipment')}</summary>
-     <ul>{market.items.filter(piece=>piece.catalogId==='world-boss-trophy').map(piece=>{
+     <ul>{market.items.filter(piece=>piece.catalogId==='world-boss-trophy'||piece.catalogId.startsWith('workshop-')).map(piece=>{
       const equipped=piece.id===market.equipment?.equipped;
       const enhancement=market.equipment?.enhancements?.[piece.id];
       return <li key={piece.id}><span>{label(piece.catalogId)}{enhancement&&' +'+enhancement.rank}</span>
@@ -144,13 +145,16 @@ export function CommunityPanel({section}:{section:Section}){
    {market.items.some(piece=>piece.id!==market.equipment?.equipped)&&<form onSubmit={event=>{event.preventDefault();if(validPrice&&item)void send('trade',{kind:'list',itemId:item,price:Number(price)},()=>{setItem('');setPrice('');});}}>
     <label>{l('Выставить предмет','Item to list')} <select value={item} onChange={event=>setItem(event.target.value)}>
      <option value="">{l('Выбрать','Choose')}</option>{market.items.filter(piece=>piece.id!==market.equipment?.equipped).map(i=><option key={i.id} value={i.id}>{label(i.catalogId)}</option>)}</select></label>
-    <label>{l('Цена в золоте','Price in gold')} <input type="number" min="1" max="1000000000" value={price} onChange={event=>setPrice(event.target.value)}/></label>
+    <label>{l('Цена в золоте','Price in gold')} <input type="number" min="10" max="1000000000" value={price} onChange={event=>setPrice(event.target.value)}/></label>
     <button className="action" disabled={busy||!validPrice||!item}>{l('Выставить','List item')}</button>
    </form>}
+   {market.requests&&<MarketWorkbench market={market} busy={busy}
+    trade={command=>void send('trade',command,()=>{})} refresh={()=>refresh(n=>n+1)} />}
+   {validPrice&&item&&market.requests&&<p>{l('Продавец получит','Seller receives')} · {format(Number(price)-Math.ceil(Number(price)/10))} {l('золота','gold')}</p>}
    <h3>{l('Лоты','Listings')}</h3>
    {market.listings.length===0&&<p>{l('Открытых лотов пока нет.','There are no open listings yet.')}</p>}
    <ul>{market.listings.map(listing=><li key={listing.id}>
-    <span>{label(listing.catalogId)}{(listing.rank??0)>0&&' +'+listing.rank} · {format(listing.price)}</span>
+    <span>{label(listing.catalogId)}{(listing.rank??0)>0&&' +'+listing.rank} · {format(listing.price)}{listing.expired&&' · '+l('Истёк','Expired')}</span>
     {listing.mine?<button type="button" className="action secondary" disabled={busy}
      onClick={()=>void send('trade',{kind:'cancel',listingId:listing.id},()=>{})}>{l('Снять лот','Cancel listing')}</button>:
      <button type="button" className="action secondary" disabled={busy||listing.price>market.gold}
@@ -161,7 +165,7 @@ export function CommunityPanel({section}:{section:Section}){
     <button type="button" className="action secondary" disabled={busy} onClick={()=>setOffer(null)}>{l('Отмена','Cancel')}</button>
    </div>}
    {market.history.length>0&&<details className="saga-disclosure"><summary>{l('История сделок','Trade history')}</summary>
-    <ul>{market.history.map(entry=><li key={entry.operationId+entry.at}>{entry.kind==='enhance'?l('Усиление','Enhancement'):tradeNames[entry.kind]} · {format(entry.price)} · {new Date(entry.at).toLocaleString(lang)}</li>)}</ul>
+    <ul>{market.history.map(entry=><li key={entry.operationId+entry.at}>{entry.kind==='enhance'?l('Усиление','Enhancement'):tradeNames[entry.kind]} · {format(entry.price)}{entry.commission!=null&&' · '+l('Комиссия','Fee')+' '+format(entry.commission)} · {new Date(entry.at).toLocaleString(lang)}</li>)}</ul>
    </details>}
   </>}
   {chat&&<>

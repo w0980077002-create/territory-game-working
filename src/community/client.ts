@@ -3,11 +3,14 @@ import {tg} from '../core/telegram';
 const endpoint=import.meta.env.VITE_VVR_COMMUNITY_URL as string|undefined;
 export const communityEnabled=!!endpoint;
 export type Metric='world_boss_damage'|'arena_wins';
-export type Trade={kind:'list';itemId:string;price:number}|{kind:'buy'|'cancel';listingId:string};
+export type Trade={kind:'list';itemId:string;price:number}|{kind:'buy'|'cancel';listingId:string}
+ |{kind:'request';catalogId:string;price:number}|{kind:'withdraw';requestId:string}|{kind:'fulfill';requestId:string;itemId:string};
 export type Market={
  equipment?:{attack:number;equipped:string|null;enhancements?:Record<string,{rank:number;cost:number|null}>};
- gold:number;items:{id:string;catalogId:string;rank?:number}[];listings:{id:string;catalogId:string;rank?:number;price:number;mine:boolean}[];
- history:{operationId:string;kind:Trade['kind']|'enhance';listingId?:string;price:number;at:string}[];
+ gold:number;items:{id:string;catalogId:string;rank?:number}[];listings:{id:string;catalogId:string;rank?:number;price:number;mine:boolean;expired?:boolean}[];
+ requests?:{id:string;catalogId:string;price:number;mine:boolean;expired:boolean}[];
+ priceHistory?:{catalogId:string;price:number;at:string}[];
+ history:{operationId:string;kind:Trade['kind']|'enhance';listingId?:string;price:number;at:string;commission?:number|null;sellerNet?:number|null}[];
 };
 export type GuildChange={kind:'create';name:string}|{kind:'apply'|'withdraw';guild:string}|
  {kind:'accept'|'reject';guild:string;applicant:string}|{kind:'leave'};
