@@ -1,0 +1,6 @@
+step,cash_1e4_usdt,free,reserved,player_available,player_locked,gas_abstract_units,confirmed_count
+prefunded,300000,300000,0,0,0,2,0
+fractional_awards,300000,100000,29700,170300,0,2,0
+reserved_withdrawals,300000,100000,29700,70300,100000,2,0
+one_confirmed_one_in_flight,250000,100000,29700,70300,50000,0,1
+reconciled,200000,100000,29700,70300,0,0,2
