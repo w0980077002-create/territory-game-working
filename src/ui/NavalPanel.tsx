@@ -4,6 +4,7 @@ import {HULLS, NAVAL, NAVAL_SHOP, RIGS, ROUTES, type Hull, type NavalOffer, type
 import type {Ship, ShipyardState} from '../core/shipyard';
 import {useGame} from '../core/store';
 import {Action} from './SagaUI';
+import {PaidNavalPanel} from './PaidNavalPanel';
 
 export function NavalPanel({fleet, ship, now}: {fleet: ShipyardState; ship: Ship; now: number}) {
   const stage = useGame(state => state.p.stage);
@@ -11,13 +12,15 @@ export function NavalPanel({fleet, ship, now}: {fleet: ShipyardState; ship: Ship
   const [hull, setHull] = useState<Hull>('merchant');
   const [rig, setRig] = useState<Rig>('sails');
   const [route, setRoute] = useState<(typeof ROUTES)[number]['hours']>(4);
+  const [paidReserved, setPaidReserved] = useState(false);
   const [confirmShip, setConfirmShip] = useState<string>();
   const naval = fleet.naval ?? emptyNaval;
   const day = Math.floor(now / 86_400_000);
   const canContract = naval.qualifiedDay === day && (naval.lastContractDay ?? -1) < day;
   const upgrade = NAVAL.upgrades[ship.level - 1];
   const refund = navalSalvage(ship);
-  const ready = navalBuildReady(stage, fleet.ships.length, naval.contracts);
+  const berthCount = fleet.ships.length + Number(paidReserved);
+  const ready = navalBuildReady(stage, fleet.ships.length, naval.contracts) && berthCount < NAVAL.maxShips;
   const equipped = ship.rig ? RIGS[ship.rig] : undefined;
   const reward = voyageReward(ship, route);
 
@@ -81,7 +84,7 @@ export function NavalPanel({fleet, ship, now}: {fleet: ShipyardState; ship: Ship
         }}>{offer.name} · {offer.seals} морских печатей</Action>;
       })}
     </details>
-    <h3>Причалы · {fleet.ships.length}/{NAVAL.maxShips}</h3>
+    <h3>Причалы · {Math.min(NAVAL.maxShips, berthCount)}/{NAVAL.maxShips}</h3>
     {fleet.ships.length < NAVAL.maxShips && <>
       <label>Корпус <select value={hull} onChange={event => setHull(event.target.value as Hull)}>
         {(Object.keys(HULLS) as Hull[]).map(key => <option key={key} value={key}>{HULLS[key].name}</option>)}
@@ -91,7 +94,7 @@ export function NavalPanel({fleet, ship, now}: {fleet: ShipyardState; ship: Ship
         onClick={() => perform({type: 'build', hull}, 'Корабль построен')}>
         Построить корабль · {NAVAL.build.gold} золота, {NAVAL.build.materials} материалов
       </Action>
-      <p>Покупка за {NAVAL.stars} Stars готовится к отдельному запуску.</p>
     </>}
+    <PaidNavalPanel hull={hull} now={now} localFleetSize={fleet.ships.length} onReserved={setPaidReserved}/>
   </section>;
 }
