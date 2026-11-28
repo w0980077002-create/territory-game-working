@@ -99,6 +99,7 @@ pg < tests/pg/w066-campaign-proof.sql
 pg < tests/pg/w066-brotherhood-ledger.sql
 pg < tests/pg/w066-brotherhood-solo.sql
 pg < tests/pg/w066-referrals.sql
+pg < tests/pg/w066-backed-red.sql
 pg <<'SQL'
 select vvr.resolve_player('79811','Proof race inviter') as inviter \gset
 select public.vvr_resolve_referred_player('79812','Proof race invitee',:'inviter') as invitee \gset
