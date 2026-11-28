@@ -146,7 +146,7 @@ returns jsonb language sql immutable set search_path=pg_catalog as $$
  with route(hours,gold,materials,seals) as (values (1,110,1,0),(4,380,2,1),(8,680,3,2),(12,960,4,3),(24,1680,6,5)),
  hull(kind,gold,materials,seals) as (values ('scout',100,120,100),('merchant',120,100,100),('warship',100,115,110),('dragon',105,110,110),('odin',105,105,120)),
  reward as (select
-   r.gold*h.gold*(100+12*(p_level-1))*(100+case when p_rig='sails' then 10 else 0 end+
+   r.gold::bigint*h.gold*(100+12*(p_level-1))*(100+case when p_rig='sails' then 10 else 0 end+
      case when p_hull='dragon' and p_hours>=12 then 10 else 0 end)/1000000 gold,
    r.materials*h.materials*(100+12*(p_level-1))*(case when p_rig='nets' then 125 else 100 end)/1000000 materials,
    r.seals*h.seals*(100+12*(p_level-1))*(case when p_rig='pennant' then 125 else 100 end)/1000000 seals

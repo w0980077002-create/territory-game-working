@@ -9,6 +9,12 @@ begin
  insert into vvr.admin_access(player_id,role) values(owner_id,'owner');
  insert into vvr.admin_credentials(player_id,login,password_hash,unlocked_until)
   values(owner_id,'shipowner',extensions.crypt('ship-pass',extensions.gen_salt('bf',4)),clock_timestamp()+interval '1 hour');
+ assert vvr.shipyard_voyage('merchant',5,24,'sails')->>'gold'='3282';
+ assert vvr.shipyard_voyage('merchant',5,24,'sails')->>'repair'='820';
+ assert (select count(*) from unnest(array['scout','merchant','warship','dragon','odin']) k(hull)
+  cross join generate_series(1,5) l(level_no) cross join unnest(array[1,4,8,12,24]) h(hours)
+  cross join unnest(array['sails','nets','pennant',null]) r(rig)
+  where (vvr.shipyard_voyage(k.hull,l.level_no,h.hours,r.rig)->>'gold')::int>0)=500;
  assert not has_function_privilege('anon','public.vvr_shipyard_paid(uuid,text,uuid,int,int,text)','execute');
  assert not has_table_privilege('service_role','vvr.paid_hulls','SELECT');
  assert public.vvr_shipyard_order(buyer,'scout')->>'status'='unavailable';
