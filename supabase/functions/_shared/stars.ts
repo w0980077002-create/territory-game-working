@@ -113,7 +113,7 @@ export async function handleStarsAction(action:string,body:Record<string,unknown
    if(!set.ok)return reply(200,{status:'failed',error:set.description});
   }
   const [me,after,balance]=await Promise.all([botApi(botToken,'getMe'),botApi(botToken,'getWebhookInfo'),
-   botApi(botToken,'getMyStarBalance').catch(()=>({ok:false}))]);
+   botApi(botToken,'getMyStarBalance').catch(()=>({ok:false,result:undefined}))]);
   const hook=isRecord(after.result)?after.result:{};
   return reply(200,{status:'ok',bot:isRecord(me.result)?me.result.username:null,
    webhook:{ours:hook.url===url,url:hook.url?String(hook.url).replace(/bot[^/]*$/,''):'',pending:hook.pending_update_count??0,

@@ -4,6 +4,7 @@ import {SAVE_KEY,useGame} from '../core/store';
 import {tg} from '../core/telegram';
 import {track} from '../core/analyticsBus';
 import {Icon} from './Icon';
+import {AssortmentPanel} from './AssortmentPanel';
 
 type Offer={sku:string;kind:'gems'|'support'|'test';title:string;stars:number;gems:number;bonus?:boolean};
 type Catalog={open:boolean;admin:boolean;balance:number;offers:Offer[]};
@@ -90,6 +91,7 @@ export function StarsStore(){
   {!catalog.open&&<p className="hint">{catalog.admin?'Продажи закрыты для игроков · вам доступна проверка оплаты.':'Покупки за Stars скоро откроются.'}</p>}
   {available&&<div className="shop-grid">{catalog.offers.map(card)}</div>}
   <p className="hint">Оплата Telegram Stars · возврат неиспользованного 14 дней через /paysupport · поддержка не даёт преимуществ.</p>
+  <AssortmentPanel/>
   {message&&<p role="status">{message}</p>}
  </section>;
 }

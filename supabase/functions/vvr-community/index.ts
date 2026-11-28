@@ -1,6 +1,7 @@
+import {assortmentAction, assortmentWebhook, validAdReceipt} from '../_shared/assortment.ts';
 import {issueVvrSession,readVvrSession,verifyTelegramIdentity} from '../_shared/vvr-identity.ts';
 import {makeSecretReader} from '../_shared/w066-secrets.ts';
-import {handleStarsAction,handleWebhook} from '../_shared/stars.ts';
+import {handleStarsAction} from '../_shared/stars.ts';
 
 const project=Deno.env.get('SUPABASE_URL');
 const roleKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -9,6 +10,7 @@ const readSecrets=makeSecretReader(project??'',roleKey??'',{
 });
 const origin=Deno.env.get('VVR_WEB_ORIGIN')??'https://w0980077002-create.github.io';
 const actions=new Set(['login','auction','trade','chat','post','hide','ranking','guild','guild_roster','guild_boss_claim','referrals','brotherhood_claim','brotherhood_admin','admin_unlock','admin_lock','admin_password','admin_find_player','admin_status','admin_apply','admin_analytics','track','stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury','premium_wallet','equip','unequip','enhance']);
+for(const action of ['assortment','assortment_invoice','rewarded_ad']) actions.add(action);
 const sanctions=['chat_mute','trade_ban','network_ban'];
 const flagNames=['arena_ranked','arena_team','auction_trade','chat','world_boss','premium_shop','stars_shop'];
 const starsActions=new Set(['stars_offers','stars_invoice','premium_transfer','admin_finance','admin_bot','admin_stars_refund','ton_wallet','admin_treasury']);
@@ -55,6 +57,8 @@ function valid(action:string,body:Record<string,unknown>){
   case 'admin_unlock':return keys===2&&text(body.login,32)&&text(body.password,72);
   case 'admin_lock':return keys===0;
   case 'admin_analytics':return keys===0||keys===1&&Number.isSafeInteger(body.days)&&Number(body.days)>=1&&Number(body.days)<=90;
+  case 'assortment':case 'rewarded_ad':return keys===0;
+  case 'assortment_invoice':return keys===1&&typeof body.sku==='string'&&/^edition-[a-z]{3,8}$/.test(body.sku);
   case 'stars_offers':return keys===0;
   case 'stars_invoice':return keys===1&&typeof body.sku==='string'&&/^[a-z0-9-]{1,32}$/.test(body.sku);
   case 'premium_transfer':return keys===2&&isUuid(body.operationId)&&Number.isSafeInteger(body.amount)&&Number(body.amount)>=1&&Number(body.amount)<=1_000_000;
@@ -242,8 +246,21 @@ Deno.serve(async request=>{
  if(new URL(request.url).pathname.endsWith('/backup')){
   try{return await backup(request,sessionKey,reply);}catch{return reply(503,{error:'unavailable'});}
  }
+ if(route==='rewarded-ad-callback'){
+  const secret=Deno.env.get('VVR_REWARDED_AD_SECRET');
+  if(!secret)return reply(404,{error:'unavailable'});
+  let body:unknown;
+  try {body=await input(request,512)} catch {return reply(400,{error:'invalid_receipt'})}
+  if(!isRecord(body)||!isUuid(body.attempt)||typeof body.receipt!=='string'||
+     !/^[A-Za-z0-9_.:-]{1,128}$/.test(body.receipt)||Object.keys(body).length!==2||
+     !await validAdReceipt(secret,String(body.attempt),body.receipt,request.headers.get('x-vvr-ad-signature')??'')) {
+   return reply(403,{error:'invalid_receipt'});
+  }
+  const result=await rpc('vvr_rewarded_ad_finish',{p_attempt:body.attempt,p_receipt:body.receipt});
+  return result.ok?reply(result.data===true?200:409,{accepted:result.data===true}):reply(503,{error:'unavailable'});
+ }
  if(route==='stars-webhook'){
-  try{return await handleWebhook(request,sessionKey,botToken,rpc);}catch{return new Response('{}',{status:500});}
+  try{return await assortmentWebhook(request,sessionKey,botToken,rpc);}catch{return new Response('{}',{status:500});}
  }
  let value:unknown;
  try{value=await input(request);}catch{return reply(400,{error:'invalid_request'});}
@@ -280,6 +297,10 @@ Deno.serve(async request=>{
     :value.action==='admin_lock'?await rpc('vvr_admin_lock',{p_actor:player})
     :await rpc('vvr_admin_password',{p_actor:player,p_old:value.body.oldPassword,p_login:value.body.login,p_password:value.body.password});
    return result.ok?reply(200,result.data):reply(rpcError(result.data),{error:'admin_request_rejected'});
+  }
+  if(value.action==='assortment'||value.action==='assortment_invoice'||value.action==='rewarded_ad'){
+   return await assortmentAction(value.action,value.body,player,botToken,rpc,reply,
+    Deno.env.get('VVR_REWARDED_AD_URL'),Deno.env.get('VVR_REWARDED_AD_SECRET'));
   }
   if(starsActions.has(value.action))return await handleStarsAction(value.action,value.body,player,botToken,sessionKey,project,rpc,reply,rpcError);
   if(value.action==='track'){
